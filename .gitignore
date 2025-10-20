@@ -47,3 +47,6 @@ yarn-error.log*
 
 # playwright
 /.playwright-mcp/
+
+# template files
+/public/template/
