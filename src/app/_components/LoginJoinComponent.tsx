@@ -52,11 +52,11 @@ const LoginJoinComponent: React.FC<LoginJoinProps> = ({
 
   return (
     <div
-      className={`relative flex bg-white shadow-xl ${
+      className={`relative flex overflow-hidden bg-white shadow-xl ${
         isModal
-          ? "mx-auto h-[645px] max-h-[90vh] max-w-4xl rounded-lg"
-          : "mx-auto my-12 h-[645px] max-h-[90vh] w-full max-w-4xl rounded-lg"
-      } overflow-hidden ${!isModal && "min-h-screen w-screen sm:min-h-0 sm:w-auto"}`}
+          ? "h-full w-full sm:h-[645px] sm:max-h-[90vh] sm:max-w-4xl sm:rounded-lg"
+          : "min-h-screen w-screen sm:mx-auto sm:my-12 sm:h-[645px] sm:max-h-[90vh] sm:min-h-0 sm:w-full sm:max-w-4xl sm:rounded-lg"
+      }`}
     >
       {isModal && (
         <button
@@ -101,11 +101,21 @@ const LoginJoinComponent: React.FC<LoginJoinProps> = ({
       </div>
 
       {/* Right section with form */}
-      <div className="w-full overflow-y-auto p-8 lg:w-1/2">
+      <div className="w-full overflow-y-auto px-4 py-8 sm:px-8 lg:w-1/2 lg:p-8">
+        {/* Logo for mobile, hidden on large screens */}
+        <div className="mb-6 lg:hidden">
+          <h1 className="text-3xl font-bold text-purple-600">Partygeng.</h1>
+        </div>
+
         {!showEmailForm ? (
-          <div className="flex h-full flex-col justify-between px-4 sm:px-8">
+          <div className="flex h-full flex-col justify-between">
             <div>
-              <h2 className="mb-2 text-3xl font-semibold text-gray-800">
+              {/* Mobile heading (from reference) */}
+              <h2 className="mb-2 text-3xl font-semibold text-gray-800 lg:hidden">
+                Success starts here.
+              </h2>
+              {/* Desktop heading */}
+              <h2 className="mb-2 hidden text-3xl font-semibold text-gray-800 lg:block">
                 {view === "login"
                   ? "Sign in to your account"
                   : "Create a new account"}
@@ -169,7 +179,7 @@ const LoginJoinComponent: React.FC<LoginJoinProps> = ({
             </p>
           </div>
         ) : (
-          <div className="px-4 sm:px-8">
+          <div className="">
             <button
               type="button"
               onClick={handleBack}
