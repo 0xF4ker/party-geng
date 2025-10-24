@@ -38,16 +38,17 @@ const Modal = ({
 
   return (
     <div
-      // Full-screen overlay with a semi-transparent black background
-      // Flexbox is used to center the modal content
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      // Full-screen overlay
+      // On mobile (default): aligns content to the top
+      // On sm+ screens: centers content and adds padding
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 sm:items-center sm:p-4"
       onClick={handleBackdropClick}
     >
       <div
         // This relative container holds the modal content
-        // We stop click propagation here so that clicks inside the modal
-        // don't bubble up to the backdrop and trigger an unwanted close.
-        className="relative"
+        // On mobile (default): w-full and h-full to fill the screen
+        // On sm+ screens: auto-sizes to fit the content
+        className="relative h-full w-full sm:h-auto sm:w-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
