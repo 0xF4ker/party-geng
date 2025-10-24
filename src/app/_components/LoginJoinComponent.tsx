@@ -22,7 +22,7 @@ const LoginJoinComponent: React.FC<LoginJoinProps> = ({
   const [username, setUsername] = useState("");
 
   const handleGoogleSignIn = () => {
-    signIn("google");
+    void signIn("google");
   };
 
   const handleEmailContinue = () => {
@@ -39,7 +39,7 @@ const LoginJoinComponent: React.FC<LoginJoinProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (view === "login") {
-      signIn("credentials", { email: email || username, password });
+      void signIn("credentials", { email: email || username, password });
     } else {
       // Handle join logic (e.g., register user)
       console.log("Join with:", { email, password, username });
