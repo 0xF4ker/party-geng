@@ -279,12 +279,14 @@ const Header = () => {
             </button>
 
             {/* --- Category Accordion --- */}
-            <div className="mt-4 border-t border-gray-200 pt-4">
-              <Accordion type="single" collapsible className="w-full">
+            <div className="">
+              <Accordion type="single" collapsible>
                 <AccordionItem value="categories">
-                  <AccordionTrigger>Browse categories</AccordionTrigger>
+                  <AccordionTrigger className="text-lg">
+                    Browse categories
+                  </AccordionTrigger>
                   <AccordionContent>
-                    <div className="flex flex-col space-y-3">
+                    <div className="ml-8 flex flex-col space-y-3">
                       {categories.map((category) => (
                         <a
                           key={category}
@@ -303,7 +305,7 @@ const Header = () => {
               </Accordion>
             </div>
 
-            <div className="mt-4 space-y-5 border-t border-gray-200 pt-4">
+            <div className="space-y-5">
               <a
                 href="/pro"
                 className="block text-base font-medium text-gray-700 hover:text-pink-500"
