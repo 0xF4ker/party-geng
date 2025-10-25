@@ -1,7 +1,7 @@
 import "@/styles/globals.css";
 
-import { type Metadata } from "next";
-import { Geist } from "next/font/google";
+// import { type Metadata } from "next";
+// import { Geist } from "next/font/google";
 
 import { TRPCReactProvider } from "@/trpc/react";
 import Header from "./_components/home/Header";
@@ -11,7 +11,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
         <TRPCReactProvider>
           <Header />
