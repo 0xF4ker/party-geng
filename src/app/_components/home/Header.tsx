@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { ChevronRight, Menu, Search, X } from "lucide-react";
+import { ChevronRight, Menu, X } from "lucide-react";
 import LoginJoinComponent from "../LoginJoinComponent";
 import CategoryCarousel from "./CategoryCarousel";
 import {
@@ -13,6 +13,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import categories from "@/app/local/categories";
+import SearchInput from "./SearchInput";
 
 const Modal = ({
   children,
@@ -66,22 +67,14 @@ const Modal = ({
 };
 
 const Header = () => {
-  // const [isScrolled, setIsScrolled] = useState(false); // No longer needed
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalView, setModalView] = useState<"login" | "join">("login");
 
-  // useEffect(() => { // No longer needed
-  //   const handleScroll = () => {
-  //     if (window.scrollY > 10) {
-  //       setIsScrolled(true);
-  //     } else {
-  //       setIsScrolled(false);
-  //     }
-  //   };
-  //   window.addEventListener("scroll", handleScroll);
-  //   return () => window.removeEventListener("scroll", handleScroll);
-  // }, []);
+  // --- Search State ---
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<string[]>([]);
 
   // --- Modal Handlers ---
   const openModal = (view: "login" | "join") => {
@@ -92,14 +85,51 @@ const Header = () => {
   const closeModal = () => setIsModalOpen(false);
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
 
+  // --- Search Handlers ---
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    if (query.length > 0) {
+      const filtered = categories.filter((cat) =>
+        cat.toLowerCase().includes(query.toLowerCase()),
+      );
+      setSearchResults(filtered);
+    } else {
+      setSearchResults([]);
+    }
+  };
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery("");
+    setSearchResults([]);
+  }, []);
+
+  const closeSearch = useCallback(() => {
+    setIsSearchFocused(false);
+    clearSearch();
+  }, [clearSearch]);
+
+  // Close search when mobile menu opens
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      closeSearch();
+    }
+  }, [isMobileMenuOpen, closeSearch]);
+
   return (
     <>
       <header
         className={cn(
-          "fixed top-0 right-0 left-0 z-40 w-full bg-white text-gray-800 shadow-md",
+          "fixed top-0 right-0 left-0 z-40 w-full bg-white text-gray-800",
+          // Add shadow only if search is not focused, to prevent weird layering
+          !isSearchFocused && "shadow-md",
         )}
       >
-        <div className="relative container mx-auto flex flex-col px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          className={cn(
+            "relative container mx-auto flex flex-col px-4 py-4 sm:flex-row sm:items-center sm:justify-between",
+            isSearchFocused && "z-50", // Elevate header content
+          )}
+        >
           {/* === Top Row: Logo, Hamburger, Mobile Nav === */}
           <div className="flex w-full items-center justify-between">
             {/* Left Side: Hamburger + Logo */}
@@ -120,26 +150,16 @@ const Header = () => {
 
             {/* Middle: Search Bar (sm to lg) */}
             <div className="mx-4 hidden flex-grow sm:flex lg:mx-16">
-              <div
-                className={cn(
-                  "flex w-full max-w-lg transition-all",
-                  // Always visible
-                )}
-              >
-                <input
-                  type="text"
-                  placeholder="Find services" // Simple placeholder for sm/md
-                  className="w-full rounded-l-md border border-gray-300 px-4 py-2 text-gray-900 focus:outline-none lg:hidden"
-                />
-                <input
-                  type="text"
-                  placeholder="What service are you looking for today?" // Detailed placeholder for lg+
-                  className="hidden w-full rounded-l-md border border-gray-300 px-4 py-2 text-gray-900 focus:outline-none lg:flex"
-                />
-                <button className="rounded-r-md bg-pink-500 px-4 py-2 font-bold text-white hover:bg-pink-600">
-                  <Search className="h-5 w-5" />
-                </button>
-              </div>
+              <SearchInput
+                placeholder="Find services"
+                className="w-full max-w-lg transition-all"
+                isFocused={isSearchFocused}
+                setIsFocused={setIsSearchFocused}
+                query={searchQuery}
+                setQuery={handleSearchChange}
+                results={searchResults}
+                onClear={clearSearch}
+              />
             </div>
 
             {/* Right Side: Nav Links */}
@@ -188,16 +208,15 @@ const Header = () => {
 
           {/* === Bottom Row: Search Bar (Mobile < sm) === */}
           <div className="mt-3 w-full sm:hidden">
-            <div className="flex w-full">
-              <input
-                type="text"
-                placeholder="Find services"
-                className="w-full rounded-l-md border border-gray-300 px-4 py-2 text-gray-900 focus:outline-none"
-              />
-              <button className="rounded-r-md bg-pink-500 px-4 py-2 font-bold text-white hover:bg-pink-600">
-                <Search className="h-5 w-5" />
-              </button>
-            </div>
+            <SearchInput
+              placeholder="Find services"
+              isFocused={isSearchFocused}
+              setIsFocused={setIsSearchFocused}
+              query={searchQuery}
+              setQuery={handleSearchChange}
+              results={searchResults}
+              onClear={clearSearch}
+            />
           </div>
         </div>
 
@@ -210,6 +229,14 @@ const Header = () => {
           <CategoryCarousel />
         </div>
       </header>
+
+      {/* --- Search Overlay --- */}
+      {isSearchFocused && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50"
+          onClick={closeSearch}
+        ></div>
+      )}
 
       {/* --- Mobile Menu Flyout --- */}
       {/* This uses a transition for a smoother slide-in effect */}
@@ -252,21 +279,19 @@ const Header = () => {
             </button>
 
             {/* --- Category Accordion --- */}
-            <div className="">
+            <div className="mt-4 border-t border-gray-200 pt-4">
               <Accordion type="single" collapsible className="w-full">
                 <AccordionItem value="categories">
-                  <AccordionTrigger className="text-lg">
-                    Browse categories
-                  </AccordionTrigger>
+                  <AccordionTrigger>Browse categories</AccordionTrigger>
                   <AccordionContent>
-                    <div className="ml-5 flex flex-col space-y-3">
+                    <div className="flex flex-col space-y-3">
                       {categories.map((category) => (
                         <a
                           key={category}
                           href={`/categories/${category
                             .toLowerCase()
                             .replace(/ /g, "-")}`}
-                          className="flex items-center justify-between text-gray-700 hover:text-pink-500"
+                          className="flex items-center justify-between text-base font-medium text-gray-700 hover:text-pink-500"
                         >
                           {category}
                           <ChevronRight className="h-5 w-5" />
@@ -278,7 +303,7 @@ const Header = () => {
               </Accordion>
             </div>
 
-            <div className="space-y-5">
+            <div className="mt-4 space-y-5 border-t border-gray-200 pt-4">
               <a
                 href="/pro"
                 className="block text-base font-medium text-gray-700 hover:text-pink-500"
