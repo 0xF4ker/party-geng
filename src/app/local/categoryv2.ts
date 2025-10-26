@@ -1,6 +1,16 @@
 export const categoriesData = [
   {
     name: "Bands",
+    description:
+      "From rock to jazz, find the perfect band to create an unforgettable atmosphere for your event.",
+    popular: [
+      "Cover Band",
+      "Variety Band",
+      "Jazz Band",
+      "Rock Band",
+      "Country Band",
+      "80s Band",
+    ],
     services: [
       "60s Band",
       "70s Band",
@@ -57,6 +67,16 @@ export const categoriesData = [
   },
   {
     name: "Solo Musicians",
+    description:
+      "Add a touch of elegance or a lively vibe with our talented solo musicians, from classical guitarists to pop singers.",
+    popular: [
+      "Acoustic Guitar",
+      "Piano",
+      "Singer Guitarist",
+      "Violin",
+      "Saxophone",
+      "Harp",
+    ],
     services: [
       "Accordion",
       "Acoustic Guitar",
@@ -112,6 +132,16 @@ export const categoriesData = [
   },
   {
     name: "Ensembles",
+    description:
+      "Discover the perfect harmony for your event with our diverse ensembles, including string quartets, jazz trios, and a cappella groups.",
+    popular: [
+      "String Quartet",
+      "Jazz Trio",
+      "Acoustic Duo",
+      "Barbershop Quartet",
+      "Dueling Pianos",
+      "Classical Trio",
+    ],
     services: [
       "A Cappella Group",
       "Acoustic Duo",
@@ -147,10 +177,23 @@ export const categoriesData = [
   },
   {
     name: "DJs",
+    description:
+      "Keep the party going with our professional DJs who know how to read the crowd and play the right music at the right time.",
+    popular: ["DJ", "Karaoke DJ", "Latin DJ"],
     services: ["DJ", "Karaoke DJ", "Latin DJ"],
   },
   {
     name: "Variety Acts",
+    description:
+      "Surprise and delight your guests with unique variety acts, from magicians and comedians to fire dancers and caricaturists.",
+    popular: [
+      "Magician",
+      "Face Painting",
+      "Caricaturist",
+      "Belly Dancer",
+      "Fire Dancer",
+      "Hypnotist",
+    ],
     services: [
       "Acrobat",
       "Airbrush T-Shirts",
@@ -213,6 +256,16 @@ export const categoriesData = [
   },
   {
     name: "Speakers",
+    description:
+      "Inspire, motivate, or entertain your audience with our experienced speakers, including keynote speakers, motivational speakers, and emcees.",
+    popular: [
+      "Motivational Speaker",
+      "Keynote Speaker",
+      "Emcee",
+      "Public Speaker",
+      "Wedding Officiant",
+      "Auctioneer",
+    ],
     services: [
       "Auctioneer",
       "Corporate Speaker",
@@ -228,10 +281,23 @@ export const categoriesData = [
   },
   {
     name: "Comedians",
+    description:
+      "Bring laughter to your event with our hilarious comedians, perfect for corporate events, private parties, and clubs.",
+    popular: ["Comedian", "Stand Up Comedian", "Clean Comedian"],
     services: ["Clean Comedian", "Comedian", "Stand Up Comedian"],
   },
   {
     name: "Party Rentals",
+    description:
+      "Everything you need for your next party, from bounce houses and photo booths to tents and carnival games.",
+    popular: [
+      "Photo Booth Rental",
+      "Bounce House",
+      "Party Tent Rentals",
+      "Casino Games",
+      "Dunk Tank Rental",
+      "Carnival Games",
+    ],
     services: [
       "Animals For Parties",
       "Bounce House",
@@ -254,10 +320,23 @@ export const categoriesData = [
   },
   {
     name: "Photographers / Videographers",
+    description:
+      "Capture the memories of your special event with our professional photographers and videographers.",
+    popular: ["Photographer", "Videographer"],
     services: ["Photographer", "Videographer"],
   },
   {
     name: "Event Staffing",
+    description:
+      "Ensure your event runs smoothly with our professional event staff, including bartenders, caterers, and servers.",
+    popular: [
+      "Bartender",
+      "Caterer",
+      "Food Trucks",
+      "Cigar Roller",
+      "Sommelier",
+      "Chocolate Fountains",
+    ],
     services: [
       "Bartender",
       "Caterer",
@@ -270,10 +349,16 @@ export const categoriesData = [
   },
   {
     name: "Personal Style",
+    description:
+      "Look and feel your best for your event with our personal stylists, including hair stylists and makeup artists.",
+    popular: ["Makeup Artist", "Hair Stylist"],
     services: ["Hair Stylist", "Makeup Artist"],
   },
   {
     name: "Event Planning",
+    description:
+      "Let us handle the details. Our event planners will help you create a seamless and memorable event from start to finish.",
+    popular: ["Event Planner", "Florist", "Balloon Decor"],
     services: ["Balloon Decor", "Event Planner", "Florist"],
   },
 ];
@@ -285,7 +370,7 @@ export const allServices = categoriesData.flatMap((cat) => cat.services);
 
 // Combined flat list (categories first), de-duplicated while preserving first-occurrence order
 export const allCategoriesAndServices = Array.from(
-	new Set([...allCategories, ...allServices])
+  new Set([...allCategories, ...allServices]),
 );
 export const popularSearches = [
   "DJs for wedding",

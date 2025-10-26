@@ -5,6 +5,12 @@ import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 
+const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/ \/ /g, "-") // Replace " / " with "-"
+    .replace(/ /g, "-"); // Replace other spaces with "-"
+
 const MegaMenu = ({
   category,
   onMouseEnter,
@@ -38,9 +44,7 @@ const MegaMenu = ({
               Find the best {category.name.toLowerCase()} for your event.
             </p>
             <a
-              href={`/categories/${category.name
-                .toLowerCase()
-                .replace(/ /g, "-")}`}
+              href={`/categories/${slugify(category.name)}`}
               className="mt-4 inline-block font-semibold text-pink-500 hover:underline"
             >
               All {category.name} services &rarr;
@@ -52,9 +56,7 @@ const MegaMenu = ({
                 {column.map((service) => (
                   <li key={service}>
                     <a
-                      href={`/services/${service
-                        .toLowerCase()
-                        .replace(/ /g, "-")}`}
+                      href={`/services/${slugify(service)}`}
                       className="text-gray-700 hover:text-pink-500"
                     >
                       {service}
@@ -150,9 +152,7 @@ const CategoryCarousel = () => {
           {categoriesData.map((category) => (
             <a
               key={category.name}
-              href={`/categories/${category.name
-                .toLowerCase()
-                .replace(/ /g, "-")}`}
+              href={`/categories/${slugify(category.name)}`}
               className="px-2 py-3 text-sm font-medium whitespace-nowrap text-gray-600 transition-all hover:border-b-2 hover:border-pink-500 hover:text-pink-500"
               onMouseEnter={() => handleMouseEnter(category)}
             >
