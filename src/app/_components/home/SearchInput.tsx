@@ -1,13 +1,7 @@
 import React, { useRef } from "react";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const popularSearches = [
-  "DJs for wedding",
-  "event photographer",
-  "stand-up comedian",
-  "motivational speaker",
-];
+import { popularSearches } from "@/app/local/categoryv2";
 
 interface SearchInputProps {
   placeholder: string;

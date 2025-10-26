@@ -3,17 +3,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { ChevronRight, Menu, X } from "lucide-react";
+import { Menu } from "lucide-react";
 import LoginJoinComponent from "../LoginJoinComponent";
 import CategoryCarousel from "./CategoryCarousel";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import categories from "@/app/local/categories";
 import SearchInput from "./SearchInput";
+import {
+  // allCategories,
+  allCategoriesAndServices,
+} from "@/app/local/categoryv2"; // Import new data
+import MobileMenu from "./MobileMenu";
 
 const Modal = ({
   children,
@@ -89,7 +87,7 @@ const Header = () => {
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
     if (query.length > 0) {
-      const filtered = categories.filter((cat) =>
+      const filtered = allCategoriesAndServices.filter((cat) =>
         cat.toLowerCase().includes(query.toLowerCase()),
       );
       setSearchResults(filtered);
@@ -239,90 +237,11 @@ const Header = () => {
       )}
 
       {/* --- Mobile Menu Flyout --- */}
-      {/* This uses a transition for a smoother slide-in effect */}
-      <div
-        className={cn(
-          "fixed inset-0 z-50 transform transition-transform duration-300 ease-in-out lg:hidden",
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full",
-        )}
-      >
-        {/* Backdrop */}
-        <div
-          className={cn(
-            "absolute inset-0 bg-black/50 transition-opacity duration-300 ease-in-out",
-            isMobileMenuOpen ? "opacity-100" : "opacity-0",
-          )}
-          onClick={toggleMobileMenu}
-        ></div>
-
-        {/* Menu Content */}
-        <div className="relative flex h-full w-full max-w-xs flex-col overflow-y-auto bg-white p-4 shadow-xl">
-          <div className="mb-8 flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-pink-500">Partygeng</h2>
-            <button onClick={toggleMobileMenu}>
-              <X className="h-6 w-6 text-gray-500" />
-            </button>
-          </div>
-          <nav className="flex flex-col space-y-5">
-            {/* Mobile menu needs its own Join/Sign in */}
-            <button
-              onClick={() => openModal("join")}
-              className="w-full rounded-md bg-pink-500 px-4 py-2.5 text-lg font-bold text-white hover:bg-pink-600"
-            >
-              Join Partygeng
-            </button>
-            <button
-              onClick={() => openModal("login")}
-              className="text-left text-base font-medium text-gray-700 hover:text-pink-500"
-            >
-              Sign in
-            </button>
-
-            {/* --- Category Accordion --- */}
-            <div className="">
-              <Accordion type="single" collapsible>
-                <AccordionItem value="categories">
-                  <AccordionTrigger className="text-lg">
-                    Browse categories
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="ml-8 flex flex-col space-y-3">
-                      {categories.map((category) => (
-                        <a
-                          key={category}
-                          href={`/categories/${category
-                            .toLowerCase()
-                            .replace(/ /g, "-")}`}
-                          className="flex items-center justify-between text-base font-medium text-gray-700 hover:text-pink-500"
-                        >
-                          {category}
-                          <ChevronRight className="h-5 w-5" />
-                        </a>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
-
-            <div className="space-y-5">
-              <a
-                href="/pro"
-                className="block text-base font-medium text-gray-700 hover:text-pink-500"
-              >
-                Partygeng Pro
-              </a>
-              <a
-                href="/start_selling"
-                className="block text-base font-medium text-gray-700 hover:text-pink-500"
-              >
-                Become a Vendor
-              </a>
-              {/* Add other links like 'Explore' here if needed */}
-            </div>
-          </nav>
-        </div>
-      </div>
+      <MobileMenu
+        isOpen={isMobileMenuOpen}
+        onClose={toggleMobileMenu}
+        openModal={openModal}
+      />
 
       {/* --- Modal --- */}
       {isModalOpen && (

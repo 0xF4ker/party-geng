@@ -1,30 +1,83 @@
 "use client";
 
+import { categoriesData } from "@/app/local/categoryv2";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 
-const categories = [
-  "DJs",
-  "Photographers",
-  "Videographers",
-  "Comedians",
-  "Speakers",
-  "Party Rentals",
-  "Personal Stylists",
-  "Bands",
-  "Solo Musicians",
-  "Event Planners",
-  "Variety Acts",
-  "Graphics & Design",
-  "Digital Marketing",
-  "Video & Animation",
-];
+const MegaMenu = ({
+  category,
+  onMouseEnter,
+  onMouseLeave,
+}: {
+  category: (typeof categoriesData)[0];
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+}) => {
+  // Split services into columns for better layout
+  const columns = category.services.reduce((acc, service, index) => {
+    const colIndex = Math.floor(index / 10); // 10 items per column
+    acc[colIndex] ??= [];
+    acc[colIndex].push(service);
+    return acc;
+  }, [] as string[][]);
+
+  return (
+    <div
+      className="absolute top-full right-0 left-0 z-30 w-full border-t border-gray-200 bg-white shadow-lg"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div className="container mx-auto max-w-7xl px-4 py-8">
+        <div className="flex flex-row gap-8">
+          <div className="w-1/4 flex-shrink-0">
+            <h3 className="text-2xl font-bold text-gray-800">
+              {category.name}
+            </h3>
+            <p className="mt-2 text-gray-600">
+              Find the best {category.name.toLowerCase()} for your event.
+            </p>
+            <a
+              href={`/categories/${category.name
+                .toLowerCase()
+                .replace(/ /g, "-")}`}
+              className="mt-4 inline-block font-semibold text-pink-500 hover:underline"
+            >
+              All {category.name} services &rarr;
+            </a>
+          </div>
+          <div className="flex flex-grow flex-row gap-8">
+            {columns.map((column, colIndex) => (
+              <ul key={colIndex} className="flex flex-col space-y-3">
+                {column.map((service) => (
+                  <li key={service}>
+                    <a
+                      href={`/services/${service
+                        .toLowerCase()
+                        .replace(/ /g, "-")}`}
+                      className="text-gray-700 hover:text-pink-500"
+                    >
+                      {service}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const CategoryCarousel = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [hoveredCategory, setHoveredCategory] = useState<
+    (typeof categoriesData)[0] | null
+  >(null);
+  const megaMenuTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const checkScroll = () => {
     const el = scrollContainerRef.current;
@@ -40,20 +93,15 @@ const CategoryCarousel = () => {
     const el = scrollContainerRef.current;
     if (el) {
       el.addEventListener("scroll", checkScroll);
-
-      // Initial check
-      checkScroll();
-
-      // Check on resize
       const resizeObserver = new ResizeObserver(checkScroll);
       resizeObserver.observe(el);
-
+      checkScroll(); // Initial check
       return () => {
         el.removeEventListener("scroll", checkScroll);
         resizeObserver.unobserve(el);
       };
     }
-  }, []); // Runs once on mount
+  }, []);
 
   const scroll = (direction: "left" | "right") => {
     const el = scrollContainerRef.current;
@@ -64,11 +112,26 @@ const CategoryCarousel = () => {
     }
   };
 
+  const handleMouseEnter = (category: (typeof categoriesData)[0]) => {
+    if (megaMenuTimerRef.current) {
+      clearTimeout(megaMenuTimerRef.current);
+    }
+    setHoveredCategory(category);
+  };
+
+  const handleMouseLeave = () => {
+    // Delay closing to allow mouse to move into the mega menu
+    megaMenuTimerRef.current = setTimeout(() => {
+      setHoveredCategory(null);
+    }, 200);
+  };
+
   return (
     <div
       className={cn(
-        "relative container mx-auto hidden w-full px-4 transition-all sm:block",
+        "relative container mx-auto hidden w-full max-w-7xl px-4 sm:block",
       )}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Show on sm+ screens */}
       {canScrollLeft && (
@@ -84,13 +147,16 @@ const CategoryCarousel = () => {
         className="scrollbar-hide flex items-center overflow-x-auto scroll-smooth py-1" // scrollbar-hide needs a plugin or custom CSS
       >
         <div className="flex items-center space-x-4">
-          {categories.map((category) => (
+          {categoriesData.map((category) => (
             <a
-              key={category}
-              href={`/categories/${category.toLowerCase().replace(/ /g, "-")}`}
+              key={category.name}
+              href={`/categories/${category.name
+                .toLowerCase()
+                .replace(/ /g, "-")}`}
               className="px-2 py-3 text-sm font-medium whitespace-nowrap text-gray-600 transition-all hover:border-b-2 hover:border-pink-500 hover:text-pink-500"
+              onMouseEnter={() => handleMouseEnter(category)}
             >
-              {category}
+              {category.name}
             </a>
           ))}
         </div>
@@ -108,6 +174,15 @@ const CategoryCarousel = () => {
         {`.scrollbar-hide::-webkit-scrollbar { display: none; }
           .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }`}
       </style>
+
+      {/* --- Render Mega Menu --- */}
+      {hoveredCategory && (
+        <MegaMenu
+          category={hoveredCategory}
+          // Handle mouse enter/leave to keep it open when hovering over it
+          onMouseEnter={() => handleMouseEnter(hoveredCategory)}
+        />
+      )}
     </div>
   );
 };
