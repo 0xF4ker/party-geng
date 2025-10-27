@@ -132,8 +132,7 @@ export const categoriesData = [
   },
   {
     name: "Ensembles",
-    description:
-      "Discover the perfect harmony for your event with our diverse ensembles, including string quartets, jazz trios, and a cappella groups.",
+    description: "Discover the perfect harmony for your event.",
     popular: [
       "String Quartet",
       "Jazz Trio",

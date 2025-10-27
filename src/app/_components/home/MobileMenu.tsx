@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from "react";
+import React, { useState, useEffect } from "react";
 import { X, ChevronRight, ArrowLeft } from "lucide-react";
 import { categoriesData } from "./../../local/categoryv2";
 import { cn } from "@/lib/utils";
