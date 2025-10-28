@@ -1,17 +1,36 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import useEmblaCarousel from "embla-carousel-react";
+import Autoplay from "embla-carousel-autoplay";
+import type { EmblaPluginType } from "embla-carousel";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const PopularServices = () => {
-  const [emblaRef, emblaApi] = useEmblaCarousel({
-    loop: true,
-    align: "start",
-    slidesToScroll: 1,
-  });
+  // Set up autoplay plugin
+  const AutoplayPlugin = Autoplay as unknown as (opts?: {
+    delay?: number;
+    stopOnInteraction?: boolean;
+    stopOnMouseEnter?: boolean;
+  }) => EmblaPluginType;
+
+  const autoplay = useRef(
+    AutoplayPlugin({
+      delay: 4000,
+      stopOnInteraction: false, // Continue autoplay after user interaction
+      stopOnMouseEnter: true, // Pause autoplay on hover
+    }),
+  );
+
+  const [emblaRef, emblaApi] = useEmblaCarousel(
+    {
+      loop: true,
+      align: "start",
+    },
+    [autoplay.current], // Add autoplay plugin
+  );
 
   const scrollPrev = () => {
     if (emblaApi) emblaApi.scrollPrev();
@@ -91,48 +110,79 @@ const PopularServices = () => {
 
   return (
     <section className="bg-white py-16">
-      <div className="container mx-auto">
-        <div className="mb-8 flex items-center justify-between px-4">
+      <div className="container mx-auto px-4">
+        <div className="mb-8 flex items-center justify-between">
           <h2 className="text-3xl font-bold">Popular services</h2>
-          <div className="flex gap-2">
+          {/* Hide buttons on mobile, let users swipe */}
+          <div className="hidden gap-2 sm:flex">
             <button
               onClick={scrollPrev}
-              className="rounded-full border border-gray-300 bg-gray-100 p-2 hover:bg-gray-200"
+              className="rounded-full border border-gray-300 bg-white p-2 transition-colors hover:bg-gray-100"
             >
               <ChevronLeft className="h-6 w-6 text-gray-700" />
             </button>
             <button
               onClick={scrollNext}
-              className="rounded-full border border-gray-300 bg-gray-100 p-2 hover:bg-gray-200"
+              className="rounded-full border border-gray-300 bg-white p-2 transition-colors hover:bg-gray-100"
             >
               <ChevronRight className="h-6 w-6 text-gray-700" />
             </button>
           </div>
         </div>
-        <div className="overflow-hidden" ref={emblaRef}>
-          <div className="flex">
-            {services.map((service) => (
-              <div
-                className="w-full flex-shrink-0 px-2 sm:w-1/2 md:w-1/3 lg:w-1/5"
-                key={service.name}
-              >
-                <Link href={service.url} className="group relative block">
-                  <Image
-                    src={service.image}
-                    alt={service.name}
-                    width={250}
-                    height={350}
-                    unoptimized
-                    className="h-full w-full rounded-lg object-cover"
-                  />
-                  <div className="bg-opacity-20 group-hover:bg-opacity-30 absolute inset-0 rounded-lg transition-all"></div>
-                  <div className="absolute top-4 left-4 text-white">
-                    <h3 className="text-xl font-bold">{service.name}</h3>
-                  </div>
-                </Link>
-              </div>
-            ))}
+
+        {/* Carousel Viewport */}
+        <div className="relative">
+          <div className="overflow-hidden" ref={emblaRef}>
+            {/* Carousel Container */}
+            <div className="-ml-4 flex">
+              {" "}
+              {/* Negative margin to offset slide padding */}
+              {services.map((service) => (
+                <div
+                  className="flex-shrink-0 flex-grow-0 basis-full pl-4 sm:basis-1/2 md:basis-1/3 lg:basis-1/5 xl:basis-1/6" // Responsive slide widths with padding
+                  key={service.name}
+                >
+                  {/* FIX: Replaced <Link> with <a> */}
+                  <Link
+                    href={service.url}
+                    className="group relative block h-[350px] overflow-hidden rounded-lg shadow-sm"
+                  >
+                    {/* FIX: Replaced <Image> with <img> */}
+                    <Image
+                      src={service.image}
+                      alt={service.name}
+                      className="absolute inset-0 h-full w-full rounded-lg object-cover transition-transform duration-300 group-hover:scale-105"
+                      width={250}
+                      height={350}
+                    />
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/60 via-black/10 to-transparent transition-all"></div>
+
+                    {/* Text content moved to bottom */}
+                    <div className="absolute bottom-4 left-4 text-white">
+                      <h3 className="text-xl font-bold">{service.name}</h3>
+                    </div>
+                  </Link>
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* New Overlapping Buttons for Desktop */}
+          <button
+            onClick={scrollPrev}
+            className="absolute top-1/2 left-0 z-10 hidden -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow-md transition-all hover:bg-white lg:flex"
+            aria-label="Previous service"
+          >
+            <ChevronLeft className="h-6 w-6 text-gray-800" />
+          </button>
+          <button
+            onClick={scrollNext}
+            className="absolute top-1/2 right-0 z-10 hidden translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow-md transition-all hover:bg-white lg:flex"
+            aria-label="Next service"
+          >
+            <ChevronRight className="h-6 w-6 text-gray-800" />
+          </button>
         </div>
       </div>
     </section>
