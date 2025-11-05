@@ -4,12 +4,7 @@ import { categoriesData } from "@/app/local/categoryv2";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
-
-const slugify = (text: string) =>
-  text
-    .toLowerCase()
-    .replace(/ \/ /g, "-") // Replace " / " with "-"
-    .replace(/ /g, "-"); // Replace other spaces with "-"
+import { slugify } from "@/lib/utils";
 
 const MegaMenu = ({
   category,
@@ -56,7 +51,7 @@ const MegaMenu = ({
                 {column.map((service) => (
                   <li key={service}>
                     <a
-                      href={`/services/${slugify(service)}`}
+                      href={`/categories/${category.name}/${slugify(service)}`}
                       className="text-gray-700 hover:text-pink-500"
                     >
                       {service}

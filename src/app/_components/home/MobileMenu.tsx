@@ -160,7 +160,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
             {currentCategory?.services.map((service) => (
               <a
                 key={service}
-                href={`/services/${service.toLowerCase().replace(/ /g, "-")}`}
+                href={`/categories/${currentCategory.name}/${service.toLowerCase().replace(/ /g, "-")}`}
                 className="border-b border-gray-100 p-4 text-base text-gray-700 hover:bg-gray-50"
               >
                 {service}

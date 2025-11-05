@@ -1,275 +1,489 @@
+"use client";
+
 import React, { useState } from "react";
-import { signIn } from "next-auth/react";
-import { FcGoogle } from "react-icons/fc";
-import { Mail, X, ArrowLeft, Check } from "lucide-react";
-import { SiApple, SiFacebook } from "react-icons/si";
+import { X, Check, ArrowLeft, Mail } from "lucide-react";
 
-interface LoginJoinProps {
-  isModal?: boolean;
-  initialView?: "login" | "join";
-  onClose?: () => void; // Function to close the modal
-}
+// Mock cn function for demonstration
+const cn = (...inputs: (string | boolean | undefined | null)[]) => {
+  return inputs.filter(Boolean).join(" ");
+};
 
-const LoginJoinComponent: React.FC<LoginJoinProps> = ({
-  isModal = false,
-  initialView = "login",
-  onClose,
-}) => {
-  const [view, setView] = useState<"login" | "join">(initialView);
-  const [showEmailForm, setShowEmailForm] = useState(false);
+// Mock Google & Apple/Facebook icons
+const GoogleIcon = () => (
+  // ... (omitted for brevity, no changes) ...
+  <svg className="h-5 w-5" viewBox="0 0 48 48">
+    <path
+      fill="#FFC107"
+      d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
+    ></path>
+    <path
+      fill="#FF3D00"
+      d="m6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"
+    ></path>
+    <path
+      fill="#4CAF50"
+      d="m24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
+    ></path>
+    <path
+      fill="#1976D2"
+      d="m43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l.003-.002s-2.1.3h-.002l6.19 5.238C39.601 36.31 44 30.648 44 24c0-1.341-.138-2.65-.389-3.917z"
+    ></path>
+  </svg>
+);
+
+const AppleIcon = () => (
+  // ... (omitted for brevity, no changes) ...
+  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+    <path d="M10.021 6.54c.48.01 1.25.33 1.83.98s.96 1.48.96 2.37c0 .9-.35 1.63-.94 2.19c-.6.58-1.27.87-2.02.85c-.4-.01-1.12-.3-1.74-.93c-.62-.63-.97-1.42-.97-2.35c0-.9.37-1.68 1.02-2.23c.65-.55 1.38-.85 1.86-.88m1.78 7.37c.36-.5.54-1.1.54-1.8c0-.9-.37-1.68-1.1-2.33c-.75-.65-1.62-.97-2.61-.97c-.98 0-1.84.32-2.58.97c-.74.65-1.12 1.44-1.12 2.38c0 .92.34 1.7.99 2.33c.66.63 1.4.95 2.2.95c.57 0 1.1-.14 1.58-.42c.04.01.07.02.09.02c.07 0 .15-.01.21-.02M10 18C8.16 18 6.5 17.34 5.03 16.03C3.56 14.72 2.7 13.1 2.45 11.18c-.04-.33.07-.63.3-.87c.23-.24.52-.36.87-.36h.22c.28 0 .54.08.78.25c.24.17.5.42.78.75c.27.33.5.58.67.75c.18.17.35.26.49.26c.14 0 .3-.1.48-.29c.18-.2.4-.38.65-.56c.25-.18.53-.27.84-.27c.38 0 .75.14 1.09.4s.6.58.76.95c.03.06.07.1.13.12c.06.02.1.03.13.03h.25c.32 0 .59-.11.82-.33c.23-.22.34-.5.34-.84c-.03-1.6-.5-2.98-1.42-4.14c-.9-1.15-2-1.72-3.3-1.72c-.22 0-.46.03-.7.08c-.24.05-.5.1-.75.13c-.3 0-.56-.1-.78-.3c-.22-.2-.33-.45-.33-.74c0-.33.11-.59.33-.79c.22-.2.5-.3.84-.3h.25c2.3 0 4.2.7 5.68 2.1c.95.9 1.55 2.02 1.8 3.36c.03.14.04.28.04.4c0 .3-.1.55-.3.75c-.2.2-.44.3-.72.3c-.3 0-.58-.1-.82-.3s-.5-.38-.78-.57c-.28-.19-.53-.28-.75-.28c-.22 0-.4.08-.55.23c-.15.15-.3.33-.45.54c-.15.2-.3.38-.45.54c-.15.16-.3.24-.43.24c-.11 0-.23-.04-.35-.12c-.12-.08-.27-.19-.45-.33c-.18-.14-.38-.21-.6-.21c-.3 0-.58.11-.84.34c-.26.23-.39.52-.39.88c0 .33.16.68.48 1.04c.32.36.7.64 1.14.84c.44.2.9.3 1.38.3c1.9 0 3.44-.65 4.63-1.94c.5-.55.88-1.17 1.13-1.85c.03.2.04.4.04.6c0 1.2-.33 2.28-.98 3.22c-.65.94-1.48 1.68-2.5 2.2c-1.02.52-2.12.8-3.3.8Z"></path>
+  </svg>
+);
+
+const FacebookIcon = () => (
+  // ... (omitted for brevity, no changes) ...
+  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+    <path
+      fillRule="evenodd"
+      d="M20 10c0-5.523-4.477-10-10-10S0 4.477 0 10c0 5.013 3.657 9.128 8.438 9.878v-6.987h-2.54V10h2.54V7.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V10h2.773l-.443 2.89h-2.33v6.988C16.343 19.128 20 15.013 20 10Z"
+      clipRule="evenodd"
+    ></path>
+  </svg>
+);
+
+const EmailForm = ({
+  onBack,
+  isJoinView,
+  email,
+  setEmail,
+  password,
+  setPassword,
+  handleSubmit,
+}) => (
+  // FIX: Form fields no longer show "Confirm Password", just Email and Password
+  // The 'handleSubmit' function will now handle the logic to move to the username step
+  <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <button
+      type="button"
+      onClick={onBack}
+      className="flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-gray-900"
+    >
+      <ArrowLeft className="h-4 w-4" />
+      Back to options
+    </button>
+
+    <div>
+      <label
+        htmlFor="email"
+        className="block text-sm font-medium text-gray-700"
+      >
+        {isJoinView ? "Email" : "Email or Username"}
+      </label>
+      <input
+        type="text"
+        id="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder={
+          isJoinView ? "e.g. name@example.com" : "Enter email or username"
+        }
+        className="mt-1 w-full rounded-md border border-gray-300 p-3 focus:outline-pink-500"
+        required
+      />
+    </div>
+
+    <div>
+      <label
+        htmlFor="password"
+        className="block text-sm font-medium text-gray-700"
+      >
+        Password
+      </label>
+      <input
+        type="password"
+        id="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="Enter your password"
+        className="mt-1 w-full rounded-md border border-gray-300 p-3 focus:outline-pink-500"
+        required
+      />
+    </div>
+
+    <button
+      type="submit"
+      className="w-full rounded-lg bg-pink-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-pink-700"
+    >
+      Continue
+    </button>
+  </form>
+);
+
+// NEW: Username Form Sub-component (from reference)
+const UsernameForm = ({
+  onBack,
+  username,
+  setUsername,
+  handleCreateAccount,
+}) => (
+  <form onSubmit={handleCreateAccount} className="flex flex-col gap-4">
+    <button
+      type="button"
+      onClick={onBack}
+      className="flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-gray-900"
+    >
+      <ArrowLeft className="h-4 w-4" />
+      Back to email
+    </button>
+
+    <h3 className="text-2xl font-bold text-gray-900">
+      Get your profile started
+    </h3>
+    <p className="-mt-2 text-gray-600">
+      Add a username that's unique to you, this is how you'll appear to others.
+    </p>
+
+    <div>
+      <label
+        htmlFor="username"
+        className="block text-sm font-medium text-gray-700"
+      >
+        Choose a username
+      </label>
+      <input
+        type="text"
+        id="username"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        placeholder="e.g. djspinmaster"
+        className="mt-1 w-full rounded-md border border-gray-300 p-3 focus:outline-pink-500"
+        required
+      />
+      {/* Add validation messages here */}
+    </div>
+
+    <button
+      type="submit"
+      className="w-full rounded-lg bg-pink-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-pink-700"
+    >
+      Create my account
+    </button>
+  </form>
+);
+
+const AuthModal = ({ isModal = false, initialView = "signin", onClose }) => {
+  const [view, setView] = useState(initialView);
+  const [selectedRole, setSelectedRole] = useState("client");
+  // FIX: Updated step logic
+  const [step, setStep] = useState("options"); // 'options', 'email', 'username'
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  // Removed confirmPassword, as it's part of the email form's logic if needed, but Fiverr flow doesn't use it on step 1
 
-  const handleGoogleSignIn = () => {
-    void signIn("google");
-  };
-
-  const handleEmailContinue = () => {
-    setShowEmailForm(true);
-  };
-
-  const handleBack = () => {
-    setShowEmailForm(false);
-    setEmail("");
-    setPassword("");
-    setUsername("");
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleEmailSubmit = (e) => {
     e.preventDefault();
-    if (view === "login") {
-      void signIn("credentials", { email: email || username, password });
+    // MOCK LOGIC:
+    // 1. You would call a tRPC mutation to check if email exists.
+    // const emailExists = await checkEmail.mutateAsync({ email });
+
+    const emailExists = false; // Mock: email is new
+
+    if (view === "signin") {
+      if (emailExists) {
+        // Log them in
+        console.log("Sign in with:", { email, password });
+      } else {
+        // Show error: "Email not found. Please Join."
+        alert("Email not found. Please Join.");
+      }
     } else {
-      // Handle join logic (e.g., register user)
-      console.log("Join with:", { email, password, username });
+      // (view === 'join')
+      if (emailExists) {
+        // Show error: "Email exists. Please Sign In."
+        alert("Email exists. Please Sign In.");
+      } else {
+        // It's a new user, proceed to username step
+        setStep("username");
+      }
     }
   };
 
-  const toggleView = () => {
-    setView(view === "login" ? "join" : "login");
+  const handleCreateAccountSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const supabase = createClient();
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { username, role: selectedRole } },
+    });
+
+    if (error) {
+      alert(error.message);
+    } else {
+      alert("Account created successfully! Please check your email to verify.");
+      // You might want to close the modal or redirect the user here
+      if (onClose) onClose();
+    }
+  };
+
+  const handleBack = (targetStep: "options" | "email") => {
+    setStep(targetStep);
+    // Don't clear email/pass when going back to email form
+    if (targetStep === "options") {
+      setEmail("");
+      setPassword("");
+    }
   };
 
   return (
-    <div
-      className={`relative flex overflow-hidden bg-white shadow-xl ${
-        isModal
-          ? "h-full w-full sm:h-[645px] sm:max-h-[90vh] sm:max-w-4xl sm:rounded-lg"
-          : "min-h-screen w-screen sm:mx-auto sm:my-12 sm:h-[645px] sm:max-h-[90vh] sm:min-h-0 sm:w-full sm:max-w-4xl sm:rounded-lg"
-      }`}
-    >
-      {isModal && (
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-20 text-gray-400 hover:text-gray-600"
-        >
-          <X className="h-6 w-6" />
-        </button>
-      )}
+    <>
+      <style>
+        {`
+          .auth-view-wrapper {
+            position: relative;
+            /* Set min-height to prevent jiggle. Adjust as needed. */
+            min-height: 400px; 
+          }
+          .auth-view {
+            width: 100%;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s;
+            position: absolute;
+            top: 0;
+            left: 0;
+            backface-visibility: hidden; /* Prevents flickering */
+          }
+          .auth-view.entering {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          .auth-view.exiting-left {
+            transform: translateX(-100%);
+            opacity: 0;
+          }
+          .auth-view.hidden-right {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+        `}
+      </style>
 
-      {/* Left section with background image for desktop */}
       <div
-        className="relative hidden w-1/2 flex-col justify-center bg-cover bg-center p-12 lg:flex"
-        style={{
-          backgroundImage:
-            "url(https://placehold.co/600x800/a78bfa/ffffff/png?text=Partygeng&font=inter)", // Using a relevant placeholder
-        }}
+        className={cn(
+          "flex items-center justify-center",
+          isModal ? "fixed inset-0 z-50 bg-black/60" : "bg-gray-100", // Fullscreen bg if not modal
+        )}
       >
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-purple-800 opacity-75"></div>
-
-        {/* Content */}
-        <div className="relative z-10 text-white">
-          <h2 className="mb-6 text-4xl leading-tight font-bold">
-            Success starts here.
-          </h2>
-          <ul className="space-y-4">
-            <li className="flex items-center gap-3 text-lg">
-              <Check className="h-6 w-6 flex-shrink-0" />
-              <span>Over 700 categories for your events.</span>
-            </li>
-            <li className="flex items-center gap-3 text-lg">
-              <Check className="h-6 w-6 flex-shrink-0" />
-              <span>Quality work done faster.</span>
-            </li>
-            <li className="flex items-center gap-3 text-lg">
-              <Check className="h-6 w-6 flex-shrink-0" />
-              <span>Access to talent and businesses across the globe.</span>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      {/* Right section with form */}
-      <div className="w-full overflow-y-auto px-4 py-8 sm:px-8 lg:w-1/2 lg:p-8">
-        {/* Logo for mobile, hidden on large screens */}
-        <div className="mb-6 lg:hidden">
-          <h1 className="text-3xl font-bold text-purple-600">Partygeng.</h1>
-        </div>
-
-        {!showEmailForm ? (
-          <div className="flex h-full flex-col justify-between">
-            <div>
-              {/* Mobile heading (from reference) */}
-              <h2 className="mb-2 text-3xl font-semibold text-gray-800 lg:hidden">
+        <div
+          className={cn(
+            "relative flex overflow-hidden bg-white shadow-xl",
+            isModal
+              ? "m-4 h-full w-full sm:h-auto sm:max-h-[90vh] sm:max-w-4xl sm:rounded-lg" // Modal classes
+              : "min-h-screen w-screen sm:mx-auto sm:my-12 sm:h-auto sm:max-h-[90vh] sm:min-h-0 sm:w-full sm:max-w-4xl sm:rounded-lg",
+          )}
+        >
+          {/* Left Side (Branding) */}
+          <div
+            className="relative hidden w-1/2 flex-col justify-center bg-cover bg-center p-12 lg:flex"
+            style={{
+              backgroundImage:
+                "url(https://placehold.co/600x800/ec4899/ffffff/png?text=Partygeng&font=inter)",
+            }}
+          >
+            {/* Overlay */}
+            <div className="absolute inset-0 bg-pink-800 opacity-75"></div>
+            {/* Content */}
+            <div className="relative z-10 text-white">
+              <h2 className="mb-6 text-4xl leading-tight font-bold">
                 Success starts here.
               </h2>
-              {/* Desktop heading */}
-              <h2 className="mb-2 hidden text-3xl font-semibold text-gray-800 lg:block">
-                {view === "login"
-                  ? "Sign in to your account"
-                  : "Create a new account"}
+              <ul className="space-y-4 text-lg">
+                <li className="flex items-center gap-3">
+                  <Check className="h-6 w-6 flex-shrink-0" />
+                  Find verified vendors
+                </li>
+                <li className="flex items-center gap-3">
+                  <Check className="h-6 w-6 flex-shrink-0" />
+                  Get quotes and pay securely
+                </li>
+                <li className="flex items-center gap-3">
+                  <Check className="h-6 w-6 flex-shrink-0" />
+                  Plan your perfect event
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Right Side (Form) */}
+          <div className="relative w-full overflow-hidden overflow-y-auto bg-white p-8 md:w-1/2 md:p-12">
+            {isModal && onClose && (
+              <button
+                onClick={onClose}
+                className="absolute top-4 right-4 z-10 rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            )}
+            {/* Show titles only on the first step */}
+            <div className={cn(step !== "options" && "hidden")}>
+              <h2 className="mb-4 text-3xl font-bold text-gray-900 md:hidden">
+                Success starts here.
               </h2>
-              <p className="mb-8 text-gray-600">
-                {view === "login"
-                  ? "Don't have an account?"
-                  : "Already have an account?"}{" "}
+              <h3 className="mb-4 hidden text-3xl font-bold text-gray-900 md:block">
+                {view === "join"
+                  ? "Create a new account"
+                  : "Sign in to your account"}
+              </h3>
+              <p className="mb-6 text-gray-500">
+                {view === "join"
+                  ? "Already have an account? "
+                  : "Don't have an account? "}
                 <button
-                  onClick={toggleView}
-                  className="font-semibold text-purple-600 hover:text-purple-800"
+                  onClick={() => {
+                    setView(view === "join" ? "signin" : "join");
+                    setStep("options");
+                    handleBack("options");
+                  }}
+                  className="font-semibold text-pink-600 hover:underline"
                 >
-                  {view === "login" ? "Join here" : "Sign in"}
+                  {view === "join" ? "Sign in" : "Join here"}
                 </button>
               </p>
-
-              <div className="space-y-4">
-                <button
-                  onClick={handleGoogleSignIn}
-                  className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  <FcGoogle /> Continue with Google
-                </button>
-                <button
-                  onClick={handleEmailContinue}
-                  className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  <Mail className="text-xl text-gray-600" /> Continue with
-                  email/username
-                </button>
-              </div>
-
-              <div className="my-8 flex items-center">
-                <div className="flex-grow border-t border-gray-300"></div>
-                <span className="mx-4 flex-shrink text-sm font-medium text-gray-400">
-                  OR
-                </span>
-                <div className="flex-grow border-t border-gray-300"></div>
-              </div>
-
-              <div className="flex gap-4">
-                <button className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 hover:bg-gray-50">
-                  <SiApple /> Apple
-                </button>
-                <button className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 hover:bg-gray-50">
-                  <SiFacebook className="text-blue-600" /> Facebook
-                </button>
-              </div>
             </div>
-
-            <p className="mt-8 text-center text-xs text-gray-500">
-              By joining, you agree to the Partygeng{" "}
-              <a href="#" className="text-purple-600 hover:underline">
-                Terms of Service
-              </a>{" "}
-              and{" "}
-              <a href="#" className="text-purple-600 hover:underline">
-                Privacy Policy
-              </a>
-              .
-            </p>
-          </div>
-        ) : (
-          <div className="">
-            <button
-              type="button"
-              onClick={handleBack}
-              className="mb-6 text-gray-500 hover:text-gray-800"
-            >
-              <ArrowLeft className="h-6 w-6" />
-            </button>
-            <h2 className="mb-6 text-3xl font-semibold text-gray-800">
-              {view === "login" ? "Sign in" : "Join with your email"}
-            </h2>
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label
-                  htmlFor="email"
-                  className="mb-2 block text-sm font-semibold text-gray-700"
-                >
-                  {view === "login" ? "Email or username" : "Email"}
-                </label>
-                <input
-                  type="text"
-                  id="email"
-                  className="w-full appearance-none rounded-lg border border-gray-300 px-3 py-3 leading-tight text-gray-900 shadow-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                  placeholder={
-                    view === "login"
-                      ? "Enter email or username"
-                      : "name@example.com"
-                  }
-                  value={view === "login" ? username : email}
-                  onChange={(e) =>
-                    view === "login"
-                      ? setUsername(e.target.value)
-                      : setEmail(e.target.value)
-                  }
-                  required
-                />
-              </div>
+            {/* Role Selector (Only on 'join' and 'options' step) */}
+            {view === "join" && step === "options" && (
               <div className="mb-6">
-                <label
-                  htmlFor="password"
-                  className="mb-2 block text-sm font-semibold text-gray-700"
-                >
-                  Password
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  I am joining as a:
                 </label>
-                <input
-                  type="password"
-                  id="password"
-                  className="w-full appearance-none rounded-lg border border-gray-300 px-3 py-3 leading-tight text-gray-900 shadow-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                {view === "join" && (
-                  <div className="mt-2 text-xs text-gray-500">
-                    <p>At least 8 characters</p>
-                    <p>Combine upper and lowercase letters and numbers</p>
-                  </div>
-                )}
-                {view === "login" && (
-                  <a
-                    href="#"
-                    className="mt-2 inline-block align-baseline text-sm font-semibold text-purple-600 hover:text-purple-800"
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedRole("client")}
+                    className={cn(
+                      "flex-1 rounded-lg border p-4 text-left transition-all",
+                      selectedRole === "client"
+                        ? "border-pink-600 bg-pink-50 ring-2 ring-pink-200"
+                        : "border-gray-300 bg-white hover:border-gray-400",
+                    )}
                   >
-                    Forgot password?
-                  </a>
-                )}
+                    <p className="font-bold text-gray-800">Client</p>
+                    <p className="text-sm text-gray-600">
+                      I'm here to hire vendors and plan events.
+                    </p>
+                  </button>
+                  <button
+                    onClick={() => setSelectedRole("vendor")}
+                    className={cn(
+                      "flex-1 rounded-lg border p-4 text-left transition-all",
+                      selectedRole === "vendor"
+                        ? "border-pink-600 bg-pink-50 ring-2 ring-pink-200"
+                        : "border-gray-300 bg-white hover:border-gray-400",
+                    )}
+                  >
+                    <p className="font-bold text-gray-800">Vendor</p>
+                    <p className="text-sm text-gray-600">
+                      I'm an event professional looking to offer my services.
+                    </p>
+                  </button>
+                </div>
               </div>
-              <button
-                type="submit"
-                className="focus:shadow-outline w-full rounded-lg bg-purple-600 px-4 py-3 font-bold text-white hover:bg-purple-700 focus:outline-none"
+            )}
+            {/* Animated View Wrapper */}
+            <div className="auth-view-wrapper">
+              {/* View 1: Social & Email Options */}
+              <div
+                className={cn(
+                  "auth-view",
+                  step === "options" ? "entering" : "exiting-left",
+                )}
               >
-                {view === "login" ? "Sign In" : "Continue"}
-              </button>
-            </form>
-            <p className="mt-8 text-center text-xs text-gray-500">
-              By joining, you agree to the Partygeng{" "}
-              <a href="#" className="text-purple-600 hover:underline">
+                <div className="flex flex-col gap-4">
+                  <button className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50">
+                    <GoogleIcon />
+                    Continue with Google
+                  </button>
+                  <button
+                    onClick={() => setStep("email")}
+                    className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                  >
+                    <Mail className="h-5 w-5 text-gray-600" />
+                    Continue with email
+                  </button>
+                </div>
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-gray-300"></span>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="bg-white px-2 text-gray-500">OR</span>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-4 sm:flex-row">
+                  <button className="flex flex-1 items-center justify-center gap-3 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50">
+                    <AppleIcon />
+                    Apple
+                  </button>
+                  <button className="flex flex-1 items-center justify-center gap-3 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50">
+                    <FacebookIcon />
+                    Facebook
+                  </button>
+                </div>
+              </div>
+
+              {/* View 2: Email Form */}
+              <div
+                className={cn(
+                  "auth-view",
+                  step === "email"
+                    ? "entering"
+                    : step === "options"
+                      ? "hidden-right"
+                      : "exiting-left",
+                )}
+              >
+                <EmailForm
+                  onBack={() => handleBack("options")}
+                  isJoinView={view === "join"}
+                  email={email}
+                  setEmail={setEmail}
+                  password={password}
+                  setPassword={setPassword}
+                  handleSubmit={handleEmailSubmit} // FIX: Now handles submit logic
+                />
+              </div>
+
+              {/* View 3: Username Form (Join Only) */}
+              <div
+                className={cn(
+                  "auth-view",
+                  step === "username" ? "entering" : "hidden-right",
+                )}
+              >
+                <UsernameForm
+                  onBack={() => handleBack("email")}
+                  username={username}
+                  setUsername={setUsername}
+                  handleCreateAccount={handleCreateAccountSubmit}
+                />
+              </div>
+            </div>{" "}
+            {/* End of auth-view-wrapper */}
+            <p className="mt-8 text-xs text-gray-400">
+              By {view === "join" ? "joining" : "signing in"}, you agree to the
+              Partygeng{" "}
+              <a href="#" className="underline">
                 Terms of Service
               </a>{" "}
               and to occasionally receive emails from us. Please read our{" "}
-              <a href="#" className="text-purple-600 hover:underline">
+              <a href="#" className="underline">
                 Privacy Policy
               </a>{" "}
               to learn how we use your personal data.
             </p>
           </div>
-        )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
-export default LoginJoinComponent;
+export default AuthModal;

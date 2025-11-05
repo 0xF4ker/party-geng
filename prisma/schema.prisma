@@ -1,74 +1,416 @@
-// This is your Prisma schema file,
+// This is your Prisma schema file.
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "postgresql"
-    // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
-    // Further reading:
-    // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
-    // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
-    url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+// --- 1. ENUMS (Used across multiple models) ---
 
-    createdBy   User   @relation(fields: [createdById], references: [id])
-    createdById String
-
-    @@index([name])
+enum UserRole {
+  CLIENT
+  VENDOR
 }
 
-// Necessary for Next auth
-model Account {
-    id                       String  @id @default(cuid())
-    userId                   String
-    type                     String
-    provider                 String
-    providerAccountId        String
-    refresh_token            String? // @db.Text
-    access_token             String? // @db.Text
-    expires_at               Int?
-    token_type               String?
-    scope                    String?
-    id_token                 String? // @db.Text
-    session_state            String?
-    user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    refresh_token_expires_in Int?
-
-    @@unique([provider, providerAccountId])
+enum KycStatus {
+  PENDING
+  IN_REVIEW
+  APPROVED
+  REJECTED
 }
 
-model Session {
-    id           String   @id @default(cuid())
-    sessionToken String   @unique
-    userId       String
-    expires      DateTime
-    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+enum OrderStatus {
+  ACTIVE // Payment made, event upcoming
+  COMPLETED // Event finished, payment clearing
+  CANCELLED
+  IN_DISPUTE
 }
 
+enum QuoteStatus {
+  PENDING // Vendor sent, client needs to review
+  ACCEPTED // Client accepted, ready for payment
+  REJECTED
+  REVISION_REQUESTED
+}
+
+enum TransactionType {
+  PAYMENT // Client pays for an order
+  PAYOUT // Vendor withdraws funds
+  REFUND
+  GIFT // Client receives wallet funds
+  SERVICE_FEE
+}
+
+
+// --- 2. AUTH & USER MODELS ---
+
+// Central model linked to Supabase Auth.
+// A new row is added here automatically on sign-up via a DB trigger.
 model User {
-    id            String    @id @default(cuid())
-    name          String?
-    email         String?   @unique
-    emailVerified DateTime?
-    image         String?
-    accounts      Account[]
-    sessions      Session[]
-    posts         Post[]
+  id    String   @id @default(uuid()) // Links to auth.users.id
+  email String   @unique
+  // FIX: Added username field
+  username String  @unique
+  role     UserRole // Set at sign-up (CLIENT or VENDOR)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // --- Relations ---
+  clientProfile ClientProfile? // One-to-one
+  vendorProfile VendorProfile? // One-to-one
+  wallet        Wallet?        // One-to-one
+
+  conversations Conversation[] @relation("Participants")
+  messages      Message[]      @relation("Sender")
+
+  // As a Client
+  // FIX: Pointed to Quote model and used "ClientQuotes" relation
+  clientQuotes Quote[] @relation("ClientQuotes")
+  clientOrders Order[] @relation("ClientOrders")
+
+  // As a Vendor
+  // FIX: Pointed to Quote model and used "VendorQuotes" relation
+  vendorQuotes Quote[] @relation("VendorQuotes")
+  vendorOrders Order[] @relation("VendorOrders")
+
+  // Events (Client only)
+  events ClientEvent[] @relation("HiredVendors") // For group chats
+  
+  // Reviews
+  authoredReviews Review[] @relation("AuthoredReviews")
+  receivedReviews Review[] @relation("ReceivedReviews")
+
+  // Wishlist
+  wishlistPromises WishlistPromise[] @relation("GuestPromises")
 }
 
-model VerificationToken {
-    identifier String
-    token      String   @unique
-    expires    DateTime
+model ClientProfile {
+  id   String @id @default(uuid())
+  user User   @relation(fields: [userId], references: [id])
+  userId String @unique // One-to-one
 
-    @@unique([identifier, token])
+  name      String?
+  avatarUrl String?
+  location  String?
+
+  events ClientEvent[] @relation("EventOwner")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
+
+// Contains public info AND private KYC info
+model VendorProfile {
+  id   String @id @default(uuid())
+  user User   @relation(fields: [userId], references: [id])
+  userId String @unique // One-to-one
+
+  // Public Profile Info
+  companyName String? // The public-facing name (e.g., "DJ SpinMaster Entertainment")
+  title       String? // e.g., "Professional Wedding & Event DJ"
+  avatarUrl   String?
+  about       String?  @db.Text
+  skills      String[]
+  location    String?  // Public location (e.g., "Lagos, Nigeria")
+  languages   String[]
+  
+  // Platform Stats (Calculated)
+  level           String?  @default("Level 0")
+  rating          Float    @default(0)
+  avgResponseTime String?  @default("N/A")
+
+  // KYC Verification Fields (from SettingsPage)
+  kycStatus      KycStatus @default(PENDING)
+  fullName       String?   // Private legal name
+  meansOfId      String?   // e.g., "NIN"
+  idNumber       String?
+  idCardUrl      String?   // Link to uploaded file
+  cacNumber      String?   // Corporate Affairs Commission number
+  cacDocumentUrl String?   // Link to uploaded file
+  businessAddress String?  // For emergency services
+  state          String?   // e.g., "Lagos"
+  lga            String?   // e.g., "Ikeja"
+
+  // Subscription Status
+  subscriptionStatus String @default("INACTIVE") // e.g., "ACTIVE", "INACTIVE"
+
+  // Relations
+  gigs Gig[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+// --- 3. GIG & CATEGORY MODELS ---
+
+model Category {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique // e.g., "Music & DJs"
+  services Service[]
+}
+
+model Service {
+  id   Int    @id @default(autoincrement())
+  name String @unique // e.g., "Wedding DJ"
+  
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId Int
+
+  gigs Gig[]
+}
+
+model Gig {
+  id    String @id @default(uuid())
+  title String
+  description String @db.Text
+  
+  vendor   VendorProfile @relation(fields: [vendorProfileId], references: [id])
+  vendorProfileId String
+
+  service   Service @relation(fields: [serviceId], references: [id])
+  serviceId Int
+  
+  status String   @default("DRAFT") // DRAFT, ACTIVE, PAUSED
+  tags   String[]
+  
+  galleryImageUrls String[]
+  youtubeUrl       String?
+
+  // New Pricing Model (from CreateGigPage)
+  basePrice         Float
+  basePriceIncludes String[] // e.g., ["4 hours of service", "Sound system"]
+
+  // Relations
+  addOns GigAddOn[]
+  faqs   Json[]     // [{ "q": "...", "a": "..." }]
+  quotes Quote[]
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model GigAddOn {
+  id    Int    @id @default(autoincrement())
+  title String // e.g., "Extra Hour", "Dance Floor Lighting"
+  price Float
+  
+  gig   Gig    @relation(fields: [gigId], references: [id])
+  gigId String
+}
+
+
+// --- 4. EVENT & WISHLIST MODELS (Client-side) ---
+
+model ClientEvent {
+  id    String   @id @default(uuid())
+  title String
+  date  DateTime
+  
+  coverImage String?
+  isPublic   Boolean  @default(false) // Client can toggle this
+
+  client   ClientProfile @relation("EventOwner", fields: [clientProfileId], references: [id])
+  clientProfileId String
+
+  // This is the key for the auto-created group chat
+  hiredVendors User[] @relation("HiredVendors")
+
+  wishlist Wishlist? // One-to-one
+}
+
+model Wishlist {
+  id    String   @id @default(uuid())
+  event ClientEvent @relation(fields: [clientEventId], references: [id], onDelete: Cascade)
+  clientEventId String @unique // One-to-one
+
+  items WishlistItem[]
+}
+
+model WishlistItem {
+  id    String   @id @default(uuid())
+  name  String
+  price Float? // Estimated price
+  
+  isFulfilled Boolean @default(false) // Owner can "tick this off"
+
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  wishlistId String
+
+  promises WishlistPromise[] // List of people who promised
+}
+
+// Tracks *who* promised to get an item
+model WishlistPromise {
+  id   String @id @default(uuid())
+  item WishlistItem @relation(fields: [wishlistItemId], references: [id], onDelete: Cascade)
+  wishlistItemId String
+  
+  // Can be a platform user or just a guest name
+  guestUser   User?    @relation("GuestPromises", fields: [guestUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  guestUserId String?
+  guestName   String // e.g., "Chioma E."
+
+  createdAt DateTime @default(now())
+}
+
+
+// --- 5. CHAT, QUOTE & ORDER FLOW ---
+
+model Conversation {
+  id    String @id @default(uuid())
+  
+  participants User[]      @relation("Participants")
+  messages     Message[]
+  quotes       Quote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Message {
+  id   String @id @default(uuid())
+  text String @db.Text
+  
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+
+  sender   User   @relation("Sender", fields: [senderId], references: [id])
+  senderId String
+  
+  // A message can also BE a quote
+  quote Quote?
+
+  createdAt DateTime @default(now())
+}
+
+model Quote {
+  id      String   @id @default(uuid())
+  
+  vendor   User   @relation("VendorQuotes", fields: [vendorId], references: [id])
+  vendorId String
+  client   User   @relation("ClientQuotes", fields: [clientId], references: [id])
+  clientId String
+  
+  gig   Gig    @relation(fields: [gigId], references: [id])
+  gigId String
+  
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversationId String
+
+  // Quote details
+  title     String
+  price     Float
+  eventDate DateTime
+  includes  String[] // e.g. ["6 hours of DJ service", "Dance floor lighting"]
+  
+  status QuoteStatus @default(PENDING)
+  
+  // Link to the message that contains this quote
+  message Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  messageId String? @unique
+
+  order Order? // Link to the order created from this quote
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id     String @id @default(uuid())
+  
+  vendor   User   @relation("VendorOrders", fields: [vendorId], references: [id])
+  vendorId String
+  client   User   @relation("ClientOrders", fields: [clientId], references: [id])
+  clientId String
+  
+  gig   Gig    @relation(fields: [gigId], references: [id])
+  gigId String
+  
+  quote  Quote  @relation(fields: [quoteId], references: [id])
+  quoteId String @unique // An order is created from ONE quote
+
+  amount    Float
+  status    OrderStatus @default(ACTIVE)
+  eventDate DateTime
+  
+  review Review? // One-to-one
+
+  transactions Transaction[] // An order can have multiple transactions (payment, fee, refund)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+// --- 6. PAYMENTS & REVIEWS ---
+
+model Wallet {
+  id   String @id @default(uuid())
+  user User   @relation(fields: [userId], references: [id])
+  userId String @unique // One-to-one
+
+  // Common
+  availableBalance Float @default(0) // Funds that can be withdrawn or spent
+  
+  // Vendor-specific balances
+  clearingBalance    Float @default(0) // Funds from completed orders, not yet available
+  activeOrderBalance Float @default(0) // Funds in escrow for active gigs
+
+  // Client-specific balances
+  // FIX: Changed @default(low) to @default(0)
+  totalExpenses Float @default(0) // Total spent on platform
+  totalEarnings Float @default(0) // Total received from refunds/gifts
+
+  transactions Transaction[]
+  
+  updatedAt DateTime @updatedAt
+}
+
+model Transaction {
+  id     String @id @default(uuid())
+  
+  wallet   Wallet @relation(fields: [walletId], references: [id])
+  walletId String
+  
+  type   TransactionType
+  amount Float // Can be positive (deposit) or negative (withdrawal)
+  
+  status String // PENDING, COMPLETED, FAILED
+  
+  order   Order?   @relation(fields: [orderId], references: [id])
+  orderId String?
+
+  description String
+  
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id      String @id @default(uuid())
+  
+  order   Order  @relation(fields: [orderId], references: [id])
+  orderId String @unique // One review per order
+  
+  rating  Int
+  comment String @db.Text
+  
+  // Who wrote the review (e.g., Client reviews Vendor)
+  author   User @relation("AuthoredReviews", fields: [authorId], references: [id])
+  authorId String
+  
+  // Who was reviewed
+  subject   User @relation("ReceivedReviews", fields: [subjectId], references: [id])
+  subjectId String
+
+  createdAt DateTime @default(now())
+}
+

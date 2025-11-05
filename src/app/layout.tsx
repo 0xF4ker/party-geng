@@ -4,8 +4,10 @@ import "@/styles/globals.css";
 // import { Geist } from "next/font/google";
 
 import { TRPCReactProvider } from "@/trpc/react";
-import Header from "./_components/home/Header";
-import Footer from "./_components/home/Footer";
+// import Header from "./_components/home/Header";
+// import Footer from "./_components/home/Footer";
+
+import { AuthProvider } from "@/providers/auth-provider";
 
 export default function RootLayout({
   children,
@@ -14,9 +16,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body>
         <TRPCReactProvider>
-          <Header />
+          {/* <AuthProvider> */}
+          {/* <Header /> */}
           {children}
-          <Footer />
+          {/* <Footer /> */}
+          {/* </AuthProvider> */}
         </TRPCReactProvider>
       </body>
     </html>

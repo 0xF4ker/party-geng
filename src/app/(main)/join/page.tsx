@@ -1,5 +1,5 @@
 "use client";
-import LoginJoinComponent from "../_components/LoginJoinComponent";
+import LoginJoinComponent from "../../_components/LoginJoinComponent";
 
 export default function JoinPage() {
   return (

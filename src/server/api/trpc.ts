@@ -26,12 +26,29 @@ import { db } from "@/server/db";
  *
  * @see https://trpc.io/docs/server/context
  */
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { type NextRequest } from "next/server";
+
 export const createTRPCContext = async (opts: { headers: Headers }) => {
-  const session = await auth();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return opts.headers.get(name) ?? undefined;
+        },
+      },
+    }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const profile = user ? await db.user.findUnique({ where: { id: user.id } }) : null;
 
   return {
     db,
-    session,
+    user: profile,
     ...opts,
   };
 };
@@ -121,13 +138,13 @@ export const publicProcedure = t.procedure.use(timingMiddleware);
 export const protectedProcedure = t.procedure
   .use(timingMiddleware)
   .use(({ ctx, next }) => {
-    if (!ctx.session?.user) {
+    if (!ctx.user) {
       throw new TRPCError({ code: "UNAUTHORIZED" });
     }
     return next({
       ctx: {
-        // infers the `session` as non-nullable
-        session: { ...ctx.session, user: ctx.session.user },
+        // infers the `user` as non-nullable
+        user: ctx.user,
       },
     });
   });

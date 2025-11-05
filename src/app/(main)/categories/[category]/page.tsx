@@ -1,24 +1,27 @@
 "use client";
 
 import { notFound } from "next/navigation";
-import { categoriesData } from "../../local/categoryv2";
-import PopularServiceCarousel from "../../_components/category/PopularServiceCarousel";
+import { categoriesData } from "../../../local/categoryv2";
+import PopularServiceCarousel from "../../../_components/category/PopularServiceCarousel";
 import { ChevronDown } from "lucide-react";
 import React, { use, useEffect, useState } from "react";
 import LoopingCardAnimation from "@/app/_components/category/LoopingCardAnimation";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-
-const slugify = (text: string) =>
-  text.toLowerCase().replace(/ \/ /g, "-").replace(/ /g, "-");
-
+import { slugify } from "@/lib/utils";
 // Component for NON-grouped services (e.g., DJs, Solo Musicians)
-const FlatServicesList = ({ services }: { services: string[] }) => (
+const FlatServicesList = ({
+  services,
+  category,
+}: {
+  services: string[];
+  category: any;
+}) => (
   <ul className="columns-1 gap-x-6 sm:columns-2 md:columns-3 lg:columns-4">
     {services.map((service) => (
       <li key={service} className="mb-3 break-inside-avoid">
         <a
-          href={`/services/${service.toLowerCase().replace(/ /g, "-")}`}
+          href={`/categories/${category.name}/${service.toLowerCase().replace(/ /g, "-")}`}
           className="text-lg text-gray-700 hover:text-pink-500 hover:underline"
         >
           {service}
@@ -145,8 +148,10 @@ type ServiceGroup = {
 
 const ExploreServices = ({
   services,
+  category,
 }: {
   services: string[] | ServiceGroup[];
+  category: any;
 }) => {
   // Check if the first item in the services array is an object with a 'groupName' key
   const hasGroups =
@@ -159,15 +164,17 @@ const ExploreServices = ({
     return <GroupedServices services={services as ServiceGroup[]} />;
   }
 
-  return <FlatServicesList services={services as string[]} />;
+  return (
+    <FlatServicesList category={category} services={services as string[]} />
+  );
 };
 
 export default function CategoryPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ category: string }>;
 }) {
-  const { slug } = use(params);
+  const { category: slug } = use(params);
 
   useEffect(() => {
     console.log("Category slug:", slug);
@@ -213,7 +220,7 @@ export default function CategoryPage({
         <h2 className="mb-6 text-2xl font-bold text-gray-800">
           Explore {category.name}
         </h2>
-        <ExploreServices services={services} />
+        <ExploreServices services={services} category={category} />
       </div>
     </main>
   );
