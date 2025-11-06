@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Menu } from "lucide-react";
+import { Menu, Bell, Mail, ShoppingBag, Calendar, User, Settings, LogOut, Eye, ChevronDown } from "lucide-react";
 import LoginJoinComponent from "../LoginJoinComponent";
 import CategoryCarousel from "./CategoryCarousel";
 import SearchInput from "./SearchInput";
@@ -12,6 +12,8 @@ import {
   allCategoriesAndServices,
 } from "@/app/local/categoryv2"; // Import new data
 import MobileMenu from "./MobileMenu";
+import { useAuth } from "@/hooks/useAuth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Modal = ({
   children,
@@ -65,9 +67,12 @@ const Modal = ({
 };
 
 const Header = () => {
+  const { user, loading, signOut } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalView, setModalView] = useState<"login" | "join">("login");
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
 
   // --- Search State ---
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -113,6 +118,28 @@ const Header = () => {
     }
   }, [isMobileMenuOpen, closeSearch]);
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setIsProfileDropdownOpen(false);
+      }
+    };
+    
+    if (isProfileDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isProfileDropdownOpen]);
+
+  // Determine user type
+  const isVendor = user?.vendorProfile !== null && user?.vendorProfile !== undefined;
+  const isClient = user?.clientProfile !== null && user?.clientProfile !== undefined;
+  const isGuest = !user;
+
   return (
     <>
       <header
@@ -146,11 +173,302 @@ const Header = () => {
               </Link>
             </div>
 
-            {/* Middle: Search Bar (sm to lg) */}
-            <div className="mx-4 hidden flex-grow sm:flex lg:mx-16">
+            {/* Middle: Search Bar (sm to lg) - Only for guests and clients */}
+            {!isVendor && (
+              <div className="mx-4 hidden flex-grow sm:flex lg:mx-16">
+                <SearchInput
+                  placeholder="Find services"
+                  className="w-full max-w-lg transition-all"
+                  isFocused={isSearchFocused}
+                  setIsFocused={setIsSearchFocused}
+                  query={searchQuery}
+                  setQuery={handleSearchChange}
+                  results={searchResults}
+                  onClear={clearSearch}
+                />
+              </div>
+            )}
+
+            {/* Right Side: Nav Links */}
+            {loading ? (
+              <div className="flex items-center space-x-2">
+                <Skeleton className="h-10 w-20" />
+                <Skeleton className="h-10 w-20" />
+              </div>
+            ) : isGuest ? (
+              // Guest Navigation
+              <>
+                {/* Nav (Mobile/Tablet < lg) */}
+                <nav className="flex items-center space-x-2 lg:hidden">
+                  <button
+                    onClick={() => openModal("login")}
+                    className="hidden text-sm font-medium hover:text-pink-500 sm:block"
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    onClick={() => openModal("join")}
+                    className="rounded-md border border-pink-500 px-3 py-1.5 text-sm font-semibold text-pink-500 hover:bg-pink-500 hover:text-white"
+                  >
+                    Join
+                  </button>
+                </nav>
+
+                {/* Nav (Desktop >= lg) */}
+                <nav className="hidden items-center space-x-4 lg:flex">
+                  <a href="/pro" className="font-medium hover:text-pink-500">
+                    Partygeng Pro
+                  </a>
+                  <a
+                    href="/start_selling"
+                    className="font-medium hover:text-pink-500"
+                  >
+                    Become a Vendor
+                  </a>
+                  <button
+                    onClick={() => openModal("login")}
+                    className="font-medium hover:text-pink-500"
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    onClick={() => openModal("join")}
+                    className="rounded-md border border-pink-500 px-4 py-2 font-semibold text-pink-500 hover:bg-pink-500 hover:text-white"
+                  >
+                    Join
+                  </button>
+                </nav>
+              </>
+            ) : isVendor ? (
+              // Vendor Navigation
+              <>
+                <nav className="hidden items-center space-x-6 lg:flex">
+                  <Link href="/v/dashboard" className="font-medium hover:text-pink-500">
+                    Dashboard
+                  </Link>
+                  <Link href="/manage_orders" className="font-medium hover:text-pink-500">
+                    Orders
+                  </Link>
+                  <Link href="/earnings" className="font-medium hover:text-pink-500">
+                    Earnings
+                  </Link>
+                  
+                  {/* Profile Dropdown */}
+                  <div className="relative" ref={profileDropdownRef}>
+                    <button
+                      onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                      className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-pink-500"
+                    >
+                      <div className="h-10 w-10 overflow-hidden rounded-full bg-pink-100">
+                        {user.image ? (
+                          <img src={user.image} alt={user.name || "Profile"} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-pink-600 font-semibold">
+                            {user.name?.charAt(0).toUpperCase() || "V"}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                    
+                    {/* Dropdown Menu */}
+                    {isProfileDropdownOpen && (
+                      <div className="absolute top-full right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
+                        <div className="border-b border-gray-100 px-4 py-3">
+                          <p className="font-semibold text-gray-800">{user.name || user.username}</p>
+                          <p className="text-sm text-gray-500">@{user.username}</p>
+                        </div>
+                        <Link href={`/c/${user.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                          <Eye className="h-4 w-4" />
+                          View Public Profile
+                        </Link>
+                        <Link href="/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                          <Settings className="h-4 w-4" />
+                          Settings
+                        </Link>
+                        <button
+                          onClick={() => {
+                            signOut();
+                            setIsProfileDropdownOpen(false);
+                          }}
+                          className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Sign Out
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </nav>
+                
+                {/* Mobile Profile Icon */}
+                <div className="relative lg:hidden" ref={profileDropdownRef}>
+                  <button
+                    onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                    className="h-10 w-10 overflow-hidden rounded-full bg-pink-100 hover:ring-2 hover:ring-pink-500"
+                  >
+                    {user.image ? (
+                      <img src={user.image} alt={user.name || "Profile"} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-pink-600 font-semibold">
+                        {user.name?.charAt(0).toUpperCase() || "V"}
+                      </div>
+                    )}
+                  </button>
+                  
+                  {/* Mobile Dropdown */}
+                  {isProfileDropdownOpen && (
+                    <div className="absolute top-full right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
+                      <div className="border-b border-gray-100 px-4 py-3">
+                        <p className="font-semibold text-gray-800">{user.name || user.username}</p>
+                        <p className="text-sm text-gray-500">@{user.username}</p>
+                      </div>
+                      <Link href={`/c/${user.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                        <Eye className="h-4 w-4" />
+                        View Public Profile
+                      </Link>
+                      <Link href="/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                        <Settings className="h-4 w-4" />
+                        Settings
+                      </Link>
+                      <button
+                        onClick={() => {
+                          signOut();
+                          setIsProfileDropdownOpen(false);
+                        }}
+                        className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Sign Out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              // Client Navigation
+              <>
+                <nav className="hidden items-center space-x-4 lg:flex">
+                  <Link href="/c/manage_events">
+                    <button className="flex items-center gap-2 rounded-md bg-pink-600 px-4 py-2 font-semibold text-white hover:bg-pink-700">
+                      <Calendar className="h-4 w-4" />
+                      Plan Event
+                    </button>
+                  </Link>
+                  <Link href="/inbox" className="relative">
+                    <Mail className="h-6 w-6 text-gray-600 hover:text-pink-500" />
+                  </Link>
+                  <Link href="/notifications" className="relative">
+                    <Bell className="h-6 w-6 text-gray-600 hover:text-pink-500" />
+                  </Link>
+                  <Link href="/manage_orders">
+                    <ShoppingBag className="h-6 w-6 text-gray-600 hover:text-pink-500" />
+                  </Link>
+                  
+                  {/* Profile Dropdown */}
+                  <div className="relative" ref={profileDropdownRef}>
+                    <button
+                      onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                      className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-pink-500"
+                    >
+                      <div className="h-10 w-10 overflow-hidden rounded-full bg-pink-100">
+                        {user.image ? (
+                          <img src={user.image} alt={user.name || "Profile"} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-pink-600 font-semibold">
+                            {user.name?.charAt(0).toUpperCase() || "C"}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                    
+                    {/* Dropdown Menu */}
+                    {isProfileDropdownOpen && (
+                      <div className="absolute top-full right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
+                        <div className="border-b border-gray-100 px-4 py-3">
+                          <p className="font-semibold text-gray-800">{user.name || user.username}</p>
+                          <p className="text-sm text-gray-500">@{user.username}</p>
+                        </div>
+                        <Link href={`/c/${user.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                          <Eye className="h-4 w-4" />
+                          View Public Profile
+                        </Link>
+                        <Link href="/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                          <Settings className="h-4 w-4" />
+                          Settings
+                        </Link>
+                        <button
+                          onClick={() => {
+                            signOut();
+                            setIsProfileDropdownOpen(false);
+                          }}
+                          className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Sign Out
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </nav>
+                
+                {/* Mobile Profile Icon + Icons */}
+                <div className="flex items-center space-x-3 lg:hidden">
+                  <Link href="/c/manage_events">
+                    <Calendar className="h-6 w-6 text-gray-600 hover:text-pink-500" />
+                  </Link>
+                  
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                      className="h-10 w-10 overflow-hidden rounded-full bg-pink-100 hover:ring-2 hover:ring-pink-500"
+                    >
+                      {user.image ? (
+                        <img src={user.image} alt={user.name || "Profile"} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-pink-600 font-semibold">
+                          {user.name?.charAt(0).toUpperCase() || "C"}
+                        </div>
+                      )}
+                    </button>
+                    
+                    {/* Mobile Dropdown */}
+                    {isProfileDropdownOpen && (
+                      <div className="absolute top-full right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
+                        <div className="border-b border-gray-100 px-4 py-3">
+                          <p className="font-semibold text-gray-800">{user.name || user.username}</p>
+                          <p className="text-sm text-gray-500">@{user.username}</p>
+                        </div>
+                        <Link href={`/c/${user.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                          <Eye className="h-4 w-4" />
+                          View Public Profile
+                        </Link>
+                        <Link href="/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                          <Settings className="h-4 w-4" />
+                          Settings
+                        </Link>
+                        <button
+                          onClick={() => {
+                            signOut();
+                            setIsProfileDropdownOpen(false);
+                          }}
+                          className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Sign Out
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* === Bottom Row: Search Bar (Mobile < sm) - Only for guests and clients === */}
+          {!isVendor && (
+            <div className="mt-3 w-full sm:hidden">
               <SearchInput
                 placeholder="Find services"
-                className="w-full max-w-lg transition-all"
                 isFocused={isSearchFocused}
                 setIsFocused={setIsSearchFocused}
                 query={searchQuery}
@@ -159,73 +477,19 @@ const Header = () => {
                 onClear={clearSearch}
               />
             </div>
-
-            {/* Right Side: Nav Links */}
-
-            {/* Nav (Mobile/Tablet < lg) */}
-            <nav className="flex items-center space-x-2 lg:hidden">
-              <button
-                onClick={() => openModal("login")}
-                className="hidden text-sm font-medium hover:text-pink-500 sm:block"
-              >
-                Sign in
-              </button>
-              <button
-                onClick={() => openModal("join")}
-                className="rounded-md border border-pink-500 px-3 py-1.5 text-sm font-semibold text-pink-500 hover:bg-pink-500 hover:text-white"
-              >
-                Join
-              </button>
-            </nav>
-
-            {/* Nav (Desktop >= lg) */}
-            <nav className="hidden items-center space-x-4 lg:flex">
-              <a href="/pro" className="font-medium hover:text-pink-500">
-                Partygeng Pro
-              </a>
-              <a
-                href="/start_selling"
-                className="font-medium hover:text-pink-500"
-              >
-                Become a Vendor
-              </a>
-              <button
-                onClick={() => openModal("login")}
-                className="font-medium hover:text-pink-500"
-              >
-                Sign in
-              </button>
-              <button
-                onClick={() => openModal("join")}
-                className="rounded-md border border-pink-500 px-4 py-2 font-semibold text-pink-500 hover:bg-pink-500 hover:text-white"
-              >
-                Join
-              </button>
-            </nav>
-          </div>
-
-          {/* === Bottom Row: Search Bar (Mobile < sm) === */}
-          <div className="mt-3 w-full sm:hidden">
-            <SearchInput
-              placeholder="Find services"
-              isFocused={isSearchFocused}
-              setIsFocused={setIsSearchFocused}
-              query={searchQuery}
-              setQuery={handleSearchChange}
-              results={searchResults}
-              onClear={clearSearch}
-            />
-          </div>
+          )}
         </div>
 
         {/* Full-width Border */}
         <div className="w-full border-b border-gray-200"></div>
 
-        {/* --- Category Carousel (Now part of the header) --- */}
+        {/* --- Category Carousel (Now part of the header) - Only for guests and clients --- */}
         {/* It will be hidden on mobile (<sm) by its own classes */}
-        <div className="w-full">
-          <CategoryCarousel />
-        </div>
+        {!isVendor && (
+          <div className="w-full">
+            <CategoryCarousel />
+          </div>
+        )}
       </header>
 
       {/* --- Search Overlay --- */}
@@ -241,6 +505,8 @@ const Header = () => {
         isOpen={isMobileMenuOpen}
         onClose={toggleMobileMenu}
         openModal={openModal}
+        user={user}
+        signOut={signOut}
       />
 
       {/* --- Modal --- */}

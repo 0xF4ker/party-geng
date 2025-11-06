@@ -7,7 +7,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url       = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -56,7 +56,7 @@ model User {
   id    String   @id @default(uuid()) // Links to auth.users.id
   email String   @unique
   // FIX: Added username field
-  username String  @unique
+  username String @unique
   role     UserRole // Set at sign-up (CLIENT or VENDOR)
 
   createdAt DateTime @default(now())
@@ -80,8 +80,10 @@ model User {
   vendorQuotes Quote[] @relation("VendorQuotes")
   vendorOrders Order[] @relation("VendorOrders")
 
-  // Events (Client only)
-  events ClientEvent[] @relation("HiredVendors") // For group chats
+  // FIX: This is the correction.
+  // The 'events' field was wrong. It should link to the 'EventVendor' join table.
+  // This field (`hiredGigs`) is the missing opposite relation for `EventVendor.vendor`.
+  hiredGigs EventVendor[] @relation("HiredVendor")
   
   // Reviews
   authoredReviews Review[] @relation("AuthoredReviews")
@@ -92,8 +94,8 @@ model User {
 }
 
 model ClientProfile {
-  id   String @id @default(uuid())
-  user User   @relation(fields: [userId], references: [id])
+  id     String @id @default(uuid())
+  user   User   @relation(fields: [userId], references: [id])
   userId String @unique // One-to-one
 
   name      String?
@@ -108,8 +110,8 @@ model ClientProfile {
 
 // Contains public info AND private KYC info
 model VendorProfile {
-  id   String @id @default(uuid())
-  user User   @relation(fields: [userId], references: [id])
+  id     String @id @default(uuid())
+  user   User   @relation(fields: [userId], references: [id])
   userId String @unique // One-to-one
 
   // Public Profile Info
@@ -221,10 +223,25 @@ model ClientEvent {
   client   ClientProfile @relation("EventOwner", fields: [clientProfileId], references: [id])
   clientProfileId String
 
-  // This is the key for the auto-created group chat
-  hiredVendors User[] @relation("HiredVendors")
+  // FIX: Changed implicit m-to-m to an explicit one via EventVendor
+  hiredVendors EventVendor[] @relation("Event")
 
   wishlist Wishlist? // One-to-one
+}
+
+// NEW: Explicit join table for Hired Vendors
+model EventVendor {
+  id String @id @default(uuid())
+
+  event   ClientEvent @relation("Event", fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+
+  vendor   User   @relation("HiredVendor", fields: [vendorId], references: [id], onDelete: Cascade)
+  vendorId String // This is the User ID of the vendor
+
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, vendorId]) // Ensures a vendor can only be added once per event
 }
 
 model Wishlist {
@@ -366,7 +383,6 @@ model Wallet {
   activeOrderBalance Float @default(0) // Funds in escrow for active gigs
 
   // Client-specific balances
-  // FIX: Changed @default(low) to @default(0)
   totalExpenses Float @default(0) // Total spent on platform
   totalEarnings Float @default(0) // Total received from refunds/gifts
 
@@ -413,4 +429,3 @@ model Review {
 
   createdAt DateTime @default(now())
 }
-

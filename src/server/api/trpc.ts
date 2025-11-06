@@ -27,16 +27,32 @@ import { db } from "@/server/db";
  * @see https://trpc.io/docs/server/context
  */
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { type NextRequest } from "next/server";
+import { cookies } from "next/headers";
 
 export const createTRPCContext = async (opts: { headers: Headers }) => {
+  const cookieStore = await cookies();
+  
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
-          return opts.headers.get(name) ?? undefined;
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          try {
+            cookieStore.set({ name, value, ...options });
+          } catch (error) {
+            // Handle cookie setting errors (e.g., in middleware)
+          }
+        },
+        remove(name: string, options: CookieOptions) {
+          try {
+            cookieStore.set({ name, value: '', ...options });
+          } catch (error) {
+            // Handle cookie removal errors
+          }
         },
       },
     }
@@ -44,7 +60,11 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
 
   const { data: { user } } = await supabase.auth.getUser();
 
+  console.log('[tRPC Context] User from Supabase:', user ? user.id : 'No user');
+
   const profile = user ? await db.user.findUnique({ where: { id: user.id } }) : null;
+
+  console.log('[tRPC Context] Profile from DB:', profile ? profile.id : 'No profile');
 
   return {
     db,

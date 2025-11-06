@@ -8,6 +8,7 @@ import { TRPCReactProvider } from "@/trpc/react";
 // import Footer from "./_components/home/Footer";
 
 import { AuthProvider } from "@/providers/auth-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 export default function RootLayout({
   children,
@@ -16,11 +17,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body>
         <TRPCReactProvider>
-          {/* <AuthProvider> */}
-          {/* <Header /> */}
-          {children}
-          {/* <Footer /> */}
-          {/* </AuthProvider> */}
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+          <Toaster />
         </TRPCReactProvider>
       </body>
     </html>

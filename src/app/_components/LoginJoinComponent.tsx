@@ -2,6 +2,12 @@
 
 import React, { useState } from "react";
 import { X, Check, ArrowLeft, Mail } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
+import { api } from "@/trpc/react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/stores/auth";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -57,6 +63,16 @@ const EmailForm = ({
   password,
   setPassword,
   handleSubmit,
+  loading,
+}: {
+  onBack: () => void;
+  isJoinView: boolean;
+  email: string;
+  setEmail: (email: string) => void;
+  password: string;
+  setPassword: (password: string) => void;
+  handleSubmit: (e: React.FormEvent) => void;
+  loading: boolean;
 }) => (
   // FIX: Form fields no longer show "Confirm Password", just Email and Password
   // The 'handleSubmit' function will now handle the logic to move to the username step
@@ -110,9 +126,10 @@ const EmailForm = ({
 
     <button
       type="submit"
-      className="w-full rounded-lg bg-pink-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-pink-700"
+      disabled={loading}
+      className="w-full rounded-lg bg-pink-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      Continue
+      {loading ? "Loading..." : "Continue"}
     </button>
   </form>
 );
@@ -123,6 +140,13 @@ const UsernameForm = ({
   username,
   setUsername,
   handleCreateAccount,
+  loading,
+}: {
+  onBack: () => void;
+  username: string;
+  setUsername: (username: string) => void;
+  handleCreateAccount: (e: React.FormEvent) => void;
+  loading: boolean;
 }) => (
   <form onSubmit={handleCreateAccount} className="flex flex-col gap-4">
     <button
@@ -162,14 +186,17 @@ const UsernameForm = ({
 
     <button
       type="submit"
-      className="w-full rounded-lg bg-pink-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-pink-700"
+      disabled={loading}
+      className="w-full rounded-lg bg-pink-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      Create my account
+      {loading ? "Creating account..." : "Create my account"}
     </button>
   </form>
 );
 
-const AuthModal = ({ isModal = false, initialView = "signin", onClose }) => {
+const AuthModal = ({ isModal = false, initialView = "login", onClose }: { isModal?: boolean; initialView?: string; onClose?: () => void }) => {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [view, setView] = useState(initialView);
   const [selectedRole, setSelectedRole] = useState("client");
   // FIX: Updated step logic
@@ -178,51 +205,175 @@ const AuthModal = ({ isModal = false, initialView = "signin", onClose }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [loading, setLoading] = useState(false);
   // Removed confirmPassword, as it's part of the email form's logic if needed, but Fiverr flow doesn't use it on step 1
 
-  const handleEmailSubmit = (e) => {
+  // tRPC hooks
+  const createUserMutation = api.auth.createUser.useMutation();
+  const utils = api.useUtils();
+
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
-    // MOCK LOGIC:
-    // 1. You would call a tRPC mutation to check if email exists.
-    // const emailExists = await checkEmail.mutateAsync({ email });
+    setLoading(true);
 
-    const emailExists = false; // Mock: email is new
+    try {
+      if (view === "login") {
+        // Sign in with Supabase
+        const supabase = createClient();
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-    if (view === "signin") {
-      if (emailExists) {
-        // Log them in
-        console.log("Sign in with:", { email, password });
+        if (error) {
+          toast.error(error.message);
+        } else {
+          toast.success("Welcome back!");
+          
+          // Optimistically set profile from session data (instant!)
+          if (data.user) {
+            const optimisticProfile = {
+              id: data.user.id,
+              email: data.user.email!,
+              username: data.user.user_metadata?.username || data.user.email?.split('@')[0] || '',
+              name: data.user.user_metadata?.name || null,
+              image: data.user.user_metadata?.avatar_url || null,
+              role: data.user.user_metadata?.role || 'CLIENT',
+              vendorProfile: data.user.user_metadata?.role === 'VENDOR' ? {} : null,
+              clientProfile: data.user.user_metadata?.role === 'CLIENT' ? {} : null,
+              createdAt: new Date(data.user.created_at),
+              updatedAt: new Date(),
+            };
+            
+            // Set optimistic profile in store immediately
+            const { setProfile } = useAuthStore.getState();
+            setProfile(optimisticProfile as any);
+          }
+          
+          // Close modal immediately
+          if (onClose) onClose();
+          
+          // Invalidate and refetch real profile in background
+          utils.user.getProfile.invalidate();
+          utils.user.getProfile.fetch(); // Background fetch
+          
+          // Navigate immediately using metadata
+          const userRole = data.user?.user_metadata?.role;
+          
+          if (userRole === 'VENDOR') {
+            router.push("/v/dashboard");
+          } else if (userRole === 'CLIENT') {
+            router.push("/c/manage_events");
+          } else {
+            router.push("/");
+          }
+        }
       } else {
-        // Show error: "Email not found. Please Join."
-        alert("Email not found. Please Join.");
-      }
-    } else {
-      // (view === 'join')
-      if (emailExists) {
-        // Show error: "Email exists. Please Sign In."
-        alert("Email exists. Please Sign In.");
-      } else {
-        // It's a new user, proceed to username step
+        // For join flow, proceed to username step
         setStep("username");
       }
+    } catch (error) {
+      console.error("Auth error:", error);
+      toast.error("An error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCreateAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { username, role: selectedRole } },
-    });
+    setLoading(true);
+    
+    try {
+      const supabase = createClient();
+      
+      // Check if username is available
+      // Note: This would be better done with debouncing as user types
+      // For now, we'll skip the check and let the database handle uniqueness
+      
+      // 1. Create Supabase auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { 
+          data: { 
+            username, 
+            role: selectedRole.toUpperCase() 
+          },
+          emailRedirectTo: window.location.origin,
+        },
+      });
 
-    if (error) {
-      alert(error.message);
-    } else {
-      alert("Account created successfully! Please check your email to verify.");
-      // You might want to close the modal or redirect the user here
-      if (onClose) onClose();
+      if (authError) {
+        toast.error(authError.message);
+        setLoading(false);
+        return;
+      }
+
+      if (!authData.user) {
+        toast.error("Failed to create account. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // 2. Create user in database via tRPC
+      await createUserMutation.mutateAsync({
+        id: authData.user.id,
+        email: authData.user.email!,
+        username,
+        role: selectedRole.toUpperCase() as "CLIENT" | "VENDOR",
+      });
+
+      // Check if user was auto-confirmed (session exists)
+      const hasSession = authData.session !== null;
+      
+      if (hasSession) {
+        // User is automatically logged in (email confirmation disabled)
+        toast.success("Account created successfully! Welcome!");
+        
+        // Optimistically set profile from signup data (instant!)
+        const optimisticProfile = {
+          id: authData.user.id,
+          email: authData.user.email!,
+          username,
+          name: null,
+          image: null,
+          role: selectedRole.toUpperCase(),
+          vendorProfile: selectedRole === "vendor" ? {} : null,
+          clientProfile: selectedRole === "client" ? {} : null,
+          createdAt: new Date(authData.user.created_at),
+          updatedAt: new Date(),
+        };
+        
+        // Set optimistic profile in store immediately
+        const { setProfile } = useAuthStore.getState();
+        setProfile(optimisticProfile as any);
+        
+        // Close modal immediately
+        if (onClose) onClose();
+        
+        // Invalidate and refetch real profile in background
+        utils.user.getProfile.invalidate();
+        utils.user.getProfile.fetch(); // Background fetch
+        
+        // Navigate immediately based on selected role
+        if (selectedRole === "vendor") {
+          router.push("/v/dashboard");
+        } else {
+          router.push("/c/manage_events");
+        }
+      } else {
+        // User needs to verify email
+        toast.success("Account created! Please check your email to verify and login.");
+        
+        // Close modal and don't redirect
+        if (onClose) onClose();
+      }
+    } catch (error) {
+      console.error("Signup error:", error);
+      toast.error("An error occurred during signup. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -339,7 +490,7 @@ const AuthModal = ({ isModal = false, initialView = "signin", onClose }) => {
                   : "Don't have an account? "}
                 <button
                   onClick={() => {
-                    setView(view === "join" ? "signin" : "join");
+                    setView(view === "join" ? "login" : "join");
                     setStep("options");
                     handleBack("options");
                   }}
@@ -447,7 +598,8 @@ const AuthModal = ({ isModal = false, initialView = "signin", onClose }) => {
                   setEmail={setEmail}
                   password={password}
                   setPassword={setPassword}
-                  handleSubmit={handleEmailSubmit} // FIX: Now handles submit logic
+                  handleSubmit={handleEmailSubmit}
+                  loading={loading}
                 />
               </div>
 
@@ -463,6 +615,7 @@ const AuthModal = ({ isModal = false, initialView = "signin", onClose }) => {
                   username={username}
                   setUsername={setUsername}
                   handleCreateAccount={handleCreateAccountSubmit}
+                  loading={loading}
                 />
               </div>
             </div>{" "}

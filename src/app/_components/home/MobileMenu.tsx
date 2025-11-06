@@ -13,13 +13,20 @@ interface MobileMenuProps {
   isOpen: boolean;
   onClose: () => void;
   openModal: (view: "login" | "join") => void;
+  user?: any;
+  signOut?: () => void;
 }
 
 const MobileMenu: React.FC<MobileMenuProps> = ({
   isOpen,
   onClose,
   openModal,
+  user,
+  signOut,
 }) => {
+  const isVendor = user?.vendorProfile !== null && user?.vendorProfile !== undefined;
+  const isClient = user?.clientProfile !== null && user?.clientProfile !== undefined;
+  const isGuest = !user;
   const [currentView, setCurrentView] = useState("main"); // 'main' or category name
   const [currentCategory, setCurrentCategory] = useState<
     (typeof categoriesData)[0] | null
@@ -81,55 +88,146 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
             </button>
           </div>
           <nav className="flex flex-col space-y-5 p-4">
-            <button
-              onClick={() => openModal("join")}
-              className="w-full rounded-md bg-pink-500 px-4 py-2.5 text-lg font-bold text-white hover:bg-pink-600"
-            >
-              Join Partygeng
-            </button>
-            <button
-              onClick={() => openModal("login")}
-              className="text-left text-base font-medium text-gray-700 hover:text-pink-500"
-            >
-              Sign in
-            </button>
+            {isGuest ? (
+              // Guest Links
+              <>
+                <button
+                  onClick={() => openModal("join")}
+                  className="w-full rounded-md bg-pink-500 px-4 py-2.5 text-lg font-bold text-white hover:bg-pink-600"
+                >
+                  Join Partygeng
+                </button>
+                <button
+                  onClick={() => openModal("login")}
+                  className="text-left text-base font-medium text-gray-700 hover:text-pink-500"
+                >
+                  Sign in
+                </button>
 
-            <div className="">
-              <Accordion type="single" collapsible>
-                <AccordionItem value="categories">
-                  <AccordionTrigger>Browse categories</AccordionTrigger>
-                  <AccordionContent>
-                    <div className="ml-6 flex flex-col space-y-3">
-                      {categoriesData.map((category) => (
-                        <button
-                          key={category.name}
-                          onClick={() => handleCategoryClick(category)}
-                          className="flex items-center justify-between text-base font-medium text-gray-700 hover:text-pink-500"
-                        >
-                          {category.name}
-                          <ChevronRight className="h-5 w-5" />
-                        </button>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
+                <div className="">
+                  <Accordion type="single" collapsible>
+                    <AccordionItem value="categories">
+                      <AccordionTrigger>Browse categories</AccordionTrigger>
+                      <AccordionContent>
+                        <div className="ml-6 flex flex-col space-y-3">
+                          {categoriesData.map((category) => (
+                            <button
+                              key={category.name}
+                              onClick={() => handleCategoryClick(category)}
+                              className="flex items-center justify-between text-base font-medium text-gray-700 hover:text-pink-500"
+                            >
+                              {category.name}
+                              <ChevronRight className="h-5 w-5" />
+                            </button>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </div>
 
-            <div className="space-y-5">
-              <a
-                href="/pro"
-                className="block text-base font-medium text-gray-700 hover:text-pink-500"
-              >
-                Partygeng Pro
-              </a>
-              <a
-                href="/start_selling"
-                className="block text-base font-medium text-gray-700 hover:text-pink-500"
-              >
-                Become a Vendor
-              </a>
-            </div>
+                <div className="space-y-5">
+                  <a
+                    href="/pro"
+                    className="block text-base font-medium text-gray-700 hover:text-pink-500"
+                  >
+                    Partygeng Pro
+                  </a>
+                  <a
+                    href="/start_selling"
+                    className="block text-base font-medium text-gray-700 hover:text-pink-500"
+                  >
+                    Become a Vendor
+                  </a>
+                </div>
+              </>
+            ) : isVendor ? (
+              // Vendor Links
+              <>
+                <div className="space-y-5">
+                  <a href="/v/dashboard" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                    Dashboard
+                  </a>
+                  <a href="/manage_orders" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                    Orders
+                  </a>
+                  <a href="/earnings" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                    Earnings
+                  </a>
+                  <a href={`/c/${user.id}`} className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                    Public Profile
+                  </a>
+                  <a href="/settings" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                    Settings
+                  </a>
+                  <button
+                    onClick={() => {
+                      signOut?.();
+                      onClose();
+                    }}
+                    className="block w-full text-left text-base font-medium text-red-600 hover:text-red-700"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </>
+            ) : (
+              // Client Links
+              <>
+                <div className="space-y-5">
+                  <a href="/c/manage_events" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                    My Events
+                  </a>
+                  <a href="/manage_orders" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                    Orders
+                  </a>
+                  <a href="/inbox" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                    Inbox
+                  </a>
+                  <a href="/notifications" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                    Notifications
+                  </a>
+                  
+                  <div className="">
+                    <Accordion type="single" collapsible>
+                      <AccordionItem value="categories">
+                        <AccordionTrigger>Browse categories</AccordionTrigger>
+                        <AccordionContent>
+                          <div className="ml-6 flex flex-col space-y-3">
+                            {categoriesData.map((category) => (
+                              <button
+                                key={category.name}
+                                onClick={() => handleCategoryClick(category)}
+                                className="flex items-center justify-between text-base font-medium text-gray-700 hover:text-pink-500"
+                              >
+                                {category.name}
+                                <ChevronRight className="h-5 w-5" />
+                              </button>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </div>
+                  
+                  <a href={`/c/${user.id}`} className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                    Public Profile
+                  </a>
+                  <a href="/settings" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                    Settings
+                  </a>
+                  <button
+                    onClick={() => {
+                      signOut?.();
+                      onClose();
+                    }}
+                    className="block w-full text-left text-base font-medium text-red-600 hover:text-red-700"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </>
+            )}
           </nav>
         </div>
 
