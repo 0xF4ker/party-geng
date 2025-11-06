@@ -1,6 +1,8 @@
 "use client";
 
-import { trpc } from "@/trpc/react";
+import { api } from "@/trpc/react";
+import { useAuthStore } from "@/stores/auth";
+import { useState, useEffect } from "react";
 import {
   User,
   ShieldCheck,
@@ -137,7 +139,7 @@ const SettingsPage = () => {
 
 // --- Sub-Components ---
 
-const SettingsSidebar = ({ activeSection, setActiveSection, userType }) => {
+const SettingsSidebar = ({ activeSection, setActiveSection, userType }: { activeSection: string; setActiveSection: (section: string) => void; userType: string | undefined }) => {
   const allLinks = [
     {
       id: "profile",
@@ -172,7 +174,7 @@ const SettingsSidebar = ({ activeSection, setActiveSection, userType }) => {
   ];
 
   // Filter links based on userType
-  const visibleLinks = allLinks.filter((link) => link.for.includes(userType));
+  const visibleLinks = allLinks.filter((link) => userType && link.for.includes(userType.toLowerCase()));
 
   return (
     <div className="sticky top-[127px] rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
@@ -206,7 +208,7 @@ const KycForm = () => {
   const [cacNumber, setCacNumber] = useState("");
   const [businessAddress, setBusinessAddress] = useState("");
 
-  const { mutate, isLoading, error } = trpc.vendor.submitKyc.useMutation({
+  const { mutate, isPending, error } = api.vendor.submitKyc.useMutation({
     onSuccess: () => {
       alert("KYC submitted successfully!");
     },
@@ -235,14 +237,14 @@ const KycForm = () => {
             id="fullName"
             placeholder="Adebayo Popoola"
             value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFullName(e.target.value)}
           />
           <FormInput
             label="CAC Number (if registered)"
             id="cacNumber"
             placeholder="RC123456"
             value={cacNumber}
-            onChange={(e) => setCacNumber(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCacNumber(e.target.value)}
           />
         </div>
         <FormInput
@@ -250,16 +252,16 @@ const KycForm = () => {
           id="address"
           placeholder="123, Main Street"
           value={businessAddress}
-          onChange={(e) => setBusinessAddress(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBusinessAddress(e.target.value)}
         />
       </div>
       <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-6">
         <button
           type="submit"
           className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700"
-          disabled={isLoading}
+          disabled={isPending}
         >
-          {isLoading ? "Submitting..." : "Submit for Verification"}
+          {isPending ? "Submitting..." : "Submit for Verification"}
         </button>
       </div>
       {error && (
@@ -273,7 +275,7 @@ const KycForm = () => {
 
 // --- SHARED SETTINGS PAGES ---
 
-const PublicProfileForm = ({ isVendor }) => {
+const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   const [skills, setSkills] = useState(["Wedding DJ", "MC"]);
   const [skillInput, setSkillInput] = useState("");
 
@@ -284,7 +286,7 @@ const PublicProfileForm = ({ isVendor }) => {
     }
   };
 
-  const removeSkill = (skillToRemove) => {
+  const removeSkill = (skillToRemove: string) => {
     setSkills(skills.filter((skill) => skill !== skillToRemove));
   };
 
@@ -458,7 +460,7 @@ const NotificationSettings = () => {
     marketing: false,
   });
 
-  const handleToggle = (key) => {
+  const handleToggle = (key: keyof typeof toggles) => {
     setToggles((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
@@ -531,7 +533,7 @@ const NotificationSettings = () => {
 
 // --- Shared Form Utilities ---
 
-const FormInput = ({ label, id, ...props }) => (
+const FormInput = ({ label, id, ...props }: { label: string; id: string; [key: string]: any }) => (
   <div>
     <label
       htmlFor={id}
@@ -548,7 +550,7 @@ const FormInput = ({ label, id, ...props }) => (
   </div>
 );
 
-const FormSelect = ({ label, id, options, ...props }) => (
+const FormSelect = ({ label, id, options, ...props }: { label: string; id: string; options: string[]; [key: string]: any }) => (
   <div>
     <label
       htmlFor={id}
@@ -565,7 +567,7 @@ const FormSelect = ({ label, id, options, ...props }) => (
         <option value="" disabled>
           Select...
         </option>
-        {options.map((option) => (
+        {options.map((option: string) => (
           <option key={option} value={option}>
             {option}
           </option>
@@ -576,7 +578,7 @@ const FormSelect = ({ label, id, options, ...props }) => (
   </div>
 );
 
-const FileUpload = ({ title }) => (
+const FileUpload = ({ title }: { title: string }) => (
   <div>
     <label className="mb-1.5 block text-sm font-semibold text-gray-700">
       {title}

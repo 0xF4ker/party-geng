@@ -72,8 +72,8 @@ const gigDetails = {
 const GigDetailPage = () => {
   const [isSidebarSticky, setIsSidebarSticky] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(0);
-  const sidebarRef = useRef(null);
-  const contentRef = useRef(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Effect to capture sidebar width
   useLayoutEffect(() => {

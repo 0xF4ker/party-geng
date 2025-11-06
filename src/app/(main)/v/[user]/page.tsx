@@ -116,8 +116,8 @@ const reviewData = [
 const VendorProfilePage = () => {
   const [isSidebarSticky, setIsSidebarSticky] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(0);
-  const sidebarRef = useRef(null);
-  const contentRef = useRef(null); // Ref for the right-side content
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null); // Ref for the right-side content
 
   // Effect to capture sidebar width
   useLayoutEffect(() => {

@@ -212,7 +212,7 @@ const AuthModal = ({ isModal = false, initialView = "login", onClose }: { isModa
   const createUserMutation = api.auth.createUser.useMutation();
   const utils = api.useUtils();
 
-  const handleEmailSubmit = async (e) => {
+      const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -236,8 +236,6 @@ const AuthModal = ({ isModal = false, initialView = "login", onClose }: { isModa
               id: data.user.id,
               email: data.user.email!,
               username: data.user.user_metadata?.username || data.user.email?.split('@')[0] || '',
-              name: data.user.user_metadata?.name || null,
-              image: data.user.user_metadata?.avatar_url || null,
               role: data.user.user_metadata?.role || 'CLIENT',
               vendorProfile: data.user.user_metadata?.role === 'VENDOR' ? {} : null,
               clientProfile: data.user.user_metadata?.role === 'CLIENT' ? {} : null,
@@ -336,8 +334,6 @@ const AuthModal = ({ isModal = false, initialView = "login", onClose }: { isModa
           id: authData.user.id,
           email: authData.user.email!,
           username,
-          name: null,
-          image: null,
           role: selectedRole.toUpperCase(),
           vendorProfile: selectedRole === "vendor" ? {} : null,
           clientProfile: selectedRole === "client" ? {} : null,
@@ -598,7 +594,7 @@ const AuthModal = ({ isModal = false, initialView = "login", onClose }: { isModa
                   setEmail={setEmail}
                   password={password}
                   setPassword={setPassword}
-                  handleSubmit={handleEmailSubmit}
+                  handleSubmit={handleSubmit}
                   loading={loading}
                 />
               </div>

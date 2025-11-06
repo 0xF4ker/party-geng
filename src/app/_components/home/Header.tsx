@@ -139,6 +139,12 @@ const Header = () => {
   const isVendor = user?.vendorProfile !== null && user?.vendorProfile !== undefined;
   const isClient = user?.clientProfile !== null && user?.clientProfile !== undefined;
   const isGuest = !user;
+  
+  // Get avatar and name from appropriate profile
+  const avatarUrl = isVendor ? user?.vendorProfile?.avatarUrl : user?.clientProfile?.avatarUrl;
+  const displayName = isVendor 
+    ? (user?.vendorProfile?.companyName || user?.username)
+    : (user?.clientProfile?.name || user?.username);
 
   return (
     <>
@@ -260,11 +266,11 @@ const Header = () => {
                       className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-pink-500"
                     >
                       <div className="h-10 w-10 overflow-hidden rounded-full bg-pink-100">
-                        {user.image ? (
-                          <img src={user.image} alt={user.name || "Profile"} className="h-full w-full object-cover" />
+                        {avatarUrl ? (
+                          <img src={avatarUrl} alt={displayName || "Profile"} className="h-full w-full object-cover" />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center text-pink-600 font-semibold">
-                            {user.name?.charAt(0).toUpperCase() || "V"}
+                            {displayName?.charAt(0).toUpperCase() || "V"}
                           </div>
                         )}
                       </div>
@@ -274,7 +280,7 @@ const Header = () => {
                     {isProfileDropdownOpen && (
                       <div className="absolute top-full right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
                         <div className="border-b border-gray-100 px-4 py-3">
-                          <p className="font-semibold text-gray-800">{user.name || user.username}</p>
+                          <p className="font-semibold text-gray-800">{displayName}</p>
                           <p className="text-sm text-gray-500">@{user.username}</p>
                         </div>
                         <Link href={`/c/${user.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
@@ -306,11 +312,11 @@ const Header = () => {
                     onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
                     className="h-10 w-10 overflow-hidden rounded-full bg-pink-100 hover:ring-2 hover:ring-pink-500"
                   >
-                    {user.image ? (
-                      <img src={user.image} alt={user.name || "Profile"} className="h-full w-full object-cover" />
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt={displayName || "Profile"} className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-pink-600 font-semibold">
-                        {user.name?.charAt(0).toUpperCase() || "V"}
+                        {displayName?.charAt(0).toUpperCase() || "V"}
                       </div>
                     )}
                   </button>
@@ -319,7 +325,7 @@ const Header = () => {
                   {isProfileDropdownOpen && (
                     <div className="absolute top-full right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
                       <div className="border-b border-gray-100 px-4 py-3">
-                        <p className="font-semibold text-gray-800">{user.name || user.username}</p>
+                        <p className="font-semibold text-gray-800">{displayName}</p>
                         <p className="text-sm text-gray-500">@{user.username}</p>
                       </div>
                       <Link href={`/c/${user.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
@@ -371,11 +377,11 @@ const Header = () => {
                       className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-pink-500"
                     >
                       <div className="h-10 w-10 overflow-hidden rounded-full bg-pink-100">
-                        {user.image ? (
-                          <img src={user.image} alt={user.name || "Profile"} className="h-full w-full object-cover" />
+                        {avatarUrl ? (
+                          <img src={avatarUrl} alt={displayName || "Profile"} className="h-full w-full object-cover" />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center text-pink-600 font-semibold">
-                            {user.name?.charAt(0).toUpperCase() || "C"}
+                            {displayName?.charAt(0).toUpperCase() || "C"}
                           </div>
                         )}
                       </div>
@@ -385,7 +391,7 @@ const Header = () => {
                     {isProfileDropdownOpen && (
                       <div className="absolute top-full right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
                         <div className="border-b border-gray-100 px-4 py-3">
-                          <p className="font-semibold text-gray-800">{user.name || user.username}</p>
+                          <p className="font-semibold text-gray-800">{displayName}</p>
                           <p className="text-sm text-gray-500">@{user.username}</p>
                         </div>
                         <Link href={`/c/${user.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
@@ -422,11 +428,11 @@ const Header = () => {
                       onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
                       className="h-10 w-10 overflow-hidden rounded-full bg-pink-100 hover:ring-2 hover:ring-pink-500"
                     >
-                      {user.image ? (
-                        <img src={user.image} alt={user.name || "Profile"} className="h-full w-full object-cover" />
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt={displayName || "Profile"} className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-pink-600 font-semibold">
-                          {user.name?.charAt(0).toUpperCase() || "C"}
+                          {displayName?.charAt(0).toUpperCase() || "C"}
                         </div>
                       )}
                     </button>
@@ -435,7 +441,7 @@ const Header = () => {
                     {isProfileDropdownOpen && (
                       <div className="absolute top-full right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
                         <div className="border-b border-gray-100 px-4 py-3">
-                          <p className="font-semibold text-gray-800">{user.name || user.username}</p>
+                          <p className="font-semibold text-gray-800">{displayName}</p>
                           <p className="text-sm text-gray-500">@{user.username}</p>
                         </div>
                         <Link href={`/c/${user.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
