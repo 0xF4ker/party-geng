@@ -168,14 +168,14 @@ const ClientEventPlannerPage = () => {
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
 
-  const openWishlist = (event) => {
+  const openWishlist = (event: any) => {
     setSelectedEvent(event);
     setIsWishlistOpen(true);
   };
 
-  const openAddVendor = (event) => {
+  const openAddVendor = (event: any) => {
     setSelectedEvent(event);
     setIsVendorModalOpen(true);
   };
@@ -263,7 +263,7 @@ const ClientEventPlannerPage = () => {
 
 // --- Sub-Components ---
 
-const TabButton = ({ title, isActive, onClick }) => (
+const TabButton = ({ title, isActive, onClick }: { title: string; isActive: boolean; onClick: () => void }) => (
   <button
     onClick={onClick}
     className={cn(
@@ -282,20 +282,25 @@ const EventCard = ({
   onWishlistClick,
   onAddVendorClick,
   isPast = false,
+}: {
+  event: any;
+  onWishlistClick?: () => void;
+  onAddVendorClick?: () => void;
+  isPast?: boolean;
 }) => {
   const wishlistCount = event.wishlistItems.length;
   // FIX: Changed from promisedCount to fulfilledCount
   const fulfilledCount = event.wishlistItems.filter(
-    (item) => item.isFulfilled,
+    (item: any) => item.isFulfilled,
   ).length;
   const [isPublic, setIsPublic] = useState(event.isPublic);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu on outside click
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsMenuOpen(false);
       }
     };
@@ -332,7 +337,7 @@ const EventCard = ({
                 <div className="absolute top-full right-0 z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg">
                   <button
                     onClick={() => {
-                      onWishlistClick();
+                      onWishlistClick?.();
                       setIsMenuOpen(false);
                     }}
                     className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
@@ -366,8 +371,8 @@ const EventCard = ({
             <h4 className="mb-2 text-xs font-semibold text-gray-500 uppercase">
               Hired Vendors ({event.hiredVendors.length})
             </h4>
-            <div className="flex items-center -space-x-2">
-              {event.hiredVendors.map((vendor) => (
+                  <div className="flex items-center gap-2">
+                    {event.hiredVendors.slice(0, 3).map((vendor: any) => (
                 <img
                   key={vendor.id}
                   src={vendor.avatarUrl}
@@ -436,7 +441,7 @@ const EventCard = ({
 
 // --- MODAL COMPONENTS ---
 
-const WishlistModal = ({ event, onClose }) => {
+const WishlistModal = ({ event, onClose }: { event: any; onClose: () => void }) => {
   const [copied, setCopied] = useState(false);
   // FIX: Add state to manage wishlist items locally for toggling
   const [items, setItems] = useState(event.wishlistItems);
@@ -471,19 +476,20 @@ const WishlistModal = ({ event, onClose }) => {
   };
 
   // FIX: Add handler to toggle fulfillment
-  const handleToggleFulfilled = (itemId) => {
-    setItems((currentItems) =>
-      currentItems.map((item) =>
+  const handleToggleFulfilled = (itemId: number) => {
+    setItems((currentItems: any[]) =>
+      currentItems.map((item: any) =>
         item.id === itemId ? { ...item, isFulfilled: !item.isFulfilled } : item,
       ),
     );
     // In a real app, you would also send this update to your backend
   };
 
-  const handleAddItem = (e) => {
+  const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const newItemName = e.target.elements.newItem.value;
-    const newItemPrice = e.target.elements.newItemPrice.value;
+    const form = e.target as HTMLFormElement;
+    const newItemName = (form.elements.namedItem('newItem') as HTMLInputElement)?.value;
+    const newItemPrice = (form.elements.namedItem('newItemPrice') as HTMLInputElement)?.value;
     if (!newItemName || !newItemPrice) return;
 
     const newItem = {
@@ -494,12 +500,12 @@ const WishlistModal = ({ event, onClose }) => {
       isFulfilled: false,
     };
     setItems([...items, newItem]);
-    e.target.reset();
+    form.reset();
   };
 
-  const handleRemoveItem = (itemId) => {
-    setItems((currentItems) =>
-      currentItems.filter((item) => item.id !== itemId),
+  const handleRemoveItem = (itemId: number) => {
+    setItems((currentItems: any[]) =>
+      currentItems.filter((item: any) => item.id !== itemId),
     );
     // In a real app, send this delete request to backend
   };
@@ -555,7 +561,7 @@ const WishlistModal = ({ event, onClose }) => {
           <h4 className="mb-3 font-semibold text-gray-800">Wishlist Items</h4>
           {/* FIX: Updated list to show new logic */}
           <ul className="divide-y divide-gray-100">
-            {items.map((item) => (
+            {items.map((item: any) => (
               <li key={item.id} className="flex items-start gap-4 py-3">
                 {/* Checkbox for Owner */}
                 <input
@@ -645,7 +651,7 @@ const WishlistModal = ({ event, onClose }) => {
 };
 
 // NEW: Create Event Modal
-const CreateEventModal = ({ onClose }) => {
+const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="m-4 w-full max-w-lg rounded-lg bg-white shadow-xl">
@@ -713,7 +719,7 @@ const CreateEventModal = ({ onClose }) => {
 };
 
 // NEW: Add Vendor Modal
-const AddVendorModal = ({ event, onClose }) => {
+const AddVendorModal = ({ event, onClose }: { event: any; onClose: () => void }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="m-4 flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg bg-white shadow-xl">

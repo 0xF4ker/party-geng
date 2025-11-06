@@ -213,7 +213,7 @@ const InboxPage = () => {
           currentUser: vendorUser,
           conversations: vendorConversations,
           initialMessages: vendorMessages,
-          otherUser: vendorConversations[0].user, // The client
+          otherUser: vendorConversations[0]?.user, // The client
         };
       }
       // Default to client
@@ -221,7 +221,7 @@ const InboxPage = () => {
         currentUser: clientUser,
         conversations: clientConversations,
         initialMessages: clientMessages,
-        otherUser: clientConversations[0].user, // The vendor
+        otherUser: clientConversations[0]?.user, // The vendor
       };
     }, [userType]);
 
@@ -255,7 +255,7 @@ const InboxPage = () => {
     setMessage("");
   };
 
-  const handleSendQuote = (quoteData) => {
+  const handleSendQuote = (quoteData: any) => {
     const newQuoteMessage = {
       id: messages.length + 1,
       senderId: currentUser.id,
@@ -303,7 +303,7 @@ const InboxPage = () => {
               <ConversationItem
                 key={convo.id}
                 convo={convo}
-                isSelected={selectedConvo.id === convo.id}
+                isSelected={selectedConvo?.id === convo.id}
                 onClick={() => setSelectedConvo(convo)}
               />
             ))}
@@ -316,7 +316,7 @@ const InboxPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">
-                  {selectedConvo.user.name}
+                  {selectedConvo?.user.name}
                 </h3>
                 <p className="text-xs font-medium text-green-600">Online</p>
               </div>
@@ -425,13 +425,13 @@ const InboxPage = () => {
         <aside className="hidden h-full overflow-y-auto bg-gray-50 p-6 lg:block lg:w-1/4">
           {/* ... info sidebar ... */}
           {/* FIX: Show card based on who user is talking to */}
-          {selectedConvo.user.isVendor && (
+          {selectedConvo && 'isVendor' in selectedConvo.user && selectedConvo.user.isVendor && (
             <VendorInfoCard
               profile={selectedConvo.user.profile}
               name={selectedConvo.user.name}
             />
           )}
-          {selectedConvo.user.isClient && (
+          {selectedConvo && 'isClient' in selectedConvo.user && selectedConvo.user.isClient && (
             <ClientInfoCard
               profile={selectedConvo.user.profile}
               name={selectedConvo.user.name}
@@ -454,7 +454,7 @@ const InboxPage = () => {
 // ... (All the sub-components: ConversationItem, MessageBubble, etc.) ...
 // --- Sub-Components ---
 
-const ConversationItem = ({ convo, isSelected, onClick }) => (
+const ConversationItem = ({ convo, isSelected, onClick }: { convo: any; isSelected: boolean; onClick: () => void }) => (
   <button
     onClick={onClick}
     className={cn(
@@ -482,7 +482,7 @@ const ConversationItem = ({ convo, isSelected, onClick }) => (
   </button>
 );
 
-const MessageBubble = ({ msg, currentUser }) => {
+const MessageBubble = ({ msg, currentUser }: { msg: any; currentUser: any }) => {
   const isMe = msg.senderId === currentUser.id;
   return (
     <div className={cn("flex", isMe ? "justify-end" : "justify-start")}>
@@ -509,7 +509,7 @@ const MessageBubble = ({ msg, currentUser }) => {
 };
 
 // FIX: Updated QuoteRequestBubble to handle onSendQuoteClick prop
-const QuoteRequestBubble = ({ msg, isMe, onSendQuoteClick }) => {
+const QuoteRequestBubble = ({ msg, isMe, onSendQuoteClick }: { msg: any; isMe: boolean; onSendQuoteClick?: () => void }) => {
   return (
     <div className={cn("flex", isMe ? "justify-end" : "justify-start")}>
       <div
@@ -550,7 +550,7 @@ const QuoteRequestBubble = ({ msg, isMe, onSendQuoteClick }) => {
   );
 };
 
-const QuoteBubble = ({ msg, currentUser }) => {
+const QuoteBubble = ({ msg, currentUser }: { msg: any; currentUser: any }) => {
   const isMe = msg.senderId === currentUser.id;
 
   const handleAccept = () => {
@@ -623,7 +623,7 @@ const QuoteBubble = ({ msg, currentUser }) => {
 
 // --- Info Cards ---
 
-const VendorInfoCard = ({ profile, name }) => (
+const VendorInfoCard = ({ profile, name }: { profile: any; name: string }) => (
   <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
     <div className="flex flex-col items-center">
       <h3 className="mb-4 text-lg font-semibold text-gray-800">About {name}</h3>
@@ -666,7 +666,7 @@ const VendorInfoCard = ({ profile, name }) => (
 );
 
 // RE-ADDED: ClientInfoCard
-const ClientInfoCard = ({ profile, name }) => (
+const ClientInfoCard = ({ profile, name }: { profile: any; name: string }) => (
   <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
     <div className="flex flex-col items-center">
       <h3 className="mb-4 text-lg font-semibold text-gray-800">About {name}</h3>
@@ -711,7 +711,7 @@ const ClientInfoCard = ({ profile, name }) => (
 );
 
 // RE-ADDED: CreateQuoteModal
-const CreateQuoteModal = ({ onClose, onSend }) => {
+const CreateQuoteModal = ({ onClose, onSend }: { onClose: () => void; onSend: (data: any) => void }) => {
   const [title, setTitle] = useState("DJ for 30th Birthday Bash");
   const [price, setPrice] = useState("250000");
   const [date, setDate] = useState("2025-12-15");
