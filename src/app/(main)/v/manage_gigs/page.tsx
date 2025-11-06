@@ -236,12 +236,15 @@ const TabButton = ({
 const GigManagementCard = ({ gig }: { gig: any }) => {
   const [isPaused, setIsPaused] = useState(gig.status === "Paused");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu on outside click
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node)
+      ) {
         setIsMenuOpen(false);
       }
     };

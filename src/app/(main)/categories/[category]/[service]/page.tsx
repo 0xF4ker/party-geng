@@ -124,7 +124,9 @@ const ServiceListingPage = () => {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        setIsFilterSticky(entry.intersectionRatio < 1);
+        if (entry) {
+          setIsFilterSticky(entry.intersectionRatio < 1);
+        }
       },
       { threshold: [1] },
     );

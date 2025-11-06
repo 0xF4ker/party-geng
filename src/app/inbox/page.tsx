@@ -379,7 +379,7 @@ const InboxPage = () => {
                     onSendQuoteClick={
                       userType === "vendor" && msg.senderId !== currentUser.id
                         ? () => setIsQuoteModalOpen(true)
-                        : null
+                        : undefined
                     }
                   />
                 );
@@ -425,18 +425,22 @@ const InboxPage = () => {
         <aside className="hidden h-full overflow-y-auto bg-gray-50 p-6 lg:block lg:w-1/4">
           {/* ... info sidebar ... */}
           {/* FIX: Show card based on who user is talking to */}
-          {selectedConvo && 'isVendor' in selectedConvo.user && selectedConvo.user.isVendor && (
-            <VendorInfoCard
-              profile={selectedConvo.user.profile}
-              name={selectedConvo.user.name}
-            />
-          )}
-          {selectedConvo && 'isClient' in selectedConvo.user && selectedConvo.user.isClient && (
-            <ClientInfoCard
-              profile={selectedConvo.user.profile}
-              name={selectedConvo.user.name}
-            />
-          )}
+          {selectedConvo &&
+            "isVendor" in selectedConvo.user &&
+            selectedConvo.user.isVendor && (
+              <VendorInfoCard
+                profile={selectedConvo.user.profile}
+                name={selectedConvo.user.name}
+              />
+            )}
+          {selectedConvo &&
+            "isClient" in selectedConvo.user &&
+            selectedConvo.user.isClient && (
+              <ClientInfoCard
+                profile={selectedConvo.user.profile}
+                name={selectedConvo.user.name}
+              />
+            )}
         </aside>
 
         {/* FIX: Conditionally show modal only for vendors */}
@@ -454,7 +458,15 @@ const InboxPage = () => {
 // ... (All the sub-components: ConversationItem, MessageBubble, etc.) ...
 // --- Sub-Components ---
 
-const ConversationItem = ({ convo, isSelected, onClick }: { convo: any; isSelected: boolean; onClick: () => void }) => (
+const ConversationItem = ({
+  convo,
+  isSelected,
+  onClick,
+}: {
+  convo: any;
+  isSelected: boolean;
+  onClick: () => void;
+}) => (
   <button
     onClick={onClick}
     className={cn(
@@ -482,7 +494,13 @@ const ConversationItem = ({ convo, isSelected, onClick }: { convo: any; isSelect
   </button>
 );
 
-const MessageBubble = ({ msg, currentUser }: { msg: any; currentUser: any }) => {
+const MessageBubble = ({
+  msg,
+  currentUser,
+}: {
+  msg: any;
+  currentUser: any;
+}) => {
   const isMe = msg.senderId === currentUser.id;
   return (
     <div className={cn("flex", isMe ? "justify-end" : "justify-start")}>
@@ -509,7 +527,15 @@ const MessageBubble = ({ msg, currentUser }: { msg: any; currentUser: any }) => 
 };
 
 // FIX: Updated QuoteRequestBubble to handle onSendQuoteClick prop
-const QuoteRequestBubble = ({ msg, isMe, onSendQuoteClick }: { msg: any; isMe: boolean; onSendQuoteClick?: () => void }) => {
+const QuoteRequestBubble = ({
+  msg,
+  isMe,
+  onSendQuoteClick,
+}: {
+  msg: any;
+  isMe: boolean;
+  onSendQuoteClick?: () => void;
+}) => {
   return (
     <div className={cn("flex", isMe ? "justify-end" : "justify-start")}>
       <div
@@ -711,7 +737,13 @@ const ClientInfoCard = ({ profile, name }: { profile: any; name: string }) => (
 );
 
 // RE-ADDED: CreateQuoteModal
-const CreateQuoteModal = ({ onClose, onSend }: { onClose: () => void; onSend: (data: any) => void }) => {
+const CreateQuoteModal = ({
+  onClose,
+  onSend,
+}: {
+  onClose: () => void;
+  onSend: (data: any) => void;
+}) => {
   const [title, setTitle] = useState("DJ for 30th Birthday Bash");
   const [price, setPrice] = useState("250000");
   const [date, setDate] = useState("2025-12-15");
