@@ -1,5 +1,4 @@
 "use client";
-// @ts-nocheck
 
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import {
@@ -41,6 +40,22 @@ const cn = (...inputs: (string | boolean | undefined | null)[]) => {
   return inputs.filter(Boolean).join(" ");
 };
 
+// --- Type Definitions ---
+interface GigStats {
+  impressions: string;
+  clicks: number;
+  quotesSent: number;
+}
+
+interface Gig {
+  id: number;
+  title: string;
+  price: number;
+  imageUrl: string;
+  status: string;
+  stats: GigStats;
+}
+
 // --- Mock Data ---
 const vendorDetails = {
   name: "DJ SpinMaster",
@@ -74,7 +89,7 @@ const recentMessages = [
 ];
 
 // Gigs data with stats
-const allGigs = [
+const allGigs: Gig[] = [
   {
     id: 1,
     title: "I will be the professional wedding DJ for your reception",
@@ -233,7 +248,7 @@ const TabButton = ({
 );
 
 // "Our Twist" - Gig Management Card
-const GigManagementCard = ({ gig }: { gig: any }) => {
+const GigManagementCard = ({ gig }: { gig: Gig }) => {
   const [isPaused, setIsPaused] = useState(gig.status === "Paused");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);

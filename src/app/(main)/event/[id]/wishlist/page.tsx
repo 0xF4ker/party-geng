@@ -1,5 +1,4 @@
 "use client";
-// @ts-nocheck
 
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -46,9 +45,35 @@ const cn = (...inputs: (string | boolean | undefined | null)[]) => {
   return inputs.filter(Boolean).join(" ");
 };
 
+// --- Type Definitions ---
+type WishlistItem = {
+  id: number;
+  name: string;
+  price: number;
+  promisors: string[];
+  isFulfilled: boolean;
+};
+
+type EventDetails = {
+  id: number;
+  title: string;
+  date: string;
+  hostName: string;
+  hostAvatar: string;
+  coverImage: string;
+  welcomeMessage: string;
+  wishlistItems: WishlistItem[];
+};
+
+type WishlistItemCardProps = {
+  item: WishlistItem;
+  onPromise: (itemId: number) => void;
+  onPay: (item: WishlistItem) => void;
+};
+
 // --- Mock Data ---
 // This data would be fetched based on the page's unique URL
-const eventDetails = {
+const eventDetails: EventDetails = {
   id: 1,
   title: "Adebayo's 30th Birthday Bash",
   date: "December 15, 2025",
@@ -94,10 +119,12 @@ const eventDetails = {
 // --- Main Page Component ---
 const PublicWishlistPage = () => {
   // We'll use state to manage the items so we can "promise" them
-  const [items, setItems] = useState(eventDetails.wishlistItems);
+  const [items, setItems] = useState<WishlistItem[]>(
+    eventDetails.wishlistItems,
+  );
 
   // This is a mock function for a guest promising an item
-  const handlePromiseItem = (itemId) => {
+  const handlePromiseItem = (itemId: number) => {
     // This would normally be a backend call, and you'd know the guest's name
     const guestName = "You";
 
@@ -112,7 +139,7 @@ const PublicWishlistPage = () => {
   };
 
   // This would navigate to a payment modal or page
-  const handlePay = (item) => {
+  const handlePay = (item: WishlistItem) => {
     alert(
       `Redirecting to payment for: ${item.name} (₦${item.price.toLocaleString()})`,
     );
@@ -136,7 +163,7 @@ const PublicWishlistPage = () => {
             />
             <div className="text-center md:text-left">
               <p className="text-sm font-semibold text-pink-600">
-                You're invited to
+                You&apos;re invited to
               </p>
               <h1 className="text-3xl font-bold text-gray-800">
                 {eventDetails.title}
@@ -155,7 +182,7 @@ const PublicWishlistPage = () => {
         {/* Welcome Message */}
         <div className="mb-8 rounded-lg bg-white p-6 shadow-sm">
           <p className="text-center leading-relaxed text-gray-700 italic">
-            "{eventDetails.welcomeMessage}"
+            &quot;{eventDetails.welcomeMessage}&quot;
           </p>
         </div>
 
@@ -177,7 +204,11 @@ const PublicWishlistPage = () => {
 
 // --- Sub-Components ---
 
-const WishlistItemCard = ({ item, onPromise, onPay }) => {
+const WishlistItemCard = ({
+  item,
+  onPromise,
+  onPay,
+}: WishlistItemCardProps) => {
   return (
     <div
       className={cn(

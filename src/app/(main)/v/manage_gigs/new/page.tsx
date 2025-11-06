@@ -1,5 +1,4 @@
 "use client";
-// @ts-nocheck
 
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import {
@@ -46,8 +45,30 @@ const cn = (...inputs: (string | boolean | undefined | null)[]) => {
   return inputs.filter(Boolean).join(" ");
 };
 
+// --- Type Definitions ---
+interface Category {
+  name: string;
+  services: string[];
+}
+
+interface Step {
+  id: number;
+  name: string;
+  icon: React.ElementType;
+}
+
+interface AddOn {
+  title: string;
+  price: number;
+}
+
+interface Faq {
+  q: string;
+  a: string;
+}
+
 // --- Mock Data ---
-const categories = [
+const categories: Category[] = [
   { name: "Music & DJs", services: ["DJ", "Live Band", "Solo Musician", "MC"] },
   {
     name: "Food & Beverage",
@@ -57,7 +78,7 @@ const categories = [
   { name: "Planning", services: ["Event Planner", "Day-of Coordinator"] },
 ];
 
-const steps = [
+const steps: Step[] = [
   { id: 1, name: "Overview", icon: Edit },
   { id: 2, name: "Pricing", icon: DollarSign },
   { id: 3, name: "Description & FAQ", icon: List },
@@ -192,7 +213,7 @@ const CreateGigPage = () => {
               <OverviewForm
                 gigTitle={gigTitle}
                 setGigTitle={setGigTitle}
-                selectedCategory={selectedCategory}
+                selectedCategory={selectedCategory!}
                 setSelectedCategory={setSelectedCategory}
               />
             )}
@@ -347,6 +368,11 @@ const OverviewForm = ({
   setGigTitle,
   selectedCategory,
   setSelectedCategory,
+}: {
+  gigTitle: string;
+  setGigTitle: (title: string) => void;
+  selectedCategory: Category;
+  setSelectedCategory: (category: Category) => void;
 }) => (
   <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
     <div className="border-b border-gray-200 p-6">
@@ -392,11 +418,12 @@ const OverviewForm = ({
           <SelectBox
             value={selectedCategory.name}
             options={categories.map((c) => c.name)}
-            onChange={(val) =>
-              setSelectedCategory(
-                categories.find((c) => c.name === val) || categories[0],
-              )
-            }
+            onChange={(val) => {
+              const category = categories.find((c) => c.name === val);
+              if (category) {
+                setSelectedCategory(category);
+              }
+            }}
           />
           <SelectBox options={selectedCategory.services} />
         </div>
@@ -435,24 +462,37 @@ const PricingForm = ({
   setBaseIncludes,
   addOns,
   setAddOns,
+}: {
+  basePrice: string;
+  setBasePrice: (price: string) => void;
+  baseIncludes: string;
+  setBaseIncludes: (includes: string) => void;
+  addOns: AddOn[];
+  setAddOns: (addOns: AddOn[]) => void;
 }) => {
-  const handleAddOnTitleChange = (index, value) => {
+  const handleAddOnTitleChange = (index: number, value: string) => {
     const newAddOns = [...addOns];
-    newAddOns[index].title = value;
-    setAddOns(newAddOns);
+    const addOn = newAddOns[index];
+    if (addOn) {
+      addOn.title = value;
+      setAddOns(newAddOns);
+    }
   };
 
-  const handleAddOnPriceChange = (index, value) => {
+  const handleAddOnPriceChange = (index: number, value: string) => {
     const newAddOns = [...addOns];
-    newAddOns[index].price = Number(value);
-    setAddOns(newAddOns);
+    const addOn = newAddOns[index];
+    if (addOn) {
+      addOn.price = Number(value);
+      setAddOns(newAddOns);
+    }
   };
 
   const addAddOn = () => {
     setAddOns([...addOns, { title: "", price: 0 }]);
   };
 
-  const removeAddOn = (index) => {
+  const removeAddOn = (index: number) => {
     setAddOns(addOns.filter((_, i) => i !== index));
   };
 
@@ -470,7 +510,7 @@ const PricingForm = ({
           >
             Base Price
             <span className="ml-1 font-normal text-gray-400">
-              (Your "Starting at" price)
+              (Your &quot;Starting at&quot; price)
             </span>
           </label>
           <div className="relative">
@@ -493,7 +533,7 @@ const PricingForm = ({
             htmlFor="baseIncludes"
             className="mb-2 block text-sm font-semibold text-gray-700"
           >
-            What's Included in Base Offer
+            What&apos;s Included in Base Offer
             <span className="ml-1 font-normal text-gray-400">
               (List the services for your base price)
             </span>
@@ -563,7 +603,17 @@ const PricingForm = ({
   );
 };
 
-const DescriptionForm = ({ description, setDescription, faqs, setFaqs }) => {
+const DescriptionForm = ({
+  description,
+  setDescription,
+  faqs,
+  setFaqs,
+}: {
+  description: string;
+  setDescription: (description: string) => void;
+  faqs: Faq[];
+  setFaqs: (faqs: Faq[]) => void;
+}) => {
   const [q, setQ] = useState("");
   const [a, setA] = useState("");
 
@@ -574,7 +624,7 @@ const DescriptionForm = ({ description, setDescription, faqs, setFaqs }) => {
     setA("");
   };
 
-  const removeFaq = (index) => {
+  const removeFaq = (index: number) => {
     setFaqs(faqs.filter((_, i) => i !== index));
   };
 
@@ -720,7 +770,7 @@ const PublishForm = () => (
   <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
     <div className="p-6 text-center">
       <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
-      <h2 className="mt-4 text-2xl font-semibold">You're almost there!</h2>
+      <h2 className="mt-4 text-2xl font-semibold">You&apos;re almost there!</h2>
       <p className="mx-auto mt-2 max-w-md text-gray-600">
         Just one more step. Review your gig details and click publish to make it
         live and start receiving quotes from clients.
@@ -730,7 +780,7 @@ const PublishForm = () => (
 );
 
 const DynamicHelperCard = ({ activeStep }: { activeStep: number }) => {
-  let title, videoUrl, tips;
+  let title: string, videoUrl: string, tips: string[];
 
   switch (activeStep) {
     case 1:
@@ -832,7 +882,7 @@ const SelectBox = ({
   return (
     <div className="relative">
       <select
-        value={value || ""}
+        value={value ?? ""}
         onChange={handleChange}
         className="w-full appearance-none rounded-md border border-gray-300 bg-white p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
       >

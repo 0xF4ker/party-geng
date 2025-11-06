@@ -46,13 +46,68 @@ const cn = (...inputs: (string | boolean | undefined | null)[]) => {
 // ... (Paste the entire InboxPage.jsx code here,
 // starting from the mock data all the way to the end) ...
 
+// --- Type Definitions ---
+interface User {
+  id: string;
+  name: string;
+  avatarUrl: string;
+  isClient?: boolean;
+  isVendor?: boolean;
+  profile?: VendorProfile | ClientProfile;
+}
+
+interface VendorProfile {
+  level: string;
+  rating: number;
+  reviews: number;
+  avgResponseTime: string;
+  onPartygengSince: string;
+}
+
+interface ClientProfile {
+  location: string;
+  memberSince: string;
+  isVerified: boolean;
+  stats: {
+    eventsHosted: number;
+    vendorsHired: number;
+  };
+}
+
+interface Conversation {
+  id: number;
+  user: User;
+  lastMessage: string;
+  time: string;
+  unread: boolean;
+}
+
+interface Message {
+  id: number;
+  senderId: string;
+  text?: string;
+  time: string;
+  type?: string;
+  gigTitle?: string;
+  title?: string;
+  price?: number;
+  status?: string;
+}
+
+interface QuoteData {
+  title: string;
+  price: number;
+  date: string;
+  includes: string;
+}
+
 // --- Mock Data ---
-const vendorUser = {
+const vendorUser: User = {
   id: "vendor_123",
   name: "DJ SpinMaster",
   avatarUrl: "https://placehold.co/128x128/ec4899/ffffff?text=DJ",
 };
-const vendorConversations = [
+const vendorConversations: Conversation[] = [
   {
     id: 1,
     user: {
@@ -74,6 +129,7 @@ const vendorConversations = [
   {
     id: 2,
     user: {
+      id: "client_457",
       name: "Chioma E.",
       avatarUrl: "https://placehold.co/40x40/10b981/ffffff?text=C",
     },
@@ -82,7 +138,7 @@ const vendorConversations = [
     unread: true,
   },
 ];
-const vendorMessages = [
+const vendorMessages: Message[] = [
   {
     id: 1,
     senderId: "client_456",
@@ -118,12 +174,12 @@ const vendorMessages = [
 ];
 
 // -- Client Data --
-const clientUser = {
+const clientUser: User = {
   id: "client_456",
   name: "Adebayo P.",
   avatarUrl: "https://placehold.co/128x128/3b82f6/ffffff?text=A",
 };
-const clientConversations = [
+const clientConversations: Conversation[] = [
   {
     id: 1,
     user: {
@@ -146,6 +202,7 @@ const clientConversations = [
   {
     id: 2,
     user: {
+      id: "vendor_124",
       name: "SnapPro",
       avatarUrl: "https://placehold.co/40x40/8d99ae/ffffff?text=S",
     },
@@ -154,7 +211,7 @@ const clientConversations = [
     unread: false,
   },
 ];
-const clientMessages = [
+const clientMessages: Message[] = [
   {
     id: 1,
     senderId: "client_456",
@@ -206,27 +263,38 @@ const InboxPage = () => {
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
 
   // Dynamically set data based on userType
-  const { currentUser, conversations, initialMessages, otherUser } =
-    useMemo(() => {
-      if (userType === "vendor") {
-        return {
-          currentUser: vendorUser,
-          conversations: vendorConversations,
-          initialMessages: vendorMessages,
-          otherUser: vendorConversations[0]?.user, // The client
-        };
-      }
-      // Default to client
+  const {
+    currentUser,
+    conversations,
+    initialMessages,
+    otherUser,
+  }: {
+    currentUser: User;
+    conversations: Conversation[];
+    initialMessages: Message[];
+    otherUser: User | undefined;
+  } = useMemo(() => {
+    if (userType === "vendor") {
       return {
-        currentUser: clientUser,
-        conversations: clientConversations,
-        initialMessages: clientMessages,
-        otherUser: clientConversations[0]?.user, // The vendor
+        currentUser: vendorUser,
+        conversations: vendorConversations,
+        initialMessages: vendorMessages,
+        otherUser: vendorConversations[0]?.user, // The client
       };
-    }, [userType]);
+    }
+    // Default to client
+    return {
+      currentUser: clientUser,
+      conversations: clientConversations,
+      initialMessages: clientMessages,
+      otherUser: clientConversations[0]?.user, // The vendor
+    };
+  }, [userType]);
 
-  const [selectedConvo, setSelectedConvo] = useState(conversations[0]);
-  const [messages, setMessages] = useState(initialMessages);
+  const [selectedConvo, setSelectedConvo] = useState<Conversation | undefined>(
+    conversations[0],
+  );
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [message, setMessage] = useState("");
 
   // Update messages when user type changes
@@ -255,7 +323,7 @@ const InboxPage = () => {
     setMessage("");
   };
 
-  const handleSendQuote = (quoteData: any) => {
+  const handleSendQuote = (quoteData: QuoteData) => {
     const newQuoteMessage = {
       id: messages.length + 1,
       senderId: currentUser.id,
@@ -427,17 +495,19 @@ const InboxPage = () => {
           {/* FIX: Show card based on who user is talking to */}
           {selectedConvo &&
             "isVendor" in selectedConvo.user &&
-            selectedConvo.user.isVendor && (
+            selectedConvo.user.isVendor &&
+            selectedConvo.user.profile && (
               <VendorInfoCard
-                profile={selectedConvo.user.profile}
+                profile={selectedConvo.user.profile as VendorProfile}
                 name={selectedConvo.user.name}
               />
             )}
           {selectedConvo &&
             "isClient" in selectedConvo.user &&
-            selectedConvo.user.isClient && (
+            selectedConvo.user.isClient &&
+            selectedConvo.user.profile && (
               <ClientInfoCard
-                profile={selectedConvo.user.profile}
+                profile={selectedConvo.user.profile as ClientProfile}
                 name={selectedConvo.user.name}
               />
             )}
@@ -463,7 +533,7 @@ const ConversationItem = ({
   isSelected,
   onClick,
 }: {
-  convo: any;
+  convo: Conversation;
   isSelected: boolean;
   onClick: () => void;
 }) => (
@@ -498,8 +568,8 @@ const MessageBubble = ({
   msg,
   currentUser,
 }: {
-  msg: any;
-  currentUser: any;
+  msg: Message;
+  currentUser: User;
 }) => {
   const isMe = msg.senderId === currentUser.id;
   return (
@@ -532,7 +602,7 @@ const QuoteRequestBubble = ({
   isMe,
   onSendQuoteClick,
 }: {
-  msg: any;
+  msg: Message;
   isMe: boolean;
   onSendQuoteClick?: () => void;
 }) => {
@@ -554,7 +624,7 @@ const QuoteRequestBubble = ({
           </div>
         </div>
         <p className="my-3 border-t border-b border-gray-100 py-3 text-sm text-gray-700 italic">
-          "{msg.text}"
+          &quot;{msg.text}&quot;
         </p>
 
         {/* FIX: Only show button if onSendQuoteClick is provided */}
@@ -576,7 +646,13 @@ const QuoteRequestBubble = ({
   );
 };
 
-const QuoteBubble = ({ msg, currentUser }: { msg: any; currentUser: any }) => {
+const QuoteBubble = ({
+  msg,
+  currentUser,
+}: {
+  msg: Message;
+  currentUser: User;
+}) => {
   const isMe = msg.senderId === currentUser.id;
 
   const handleAccept = () => {
@@ -602,7 +678,7 @@ const QuoteBubble = ({ msg, currentUser }: { msg: any; currentUser: any }) => {
         <div className="flex items-center gap-3">
           <div
             className={cn(
-              "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full",
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
               isMe ? "bg-pink-100" : "bg-green-100",
             )}
           >
@@ -616,7 +692,7 @@ const QuoteBubble = ({ msg, currentUser }: { msg: any; currentUser: any }) => {
           <div>
             <h5 className="font-semibold text-gray-800">{msg.title}</h5>
             <p className="text-sm font-bold text-gray-900">
-              ₦{msg.price.toLocaleString()}
+              ₦{msg.price?.toLocaleString()}
             </p>
           </div>
         </div>
@@ -649,7 +725,13 @@ const QuoteBubble = ({ msg, currentUser }: { msg: any; currentUser: any }) => {
 
 // --- Info Cards ---
 
-const VendorInfoCard = ({ profile, name }: { profile: any; name: string }) => (
+const VendorInfoCard = ({
+  profile,
+  name,
+}: {
+  profile: VendorProfile;
+  name: string;
+}) => (
   <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
     <div className="flex flex-col items-center">
       <h3 className="mb-4 text-lg font-semibold text-gray-800">About {name}</h3>
@@ -692,7 +774,13 @@ const VendorInfoCard = ({ profile, name }: { profile: any; name: string }) => (
 );
 
 // RE-ADDED: ClientInfoCard
-const ClientInfoCard = ({ profile, name }: { profile: any; name: string }) => (
+const ClientInfoCard = ({
+  profile,
+  name,
+}: {
+  profile: ClientProfile;
+  name: string;
+}) => (
   <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
     <div className="flex flex-col items-center">
       <h3 className="mb-4 text-lg font-semibold text-gray-800">About {name}</h3>
@@ -742,7 +830,7 @@ const CreateQuoteModal = ({
   onSend,
 }: {
   onClose: () => void;
-  onSend: (data: any) => void;
+  onSend: (data: QuoteData) => void;
 }) => {
   const [title, setTitle] = useState("DJ for 30th Birthday Bash");
   const [price, setPrice] = useState("250000");
@@ -828,7 +916,7 @@ const CreateQuoteModal = ({
               htmlFor="quoteIncludes"
               className="mb-1 block text-sm font-semibold text-gray-700"
             >
-              What's Included
+              What&apos;s Included
             </label>
             <textarea
               id="quoteIncludes"

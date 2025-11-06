@@ -26,7 +26,18 @@ const serviceDetails = {
   serviceSlug: "wedding-djs",
 };
 
-const gigsData = [
+interface Gig {
+  id: number;
+  sellerName: string;
+  level: string;
+  description: string;
+  rating: number;
+  reviews: number | string;
+  price: number;
+  imageUrl: string;
+}
+
+const gigsData: Gig[] = [
   {
     id: 1,
     sellerName: "DJ SpinMaster",
@@ -113,8 +124,8 @@ const gigsData = [
 // --- Main Page Component ---
 const ServiceListingPage = () => {
   const [isFilterSticky, setIsFilterSticky] = useState(false);
-  const filterRef = useRef(null);
-  const filterPlaceholderRef = useRef(null);
+  const filterRef = useRef<HTMLDivElement>(null);
+  const filterPlaceholderRef = useRef<HTMLDivElement>(null);
 
   // Effect for sticky filter bar
   useEffect(() => {
@@ -305,13 +316,13 @@ const CheckboxItem = ({ label, count }: { label: string; count: number }) => {
       <div
         onClick={() => setIsChecked(!isChecked)}
         className={cn(
-          "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2",
+          "flex h-5 w-5 shrink-0 items-center justify-center rounded border-2",
           isChecked ? "border-pink-600 bg-pink-600" : "border-gray-300",
         )}
       >
         {isChecked && <Check className="h-3 w-3 text-white" />}
       </div>
-      <span className="flex-grow text-sm text-gray-700">{label}</span>
+      <span className="grow text-sm text-gray-700">{label}</span>
       <span className="text-xs text-gray-400">({count})</span>
     </label>
   );
@@ -394,7 +405,7 @@ const EventDateFilter = () => {
   );
 };
 
-const GigCard = ({ gig }: { gig: any }) => {
+const GigCard = ({ gig }: { gig: Gig }) => {
   return (
     <div className="w-full">
       <a
@@ -416,7 +427,7 @@ const GigCard = ({ gig }: { gig: any }) => {
         {/* Seller Info */}
         <div className="mb-1.5 flex items-center gap-2">
           <img
-            src={`https://placehold.co/24x24/eee/333?text=${gig.sellerName[0].toUpperCase()}`}
+            src={`https://placehold.co/24x24/eee/333?text=${gig.sellerName[0]?.toUpperCase()}`}
             alt={gig.sellerName}
             className="h-6 w-6 rounded-full"
           />

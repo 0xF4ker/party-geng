@@ -1,5 +1,4 @@
 "use client";
-// @ts-nocheck
 
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -26,9 +25,26 @@ const cn = (...inputs: (string | boolean | undefined | null)[]) => {
   return inputs.filter(Boolean).join(" ");
 };
 
-// --- Mock Data ---
+// --- Type Definitions ---
+interface Order {
+  id: number;
+  clientName?: string;
+  vendorName?: string;
+  gigTitle: string;
+  eventDate: string;
+  avatar: string;
+  price?: number;
+}
 
-const vendorOrders = {
+interface Tab {
+  id: string;
+  title: string;
+  count: number;
+  icon: React.ElementType;
+}
+
+// --- Mock Data ---
+const vendorOrders: Record<string, Order[]> = {
   newLeads: [
     {
       id: 1,
@@ -68,7 +84,7 @@ const vendorOrders = {
   cancelled: [],
 };
 
-const clientOrders = {
+const clientOrders: Record<string, Order[]> = {
   pending: [
     {
       id: 1,
@@ -117,56 +133,56 @@ const OrdersPage = () => {
     setActiveTab(userType === "vendor" ? "newLeads" : "pending");
   }, [userType]);
 
-  const vendorTabs = [
+  const vendorTabs: Tab[] = [
     {
       id: "newLeads",
       title: "New Leads",
-      count: vendorOrders.newLeads.length,
+      count: (vendorOrders.newLeads ?? []).length,
       icon: MessageSquare,
     },
     {
       id: "active",
       title: "Active Gigs",
-      count: vendorOrders.active.length,
+      count: (vendorOrders.active ?? []).length,
       icon: Briefcase,
     },
     {
       id: "completed",
       title: "Completed",
-      count: vendorOrders.completed.length,
+      count: (vendorOrders.completed ?? []).length,
       icon: CheckCircle,
     },
     {
       id: "cancelled",
       title: "Cancelled",
-      count: vendorOrders.cancelled.length,
+      count: (vendorOrders.cancelled ?? []).length,
       icon: XCircle,
     },
   ];
 
-  const clientTabs = [
+  const clientTabs: Tab[] = [
     {
       id: "pending",
       title: "Pending Quotes",
-      count: clientOrders.pending.length,
+      count: (clientOrders.pending ?? []).length,
       icon: Hourglass,
     },
     {
       id: "active",
       title: "Active Events",
-      count: clientOrders.active.length,
+      count: (clientOrders.active ?? []).length,
       icon: Briefcase,
     },
     {
       id: "completed",
       title: "Completed",
-      count: clientOrders.completed.length,
+      count: (clientOrders.completed ?? []).length,
       icon: CheckCircle,
     },
     {
       id: "cancelled",
       title: "Cancelled",
-      count: clientOrders.cancelled.length,
+      count: (clientOrders.cancelled ?? []).length,
       icon: XCircle,
     },
   ];
@@ -236,28 +252,28 @@ const OrdersPage = () => {
               <>
                 {activeTab === "newLeads" && (
                   <OrderList
-                    orders={vendorOrders.newLeads}
+                    orders={vendorOrders.newLeads ?? []}
                     userType="vendor"
                     status="newLeads"
                   />
                 )}
                 {activeTab === "active" && (
                   <OrderList
-                    orders={vendorOrders.active}
+                    orders={vendorOrders.active ?? []}
                     userType="vendor"
                     status="active"
                   />
                 )}
                 {activeTab === "completed" && (
                   <OrderList
-                    orders={vendorOrders.completed}
+                    orders={vendorOrders.completed ?? []}
                     userType="vendor"
                     status="completed"
                   />
                 )}
                 {activeTab === "cancelled" && (
                   <OrderList
-                    orders={vendorOrders.cancelled}
+                    orders={vendorOrders.cancelled ?? []}
                     userType="vendor"
                     status="cancelled"
                   />
@@ -268,28 +284,28 @@ const OrdersPage = () => {
               <>
                 {activeTab === "pending" && (
                   <OrderList
-                    orders={clientOrders.pending}
+                    orders={clientOrders.pending ?? []}
                     userType="client"
                     status="pending"
                   />
                 )}
                 {activeTab === "active" && (
                   <OrderList
-                    orders={clientOrders.active}
+                    orders={clientOrders.active ?? []}
                     userType="client"
                     status="active"
                   />
                 )}
                 {activeTab === "completed" && (
                   <OrderList
-                    orders={clientOrders.completed}
+                    orders={clientOrders.completed ?? []}
                     userType="client"
                     status="completed"
                   />
                 )}
                 {activeTab === "cancelled" && (
                   <OrderList
-                    orders={clientOrders.cancelled}
+                    orders={clientOrders.cancelled ?? []}
                     userType="client"
                     status="cancelled"
                   />
@@ -305,7 +321,19 @@ const OrdersPage = () => {
 
 // --- Sub-Components ---
 
-const TabButton = ({ title, count, icon: Icon, isActive, onClick }) => (
+const TabButton = ({
+  title,
+  count,
+  icon: Icon,
+  isActive,
+  onClick,
+}: {
+  title: string;
+  count: number;
+  icon: React.ElementType;
+  isActive: boolean;
+  onClick: () => void;
+}) => (
   <button
     onClick={onClick}
     className={cn(
@@ -330,7 +358,15 @@ const TabButton = ({ title, count, icon: Icon, isActive, onClick }) => (
   </button>
 );
 
-const OrderList = ({ orders, userType, status }) => {
+const OrderList = ({
+  orders,
+  userType,
+  status,
+}: {
+  orders: Order[];
+  userType: string;
+  status: string;
+}) => {
   if (orders.length === 0) {
     return (
       <p className="p-10 text-center text-gray-500">
@@ -353,7 +389,15 @@ const OrderList = ({ orders, userType, status }) => {
   );
 };
 
-const OrderCard = ({ order, userType, status }) => {
+const OrderCard = ({
+  order,
+  userType,
+  status,
+}: {
+  order: Order;
+  userType: string;
+  status: string;
+}) => {
   const isVendor = userType === "vendor";
   const title = isVendor ? order.clientName : order.vendorName;
   const avatar = isVendor ? order.avatar : order.avatar;
@@ -408,7 +452,15 @@ const OrderCard = ({ order, userType, status }) => {
   );
 };
 
-const ActionButton = ({ text, icon: Icon, primary = false }) => (
+const ActionButton = ({
+  text,
+  icon: Icon,
+  primary = false,
+}: {
+  text: string;
+  icon: React.ElementType;
+  primary?: boolean;
+}) => (
   <button
     className={cn(
       "flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition-colors sm:w-auto",

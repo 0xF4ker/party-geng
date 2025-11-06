@@ -1,5 +1,4 @@
 "use client";
-// @ts-nocheck
 
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -175,7 +174,13 @@ const EarningsPage = () => {
 
 // --- Sub-Components ---
 
-const TabButton = ({ title, isActive, onClick }) => (
+interface TabButtonProps {
+  title: string;
+  isActive: boolean;
+  onClick: () => void;
+}
+
+const TabButton: React.FC<TabButtonProps> = ({ title, isActive, onClick }) => (
   <button
     onClick={onClick}
     className={cn(
@@ -189,7 +194,15 @@ const TabButton = ({ title, isActive, onClick }) => (
   </button>
 );
 
-const FilterDropdown = ({ title, icon: Icon }) => (
+interface FilterDropdownProps {
+  title: string;
+  icon: React.ElementType;
+}
+
+const FilterDropdown: React.FC<FilterDropdownProps> = ({
+  title,
+  icon: Icon,
+}) => (
   <button className="flex w-full items-center justify-between gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:border-gray-400 hover:bg-gray-50 sm:w-auto">
     <div className="flex items-center gap-2">
       <Icon className="h-4 w-4 text-gray-500" />
@@ -200,7 +213,27 @@ const FilterDropdown = ({ title, icon: Icon }) => (
 );
 
 // Card 1: Available Funds (Common)
-const AvailableFundsCard = ({ userType, data }) => (
+interface VendorData {
+  available: number;
+  clearing: number;
+  active: number;
+}
+
+interface ClientData {
+  available: number;
+  earnings: number;
+  expenses: number;
+}
+
+interface AvailableFundsCardProps {
+  userType: string;
+  data: VendorData | ClientData;
+}
+
+const AvailableFundsCard: React.FC<AvailableFundsCardProps> = ({
+  userType,
+  data,
+}) => (
   <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
     <h3 className="mb-3 text-sm font-medium text-gray-500">Available funds</h3>
     <p className="mb-1 text-sm text-gray-500">Balance available for use</p>
@@ -221,7 +254,11 @@ const AvailableFundsCard = ({ userType, data }) => (
 );
 
 // Card 2: Vendor View
-const FuturePaymentsCard = ({ data }) => (
+interface FuturePaymentsCardProps {
+  data: VendorData;
+}
+
+const FuturePaymentsCard: React.FC<FuturePaymentsCardProps> = ({ data }) => (
   <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
     <h3 className="mb-5 text-sm font-medium text-gray-500">Future payments</h3>
 
@@ -254,7 +291,13 @@ const FuturePaymentsCard = ({ data }) => (
 );
 
 // Card 2: Client View
-const ClientEarningsExpensesCard = ({ data }) => (
+interface ClientEarningsExpensesCardProps {
+  data: ClientData;
+}
+
+const ClientEarningsExpensesCard: React.FC<ClientEarningsExpensesCardProps> = ({
+  data,
+}) => (
   <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
     <h3 className="mb-5 text-sm font-medium text-gray-500">
       Earnings & Expenses
@@ -288,7 +331,22 @@ const ClientEarningsExpensesCard = ({ data }) => (
   </div>
 );
 
-const TransactionTable = ({ transactions }) => (
+interface Transaction {
+  id: string;
+  date: string;
+  activity: string;
+  description: string;
+  orderId: string;
+  amount: number;
+}
+
+interface TransactionTableProps {
+  transactions: Transaction[];
+}
+
+const TransactionTable: React.FC<TransactionTableProps> = ({
+  transactions,
+}) => (
   <div className="overflow-x-auto">
     <table className="min-w-full divide-y divide-gray-200">
       <thead className="bg-gray-50">
