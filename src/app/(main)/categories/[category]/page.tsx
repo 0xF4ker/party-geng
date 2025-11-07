@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { categoriesData } from "../../../local/categoryv2";
 import PopularServiceCarousel from "../../../_components/category/PopularServiceCarousel";
 import { ChevronDown } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, use } from "react";
 import LoopingCardAnimation from "@/app/_components/category/LoopingCardAnimation";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -179,9 +179,9 @@ const ExploreServices = ({
 export default function CategoryPage({
   params,
 }: {
-  params: { category: string };
+  params: Promise<{ category: string }>;
 }) {
-  const { category: slug } = params;
+  const { category: slug } = use(params);
 
   useEffect(() => {
     console.log("Category slug:", slug);
