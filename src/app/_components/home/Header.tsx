@@ -447,6 +447,8 @@ const Header = () => {
                             src={avatarUrl}
                             alt={displayName ?? "Profile"}
                             className="h-full w-full object-cover"
+                            width={100}
+                            height={100}
                           />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center font-semibold text-pink-600">

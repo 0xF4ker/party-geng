@@ -19,7 +19,7 @@ export const profileUpdateSchema = z.object({
   location: z.string().max(100, "Location must be less than 100 characters").optional(),
   skills: z.array(z.string()).optional(),
   languages: z.array(z.string()).optional(),
-  avatarUrl: z.string().url("Invalid image URL").optional().nullable(),
+  avatarUrl: z.union([z.string().url("Invalid image URL"), z.literal(""), z.null(), z.undefined()]).optional(),
 });
 
 // Password update schema

@@ -16,6 +16,10 @@ const config = {
         protocol: "https",
         hostname: "fiverr-res.cloudinary.com",
       },
+      {
+        protocol: "https",
+        hostname: "zplczncwkxlpjxscutku.supabase.co",
+    }
     ],
     dangerouslyAllowSVG: true,
   },

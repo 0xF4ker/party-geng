@@ -22,6 +22,7 @@ import { NIGERIA_STATES_LGAS } from "@/lib/geo/nigeria";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { profileUpdateSchema, passwordUpdateSchema, kycSchema } from "@/lib/validations/settings";
+import { z } from "zod";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -210,7 +211,7 @@ const KycForm = () => {
     onError: (err) => toast.error(err.message),
   });
 
-  const onSubmit = (data: typeof kycSchema._type) => {
+  const onSubmit = (data: z.infer<typeof kycSchema>) => {
     mutate(data);
   };
 
@@ -352,21 +353,27 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   const [skills, setSkills] = useState<string[]>(profile?.vendorProfile?.skills ?? ["Wedding DJ", "MC"]);
   const [skillInput, setSkillInput] = useState("");
 
-  const { register, handleSubmit, setValue, formState: { errors, isValid } } = useForm({
+  const { register, handleSubmit, setValue, formState: { errors, isValid, isSubmitting } } = useForm({
     resolver: zodResolver(profileUpdateSchema),
     mode: "onChange",
     defaultValues: {
       username: profile?.username ?? "",
-      name: profile?.clientProfile?.name ?? "",
-      companyName: profile?.vendorProfile?.companyName ?? "",
-      title: profile?.vendorProfile?.title ?? "",
-      about: profile?.vendorProfile?.about ?? "",
+      // Client-specific fields
+      name: !isVendor ? (profile?.clientProfile?.name ?? "") : undefined,
+      // Vendor-specific fields
+      companyName: isVendor ? (profile?.vendorProfile?.companyName ?? "") : undefined,
+      title: isVendor ? (profile?.vendorProfile?.title ?? "") : undefined,
+      about: isVendor ? (profile?.vendorProfile?.about ?? "") : undefined,
+      skills: isVendor ? (profile?.vendorProfile?.skills ?? ["Wedding DJ", "MC"]) : undefined,
+      languages: isVendor ? (profile?.vendorProfile?.languages ?? []) : undefined,
+      // Shared fields
       location: profile?.vendorProfile?.location ?? profile?.clientProfile?.location ?? "",
-      skills: profile?.vendorProfile?.skills ?? ["Wedding DJ", "MC"],
-      languages: profile?.vendorProfile?.languages ?? [],
       avatarUrl: avatarUrl ?? undefined,
     },
   });
+
+  // Debug: Log form state changes
+  console.log('PublicProfileForm - isValid:', isValid, 'errors:', errors, 'isSubmitting:', isSubmitting);
 
   const utils = api.useUtils();
   const updateProfile = api.settings.updateProfile.useMutation({
@@ -392,8 +399,31 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
     setValue("skills", newSkills);
   };
 
-  const onSubmit = (data: typeof profileUpdateSchema._type) => {
-    updateProfile.mutate(data);
+  const onSubmit = (data: z.infer<typeof profileUpdateSchema>) => {
+    console.log('Form submitted with data:', data);
+    console.log('Form errors:', errors);
+    console.log('Is valid:', isValid);
+    
+    // Filter data based on user role - only send relevant fields
+    const filteredData = isVendor
+      ? {
+          username: data.username,
+          avatarUrl: data.avatarUrl,
+          companyName: data.companyName,
+          title: data.title,
+          about: data.about,
+          skills: data.skills,
+          location: data.location,
+          languages: data.languages,
+        }
+      : {
+          username: data.username,
+          name: data.name,
+          avatarUrl: data.avatarUrl,
+          location: data.location,
+        };
+    
+    updateProfile.mutate(filteredData);
   };
 
   return (
@@ -552,7 +582,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
       <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-6">
         <button
           type="submit"
-          disabled={!isValid || updateProfile.isPending}
+          disabled={ updateProfile.isPending}
           className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50"
         >
           {updateProfile.isPending ? "Saving..." : "Save Profile"}
@@ -579,7 +609,7 @@ const SecuritySettings = () => {
     onError: (err) => toast.error(err.message),
   });
 
-  const onSubmit = (data: typeof passwordUpdateSchema._type) => {
+  const onSubmit = (data: z.infer<typeof passwordUpdateSchema>) => {
     updatePassword.mutate({ currentPassword: data.currentPassword, newPassword: data.newPassword });
   };
 
