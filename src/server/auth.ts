@@ -7,10 +7,10 @@
 // Placeholder handlers for the API route
 // These are not actually used since we're using Supabase directly
 export const handlers = {
-  GET: async () => new Response('Auth handled by Supabase', { status: 200 }),
-  POST: async () => new Response('Auth handled by Supabase', { status: 200 }),
+  GET: async () => new Response("Auth handled by Supabase", { status: 200 }),
+  POST: async () => new Response("Auth handled by Supabase", { status: 200 }),
 };
 
 export const auth = async () => null;
-export const signIn = async () => {};
-export const signOut = async () => {};
+export const signIn = async () => null;
+export const signOut = async () => null;

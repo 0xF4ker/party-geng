@@ -2,43 +2,18 @@
 
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import {
-  Star,
-  Heart,
   Check,
-  MapPin,
-  Languages,
-  Award,
-  MessageSquare,
-  Clock,
-  Briefcase,
-  Users,
   Plus,
   List,
   Edit,
   Image as ImageIcon,
-  MessageCircle,
-  Calendar,
-  Search,
-  Gift,
-  ChevronRight,
-  LayoutGrid,
   DollarSign,
-  TrendingUp,
-  AlertTriangle,
-  Mail,
-  ToggleLeft,
-  ToggleRight,
-  Eye,
-  MoreVertical,
-  BarChart,
-  MousePointerClick,
   Trash2,
   CheckCircle,
   ChevronDown,
   UploadCloud, // For image upload
-  Circle, // For stepper
-  X, // For removing items
 } from "lucide-react";
+import Image from "next/image";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -151,7 +126,7 @@ const CreateGigPage = () => {
       if (!sidebarEl || !contentEl) return;
 
       const contentRect = contentEl.getBoundingClientRect();
-      const sidebarRect = sidebarEl.getBoundingClientRect();
+      // const sidebarRect = sidebarEl.getBoundingClientRect();
       const contentBottom = contentRect.bottom + window.scrollY - topOffset;
       const sidebarHeight = sidebarEl.offsetHeight;
       const stickyTop = document.documentElement.scrollTop + topOffset;
@@ -354,7 +329,7 @@ const GigFormStepper = ({
           </div>
         </button>
         {index < steps.length - 1 && (
-          <div className="mx-2 hidden h-0.5 w-10 flex-grow bg-gray-200 sm:block sm:w-16"></div>
+          <div className="mx-2 hidden h-0.5 w-10 grow bg-gray-200 sm:block sm:w-16"></div>
         )}
       </React.Fragment>
     ))}
@@ -397,7 +372,7 @@ const OverviewForm = ({
             value={gigTitle}
             onChange={(e) => setGigTitle(e.target.value)}
             maxLength={80}
-            className="w-full flex-grow rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
+            className="w-full grow rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
             placeholder="e.g. Professional Wedding DJ for Lagos & Abuja Events"
           />
         </div>
@@ -562,9 +537,9 @@ const PricingForm = ({
                     handleAddOnTitleChange(index, e.target.value)
                   }
                   placeholder="Add-on title (e.g. Extra Hour)"
-                  className="flex-grow rounded-md border border-gray-300 p-3 text-sm focus:outline-pink-500"
+                  className="grow rounded-md border border-gray-300 p-3 text-sm focus:outline-pink-500"
                 />
-                <div className="flex flex-shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                   <div className="relative w-32">
                     <span className="absolute top-0 bottom-0 left-0 flex items-center p-3 text-sm font-medium text-gray-500">
                       ₦
@@ -842,16 +817,18 @@ const DynamicHelperCard = ({ activeStep }: { activeStep: number }) => {
       <div className="p-5">
         <h3 className="mb-3 text-lg font-semibold text-gray-800">{title}</h3>
         <div className="mb-4 flex aspect-video items-center justify-center rounded-md bg-gray-200">
-          <img
+          <Image
             src={videoUrl}
             alt="Help video"
             className="h-full w-full rounded-md object-cover"
+            width={300}
+            height={170}
           />
         </div>
         <ul className="space-y-3">
           {tips.map((tip, index) => (
             <li key={index} className="flex items-start gap-3 text-sm">
-              <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" />
+              <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-green-500" />
               <span className="text-gray-600">{tip}</span>
             </li>
           ))}

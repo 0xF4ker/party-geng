@@ -1,44 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import {
-  Star,
-  Heart,
-  Check,
-  MapPin,
-  Languages,
-  Award,
-  MessageSquare,
-  Clock,
-  Briefcase,
-  Users,
-  Plus,
-  List,
-  Edit,
-  Image as ImageIcon,
-  MessageCircle,
   Calendar,
-  Search,
   Gift,
-  ChevronRight,
-  ChevronDown,
-  Paperclip,
-  Send,
-  MoreVertical,
-  FileText,
   CheckCircle,
-  X,
-  Eye,
-  RefreshCw,
-  Copy,
-  ToggleLeft,
-  ToggleRight,
-  Trash2,
-  ShieldCheck,
-  PartyPopper, // For fun
   CreditCard, // For pay
   HandHeart, // For promise
 } from "lucide-react";
+import Image from "next/image";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -156,10 +126,12 @@ const PublicWishlistPage = () => {
         ></div>
         <div className="container mx-auto -mt-16 max-w-4xl px-4 py-6 sm:px-8">
           <div className="flex flex-col items-center gap-6 rounded-lg bg-white p-6 shadow-lg md:flex-row">
-            <img
+            <Image
               src={eventDetails.hostAvatar}
               alt={eventDetails.hostName}
-              className="-mt-16 h-24 w-24 flex-shrink-0 rounded-full border-4 border-white shadow-md md:-mt-0 md:-ml-16"
+              className="-mt-16 h-24 w-24 shrink-0 rounded-full border-4 border-white shadow-md md:mt-0 md:-ml-16"
+              width={96}
+              height={96}
             />
             <div className="text-center md:text-left">
               <p className="text-sm font-semibold text-pink-600">
@@ -216,7 +188,7 @@ const WishlistItemCard = ({
         item.isFulfilled && "bg-gray-50 opacity-70",
       )}
     >
-      <div className="flex flex-grow flex-col p-5">
+      <div className="flex grow flex-col p-5">
         {/* Status Badge */}
         {item.isFulfilled ? (
           <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
@@ -243,7 +215,7 @@ const WishlistItemCard = ({
         </p>
 
         {/* Promisors List */}
-        <div className="mt-4 flex-grow border-t border-gray-100 pt-4">
+        <div className="mt-4 grow border-t border-gray-100 pt-4">
           <h4 className="mb-2 text-xs font-semibold text-gray-500 uppercase">
             Promised By:
           </h4>

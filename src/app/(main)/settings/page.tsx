@@ -6,19 +6,17 @@ import { useState, useEffect } from "react";
 import {
   User,
   ShieldCheck,
-  Building,
-  Briefcase,
   Bell,
   Lock,
   CreditCard,
   ChevronDown,
   UploadCloud,
   X,
-  Plus,
   AlertTriangle,
   ToggleLeft, // Added missing import
   ToggleRight, // Added missing import
 } from "lucide-react";
+import Image from "next/image";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -112,7 +110,7 @@ const SettingsPage = () => {
               activeSection === "verification" && ( // Show only on verification tab
                 <div className="rounded-md border-l-4 border-red-500 bg-red-50 p-4 shadow-sm">
                   <div className="flex">
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                       <AlertTriangle className="h-5 w-5 text-red-500" />
                     </div>
                     <div className="ml-3">
@@ -139,7 +137,15 @@ const SettingsPage = () => {
 
 // --- Sub-Components ---
 
-const SettingsSidebar = ({ activeSection, setActiveSection, userType }: { activeSection: string; setActiveSection: (section: string) => void; userType: string | undefined }) => {
+const SettingsSidebar = ({
+  activeSection,
+  setActiveSection,
+  userType,
+}: {
+  activeSection: string;
+  setActiveSection: (section: string) => void;
+  userType: string | undefined;
+}) => {
   const allLinks = [
     {
       id: "profile",
@@ -174,7 +180,9 @@ const SettingsSidebar = ({ activeSection, setActiveSection, userType }: { active
   ];
 
   // Filter links based on userType
-  const visibleLinks = allLinks.filter((link) => userType && link.for.includes(userType.toLowerCase()));
+  const visibleLinks = allLinks.filter(
+    (link) => userType && link.for.includes(userType.toLowerCase()),
+  );
 
   return (
     <div className="sticky top-[127px] rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
@@ -237,14 +245,18 @@ const KycForm = () => {
             id="fullName"
             placeholder="Adebayo Popoola"
             value={fullName}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFullName(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setFullName(e.target.value)
+            }
           />
           <FormInput
             label="CAC Number (if registered)"
             id="cacNumber"
             placeholder="RC123456"
             value={cacNumber}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCacNumber(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setCacNumber(e.target.value)
+            }
           />
         </div>
         <FormInput
@@ -252,7 +264,9 @@ const KycForm = () => {
           id="address"
           placeholder="123, Main Street"
           value={businessAddress}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBusinessAddress(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setBusinessAddress(e.target.value)
+          }
         />
       </div>
       <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-6">
@@ -305,7 +319,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
             Profile Picture
           </label>
           <div className="flex items-center gap-4">
-            <img
+            <Image
               src={
                 isVendor
                   ? "https://placehold.co/128x128/ec4899/ffffff?text=DJ"
@@ -313,6 +327,8 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
               }
               alt="Profile"
               className="h-20 w-20 rounded-full"
+              width={80}
+              height={80}
             />
             {/* FIX: Corrected the broken button tag */}
             <button
@@ -384,7 +400,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                   onKeyDown={(e) =>
                     e.key === "Enter" && (e.preventDefault(), addSkill())
                   }
-                  className="flex-grow rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
+                  className="grow rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
                   placeholder="Add a new skill (e.g. Afrobeats)"
                 />
                 <button
@@ -533,7 +549,14 @@ const NotificationSettings = () => {
 
 // --- Shared Form Utilities ---
 
-const FormInput = ({ label, id, ...props }: { label: string; id: string; [key: string]: any }) => (
+const FormInput = ({
+  label,
+  id,
+  ...props
+}: {
+  label: string;
+  id: string;
+} & React.InputHTMLAttributes<HTMLInputElement>) => (
   <div>
     <label
       htmlFor={id}
@@ -550,7 +573,16 @@ const FormInput = ({ label, id, ...props }: { label: string; id: string; [key: s
   </div>
 );
 
-const FormSelect = ({ label, id, options, ...props }: { label: string; id: string; options: string[]; [key: string]: any }) => (
+const FormSelect = ({
+  label,
+  id,
+  options,
+  ...props
+}: {
+  label: string;
+  id: string;
+  options: string[];
+} & React.SelectHTMLAttributes<HTMLSelectElement>) => (
   <div>
     <label
       htmlFor={id}

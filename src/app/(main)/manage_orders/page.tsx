@@ -1,24 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Briefcase,
-  ChevronDown,
-  Info,
   CalendarDays,
-  ArrowDownUp,
   MessageSquare,
-  Clock,
   CheckCircle,
   XCircle,
-  TrendingUp, // For Earnings
-  TrendingDown, // For Expenses
-  Gift, // For Client Earnings
   Hourglass, // For Clearing
   FileText, // For Quotes
   Star, // For Reviews
   Check, // FIX: Added missing Check icon
 } from "lucide-react";
+import Image from "next/image";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -337,7 +331,7 @@ const TabButton = ({
   <button
     onClick={onClick}
     className={cn(
-      "flex flex-shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors sm:px-6 sm:text-base",
+      "flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors sm:px-6 sm:text-base",
       isActive
         ? "border-pink-600 text-pink-600"
         : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-800",
@@ -424,12 +418,14 @@ const OrderCard = ({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {/* Info */}
         <div className="flex items-start space-x-4">
-          <img
+          <Image
             src={avatar}
-            alt={title}
-            className="h-12 w-12 flex-shrink-0 rounded-full"
+            alt={title ?? order.gigTitle ?? ""}
+            className="h-12 w-12 shrink-0 rounded-full"
+            width={40}
+            height={40}
           />
-          <div className="flex-grow">
+          <div className="grow">
             <p className="font-semibold text-gray-800">{title}</p>
             <p className="text-sm text-gray-600">{order.gigTitle}</p>
             <p className="mt-1 flex items-center gap-2 text-sm text-gray-400">
@@ -445,7 +441,7 @@ const OrderCard = ({
               ₦{order.price.toLocaleString()}
             </span>
           )}
-          <div className="flex-shrink-0">{actionButton}</div>
+          <div className="shrink-0">{actionButton}</div>
         </div>
       </div>
     </div>

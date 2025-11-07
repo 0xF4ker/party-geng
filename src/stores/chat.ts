@@ -1,7 +1,10 @@
-import { create } from 'zustand';
-import { type Conversation, type Message } from '@prisma/client';
+import { create } from "zustand";
+import { type Conversation, type Message } from "@prisma/client";
 
-type ConversationWithDetails = Conversation & { participants: any[]; messages: Message[] };
+type ConversationWithDetails = Conversation & {
+  participants: [];
+  messages: Message[];
+};
 
 interface ChatState {
   conversations: ConversationWithDetails[];

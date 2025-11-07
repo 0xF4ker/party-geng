@@ -1,5 +1,5 @@
 import { db } from "@/server/db";
-import { UserRole } from "@prisma/client";
+// import { UserRole } from "@prisma/client";
 
 /**
  * Sync Supabase auth user with Prisma database

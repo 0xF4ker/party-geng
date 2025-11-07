@@ -1,39 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
-  Star,
-  Heart,
-  Check,
-  MapPin,
-  Languages,
-  Award,
-  MessageSquare,
-  Clock,
-  Briefcase,
-  Users,
   Plus,
-  List,
   Edit,
-  Image as ImageIcon,
-  MessageCircle,
-  Calendar,
-  Search,
-  Gift,
-  ChevronRight,
-  LayoutGrid,
-  DollarSign,
-  TrendingUp,
-  AlertTriangle,
-  Mail,
   ToggleLeft,
   ToggleRight,
   Eye,
   MoreVertical,
-  BarChart,
-  MousePointerClick,
   Trash2,
 } from "lucide-react";
+import Image from "next/image";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -256,10 +233,7 @@ const GigManagementCard = ({ gig }: { gig: Gig }) => {
   // Close menu on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(event.target as Node)
-      ) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsMenuOpen(false);
       }
     };
@@ -270,12 +244,14 @@ const GigManagementCard = ({ gig }: { gig: Gig }) => {
   return (
     <div className="p-4 hover:bg-gray-50">
       <div className="flex flex-col gap-4 md:flex-row md:items-center">
-        <img
+        <Image
           src={gig.imageUrl}
           alt={gig.title}
-          className="aspect-video w-full flex-shrink-0 rounded-lg object-cover md:aspect-[4/3] md:w-32"
+          className="aspect-video w-full shrink-0 rounded-lg object-cover md:aspect-4/3 md:w-32"
+          width={160}
+          height={120}
         />
-        <div className="flex-grow">
+        <div className="grow">
           <p className="text-base font-medium text-gray-700 transition-colors hover:text-pink-600">
             {gig.title}
           </p>
@@ -288,7 +264,7 @@ const GigManagementCard = ({ gig }: { gig: Gig }) => {
         </div>
 
         {/* Our Twist: Stats */}
-        <div className="grid flex-shrink-0 grid-cols-3 gap-4 text-center md:text-left">
+        <div className="grid shrink-0 grid-cols-3 gap-4 text-center md:text-left">
           <div>
             <p className="text-xs text-gray-500">Impressions</p>
             <p className="font-semibold text-gray-800">
@@ -308,7 +284,7 @@ const GigManagementCard = ({ gig }: { gig: Gig }) => {
         </div>
 
         {/* Our Twist: Controls */}
-        <div className="flex flex-shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {/* Status Toggle */}
           <button
             onClick={() => setIsPaused(!isPaused)}

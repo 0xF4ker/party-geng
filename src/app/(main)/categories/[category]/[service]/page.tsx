@@ -8,10 +8,11 @@ import {
   Star,
   Heart,
   ChevronLeft,
-  Filter,
   SlidersHorizontal,
   Check,
 } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -156,9 +157,9 @@ const ServiceListingPage = () => {
       <div className="container mx-auto px-4 py-8 sm:px-8">
         {/* Breadcrumbs */}
         <div className="mb-4 flex items-center text-sm text-gray-500">
-          <a href="/" className="hover:text-pink-600">
+          <Link href="/" className="hover:text-pink-600">
             <Home className="h-4 w-4" />
-          </a>
+          </Link>
           <ChevronRight className="mx-1 h-4 w-4" />
           <a
             href={`/categories/${serviceDetails.categorySlug}`}
@@ -413,11 +414,13 @@ const GigCard = ({ gig }: { gig: Gig }) => {
         className="group"
       >
         {/* Image */}
-        <div className="relative mb-3 aspect-[4/3] w-full overflow-hidden rounded-lg">
-          <img
+        <div className="relative mb-3 aspect-4/3 w-full overflow-hidden rounded-lg">
+          <Image
             src={gig.imageUrl}
             alt={gig.description}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            width={400}
+            height={300}
           />
           <button className="absolute top-3 right-3 rounded-full bg-white/80 p-1.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white">
             <Heart className="h-5 w-5 text-gray-800" />
@@ -426,10 +429,12 @@ const GigCard = ({ gig }: { gig: Gig }) => {
 
         {/* Seller Info */}
         <div className="mb-1.5 flex items-center gap-2">
-          <img
+          <Image
             src={`https://placehold.co/24x24/eee/333?text=${gig.sellerName[0]?.toUpperCase()}`}
             alt={gig.sellerName}
             className="h-6 w-6 rounded-full"
+            width={24}
+            height={24}
           />
           <div>
             <span className="text-sm font-semibold hover:underline">

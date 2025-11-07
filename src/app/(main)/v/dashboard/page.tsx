@@ -3,33 +3,17 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import {
   Star,
-  Heart,
-  Check,
-  MapPin,
-  Languages,
-  Award,
   MessageSquare,
-  Clock,
   Briefcase,
-  Users,
   Plus,
-  List,
-  Edit,
-  Image as ImageIcon,
-  MessageCircle,
-  Calendar,
-  Search,
-  Gift,
-  ChevronRight,
-  LayoutGrid,
   DollarSign,
   TrendingUp,
   AlertTriangle,
-  Mail,
   ToggleLeft,
   ToggleRight,
   Eye,
 } from "lucide-react";
+import Image from "next/image";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -139,7 +123,7 @@ const VendorDashboardPage = () => {
       if (!sidebarEl || !contentEl) return;
 
       const contentRect = contentEl.getBoundingClientRect();
-      const sidebarRect = sidebarEl.getBoundingClientRect();
+      // const sidebarRect = sidebarEl.getBoundingClientRect();
       const contentBottom = contentRect.bottom + window.scrollY - topOffset;
       const sidebarHeight = sidebarEl.offsetHeight;
       const stickyTop = document.documentElement.scrollTop + topOffset;
@@ -211,7 +195,7 @@ const VendorDashboardPage = () => {
             {/* Alert */}
             <div className="rounded-md border-l-4 border-yellow-400 bg-yellow-50 p-4 shadow-sm">
               <div className="flex">
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   <AlertTriangle className="h-5 w-5 text-yellow-400" />
                 </div>
                 <div className="ml-3">
@@ -297,10 +281,12 @@ const VendorSidebar = () => {
       {/* Profile Card */}
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex items-center space-x-4">
-          <img
+          <Image
             src={vendorDetails.avatarUrl}
             alt={vendorDetails.name}
             className="h-16 w-16 rounded-full"
+            width={64}
+            height={64}
           />
           <div>
             <h2 className="text-xl font-bold text-gray-800">
@@ -425,7 +411,7 @@ const StatCard = ({
 }: {
   title: string;
   value: string | number;
-  icon: any;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   color: string;
 }) => (
   <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
@@ -480,19 +466,21 @@ const NewLeadsSection = () => (
         key={lead.id}
         className="flex items-start space-x-4 rounded-lg border border-gray-200 p-4 hover:bg-gray-50 sm:items-center"
       >
-        <img
+        <Image
           src={lead.avatar}
           alt={lead.name}
-          className="h-10 w-10 flex-shrink-0 rounded-full"
+          className="h-10 w-10 shrink-0 rounded-full"
+          width={40}
+          height={40}
         />
-        <div className="flex-grow">
+        <div className="grow">
           <div className="mb-1 flex flex-col justify-between sm:flex-row sm:items-center">
             <span className="font-semibold text-gray-800">{lead.name}</span>
             <span className="text-xs text-gray-400">{lead.time}</span>
           </div>
           <p className="mb-2 text-sm text-gray-600 sm:mb-0">{lead.message}</p>
         </div>
-        <button className="flex-shrink-0 rounded-md bg-pink-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-pink-700">
+        <button className="shrink-0 rounded-md bg-pink-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-pink-700">
           Send Quote
         </button>
       </div>
@@ -516,7 +504,7 @@ const ActiveGigsSection = () => (
             Client: {gig.client} | Date: {gig.date}
           </p>
         </div>
-        <div className="mt-3 flex-shrink-0 sm:mt-0 sm:ml-4">
+        <div className="mt-3 shrink-0 sm:mt-0 sm:ml-4">
           <span className="text-xl font-bold text-gray-900">
             ₦{gig.price.toLocaleString()}
           </span>

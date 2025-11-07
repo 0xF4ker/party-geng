@@ -1,15 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import {
-  DollarSign,
   ChevronDown,
   Info,
   CalendarDays,
   ArrowDownUp,
-  Banknote,
-  CreditCard,
-  TrendingUp, // For Earnings
   TrendingDown, // For Expenses
   Gift, // For Client Earnings
   Hourglass, // For Clearing

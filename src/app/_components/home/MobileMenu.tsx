@@ -8,12 +8,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import Link from "next/link";
+import { type Profile } from "@/stores/auth";
 
 interface MobileMenuProps {
   isOpen: boolean;
   onClose: () => void;
   openModal: (view: "login" | "join") => void;
-  user?: any;
+  user?: Profile | null;
   signOut?: () => void;
 }
 
@@ -24,8 +26,9 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
   user,
   signOut,
 }) => {
-  const isVendor = user?.vendorProfile !== null && user?.vendorProfile !== undefined;
-  const isClient = user?.clientProfile !== null && user?.clientProfile !== undefined;
+  const isVendor =
+    user?.vendorProfile !== null && user?.vendorProfile !== undefined;
+  // const isClient = user?.clientProfile !== null && user?.clientProfile !== undefined;
   const isGuest = !user;
   const [currentView, setCurrentView] = useState("main"); // 'main' or category name
   const [currentCategory, setCurrentCategory] = useState<
@@ -145,21 +148,36 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
               // Vendor Links
               <>
                 <div className="space-y-5">
-                  <a href="/v/dashboard" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                  <Link
+                    href="/v/dashboard"
+                    className="block text-base font-medium text-gray-700 hover:text-pink-500"
+                  >
                     Dashboard
-                  </a>
-                  <a href="/manage_orders" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                  </Link>
+                  <Link
+                    href="/manage_orders"
+                    className="block text-base font-medium text-gray-700 hover:text-pink-500"
+                  >
                     Orders
-                  </a>
-                  <a href="/earnings" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                  </Link>
+                  <Link
+                    href="/earnings"
+                    className="block text-base font-medium text-gray-700 hover:text-pink-500"
+                  >
                     Earnings
-                  </a>
-                  <a href={`/c/${user.id}`} className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                  </Link>
+                  <Link
+                    href={`/c/${user.id}`}
+                    className="block text-base font-medium text-gray-700 hover:text-pink-500"
+                  >
                     Public Profile
-                  </a>
-                  <a href="/settings" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                  </Link>
+                  <Link
+                    href="/settings"
+                    className="block text-base font-medium text-gray-700 hover:text-pink-500"
+                  >
                     Settings
-                  </a>
+                  </Link>
                   <button
                     onClick={() => {
                       signOut?.();
@@ -175,19 +193,31 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
               // Client Links
               <>
                 <div className="space-y-5">
-                  <a href="/c/manage_events" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                  <Link
+                    href="/c/manage_events"
+                    className="block text-base font-medium text-gray-700 hover:text-pink-500"
+                  >
                     My Events
-                  </a>
-                  <a href="/manage_orders" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                  </Link>
+                  <Link
+                    href="/manage_orders"
+                    className="block text-base font-medium text-gray-700 hover:text-pink-500"
+                  >
                     Orders
-                  </a>
-                  <a href="/inbox" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                  </Link>
+                  <Link
+                    href="/inbox"
+                    className="block text-base font-medium text-gray-700 hover:text-pink-500"
+                  >
                     Inbox
-                  </a>
-                  <a href="/notifications" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                  </Link>
+                  <Link
+                    href="/notifications"
+                    className="block text-base font-medium text-gray-700 hover:text-pink-500"
+                  >
                     Notifications
-                  </a>
-                  
+                  </Link>
+
                   <div className="">
                     <Accordion type="single" collapsible>
                       <AccordionItem value="categories">
@@ -209,11 +239,17 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                       </AccordionItem>
                     </Accordion>
                   </div>
-                  
-                  <a href={`/c/${user.id}`} className="block text-base font-medium text-gray-700 hover:text-pink-500">
+
+                  <a
+                    href={`/c/${user.id}`}
+                    className="block text-base font-medium text-gray-700 hover:text-pink-500"
+                  >
                     Public Profile
                   </a>
-                  <a href="/settings" className="block text-base font-medium text-gray-700 hover:text-pink-500">
+                  <a
+                    href="/settings"
+                    className="block text-base font-medium text-gray-700 hover:text-pink-500"
+                  >
                     Settings
                   </a>
                   <button
@@ -239,7 +275,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
           )}
         >
           {/* Sticky Header */}
-          <div className="sticky top-0 z-10 flex-shrink-0 bg-white">
+          <div className="sticky top-0 z-10 shrink-0 bg-white">
             <div className="flex items-center p-4">
               <button
                 onClick={handleBackClick}
@@ -255,15 +291,40 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
             {/* Moved border up to be part of sticky header */}
           </div>
           <div className="flex flex-col border-t border-gray-200">
-            {currentCategory?.services.map((service) => (
-              <a
-                key={service}
-                href={`/categories/${currentCategory.name}/${service.toLowerCase().replace(/ /g, "-")}`}
-                className="border-b border-gray-100 p-4 text-base text-gray-700 hover:bg-gray-50"
-              >
-                {service}
-              </a>
-            ))}
+            {currentCategory?.services.map((service) => {
+              if (typeof service === "string") {
+                return (
+                  <Link
+                    key={service}
+                    href={`/categories/${
+                      currentCategory.name
+                    }/${service.toLowerCase().replace(/ /g, "-")}`}
+                    className="border-b border-gray-100 p-4 text-base text-gray-700 hover:bg-gray-50"
+                  >
+                    {service}
+                  </Link>
+                );
+              }
+              // NOTE: As of now, no category uses ServiceGroup, but this handles it.
+              return (
+                <div key={service.groupName}>
+                  <h4 className="p-4 font-semibold text-gray-500">
+                    {service.groupName}
+                  </h4>
+                  {service.items.map((item) => (
+                    <Link
+                      key={item}
+                      href={`/categories/${
+                        currentCategory.name
+                      }/${item.toLowerCase().replace(/ /g, "-")}`}
+                      className="border-b border-gray-100 p-4 pl-8 text-base text-gray-700 hover:bg-gray-50"
+                    >
+                      {item}
+                    </Link>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

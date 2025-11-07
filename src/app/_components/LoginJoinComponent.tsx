@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import { api } from "@/trpc/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+// import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth";
 
 // Mock cn function for demonstration
@@ -127,7 +127,7 @@ const EmailForm = ({
     <button
       type="submit"
       disabled={loading}
-      className="w-full rounded-lg bg-pink-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="w-full rounded-lg bg-pink-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {loading ? "Loading..." : "Continue"}
     </button>
@@ -162,7 +162,8 @@ const UsernameForm = ({
       Get your profile started
     </h3>
     <p className="-mt-2 text-gray-600">
-      Add a username that's unique to you, this is how you'll appear to others.
+      Add a username that&apos;s unique to you, this is how you&apos;ll appear
+      to others.
     </p>
 
     <div>
@@ -187,16 +188,24 @@ const UsernameForm = ({
     <button
       type="submit"
       disabled={loading}
-      className="w-full rounded-lg bg-pink-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="w-full rounded-lg bg-pink-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {loading ? "Creating account..." : "Create my account"}
     </button>
   </form>
 );
 
-const AuthModal = ({ isModal = false, initialView = "login", onClose }: { isModal?: boolean; initialView?: string; onClose?: () => void }) => {
+const AuthModal = ({
+  isModal = false,
+  initialView = "login",
+  onClose,
+}: {
+  isModal?: boolean;
+  initialView?: string;
+  onClose?: () => void;
+}) => {
   const router = useRouter();
-  const queryClient = useQueryClient();
+  // const queryClient = useQueryClient();
   const [view, setView] = useState(initialView);
   const [selectedRole, setSelectedRole] = useState("client");
   // FIX: Updated step logic
@@ -212,7 +221,7 @@ const AuthModal = ({ isModal = false, initialView = "login", onClose }: { isModa
   const createUserMutation = api.auth.createUser.useMutation();
   const utils = api.useUtils();
 
-      const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -229,38 +238,50 @@ const AuthModal = ({ isModal = false, initialView = "login", onClose }: { isModa
           toast.error(error.message);
         } else {
           toast.success("Welcome back!");
-          
+
           // Optimistically set profile from session data (instant!)
           if (data.user) {
             const optimisticProfile = {
               id: data.user.id,
               email: data.user.email!,
-              username: data.user.user_metadata?.username || data.user.email?.split('@')[0] || '',
-              role: data.user.user_metadata?.role || 'CLIENT',
-              vendorProfile: data.user.user_metadata?.role === 'VENDOR' ? {} : null,
-              clientProfile: data.user.user_metadata?.role === 'CLIENT' ? {} : null,
+              username:
+                (data.user.user_metadata?.username as string) ??
+                data.user.email?.split("@")[0] ??
+                "",
+              role: (data.user.user_metadata?.role as string) ?? "CLIENT",
+              vendorProfile:
+                (data.user.user_metadata?.role as string) === "VENDOR"
+                  ? {}
+                  : null,
+              clientProfile:
+                (data.user.user_metadata?.role as string) === "CLIENT"
+                  ? {}
+                  : null,
               createdAt: new Date(data.user.created_at),
               updatedAt: new Date(),
             };
-            
+
             // Set optimistic profile in store immediately
             const { setProfile } = useAuthStore.getState();
-            setProfile(optimisticProfile as any);
+            // Type-safe cast to the setProfile parameter type to avoid using 'any'
+            setProfile(
+              optimisticProfile as unknown as Parameters<typeof setProfile>[0],
+            );
           }
-          
+
           // Close modal immediately
           if (onClose) onClose();
-          
+
           // Invalidate and refetch real profile in background
-          utils.user.getProfile.invalidate();
-          utils.user.getProfile.fetch(); // Background fetch
-          
+          await utils.user.getProfile.invalidate();
+          await utils.user.getProfile.fetch(); // Background fetch
+
           // Navigate immediately using metadata
-          const userRole = data.user?.user_metadata?.role;
-          
-          if (userRole === 'VENDOR') {
+          const userRole = data.user?.user_metadata?.role as string;
+
+          if (userRole === "VENDOR") {
             router.push("/v/dashboard");
-          } else if (userRole === 'CLIENT') {
+          } else if (userRole === "CLIENT") {
             router.push("/c/manage_events");
           } else {
             router.push("/");
@@ -281,22 +302,22 @@ const AuthModal = ({ isModal = false, initialView = "login", onClose }: { isModa
   const handleCreateAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const supabase = createClient();
-      
+
       // Check if username is available
       // Note: This would be better done with debouncing as user types
       // For now, we'll skip the check and let the database handle uniqueness
-      
+
       // 1. Create Supabase auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
-        options: { 
-          data: { 
-            username, 
-            role: selectedRole.toUpperCase() 
+        options: {
+          data: {
+            username,
+            role: selectedRole.toUpperCase(),
           },
           emailRedirectTo: window.location.origin,
         },
@@ -324,11 +345,11 @@ const AuthModal = ({ isModal = false, initialView = "login", onClose }: { isModa
 
       // Check if user was auto-confirmed (session exists)
       const hasSession = authData.session !== null;
-      
+
       if (hasSession) {
         // User is automatically logged in (email confirmation disabled)
         toast.success("Account created successfully! Welcome!");
-        
+
         // Optimistically set profile from signup data (instant!)
         const optimisticProfile = {
           id: authData.user.id,
@@ -340,18 +361,21 @@ const AuthModal = ({ isModal = false, initialView = "login", onClose }: { isModa
           createdAt: new Date(authData.user.created_at),
           updatedAt: new Date(),
         };
-        
+
         // Set optimistic profile in store immediately
         const { setProfile } = useAuthStore.getState();
-        setProfile(optimisticProfile as any);
-        
+        // Cast to any to satisfy the store's stricter UserRole typing for optimistic updates
+        setProfile(
+          optimisticProfile as unknown as Parameters<typeof setProfile>[0],
+        );
+
         // Close modal immediately
         if (onClose) onClose();
-        
+
         // Invalidate and refetch real profile in background
-        utils.user.getProfile.invalidate();
-        utils.user.getProfile.fetch(); // Background fetch
-        
+        await utils.user.getProfile.invalidate();
+        await utils.user.getProfile.fetch(); // Background fetch
+
         // Navigate immediately based on selected role
         if (selectedRole === "vendor") {
           router.push("/v/dashboard");
@@ -360,8 +384,10 @@ const AuthModal = ({ isModal = false, initialView = "login", onClose }: { isModa
         }
       } else {
         // User needs to verify email
-        toast.success("Account created! Please check your email to verify and login.");
-        
+        toast.success(
+          "Account created! Please check your email to verify and login.",
+        );
+
         // Close modal and don't redirect
         if (onClose) onClose();
       }
@@ -445,15 +471,15 @@ const AuthModal = ({ isModal = false, initialView = "login", onClose }: { isModa
               </h2>
               <ul className="space-y-4 text-lg">
                 <li className="flex items-center gap-3">
-                  <Check className="h-6 w-6 flex-shrink-0" />
+                  <Check className="h-6 w-6 shrink-0" />
                   Find verified vendors
                 </li>
                 <li className="flex items-center gap-3">
-                  <Check className="h-6 w-6 flex-shrink-0" />
+                  <Check className="h-6 w-6 shrink-0" />
                   Get quotes and pay securely
                 </li>
                 <li className="flex items-center gap-3">
-                  <Check className="h-6 w-6 flex-shrink-0" />
+                  <Check className="h-6 w-6 shrink-0" />
                   Plan your perfect event
                 </li>
               </ul>
@@ -514,7 +540,7 @@ const AuthModal = ({ isModal = false, initialView = "login", onClose }: { isModa
                   >
                     <p className="font-bold text-gray-800">Client</p>
                     <p className="text-sm text-gray-600">
-                      I'm here to hire vendors and plan events.
+                      I&apos;m here to hire vendors and plan events.
                     </p>
                   </button>
                   <button
@@ -528,7 +554,8 @@ const AuthModal = ({ isModal = false, initialView = "login", onClose }: { isModa
                   >
                     <p className="font-bold text-gray-800">Vendor</p>
                     <p className="text-sm text-gray-600">
-                      I'm an event professional looking to offer my services.
+                      I&Apos;m an event professional looking to offer my
+                      services.
                     </p>
                   </button>
                 </div>

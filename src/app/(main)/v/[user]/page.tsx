@@ -4,15 +4,13 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import {
   Star,
   Heart,
-  ChevronLeft,
-  ChevronRight,
-  Check,
   MapPin,
   Languages,
   Award,
   MessageSquare,
   Clock,
 } from "lucide-react";
+import Image from "next/image";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -154,7 +152,7 @@ const VendorProfilePage = () => {
 
       // Use contentRef (right column) for calculations
       const contentRect = contentEl.getBoundingClientRect();
-      const sidebarRect = sidebarEl.getBoundingClientRect();
+      // const sidebarRect = sidebarEl.getBoundingClientRect();
 
       // Calculate the absolute bottom of the *content* area
       const contentBottom = contentRect.bottom + window.scrollY - topOffset;
@@ -247,10 +245,12 @@ const VendorProfilePage = () => {
 const StickySellerInfoCard = () => (
   <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
     <div className="flex flex-col items-center">
-      <img
+      <Image
         src={vendorDetails.avatarUrl}
         alt={vendorDetails.name}
         className="mb-4 h-32 w-32 rounded-full"
+        width={128}
+        height={128}
       />
       <h1 className="text-2xl font-bold text-gray-800">{vendorDetails.name}</h1>
       <p className="text-center text-gray-600">{vendorDetails.title}</p>
@@ -278,19 +278,19 @@ const StickySellerInfoCard = () => (
     <div className="mt-6 border-t pt-6">
       <div className="flex flex-col space-y-3">
         <div className="flex items-start gap-3 text-sm">
-          <MapPin className="h-5 w-5 flex-shrink-0 text-gray-500" />
+          <MapPin className="h-5 w-5 shrink-0 text-gray-500" />
           <span>
             From <strong>{vendorDetails.location}</strong>
           </span>
         </div>
         <div className="flex items-start gap-3 text-sm">
-          <Languages className="h-5 w-5 flex-shrink-0 text-gray-500" />
+          <Languages className="h-5 w-5 shrink-0 text-gray-500" />
           <span>
             Speaks <strong>{vendorDetails.languages.join(", ")}</strong>
           </span>
         </div>
         <div className="flex items-start gap-3 text-sm">
-          <Clock className="h-5 w-5 flex-shrink-0 text-gray-500" />
+          <Clock className="h-5 w-5 shrink-0 text-gray-500" />
           <span>
             Avg. response time: <strong>{vendorDetails.avgResponseTime}</strong>
           </span>
@@ -345,10 +345,12 @@ const ReviewsSection = () => (
       {reviewData.map((review) => (
         <div className="py-6" key={review.id}>
           <div className="mb-3 flex items-center space-x-3">
-            <img
+            <Image
               src={review.avatarUrl}
               alt={review.reviewerName}
               className="h-10 w-10 rounded-full"
+              width={40}
+              height={40}
             />
             <div>
               <h4 className="font-semibold">{review.reviewerName}</h4>
@@ -356,7 +358,7 @@ const ReviewsSection = () => (
             </div>
           </div>
           <div className="mb-3 flex items-center gap-1">
-            {[...Array(5)].map((_, i) => (
+            {Array.from({ length: 5 }).map((_, i) => (
               <Star
                 key={i}
                 className={cn(
@@ -379,16 +381,29 @@ const ReviewsSection = () => (
   </div>
 );
 
-const GigCard = ({ gig }: { gig: any }) => {
+interface Gig {
+  id: number;
+  sellerName: string;
+  level: string;
+  description: string;
+  rating: number;
+  reviews: number;
+  price: number;
+  imageUrl: string;
+}
+
+const GigCard = ({ gig }: { gig: Gig }) => {
   return (
     <div className="w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
       <a href="#" className="group">
         {/* Image */}
-        <div className="relative aspect-[4/3] w-full overflow-hidden">
-          <img
+        <div className="relative aspect-4/3 w-full overflow-hidden">
+          <Image
             src={gig.imageUrl}
             alt={gig.description}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            width={400}
+            height={300}
           />
           <button className="absolute top-3 right-3 rounded-full bg-white/80 p-1.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white">
             <Heart className="h-5 w-5 text-gray-800" />

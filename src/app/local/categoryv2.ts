@@ -1,4 +1,17 @@
-export const categoriesData = [
+export type Category = {
+  name: string;
+  description: string;
+  popular: string[];
+  services: string[] | ServiceGroup[];
+};
+
+export type ServiceGroup = {
+  groupName: string;
+  image: string;
+  items: string[];
+};
+
+export const categoriesData: Category[] = [
   {
     name: "Bands",
     description:
@@ -365,7 +378,13 @@ export const categoriesData = [
 // Re-exporting all services/categories as a flat list for components that need it
 export const allCategories = categoriesData.map((cat) => cat.name);
 
-export const allServices = categoriesData.flatMap((cat) => cat.services);
+export const allServices = categoriesData.flatMap((cat) => {
+  const [first] = cat.services;
+  if (typeof first === "string" || first === undefined) {
+    return cat.services as string[];
+  }
+  return (cat.services as ServiceGroup[]).flatMap((g) => g.items);
+});
 
 // Combined flat list (categories first), de-duplicated while preserving first-occurrence order
 export const allCategoriesAndServices = Array.from(

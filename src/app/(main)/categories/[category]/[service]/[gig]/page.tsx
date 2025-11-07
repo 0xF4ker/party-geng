@@ -4,21 +4,15 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import {
   ChevronRight,
   Home,
-  ChevronDown,
   Star,
-  Heart,
   ChevronLeft,
-  Filter,
-  SlidersHorizontal,
   Check,
-  Clock,
-  RefreshCw,
-  Share2,
-  MoreVertical,
   MapPin,
   Globe,
   Calendar,
 } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -109,7 +103,7 @@ const GigDetailPage = () => {
       if (!sidebarEl || !contentEl) return;
 
       const contentRect = contentEl.getBoundingClientRect();
-      const sidebarRect = sidebarEl.getBoundingClientRect();
+      // const sidebarRect = sidebarEl.getBoundingClientRect();
       const contentBottom = contentRect.bottom + window.scrollY - topOffset;
       const sidebarHeight = sidebarEl.offsetHeight;
       const stickyTop = document.documentElement.scrollTop + topOffset;
@@ -139,9 +133,9 @@ const GigDetailPage = () => {
       <div className="container mx-auto px-4 py-8 sm:px-8">
         {/* Breadcrumbs */}
         <div className="mb-4 flex flex-wrap items-center text-sm text-gray-500">
-          <a href="/" className="hover:text-pink-600">
+          <Link href="/" className="hover:text-pink-600">
             <Home className="h-4 w-4" />
-          </a>
+          </Link>
           <ChevronRight className="mx-1 h-4 w-4" />
           <a
             href={`/categories/${gigDetails.categorySlug}`}
@@ -220,7 +214,7 @@ const GigTitleBar = () => (
       {gigDetails.title}
     </h1>
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <img
+      <Image
         src={gigDetails.seller.avatarUrl}
         alt={gigDetails.seller.name}
         className="h-10 w-10 rounded-full"
@@ -265,13 +259,20 @@ const GigImageCarousel = ({ images }: { images: string[] }) => {
   const prevImage = () =>
     setCurrentImage((prev) => (prev === 0 ? images.length - 1 : prev - 1));
 
+  // Ensure src passed to Next/Image is always a string (fallback to first image or empty string)
+  const safeSrc: string = images[currentImage] ?? images[0] ?? "";
+
   return (
     <div className="mb-8">
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg">
-        <img
-          src={images[currentImage]}
+      <div className="relative aspect-4/3 w-full overflow-hidden rounded-lg">
+        <Image
+          src={safeSrc}
           alt="Gig preview"
           className="h-full w-full object-cover"
+          fill
+          priority
+          height={400}
+          width={600}
         />
         <button
           onClick={prevImage}
@@ -293,14 +294,16 @@ const GigImageCarousel = ({ images }: { images: string[] }) => {
             key={index}
             onClick={() => setCurrentImage(index)}
             className={cn(
-              "h-14 w-20 flex-shrink-0 overflow-hidden rounded-md border-2",
+              "h-14 w-20 shrink-0 overflow-hidden rounded-md border-2",
               currentImage === index ? "border-pink-600" : "border-transparent",
             )}
           >
-            <img
+            <Image
               src={img}
               alt={`Thumbnail ${index + 1}`}
               className="h-full w-full object-cover"
+              width={80}
+              height={56}
             />
           </button>
         ))}
@@ -327,10 +330,12 @@ const GigSellerInfo = () => (
     </h2>
     {/* FIX: Stack vertically on mobile */}
     <div className="flex flex-col items-start sm:flex-row sm:items-center sm:space-x-4">
-      <img
+      <Image
         src={gigDetails.seller.avatarUrl}
         alt={gigDetails.seller.name}
         className="mb-4 h-20 w-20 rounded-full sm:mb-0"
+        width={80}
+        height={80}
       />
       <div>
         <h3 className="text-xl font-semibold">{gigDetails.seller.name}</h3>
@@ -351,8 +356,8 @@ const GigSellerInfo = () => (
         From Lagos, Nigeria. Avg. response time: 1 Hour.
       </p>
       <p className="mt-4 text-gray-600">
-        Verified professional DJ with 5+ years of experience. Let's make your
-        event unforgettable!
+        Verified professional DJ with 5+ years of experience. Let&apos;s make
+        your event unforgettable!
       </p>
       <button className="mt-6 w-full rounded-md border border-gray-700 py-2.5 font-semibold text-gray-700 transition-colors hover:bg-gray-100">
         Contact me
@@ -369,10 +374,12 @@ const GigReviews = () => (
     {/* A single mock review */}
     <div className="border-b py-6">
       <div className="mb-3 flex items-center space-x-3">
-        <img
+        <Image
           src="https://placehold.co/40x40/eee/333?text=A"
           alt="Reviewer"
           className="h-10 w-10 rounded-full"
+          width={40}
+          height={40}
         />
         <div>
           <h4 className="font-semibold">Adebayo P.</h4>
@@ -437,7 +444,7 @@ const BookingCard = () => {
         {/* FIX: Base Offer (Base Conditions) */}
         <div className="mb-6">
           <h4 className="mb-2 font-semibold text-gray-800">
-            What's Included (Base Offer):
+            What&apos;s Included (Base Offer):
           </h4>
           <ul className="space-y-3">
             {gigDetails.basePriceIncludes.map((feature: string) => (

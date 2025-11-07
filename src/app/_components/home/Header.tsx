@@ -3,7 +3,16 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Menu, Bell, Mail, ShoppingBag, Calendar, User, Settings, LogOut, Eye, ChevronDown } from "lucide-react";
+import {
+  Menu,
+  Bell,
+  Mail,
+  ShoppingBag,
+  Calendar,
+  Settings,
+  LogOut,
+  Eye,
+} from "lucide-react";
 import LoginJoinComponent from "../LoginJoinComponent";
 import CategoryCarousel from "./CategoryCarousel";
 import SearchInput from "./SearchInput";
@@ -14,6 +23,7 @@ import {
 import MobileMenu from "./MobileMenu";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
+import Image from "next/image";
 
 const Modal = ({
   children,
@@ -92,8 +102,10 @@ const Header = () => {
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
     if (query.length > 0) {
-      const filtered = allCategoriesAndServices.filter((cat) =>
-        cat.toLowerCase().includes(query.toLowerCase()),
+      const filtered = allCategoriesAndServices.filter(
+        (cat) =>
+          typeof cat === "string" &&
+          cat.toLowerCase().includes(query.toLowerCase()),
       );
       setSearchResults(filtered);
     } else {
@@ -121,30 +133,36 @@ const Header = () => {
   // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+      if (
+        profileDropdownRef.current &&
+        !profileDropdownRef.current.contains(event.target as Node)
+      ) {
         setIsProfileDropdownOpen(false);
       }
     };
-    
+
     if (isProfileDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
-    
+
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isProfileDropdownOpen]);
 
   // Determine user type
-  const isVendor = user?.vendorProfile !== null && user?.vendorProfile !== undefined;
-  const isClient = user?.clientProfile !== null && user?.clientProfile !== undefined;
+  const isVendor =
+    user?.vendorProfile !== null && user?.vendorProfile !== undefined;
+  // const isClient = user?.clientProfile !== null && user?.clientProfile !== undefined;
   const isGuest = !user;
-  
+
   // Get avatar and name from appropriate profile
-  const avatarUrl = isVendor ? user?.vendorProfile?.avatarUrl : user?.clientProfile?.avatarUrl;
-  const displayName = isVendor 
-    ? (user?.vendorProfile?.companyName || user?.username)
-    : (user?.clientProfile?.name || user?.username);
+  const avatarUrl = isVendor
+    ? user?.vendorProfile?.avatarUrl
+    : user?.clientProfile?.avatarUrl;
+  const displayName = isVendor
+    ? (user?.vendorProfile?.companyName ?? user?.username)
+    : (user?.clientProfile?.name ?? user?.username);
 
   return (
     <>
@@ -164,7 +182,7 @@ const Header = () => {
           {/* === Top Row: Logo, Hamburger, Mobile Nav === */}
           <div className="flex w-full items-center justify-between">
             {/* Left Side: Hamburger + Logo */}
-            <div className="flex flex-shrink-0 items-center">
+            <div className="flex shrink-0 items-center">
               <button onClick={toggleMobileMenu} className="lg:hidden">
                 <Menu className="h-6 w-6" />
               </button>
@@ -181,7 +199,7 @@ const Header = () => {
 
             {/* Middle: Search Bar (sm to lg) - Only for guests and clients */}
             {!isVendor && (
-              <div className="mx-4 hidden flex-grow sm:flex lg:mx-16">
+              <div className="mx-4 hidden grow sm:flex lg:mx-16">
                 <SearchInput
                   placeholder="Find services"
                   className="w-full max-w-lg transition-all"
@@ -249,51 +267,78 @@ const Header = () => {
               // Vendor Navigation
               <>
                 <nav className="hidden items-center space-x-6 lg:flex">
-                  <Link href="/v/dashboard" className="font-medium hover:text-pink-500">
+                  <Link
+                    href="/v/dashboard"
+                    className="font-medium hover:text-pink-500"
+                  >
                     Dashboard
                   </Link>
-                  <Link href="/manage_orders" className="font-medium hover:text-pink-500">
+                  <Link
+                    href="/manage_orders"
+                    className="font-medium hover:text-pink-500"
+                  >
                     Orders
                   </Link>
-                  <Link href="/earnings" className="font-medium hover:text-pink-500">
+                  <Link
+                    href="/earnings"
+                    className="font-medium hover:text-pink-500"
+                  >
                     Earnings
                   </Link>
-                  
+
                   {/* Profile Dropdown */}
                   <div className="relative" ref={profileDropdownRef}>
                     <button
-                      onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                      onClick={() =>
+                        setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                      }
                       className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-pink-500"
                     >
                       <div className="h-10 w-10 overflow-hidden rounded-full bg-pink-100">
                         {avatarUrl ? (
-                          <img src={avatarUrl} alt={displayName || "Profile"} className="h-full w-full object-cover" />
+                          <Image
+                            src={avatarUrl}
+                            alt={displayName ?? "Profile"}
+                            className="h-full w-full object-cover"
+                            width={100}
+                            height={100}
+                          />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-pink-600 font-semibold">
-                            {displayName?.charAt(0).toUpperCase() || "V"}
+                          <div className="flex h-full w-full items-center justify-center font-semibold text-pink-600">
+                            {displayName?.charAt(0).toUpperCase() ?? "V"}
                           </div>
                         )}
                       </div>
                     </button>
-                    
+
                     {/* Dropdown Menu */}
                     {isProfileDropdownOpen && (
                       <div className="absolute top-full right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
                         <div className="border-b border-gray-100 px-4 py-3">
-                          <p className="font-semibold text-gray-800">{displayName}</p>
-                          <p className="text-sm text-gray-500">@{user.username}</p>
+                          <p className="font-semibold text-gray-800">
+                            {displayName}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            @{user.username}
+                          </p>
                         </div>
-                        <Link href={`/c/${user.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                        <Link
+                          href={`/c/${user.id}`}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                        >
                           <Eye className="h-4 w-4" />
                           View Public Profile
                         </Link>
-                        <Link href="/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                        <Link
+                          href="/settings"
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                        >
                           <Settings className="h-4 w-4" />
                           Settings
                         </Link>
                         <button
                           onClick={() => {
-                            signOut();
+                            void signOut();
                             setIsProfileDropdownOpen(false);
                           }}
                           className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
@@ -305,40 +350,58 @@ const Header = () => {
                     )}
                   </div>
                 </nav>
-                
+
                 {/* Mobile Profile Icon */}
                 <div className="relative lg:hidden" ref={profileDropdownRef}>
                   <button
-                    onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                    onClick={() =>
+                      setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                    }
                     className="h-10 w-10 overflow-hidden rounded-full bg-pink-100 hover:ring-2 hover:ring-pink-500"
                   >
                     {avatarUrl ? (
-                      <img src={avatarUrl} alt={displayName || "Profile"} className="h-full w-full object-cover" />
+                      <Image
+                        src={avatarUrl}
+                        alt={displayName ?? "Profile"}
+                        className="h-full w-full object-cover"
+                        width={100}
+                        height={100}
+                      />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-pink-600 font-semibold">
-                        {displayName?.charAt(0).toUpperCase() || "V"}
+                      <div className="flex h-full w-full items-center justify-center font-semibold text-pink-600">
+                        {displayName?.charAt(0).toUpperCase() ?? "V"}
                       </div>
                     )}
                   </button>
-                  
+
                   {/* Mobile Dropdown */}
                   {isProfileDropdownOpen && (
                     <div className="absolute top-full right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
                       <div className="border-b border-gray-100 px-4 py-3">
-                        <p className="font-semibold text-gray-800">{displayName}</p>
-                        <p className="text-sm text-gray-500">@{user.username}</p>
+                        <p className="font-semibold text-gray-800">
+                          {displayName}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          @{user.username}
+                        </p>
                       </div>
-                      <Link href={`/c/${user.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                      <Link
+                        href={`/c/${user.id}`}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                      >
                         <Eye className="h-4 w-4" />
                         View Public Profile
                       </Link>
-                      <Link href="/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                      <Link
+                        href="/settings"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                      >
                         <Settings className="h-4 w-4" />
                         Settings
                       </Link>
                       <button
                         onClick={() => {
-                          signOut();
+                          void signOut();
                           setIsProfileDropdownOpen(false);
                         }}
                         className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
@@ -369,42 +432,58 @@ const Header = () => {
                   <Link href="/manage_orders">
                     <ShoppingBag className="h-6 w-6 text-gray-600 hover:text-pink-500" />
                   </Link>
-                  
+
                   {/* Profile Dropdown */}
                   <div className="relative" ref={profileDropdownRef}>
                     <button
-                      onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                      onClick={() =>
+                        setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                      }
                       className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-pink-500"
                     >
                       <div className="h-10 w-10 overflow-hidden rounded-full bg-pink-100">
                         {avatarUrl ? (
-                          <img src={avatarUrl} alt={displayName || "Profile"} className="h-full w-full object-cover" />
+                          <Image
+                            src={avatarUrl}
+                            alt={displayName ?? "Profile"}
+                            className="h-full w-full object-cover"
+                          />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-pink-600 font-semibold">
-                            {displayName?.charAt(0).toUpperCase() || "C"}
+                          <div className="flex h-full w-full items-center justify-center font-semibold text-pink-600">
+                            {displayName?.charAt(0).toUpperCase() ?? "C"}
                           </div>
                         )}
                       </div>
                     </button>
-                    
+
                     {/* Dropdown Menu */}
                     {isProfileDropdownOpen && (
                       <div className="absolute top-full right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
                         <div className="border-b border-gray-100 px-4 py-3">
-                          <p className="font-semibold text-gray-800">{displayName}</p>
-                          <p className="text-sm text-gray-500">@{user.username}</p>
+                          <p className="font-semibold text-gray-800">
+                            {displayName}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            @{user.username}
+                          </p>
                         </div>
-                        <Link href={`/c/${user.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                        <Link
+                          href={`/c/${user.id}`}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                        >
                           <Eye className="h-4 w-4" />
                           View Public Profile
                         </Link>
-                        <Link href="/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                        <Link
+                          href="/settings"
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                        >
                           <Settings className="h-4 w-4" />
                           Settings
                         </Link>
                         <button
                           onClick={() => {
-                            signOut();
+                            void signOut();
                             setIsProfileDropdownOpen(false);
                           }}
                           className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
@@ -416,45 +495,63 @@ const Header = () => {
                     )}
                   </div>
                 </nav>
-                
+
                 {/* Mobile Profile Icon + Icons */}
                 <div className="flex items-center space-x-3 lg:hidden">
                   <Link href="/c/manage_events">
                     <Calendar className="h-6 w-6 text-gray-600 hover:text-pink-500" />
                   </Link>
-                  
+
                   <div className="relative">
                     <button
-                      onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                      onClick={() =>
+                        setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                      }
                       className="h-10 w-10 overflow-hidden rounded-full bg-pink-100 hover:ring-2 hover:ring-pink-500"
                     >
                       {avatarUrl ? (
-                        <img src={avatarUrl} alt={displayName || "Profile"} className="h-full w-full object-cover" />
+                        <Image
+                          src={avatarUrl}
+                          alt={displayName ?? "Profile"}
+                          className="h-full w-full object-cover"
+                          width={100}
+                          height={100}
+                        />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-pink-600 font-semibold">
-                          {displayName?.charAt(0).toUpperCase() || "C"}
+                        <div className="flex h-full w-full items-center justify-center font-semibold text-pink-600">
+                          {displayName?.charAt(0).toUpperCase() ?? "C"}
                         </div>
                       )}
                     </button>
-                    
+
                     {/* Mobile Dropdown */}
                     {isProfileDropdownOpen && (
                       <div className="absolute top-full right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
                         <div className="border-b border-gray-100 px-4 py-3">
-                          <p className="font-semibold text-gray-800">{displayName}</p>
-                          <p className="text-sm text-gray-500">@{user.username}</p>
+                          <p className="font-semibold text-gray-800">
+                            {displayName}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            @{user.username}
+                          </p>
                         </div>
-                        <Link href={`/c/${user.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                        <Link
+                          href={`/c/${user.id}`}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                        >
                           <Eye className="h-4 w-4" />
                           View Public Profile
                         </Link>
-                        <Link href="/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                        <Link
+                          href="/settings"
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                        >
                           <Settings className="h-4 w-4" />
                           Settings
                         </Link>
                         <button
                           onClick={() => {
-                            signOut();
+                            void signOut();
                             setIsProfileDropdownOpen(false);
                           }}
                           className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"

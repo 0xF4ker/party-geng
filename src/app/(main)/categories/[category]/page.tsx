@@ -4,18 +4,25 @@ import { notFound } from "next/navigation";
 import { categoriesData } from "../../../local/categoryv2";
 import PopularServiceCarousel from "../../../_components/category/PopularServiceCarousel";
 import { ChevronDown } from "lucide-react";
-import React, { use, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import LoopingCardAnimation from "@/app/_components/category/LoopingCardAnimation";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { slugify } from "@/lib/utils";
-// Component for NON-grouped services (e.g., DJs, Solo Musicians)
+
+interface Category {
+  name: string;
+  description: string;
+  popular: string[];
+  services: string[] | { groupName: string; image: string; items: string[] }[];
+}
+
 const FlatServicesList = ({
   services,
   category,
 }: {
   services: string[];
-  category: any;
+  category: Category;
 }) => (
   <ul className="columns-1 gap-x-6 sm:columns-2 md:columns-3 lg:columns-4">
     {services.map((service) => (
@@ -112,7 +119,7 @@ const GroupedServices = ({
               <Image
                 src={group.image}
                 alt={group.groupName}
-                className="aspect-[4/3] h-auto w-full rounded-lg object-cover transition-transform duration-300 hover:scale-105"
+                className="aspect-4/3 h-auto w-full rounded-lg object-cover transition-transform duration-300 hover:scale-105"
                 width={320}
                 height={240}
               />
@@ -151,7 +158,7 @@ const ExploreServices = ({
   category,
 }: {
   services: string[] | ServiceGroup[];
-  category: any;
+  category: Category;
 }) => {
   // Check if the first item in the services array is an object with a 'groupName' key
   const hasGroups =
@@ -172,9 +179,9 @@ const ExploreServices = ({
 export default function CategoryPage({
   params,
 }: {
-  params: Promise<{ category: string }>;
+  params: { category: string };
 }) {
-  const { category: slug } = use(params);
+  const { category: slug } = params;
 
   useEffect(() => {
     console.log("Category slug:", slug);
@@ -192,7 +199,7 @@ export default function CategoryPage({
     <main className="bg-white py-44">
       {/* 1. Hero Section */}
       <div
-        className="container mx-auto flex items-center justify-center bg-gradient-to-r from-pink-500 to-purple-600 px-4 py-12 text-white"
+        className="container mx-auto flex items-center justify-center bg-linear-to-r from-pink-500 to-purple-600 px-4 py-12 text-white"
         style={{ backgroundColor: "#003916" /* Matching GIF dark green */ }}
       >
         <div className="flex flex-col items-center text-center">

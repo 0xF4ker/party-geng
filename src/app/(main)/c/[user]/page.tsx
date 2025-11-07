@@ -3,24 +3,14 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import {
   Star,
-  Heart,
   Check,
   MapPin,
-  Languages,
-  Award,
   MessageSquare,
-  Clock,
-  Briefcase,
-  Users,
-  Plus,
-  List,
-  Edit,
-  Image as ImageIcon,
-  MessageCircle,
+  // Image as ImageIcon,
   Calendar,
-  Search,
   Gift, // Added Gift icon
 } from "lucide-react";
+import Image from "next/image";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -152,7 +142,7 @@ const ClientProfilePage = () => {
       if (!sidebarEl || !contentEl) return;
 
       const contentRect = contentEl.getBoundingClientRect();
-      const sidebarRect = sidebarEl.getBoundingClientRect();
+      // const sidebarRect = sidebarEl.getBoundingClientRect();
       const contentBottom = contentRect.bottom + window.scrollY - topOffset;
       const sidebarHeight = sidebarEl.offsetHeight;
       const stickyTop = document.documentElement.scrollTop + topOffset;
@@ -258,10 +248,12 @@ const ClientProfilePage = () => {
 const ClientInfoCard = () => (
   <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
     <div className="flex flex-col items-center">
-      <img
+      <Image
         src={clientDetails.avatarUrl}
         alt={clientDetails.name}
         className="mb-4 h-32 w-32 rounded-full"
+        width={128}
+        height={128}
       />
       <h1 className="text-2xl font-bold text-gray-800">{clientDetails.name}</h1>
       <div className="mt-1 flex items-center gap-2">
@@ -300,13 +292,13 @@ const ClientInfoCard = () => (
     <div className="mt-6 border-t pt-6">
       <div className="flex flex-col space-y-3">
         <div className="flex items-start gap-3 text-sm">
-          <MapPin className="h-5 w-5 flex-shrink-0 text-gray-500" />
+          <MapPin className="h-5 w-5 shrink-0 text-gray-500" />
           <span>
             From <strong>{clientDetails.location}</strong>
           </span>
         </div>
         <div className="flex items-start gap-3 text-sm">
-          <Calendar className="h-5 w-5 flex-shrink-0 text-gray-500" />
+          <Calendar className="h-5 w-5 shrink-0 text-gray-500" />
           <span>{clientDetails.memberSince}</span>
         </div>
       </div>
@@ -347,10 +339,12 @@ const UpcomingEventsSection = () => (
         key={event.id}
         className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
       >
-        <img
+        <Image
           src={event.coverImage}
           alt={event.title}
           className="h-40 w-full object-cover"
+          width={600}
+          height={200}
         />
         <div className="p-5">
           <div className="flex items-start justify-between">
@@ -402,10 +396,12 @@ const PastEventsSection = () => (
               key={index}
               className="aspect-square overflow-hidden rounded-lg"
             >
-              <img
+              <Image
                 src={imgUrl}
                 alt={`Gallery image ${index + 1}`}
                 className="h-full w-full object-cover"
+                width={400}
+                height={300}
               />
             </div>
           ))}
@@ -426,10 +422,12 @@ const ReviewsFromVendorsSection = () => (
         className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
       >
         <div className="mb-3 flex items-center space-x-3">
-          <img
+          <Image
             src={review.vendorAvatar}
             alt={review.vendorName}
             className="h-10 w-10 rounded-full"
+            width={40}
+            height={40}
           />
           <div>
             <h4 className="font-semibold">{review.vendorName}</h4>
@@ -437,7 +435,7 @@ const ReviewsFromVendorsSection = () => (
           </div>
         </div>
         <div className="mb-3 flex items-center gap-1">
-          {[...Array(5)].map((_, i) => (
+          {Array.from({ length: 5 }, (_, i) => i).map((i) => (
             <Star
               key={i}
               className={cn(
@@ -453,7 +451,9 @@ const ReviewsFromVendorsSection = () => (
           </span>
           <span className="ml-2 text-sm text-gray-400">| {review.date}</span>
         </div>
-        <p className="leading-relaxed text-gray-600">"{review.comment}"</p>
+        <p className="leading-relaxed text-gray-600">
+          &quot;{review.comment}&quot;
+        </p>
       </div>
     ))}
   </div>

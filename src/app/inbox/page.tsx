@@ -7,26 +7,14 @@
 // I've added a placeholder here to show where it goes.
 //
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Star,
-  Check,
   MapPin,
-  Languages,
   Award,
-  MessageSquare,
   Clock,
-  Briefcase,
-  Users,
-  Plus,
-  List,
-  Edit,
-  Image as ImageIcon,
-  MessageCircle,
   Calendar,
   Search,
-  Gift,
-  ChevronRight,
   ChevronDown,
   Paperclip,
   Send,
@@ -35,8 +23,8 @@ import {
   CheckCircle,
   X,
   Eye,
-  RefreshCw,
 } from "lucide-react";
+import Image from "next/image";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -267,12 +255,12 @@ const InboxPage = () => {
     currentUser,
     conversations,
     initialMessages,
-    otherUser,
+    // otherUser,
   }: {
     currentUser: User;
     conversations: Conversation[];
     initialMessages: Message[];
-    otherUser: User | undefined;
+    // otherUser: User | undefined;
   } = useMemo(() => {
     if (userType === "vendor") {
       return {
@@ -305,10 +293,10 @@ const InboxPage = () => {
     );
   }, [
     userType,
-    clientMessages,
-    clientConversations,
-    vendorMessages,
-    vendorConversations,
+    // clientMessages,
+    // clientConversations,
+    // vendorMessages,
+    // vendorConversations,
   ]);
 
   const handleSend = () => {
@@ -349,7 +337,7 @@ const InboxPage = () => {
         {/* --- 1. Conversation List Column --- */}
         <aside className="flex h-full w-full flex-col border-r border-gray-200 sm:w-1/3 lg:w-1/4">
           {/* ... conversation list ... */}
-          <div className="flex-shrink-0 border-b border-gray-200 p-4">
+          <div className="shrink-0 border-b border-gray-200 p-4">
             <div className="mb-3 flex items-center justify-between">
               <button className="flex items-center gap-1">
                 <h2 className="text-xl font-bold">All Messages</h2>
@@ -366,7 +354,7 @@ const InboxPage = () => {
             </div>
           </div>
           {/* List */}
-          <div className="flex-grow overflow-y-auto">
+          <div className="grow overflow-y-auto">
             {conversations.map((convo) => (
               <ConversationItem
                 key={convo.id}
@@ -380,7 +368,7 @@ const InboxPage = () => {
         <main className="flex h-full w-full flex-col border-r border-gray-200 lg:w-1/2">
           {/* ... chat window ... */}
           {/* Chat Header */}
-          <div className="flex-shrink-0 border-b border-gray-200 p-4">
+          <div className="shrink-0 border-b border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">
@@ -395,7 +383,7 @@ const InboxPage = () => {
           </div>
 
           {/* NEW: Demo Toggle */}
-          <div className="flex-shrink-0 border-b border-purple-200 bg-purple-50 p-2">
+          <div className="shrink-0 border-b border-purple-200 bg-purple-50 p-2">
             <div className="flex items-center justify-center gap-2">
               <span className="text-sm font-semibold text-purple-800">
                 Demo:
@@ -426,7 +414,7 @@ const InboxPage = () => {
           </div>
 
           {/* Messages */}
-          <div className="flex-grow space-y-4 overflow-y-auto bg-gray-50 p-4">
+          <div className="grow space-y-4 overflow-y-auto bg-gray-50 p-4">
             {messages.map((msg) => {
               if (msg.type === "quote") {
                 return (
@@ -463,7 +451,7 @@ const InboxPage = () => {
           </div>
 
           {/* Chat Input */}
-          <div className="flex-shrink-0 border-t border-gray-200 p-4">
+          <div className="shrink-0 border-t border-gray-200 p-4">
             <div className="relative">
               <textarea
                 value={message}
@@ -544,22 +532,22 @@ const ConversationItem = ({
       isSelected && "bg-pink-50",
     )}
   >
-    <img
+    <Image
       src={convo.user.avatarUrl}
       alt={convo.user.name}
-      className="h-12 w-12 flex-shrink-0 rounded-full"
+      className="h-12 w-12 shrink-0 rounded-full"
+      width={48}
+      height={48}
     />
-    <div className="flex-grow overflow-hidden">
+    <div className="grow overflow-hidden">
       <div className="flex items-center justify-between">
         <h4 className="font-semibold text-gray-800">{convo.user.name}</h4>
-        <span className="flex-shrink-0 text-xs text-gray-400">
-          {convo.time}
-        </span>
+        <span className="shrink-0 text-xs text-gray-400">{convo.time}</span>
       </div>
       <p className="truncate text-sm text-gray-500">{convo.lastMessage}</p>
     </div>
     {convo.unread && (
-      <div className="mt-1.5 h-2.5 w-2.5 flex-shrink-0 rounded-full bg-pink-600"></div>
+      <div className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-pink-600"></div>
     )}
   </button>
 );
@@ -615,7 +603,7 @@ const QuoteRequestBubble = ({
         )}
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100">
             <FileText className="h-5 w-5 text-gray-600" />
           </div>
           <div>
@@ -757,13 +745,13 @@ const VendorInfoCard = ({
     <div className="mt-6 border-t pt-6">
       <div className="flex flex-col space-y-3">
         <div className="flex items-start gap-3 text-sm">
-          <Clock className="h-5 w-5 flex-shrink-0 text-gray-500" />
+          <Clock className="h-5 w-5 shrink-0 text-gray-500" />
           <span>
             Avg. response time: <strong>{profile.avgResponseTime}</strong>
           </span>
         </div>
         <div className="flex items-start gap-3 text-sm">
-          <Calendar className="h-5 w-5 flex-shrink-0 text-gray-500" />
+          <Calendar className="h-5 w-5 shrink-0 text-gray-500" />
           <span>
             On Partygeng since: <strong>{profile.onPartygengSince}</strong>
           </span>
@@ -810,13 +798,13 @@ const ClientInfoCard = ({
     <div className="mt-6 border-t pt-6">
       <div className="flex flex-col space-y-3">
         <div className="flex items-start gap-3 text-sm">
-          <MapPin className="h-5 w-5 flex-shrink-0 text-gray-500" />
+          <MapPin className="h-5 w-5 shrink-0 text-gray-500" />
           <span>
             From <strong>{profile.location}</strong>
           </span>
         </div>
         <div className="flex items-start gap-3 text-sm">
-          <Calendar className="h-5 w-5 flex-shrink-0 text-gray-500" />
+          <Calendar className="h-5 w-5 shrink-0 text-gray-500" />
           <span>{profile.memberSince}</span>
         </div>
       </div>

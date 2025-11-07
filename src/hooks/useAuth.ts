@@ -15,7 +15,7 @@ export function useAuth() {
     const supabase = createClient();
 
     // Get initial session (fast)
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    void supabase.auth.getSession().then(({ data: { session } }) => {
       setHasCheckedSession(true);
       
       // If no session, we can stop loading immediately

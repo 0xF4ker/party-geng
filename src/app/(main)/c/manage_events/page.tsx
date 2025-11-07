@@ -2,40 +2,22 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Star,
-  Heart,
   Check,
-  MapPin,
-  Languages,
-  Award,
-  MessageSquare,
-  Clock,
-  Briefcase,
   Users,
   Plus,
-  List,
-  Edit,
-  Image as ImageIcon,
-  MessageCircle,
-  Calendar,
+  // Image as ImageIcon,
   Search,
   Gift,
-  ChevronRight,
-  ChevronDown,
-  Paperclip,
-  Send,
-  MoreVertical, // Added
-  FileText,
+  MoreVertical,
   CheckCircle,
   X,
-  Eye,
-  RefreshCw,
   Copy, // Added
   ToggleLeft, // Added
   ToggleRight, // Added
   Trash2, // Added
   ShieldCheck, // Added
 } from "lucide-react";
+import Image from "next/image";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -162,20 +144,52 @@ const activeVendors = [
 ];
 // --- End Mock Data ---
 
+interface HiredVendor {
+  id: number;
+  name: string;
+  avatarUrl: string;
+}
+
+interface WishlistItem {
+  id: number;
+  name: string;
+  price: number;
+  promisors: string[];
+  isFulfilled: boolean;
+}
+
+interface ClientEvent {
+  id: number;
+  title: string;
+  date: string;
+  isPublic?: boolean;
+  coverImage: string;
+  hiredVendors: HiredVendor[];
+  wishlistItems: WishlistItem[];
+}
+
+interface ActiveVendor {
+  id: number;
+  name: string;
+  service: string;
+  avatarUrl: string;
+  isAdded: boolean;
+}
+
 // --- Main Page Component ---
 const ClientEventPlannerPage = () => {
   const [activeTab, setActiveTab] = useState("upcoming");
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [selectedEvent, setSelectedEvent] = useState<ClientEvent | null>(null);
 
-  const openWishlist = (event: any) => {
+  const openWishlist = (event: ClientEvent) => {
     setSelectedEvent(event);
     setIsWishlistOpen(true);
   };
 
-  const openAddVendor = (event: any) => {
+  const openAddVendor = (event: ClientEvent) => {
     setSelectedEvent(event);
     setIsVendorModalOpen(true);
   };
@@ -263,7 +277,15 @@ const ClientEventPlannerPage = () => {
 
 // --- Sub-Components ---
 
-const TabButton = ({ title, isActive, onClick }: { title: string; isActive: boolean; onClick: () => void }) => (
+const TabButton = ({
+  title,
+  isActive,
+  onClick,
+}: {
+  title: string;
+  isActive: boolean;
+  onClick: () => void;
+}) => (
   <button
     onClick={onClick}
     className={cn(
@@ -283,7 +305,7 @@ const EventCard = ({
   onAddVendorClick,
   isPast = false,
 }: {
-  event: any;
+  event: ClientEvent;
   onWishlistClick?: () => void;
   onAddVendorClick?: () => void;
   isPast?: boolean;
@@ -291,7 +313,7 @@ const EventCard = ({
   const wishlistCount = event.wishlistItems.length;
   // FIX: Changed from promisedCount to fulfilledCount
   const fulfilledCount = event.wishlistItems.filter(
-    (item: any) => item.isFulfilled,
+    (item: WishlistItem) => item.isFulfilled,
   ).length;
   const [isPublic, setIsPublic] = useState(event.isPublic);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -310,12 +332,14 @@ const EventCard = ({
 
   return (
     <div className="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-      <img
+      <Image
         src={event.coverImage}
         alt={event.title}
         className="h-40 w-full object-cover"
+        width={600}
+        height={300}
       />
-      <div className="flex flex-grow flex-col p-5">
+      <div className="flex grow flex-col p-5">
         {/* Card Header */}
         <div className="flex items-start justify-between">
           <div>
@@ -371,14 +395,16 @@ const EventCard = ({
             <h4 className="mb-2 text-xs font-semibold text-gray-500 uppercase">
               Hired Vendors ({event.hiredVendors.length})
             </h4>
-                  <div className="flex items-center gap-2">
-                    {event.hiredVendors.slice(0, 3).map((vendor: any) => (
-                <img
+            <div className="flex items-center gap-2">
+              {event.hiredVendors.slice(0, 3).map((vendor: HiredVendor) => (
+                <Image
                   key={vendor.id}
                   src={vendor.avatarUrl}
                   alt={vendor.name}
                   title={vendor.name}
                   className="h-10 w-10 rounded-full border-2 border-white ring-1 ring-gray-200"
+                  width={40}
+                  height={40}
                 />
               ))}
               {!isPast && (
@@ -441,21 +467,26 @@ const EventCard = ({
 
 // --- MODAL COMPONENTS ---
 
-const WishlistModal = ({ event, onClose }: { event: any; onClose: () => void }) => {
+const WishlistModal = ({
+  event,
+  onClose,
+}: {
+  event: ClientEvent;
+  onClose: () => void;
+}) => {
   const [copied, setCopied] = useState(false);
   // FIX: Add state to manage wishlist items locally for toggling
-  const [items, setItems] = useState(event.wishlistItems);
+  const [items, setItems] = useState<WishlistItem[]>(event.wishlistItems);
 
-  const copyLink = () => {
+  const copyLink = async () => {
     // This is a mock link. In a real app, this would be a unique URL.
     const textToCopy = `https://partygeng.com/events/${event.id}/wishlist`;
 
     // Fallback for non-navigator.clipboard environments
     try {
-      navigator.clipboard.writeText(textToCopy).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      });
+      await navigator.clipboard.writeText(textToCopy);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       // Fallback for http or iframes
       const textArea = document.createElement("textarea");
@@ -464,6 +495,7 @@ const WishlistModal = ({ event, onClose }: { event: any; onClose: () => void }) 
       document.body.appendChild(textArea);
       textArea.focus();
       textArea.select();
+      console.error(err);
       try {
         document.execCommand("copy");
         setCopied(true);
@@ -477,8 +509,8 @@ const WishlistModal = ({ event, onClose }: { event: any; onClose: () => void }) 
 
   // FIX: Add handler to toggle fulfillment
   const handleToggleFulfilled = (itemId: number) => {
-    setItems((currentItems: any[]) =>
-      currentItems.map((item: any) =>
+    setItems((currentItems: WishlistItem[]) =>
+      currentItems.map((item: WishlistItem) =>
         item.id === itemId ? { ...item, isFulfilled: !item.isFulfilled } : item,
       ),
     );
@@ -488,11 +520,14 @@ const WishlistModal = ({ event, onClose }: { event: any; onClose: () => void }) 
   const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
-    const newItemName = (form.elements.namedItem('newItem') as HTMLInputElement)?.value;
-    const newItemPrice = (form.elements.namedItem('newItemPrice') as HTMLInputElement)?.value;
+    const newItemName = (form.elements.namedItem("newItem") as HTMLInputElement)
+      ?.value;
+    const newItemPrice = (
+      form.elements.namedItem("newItemPrice") as HTMLInputElement
+    )?.value;
     if (!newItemName || !newItemPrice) return;
 
-    const newItem = {
+    const newItem: WishlistItem = {
       id: items.length + 100, // mock new id
       name: newItemName,
       price: Number(newItemPrice),
@@ -504,8 +539,8 @@ const WishlistModal = ({ event, onClose }: { event: any; onClose: () => void }) 
   };
 
   const handleRemoveItem = (itemId: number) => {
-    setItems((currentItems: any[]) =>
-      currentItems.filter((item: any) => item.id !== itemId),
+    setItems((currentItems: WishlistItem[]) =>
+      currentItems.filter((item: WishlistItem) => item.id !== itemId),
     );
     // In a real app, send this delete request to backend
   };
@@ -514,7 +549,7 @@ const WishlistModal = ({ event, onClose }: { event: any; onClose: () => void }) 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="m-4 flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-xl">
         {/* Header */}
-        <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 p-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 p-4">
           <div>
             <h3 className="text-xl font-semibold">Event Wishlist</h3>
             <p className="text-sm text-gray-500">{event.title}</p>
@@ -528,7 +563,7 @@ const WishlistModal = ({ event, onClose }: { event: any; onClose: () => void }) 
         </div>
 
         {/* FIX: Re-added Shareable Link Section */}
-        <div className="flex-shrink-0 border-b border-gray-200 p-4">
+        <div className="shrink-0 border-b border-gray-200 p-4">
           <label className="mb-2 block text-sm font-semibold text-gray-700">
             Share Your Wishlist
           </label>
@@ -542,7 +577,7 @@ const WishlistModal = ({ event, onClose }: { event: any; onClose: () => void }) 
             <button
               onClick={copyLink}
               className={cn(
-                "flex flex-shrink-0 items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold text-white",
+                "flex shrink-0 items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold text-white",
                 copied ? "bg-green-600" : "bg-pink-600 hover:bg-pink-700",
               )}
             >
@@ -561,7 +596,7 @@ const WishlistModal = ({ event, onClose }: { event: any; onClose: () => void }) 
           <h4 className="mb-3 font-semibold text-gray-800">Wishlist Items</h4>
           {/* FIX: Updated list to show new logic */}
           <ul className="divide-y divide-gray-100">
-            {items.map((item: any) => (
+            {items.map((item: WishlistItem) => (
               <li key={item.id} className="flex items-start gap-4 py-3">
                 {/* Checkbox for Owner */}
                 <input
@@ -570,7 +605,7 @@ const WishlistModal = ({ event, onClose }: { event: any; onClose: () => void }) 
                   onChange={() => handleToggleFulfilled(item.id)}
                   className="mt-1 h-5 w-5 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
                 />
-                <div className="flex-grow">
+                <div className="grow">
                   <p
                     className={cn(
                       "font-medium text-gray-800",
@@ -588,7 +623,7 @@ const WishlistModal = ({ event, onClose }: { event: any; onClose: () => void }) 
                     Est. Price: ₦{item.price.toLocaleString()}
                   </p>
                 </div>
-                <div className="flex-shrink-0 text-right">
+                <div className="shrink-0 text-right">
                   {item.isFulfilled ? (
                     <span className="flex items-center gap-1.5 font-semibold text-green-600">
                       <CheckCircle className="h-5 w-5" />
@@ -625,7 +660,7 @@ const WishlistModal = ({ event, onClose }: { event: any; onClose: () => void }) 
                   type="text"
                   name="newItem"
                   placeholder="Add new item name"
-                  className="flex-grow rounded-md border border-gray-300 p-2 text-sm"
+                  className="grow rounded-md border border-gray-300 p-2 text-sm"
                   aria-label="New item name"
                 />
                 <input
@@ -719,12 +754,18 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
 };
 
 // NEW: Add Vendor Modal
-const AddVendorModal = ({ event, onClose }: { event: any; onClose: () => void }) => {
+const AddVendorModal = ({
+  event,
+  onClose,
+}: {
+  event: ClientEvent;
+  onClose: () => void;
+}) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="m-4 flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg bg-white shadow-xl">
         {/* Header */}
-        <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 p-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 p-4">
           <div>
             <h3 className="text-xl font-semibold">Add Vendor to Event</h3>
             <p className="text-sm text-gray-500">{event.title}</p>
@@ -738,7 +779,7 @@ const AddVendorModal = ({ event, onClose }: { event: any; onClose: () => void })
         </div>
 
         {/* Search Bar */}
-        <div className="flex-shrink-0 border-b border-gray-200 p-4">
+        <div className="shrink-0 border-b border-gray-200 p-4">
           <div className="relative">
             <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
             <input
@@ -755,16 +796,18 @@ const AddVendorModal = ({ event, onClose }: { event: any; onClose: () => void })
             Vendors with Active Orders
           </h4>
           <ul className="divide-y divide-gray-100">
-            {activeVendors.map((vendor) => (
+            {activeVendors.map((vendor: ActiveVendor) => (
               <li
                 key={vendor.id}
                 className="flex items-center justify-between px-2 py-3"
               >
                 <div className="flex items-center gap-3">
-                  <img
+                  <Image
                     src={vendor.avatarUrl}
                     alt={vendor.name}
                     className="h-10 w-10 rounded-full"
+                    width={40}
+                    height={40}
                   />
                   <div>
                     <p className="font-medium text-gray-800">{vendor.name}</p>
