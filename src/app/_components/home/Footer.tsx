@@ -8,6 +8,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Accessibility, Globe } from "lucide-react";
+import Image from "next/image";
 
 const footerSections = [
   {
@@ -138,9 +139,16 @@ const Footer = () => {
 
         <div className="border-border/40 flex flex-col items-center justify-between border-t py-8 lg:flex-row">
           <div className="mb-6 flex flex-col items-center lg:mb-0 lg:flex-row">
-            <h2 className="brand-text-gradient text-3xl font-bold">
+            {/* <h2 className="brand-text-gradient text-3xl font-bold">
               Partygeng
-            </h2>
+            </h2> */}
+            <Image
+              src="/logo.png"
+              alt="PartyGeng Logo"
+              width={150}
+              height={50}
+              className="ml-4 h-20 w-auto object-contain"
+            />
             <p className="mt-2 text-sm lg:mt-1 lg:ml-4">
               &copy; PartyGeng International Ltd. 2025
             </p>

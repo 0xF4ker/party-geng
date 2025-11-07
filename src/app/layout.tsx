@@ -9,6 +9,12 @@ import { TRPCReactProvider } from "@/trpc/react";
 
 import { AuthProvider } from "@/providers/auth-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { type Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "PartyGeng",
+  icons: [{ rel: "icon", url: "/favicon.ico" }],
+};
 
 export default function RootLayout({
   children,
@@ -17,9 +23,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body>
         <TRPCReactProvider>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
+          <AuthProvider>{children}</AuthProvider>
           <Toaster />
         </TRPCReactProvider>
       </body>

@@ -11,7 +11,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
-import { auth } from "@/server/auth";
+// import { auth } from "@/server/auth";
 import { db } from "@/server/db";
 
 /**
@@ -31,7 +31,7 @@ import { cookies } from "next/headers";
 
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   const cookieStore = await cookies();
-  
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -43,31 +43,39 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
         set(name: string, value: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value, ...options });
-          } catch (error) {
+          } catch {
             // Handle cookie setting errors (e.g., in middleware)
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value: '', ...options });
-          } catch (error) {
+            cookieStore.set({ name, value: "", ...options });
+          } catch {
             // Handle cookie removal errors
           }
         },
       },
-    }
+    },
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  console.log('[tRPC Context] User from Supabase:', user ? user.id : 'No user');
+  console.log("[tRPC Context] User from Supabase:", user ? user.id : "No user");
 
-  const profile = user ? await db.user.findUnique({ where: { id: user.id } }) : null;
+  const profile = user
+    ? await db.user.findUnique({ where: { id: user.id } })
+    : null;
 
-  console.log('[tRPC Context] Profile from DB:', profile ? profile.id : 'No profile');
+  console.log(
+    "[tRPC Context] Profile from DB:",
+    profile ? profile.id : "No profile",
+  );
 
   return {
     db,
+    supabase,
     user: profile,
     ...opts,
   };

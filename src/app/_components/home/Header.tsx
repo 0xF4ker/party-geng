@@ -187,13 +187,13 @@ const Header = () => {
                 <Menu className="h-6 w-6" />
               </button>
               <Link href="/">
-                <h1
-                  className={cn(
-                    "brand-text-gradient ml-4 text-3xl font-bold", // Always gradient
-                  )}
-                >
-                  Partygeng
-                </h1>
+                <Image
+                  src="/logo.png"
+                  alt="PartyGeng Logo"
+                  width={150}
+                  height={50}
+                  className="ml-4 h-15 w-auto object-contain"
+                />
               </Link>
             </div>
 

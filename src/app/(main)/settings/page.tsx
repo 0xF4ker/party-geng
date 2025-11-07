@@ -3,6 +3,7 @@
 import { api } from "@/trpc/react";
 import { useAuthStore } from "@/stores/auth";
 import { useState, useEffect } from "react";
+import React from "react";
 import {
   User,
   ShieldCheck,
@@ -10,55 +11,24 @@ import {
   Lock,
   CreditCard,
   ChevronDown,
-  UploadCloud,
   X,
   AlertTriangle,
   ToggleLeft, // Added missing import
   ToggleRight, // Added missing import
 } from "lucide-react";
-import Image from "next/image";
+import { ImageUpload } from "@/components/ImageUpload";
+import { toast } from "sonner";
+import { NIGERIA_STATES_LGAS } from "@/lib/geo/nigeria";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { profileUpdateSchema, passwordUpdateSchema, kycSchema } from "@/lib/validations/settings";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
   return inputs.filter(Boolean).join(" ");
 };
 
-// --- Mock Data ---
-// For the State/LGA dropdowns
-const statesInNigeria = {
-  Lagos: [
-    "Agege",
-    "Alimosho",
-    "Ifako-Ijaiye",
-    "Ikeja",
-    "Kosofe",
-    "Mushin",
-    "Oshodi-Isolo",
-    "Shomolu",
-    "Eti-Osa",
-    "Lagos Island",
-    "Lagos Mainland",
-    "Surulere",
-    "Apapa",
-    "Ajeromi-Ifelodun",
-    "Amuwo-Odofin",
-    "Ojo",
-    "Badagry",
-    "Ikorodu",
-    "Ibeju-Lekki",
-    "Epe",
-  ],
-  "Abuja (FCT)": [
-    "Abaji",
-    "Bwari",
-    "Gwagwalada",
-    "Kuje",
-    "Kwali",
-    "Municipal Area Council",
-  ],
-  Rivers: ["Port Harcourt", "Obio-Akpor", "Eleme", "Okrika"],
-};
-// --- End Mock Data ---
+// Use real Nigeria States/LGAs data
 
 // --- Main Page Component ---
 const SettingsPage = () => {
@@ -212,24 +182,41 @@ const SettingsSidebar = ({
 
 // --- VENDOR-ONLY SETTINGS ---
 const KycForm = () => {
-  const [fullName, setFullName] = useState("");
-  const [cacNumber, setCacNumber] = useState("");
-  const [businessAddress, setBusinessAddress] = useState("");
+  const [idCardUrl, setIdCardUrl] = useState<string | undefined>(undefined);
+  const [cacDocumentUrl, setCacDocumentUrl] = useState<string | undefined>(undefined);
 
-  const { mutate, isPending, error } = api.vendor.submitKyc.useMutation({
-    onSuccess: () => {
-      alert("KYC submitted successfully!");
+  const { register, handleSubmit, watch, setValue, formState: { errors, isValid } } = useForm({
+    resolver: zodResolver(kycSchema),
+    mode: "onChange",
+    defaultValues: {
+      fullName: "",
+      cacNumber: "",
+      businessAddress: "",
+      meansOfId: "",
+      idNumber: "",
+      state: "",
+      lga: "",
+      idCardUrl,
+      cacDocumentUrl,
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    mutate({ fullName, cacNumber, businessAddress });
+  const state = watch("state");
+
+  const { mutate, isPending } = api.settings.submitKyc.useMutation({
+    onSuccess: () => {
+      toast.success("KYC submitted successfully! We'll review shortly.");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const onSubmit = (data: typeof kycSchema._type) => {
+    mutate(data);
   };
 
   return (
     <form
-      onSubmit={handleSubmit}
+      onSubmit={handleSubmit(onSubmit)}
       className="rounded-lg border border-gray-200 bg-white shadow-sm"
     >
       <div className="border-b border-gray-200 p-6">
@@ -240,49 +227,119 @@ const KycForm = () => {
       </div>
       <div className="space-y-6 p-6">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <FormInput
-            label="Full Name (as on ID)"
-            id="fullName"
-            placeholder="Adebayo Popoola"
-            value={fullName}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setFullName(e.target.value)
-            }
-          />
-          <FormInput
-            label="CAC Number (if registered)"
-            id="cacNumber"
-            placeholder="RC123456"
-            value={cacNumber}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setCacNumber(e.target.value)
-            }
-          />
+          <div>
+            <FormInput
+              label="Full Name (as on ID)"
+              id="fullName"
+              placeholder="Adebayo Popoola"
+              {...register("fullName")}
+            />
+            {errors.fullName && <p className="mt-1 text-sm text-red-600">{errors.fullName.message}</p>}
+          </div>
+          <div>
+            <FormInput
+              label="Business Address"
+              id="address"
+              placeholder="123, Main Street"
+              {...register("businessAddress")}
+            />
+            {errors.businessAddress && <p className="mt-1 text-sm text-red-600">{errors.businessAddress.message}</p>}
+          </div>
         </div>
-        <FormInput
-          label="Business Address"
-          id="address"
-          placeholder="123, Main Street"
-          value={businessAddress}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            setBusinessAddress(e.target.value)
-          }
-        />
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div>
+            <FormSelect
+              label="Means of ID"
+              id="meansOfId"
+              options={["NIN", "BVN", "International Passport", "Driver's License", "Voter's Card"]}
+              {...register("meansOfId")}
+            />
+            {errors.meansOfId && <p className="mt-1 text-sm text-red-600">{errors.meansOfId.message}</p>}
+          </div>
+          <div>
+            <FormInput
+              label="ID Number"
+              id="idNumber"
+              placeholder="Enter ID number"
+              {...register("idNumber")}
+            />
+            {errors.idNumber && <p className="mt-1 text-sm text-red-600">{errors.idNumber.message}</p>}
+          </div>
+          <div>
+            <FormInput
+              label="CAC Number (if registered)"
+              id="cacNumber"
+              placeholder="RC123456"
+              {...register("cacNumber")}
+            />
+            {errors.cacNumber && <p className="mt-1 text-sm text-red-600">{errors.cacNumber.message}</p>}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div>
+            <FormSelect
+              label="State"
+              id="state"
+              options={Object.keys(NIGERIA_STATES_LGAS)}
+              {...register("state")}
+              onChange={(e) => {
+                setValue("state", e.target.value);
+                setValue("lga", "");
+              }}
+            />
+            {errors.state && <p className="mt-1 text-sm text-red-600">{errors.state.message}</p>}
+          </div>
+          <div>
+            <FormSelect
+              label="LGA"
+              id="lga"
+              options={state ? NIGERIA_STATES_LGAS[state] ?? [] : []}
+              {...register("lga")}
+            />
+            {errors.lga && <p className="mt-1 text-sm text-red-600">{errors.lga.message}</p>}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div>
+            <ImageUpload
+              label="Upload ID Card"
+              description="PNG, JPG, PDF up to 10MB"
+              bucket="kyc-documents"
+              accept="image/*,application/pdf"
+              onUploadComplete={(url) => {
+                setIdCardUrl(url);
+                setValue("idCardUrl", url);
+              }}
+            />
+            {errors.idCardUrl && <p className="mt-1 text-sm text-red-600">{errors.idCardUrl.message}</p>}
+          </div>
+          <div>
+            <ImageUpload
+              label="Upload CAC Document"
+              description="PNG, JPG, PDF up to 10MB"
+              bucket="kyc-documents"
+              accept="image/*,application/pdf"
+              onUploadComplete={(url) => {
+                setCacDocumentUrl(url);
+                setValue("cacDocumentUrl", url);
+              }}
+            />
+            {errors.cacDocumentUrl && <p className="mt-1 text-sm text-red-600">{errors.cacDocumentUrl.message}</p>}
+          </div>
+        </div>
       </div>
       <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-6">
         <button
           type="submit"
-          className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700"
-          disabled={isPending}
+          className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50"
+          disabled={!isValid || isPending}
         >
           {isPending ? "Submitting..." : "Submit for Verification"}
         </button>
       </div>
-      {error && (
-        <div className="border-t border-gray-200 bg-red-50 p-6 text-red-700">
-          {error.message}
-        </div>
-      )}
     </form>
   );
 };
@@ -290,22 +347,60 @@ const KycForm = () => {
 // --- SHARED SETTINGS PAGES ---
 
 const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
-  const [skills, setSkills] = useState(["Wedding DJ", "MC"]);
+  const { profile } = useAuthStore();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(isVendor ? profile?.vendorProfile?.avatarUrl ?? null : profile?.clientProfile?.avatarUrl ?? null);
+  const [skills, setSkills] = useState<string[]>(profile?.vendorProfile?.skills ?? ["Wedding DJ", "MC"]);
   const [skillInput, setSkillInput] = useState("");
+
+  const { register, handleSubmit, setValue, formState: { errors, isValid } } = useForm({
+    resolver: zodResolver(profileUpdateSchema),
+    mode: "onChange",
+    defaultValues: {
+      username: profile?.username ?? "",
+      name: profile?.clientProfile?.name ?? "",
+      companyName: profile?.vendorProfile?.companyName ?? "",
+      title: profile?.vendorProfile?.title ?? "",
+      about: profile?.vendorProfile?.about ?? "",
+      location: profile?.vendorProfile?.location ?? profile?.clientProfile?.location ?? "",
+      skills: profile?.vendorProfile?.skills ?? ["Wedding DJ", "MC"],
+      languages: profile?.vendorProfile?.languages ?? [],
+      avatarUrl: avatarUrl ?? undefined,
+    },
+  });
+
+  const utils = api.useUtils();
+  const updateProfile = api.settings.updateProfile.useMutation({
+    onSuccess: async () => {
+      toast.success("Profile updated");
+      await utils.user.getProfile.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   const addSkill = () => {
     if (skillInput.trim() && !skills.includes(skillInput.trim())) {
-      setSkills([...skills, skillInput.trim()]);
+      const newSkills = [...skills, skillInput.trim()];
+      setSkills(newSkills);
+      setValue("skills", newSkills);
       setSkillInput("");
     }
   };
 
   const removeSkill = (skillToRemove: string) => {
-    setSkills(skills.filter((skill) => skill !== skillToRemove));
+    const newSkills = skills.filter((skill) => skill !== skillToRemove);
+    setSkills(newSkills);
+    setValue("skills", newSkills);
+  };
+
+  const onSubmit = (data: typeof profileUpdateSchema._type) => {
+    updateProfile.mutate(data);
   };
 
   return (
-    <form className="rounded-lg border border-gray-200 bg-white shadow-sm">
+    <form
+      className="rounded-lg border border-gray-200 bg-white shadow-sm"
+      onSubmit={handleSubmit(onSubmit)}
+    >
       <div className="border-b border-gray-200 p-6">
         <h2 className="text-xl font-semibold">Public Profile</h2>
         <p className="mt-1 text-sm text-gray-500">
@@ -314,43 +409,71 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
       </div>
       <div className="space-y-6 p-6">
         {/* Profile Picture */}
+        <ImageUpload
+          label="Profile Picture"
+          currentImage={avatarUrl ?? undefined}
+          onUploadComplete={(url) => {
+            setAvatarUrl(url);
+            setValue("avatarUrl", url);
+          }}
+          bucket="profile-images"
+        />
+
+        {/* Username */}
         <div>
-          <label className="mb-2 block text-sm font-semibold text-gray-700">
-            Profile Picture
-          </label>
-          <div className="flex items-center gap-4">
-            <Image
-              src={
-                isVendor
-                  ? "https://placehold.co/128x128/ec4899/ffffff?text=DJ"
-                  : "https://placehold.co/128x128/3b82f6/ffffff?text=A"
-              }
-              alt="Profile"
-              className="h-20 w-20 rounded-full"
-              width={80}
-              height={80}
-            />
-            {/* FIX: Corrected the broken button tag */}
-            <button
-              type="button"
-              className="text-sm font-semibold text-pink-600 hover:text-pink-700"
-            >
-              Change Photo
-            </button>
-          </div>
+          <FormInput
+            label="Username"
+            id="username"
+            placeholder="yourusername"
+            {...register("username")}
+          />
+          {errors.username && <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>}
         </div>
 
-        {/* Client Name Field */}
+        {/* Client Fields */}
         {!isVendor && (
-          <FormInput
-            label="Full Name"
-            id="clientName"
-            placeholder="Adebayo Popoola"
-          />
+          <div>
+            <FormInput
+              label="Full Name"
+              id="clientName"
+              placeholder="Adebayo Popoola"
+              {...register("name")}
+            />
+            {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
+          </div>
         )}
+
+        {/* Shared Location */}
+        <div>
+          <FormInput
+            label="Location"
+            id="location"
+            placeholder="Lagos, Nigeria"
+            {...register("location")}
+          />
+          {errors.location && <p className="mt-1 text-sm text-red-600">{errors.location.message}</p>}
+        </div>
 
         {isVendor && (
           <>
+            <div>
+              <FormInput
+                label="Company Name"
+                id="companyName"
+                placeholder="DJ SpinMaster Entertainment"
+                {...register("companyName")}
+              />
+              {errors.companyName && <p className="mt-1 text-sm text-red-600">{errors.companyName.message}</p>}
+            </div>
+            <div>
+              <FormInput
+                label="Title"
+                id="title"
+                placeholder="Professional Wedding & Event DJ"
+                {...register("title")}
+              />
+              {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
+            </div>
             {/* About Me */}
             <div>
               <label
@@ -364,14 +487,13 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                 rows={5}
                 className="w-full rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
                 placeholder="Tell clients a bit about yourself and your services..."
+                {...register("about")}
               ></textarea>
+              {errors.about && <p className="mt-1 text-sm text-red-600">{errors.about.message}</p>}
             </div>
             {/* Skills */}
             <div>
-              <label
-                htmlFor="skills"
-                className="mb-2 block text-sm font-semibold text-gray-700"
-              >
+              <label className="mb-2 block text-sm font-semibold text-gray-700">
                 Skills
               </label>
               <div className="mb-2 flex flex-wrap gap-2">
@@ -397,9 +519,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                   id="skills"
                   value={skillInput}
                   onChange={(e) => setSkillInput(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && (e.preventDefault(), addSkill())
-                  }
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill())}
                   className="grow rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
                   placeholder="Add a new skill (e.g. Afrobeats)"
                 />
@@ -412,15 +532,30 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                 </button>
               </div>
             </div>
+
+            {/* Languages */}
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-gray-700">
+                Languages
+              </label>
+              <div className="mb-2 flex flex-wrap gap-2">
+                {(profile?.vendorProfile?.languages ?? []).map((lang) => (
+                  <span key={lang} className="rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-700">
+                    {lang}
+                  </span>
+                ))}
+              </div>
+            </div>
           </>
         )}
       </div>
       <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-6">
         <button
           type="submit"
-          className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700"
+          disabled={!isValid || updateProfile.isPending}
+          className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50"
         >
-          Save Profile
+          {updateProfile.isPending ? "Saving..." : "Save Profile"}
         </button>
       </div>
     </form>
@@ -428,30 +563,53 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
 };
 
 // Placeholder for Security
-const SecuritySettings = () => (
-  <form className="rounded-lg border border-gray-200 bg-white shadow-sm">
-    <div className="border-b border-gray-200 p-6">
-      <h2 className="text-xl font-semibold">Password & Security</h2>
-    </div>
-    <div className="space-y-6 p-6">
-      <FormInput label="Current Password" id="currentPass" type="password" />
-      <FormInput label="New Password" id="newPass" type="password" />
-      <FormInput
-        label="Confirm New Password"
-        id="confirmPass"
-        type="password"
-      />
-    </div>
-    <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-6">
-      <button
-        type="submit"
-        className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700"
-      >
-        Update Password
-      </button>
-    </div>
-  </form>
-);
+const SecuritySettings = () => {
+  const { register, handleSubmit, formState: { errors, isValid } } = useForm({
+    resolver: zodResolver(passwordUpdateSchema),
+    mode: "onChange",
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
+  });
+
+  const updatePassword = api.settings.updatePassword.useMutation({
+    onSuccess: () => toast.success("Password updated"),
+    onError: (err) => toast.error(err.message),
+  });
+
+  const onSubmit = (data: typeof passwordUpdateSchema._type) => {
+    updatePassword.mutate({ currentPassword: data.currentPassword, newPassword: data.newPassword });
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="border-b border-gray-200 p-6">
+        <h2 className="text-xl font-semibold">Password & Security</h2>
+      </div>
+      <div className="space-y-6 p-6">
+        <div>
+          <FormInput label="Current Password" id="currentPass" type="password" {...register("currentPassword")} />
+          {errors.currentPassword && <p className="mt-1 text-sm text-red-600">{errors.currentPassword.message}</p>}
+        </div>
+        <div>
+          <FormInput label="New Password" id="newPass" type="password" {...register("newPassword")} />
+          {errors.newPassword && <p className="mt-1 text-sm text-red-600">{errors.newPassword.message}</p>}
+        </div>
+        <div>
+          <FormInput label="Confirm New Password" id="confirmPass" type="password" {...register("confirmPassword")} />
+          {errors.confirmPassword && <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>}
+        </div>
+      </div>
+      <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-6">
+        <button type="submit" disabled={!isValid || updatePassword.isPending} className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50">
+          {updatePassword.isPending ? "Updating..." : "Update Password"}
+        </button>
+      </div>
+    </form>
+  );
+};
 
 // Placeholder for Payments
 const PaymentSettings = () => (
@@ -549,94 +707,64 @@ const NotificationSettings = () => {
 
 // --- Shared Form Utilities ---
 
-const FormInput = ({
-  label,
-  id,
-  ...props
-}: {
+const FormInput = React.forwardRef<HTMLInputElement, {
   label: string;
   id: string;
-} & React.InputHTMLAttributes<HTMLInputElement>) => (
-  <div>
-    <label
-      htmlFor={id}
-      className="mb-1.5 block text-sm font-semibold text-gray-700"
-    >
-      {label}
-    </label>
-    <input
-      type="text"
-      id={id}
-      {...props}
-      className="w-full rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
-    />
-  </div>
+} & React.InputHTMLAttributes<HTMLInputElement>>(
+  ({ label, id, type = "text", ...props }, ref) => (
+    <div>
+      <label
+        htmlFor={id}
+        className="mb-1.5 block text-sm font-semibold text-gray-700"
+      >
+        {label}
+      </label>
+      <input
+        ref={ref}
+        type={type}
+        id={id}
+        {...props}
+        className="w-full rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
+      />
+    </div>
+  )
 );
+FormInput.displayName = "FormInput";
 
-const FormSelect = ({
-  label,
-  id,
-  options,
-  ...props
-}: {
+const FormSelect = React.forwardRef<HTMLSelectElement, {
   label: string;
   id: string;
   options: string[];
-} & React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <div>
-    <label
-      htmlFor={id}
-      className="mb-1.5 block text-sm font-semibold text-gray-700"
-    >
-      {label}
-    </label>
-    <div className="relative">
-      <select
-        id={id}
-        {...props}
-        className="w-full appearance-none rounded-md border border-gray-300 bg-white p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
+} & React.SelectHTMLAttributes<HTMLSelectElement>>(
+  ({ label, id, options, ...props }, ref) => (
+    <div>
+      <label
+        htmlFor={id}
+        className="mb-1.5 block text-sm font-semibold text-gray-700"
       >
-        <option value="" disabled>
-          Select...
-        </option>
-        {options.map((option: string) => (
-          <option key={option} value={option}>
-            {option}
+        {label}
+      </label>
+      <div className="relative">
+        <select
+          ref={ref}
+          id={id}
+          {...props}
+          className="w-full appearance-none rounded-md border border-gray-300 bg-white p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
+        >
+          <option value="" disabled>
+            Select...
           </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
-    </div>
-  </div>
-);
-
-const FileUpload = ({ title }: { title: string }) => (
-  <div>
-    <label className="mb-1.5 block text-sm font-semibold text-gray-700">
-      {title}
-    </label>
-    <div className="mt-1 flex justify-center rounded-md border-2 border-dashed border-gray-300 px-6 pt-5 pb-6">
-      <div className="space-y-1 text-center">
-        <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
-        <div className="flex text-sm text-gray-600">
-          <label
-            htmlFor={`file-upload-${title.split(" ")[0]}`}
-            className="relative cursor-pointer rounded-md bg-white font-medium text-pink-600 focus-within:outline-none hover:text-pink-500"
-          >
-            <span>Upload a file</span>
-            <input
-              id={`file-upload-${title.split(" ")[0]}`}
-              name="file-upload"
-              type="file"
-              className="sr-only"
-            />
-          </label>
-          <p className="pl-1">or drag and drop</p>
-        </div>
-        <p className="text-xs text-gray-500">PDF, PNG, JPG up to 10MB</p>
+          {options.map((option: string) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
       </div>
     </div>
-  </div>
+  )
 );
+FormSelect.displayName = "FormSelect";
 
 export default SettingsPage;
