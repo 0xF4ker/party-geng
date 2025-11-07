@@ -15,8 +15,11 @@ const MegaMenu = ({
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }) => {
-  // Split services into columns for better layout
-  const columns = category.services.reduce((acc, service, index) => {
+  // Flatten services if they are in groups, then split into columns for better layout
+  const allServices = category.services.flatMap((service) =>
+    typeof service === "string" ? service : service.items,
+  );
+  const columns = allServices.reduce((acc, service, index) => {
     const colIndex = Math.floor(index / 10); // 10 items per column
     acc[colIndex] ??= [];
     acc[colIndex].push(service);
@@ -31,7 +34,7 @@ const MegaMenu = ({
     >
       <div className="container mx-auto max-w-7xl px-4 py-8">
         <div className="flex flex-row gap-8">
-          <div className="w-1/4 flex-shrink-0">
+          <div className="w-1/4 shrink-0">
             <h3 className="text-2xl font-bold text-gray-800">
               {category.name}
             </h3>
@@ -45,7 +48,7 @@ const MegaMenu = ({
               All {category.name} services &rarr;
             </a>
           </div>
-          <div className="flex flex-grow flex-row gap-8">
+          <div className="flex grow flex-row gap-8">
             {columns.map((column, colIndex) => (
               <ul key={colIndex} className="flex flex-col space-y-3">
                 {column.map((service) => (
