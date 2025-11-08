@@ -192,7 +192,7 @@ const Header = () => {
                   alt="PartyGeng Logo"
                   width={150}
                   height={50}
-                  className="ml-4 h-15 w-auto object-contain"
+                  className="ml-4 h-6 w-auto object-contain"
                 />
               </Link>
             </div>

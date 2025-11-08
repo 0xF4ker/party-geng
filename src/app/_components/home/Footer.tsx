@@ -147,7 +147,7 @@ const Footer = () => {
               alt="PartyGeng Logo"
               width={150}
               height={50}
-              className="ml-4 h-20 w-auto object-contain"
+              className="ml-4 h-6 w-auto object-contain"
             />
             <p className="mt-2 text-sm lg:mt-1 lg:ml-4">
               &copy; PartyGeng International Ltd. 2025
