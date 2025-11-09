@@ -21,19 +21,83 @@ import { toast } from "sonner";
 import { NIGERIA_STATES_LGAS } from "@/lib/geo/nigeria";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { profileUpdateSchema, passwordUpdateSchema, kycSchema } from "@/lib/validations/settings";
-import { z } from "zod";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  profileUpdateSchema,
+  passwordUpdateSchema,
+  kycSchema,
+} from "@/lib/validations/settings";
+import { type z } from "zod";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
   return inputs.filter(Boolean).join(" ");
 };
 
+// --- SKELETON COMPONENTS ---
+
+const SettingsSidebarSkeleton = () => (
+  <div className="sticky top-[127px] rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="flex flex-col space-y-1">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 rounded-md px-3 py-2.5">
+          <Skeleton className="h-5 w-5 rounded-md" />
+          <Skeleton className="h-4 w-2/3" />
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const PublicProfileFormSkeleton = () => (
+  <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div className="border-b border-gray-200 p-6">
+      <Skeleton className="h-6 w-1/3" />
+      <Skeleton className="mt-2 h-4 w-2/3" />
+    </div>
+    <div className="space-y-6 p-6">
+      {/* Avatar Skeleton */}
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-24 w-24 rounded-full" />
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+      </div>
+      {/* Form Field Skeleton */}
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="space-y-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-12 w-full rounded-md" />
+        </div>
+      ))}
+    </div>
+    <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-6">
+      <Skeleton className="h-12 w-32 rounded-md" />
+    </div>
+  </div>
+);
+
+const SettingsPageSkeleton = () => (
+  <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
+    <div className="container mx-auto px-4 py-8 sm:px-8">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
+        <div className="lg:col-span-1">
+          <SettingsSidebarSkeleton />
+        </div>
+        <div className="space-y-8 lg:col-span-3">
+          <PublicProfileFormSkeleton />
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 // Use real Nigeria States/LGAs data
 
 // --- Main Page Component ---
 const SettingsPage = () => {
-  const { profile } = useAuthStore();
+  const { profile, isLoading } = useAuthStore();
   const [activeSection, setActiveSection] = useState("profile");
 
   useEffect(() => {
@@ -41,6 +105,10 @@ const SettingsPage = () => {
       setActiveSection("profile");
     }
   }, [profile]);
+
+  if (isLoading) {
+    return <SettingsPageSkeleton />;
+  }
 
   const renderSection = () => {
     switch (activeSection) {
@@ -183,24 +251,41 @@ const SettingsSidebar = ({
 
 // --- VENDOR-ONLY SETTINGS ---
 const KycForm = () => {
-  const [idCardUrl, setIdCardUrl] = useState<string | undefined>(undefined);
-  const [cacDocumentUrl, setCacDocumentUrl] = useState<string | undefined>(undefined);
+  const { profile } = useAuthStore();
+  const [, setIdCardUrl] = useState<string | undefined>(undefined);
+  const [, setCacDocumentUrl] = useState<string | undefined>(undefined);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors, isValid } } = useForm({
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset, // <-- Add reset
+    formState: { errors, isValid },
+  } = useForm({
     resolver: zodResolver(kycSchema),
     mode: "onChange",
-    defaultValues: {
-      fullName: "",
-      cacNumber: "",
-      businessAddress: "",
-      meansOfId: "",
-      idNumber: "",
-      state: "",
-      lga: "",
-      idCardUrl,
-      cacDocumentUrl,
-    },
   });
+
+  // Pre-fill form with existing KYC data
+  useEffect(() => {
+    const kyc = profile?.vendorProfile;
+    if (kyc) {
+      reset({
+        fullName: kyc.fullName ?? "",
+        businessAddress: kyc.businessAddress ?? "",
+        cacNumber: kyc.cacNumber ?? "",
+        meansOfId: kyc.meansOfId ?? "",
+        idNumber: kyc.idNumber ?? "",
+        state: kyc.state ?? "",
+        lga: kyc.lga ?? "",
+        idCardUrl: kyc.idCardUrl ?? undefined,
+        cacDocumentUrl: kyc.cacDocumentUrl ?? undefined,
+      });
+      setIdCardUrl(kyc.idCardUrl ?? undefined);
+      setCacDocumentUrl(kyc.cacDocumentUrl ?? undefined);
+    }
+  }, [profile, reset]);
 
   const state = watch("state");
 
@@ -235,7 +320,11 @@ const KycForm = () => {
               placeholder="Adebayo Popoola"
               {...register("fullName")}
             />
-            {errors.fullName && <p className="mt-1 text-sm text-red-600">{errors.fullName.message}</p>}
+            {errors.fullName && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.fullName.message}
+              </p>
+            )}
           </div>
           <div>
             <FormInput
@@ -244,7 +333,11 @@ const KycForm = () => {
               placeholder="123, Main Street"
               {...register("businessAddress")}
             />
-            {errors.businessAddress && <p className="mt-1 text-sm text-red-600">{errors.businessAddress.message}</p>}
+            {errors.businessAddress && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.businessAddress.message}
+              </p>
+            )}
           </div>
         </div>
 
@@ -253,10 +346,20 @@ const KycForm = () => {
             <FormSelect
               label="Means of ID"
               id="meansOfId"
-              options={["NIN", "BVN", "International Passport", "Driver's License", "Voter's Card"]}
+              options={[
+                "NIN",
+                "BVN",
+                "International Passport",
+                "Driver's License",
+                "Voter's Card",
+              ]}
               {...register("meansOfId")}
             />
-            {errors.meansOfId && <p className="mt-1 text-sm text-red-600">{errors.meansOfId.message}</p>}
+            {errors.meansOfId && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.meansOfId.message}
+              </p>
+            )}
           </div>
           <div>
             <FormInput
@@ -265,7 +368,11 @@ const KycForm = () => {
               placeholder="Enter ID number"
               {...register("idNumber")}
             />
-            {errors.idNumber && <p className="mt-1 text-sm text-red-600">{errors.idNumber.message}</p>}
+            {errors.idNumber && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.idNumber.message}
+              </p>
+            )}
           </div>
           <div>
             <FormInput
@@ -274,7 +381,11 @@ const KycForm = () => {
               placeholder="RC123456"
               {...register("cacNumber")}
             />
-            {errors.cacNumber && <p className="mt-1 text-sm text-red-600">{errors.cacNumber.message}</p>}
+            {errors.cacNumber && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.cacNumber.message}
+              </p>
+            )}
           </div>
         </div>
 
@@ -290,16 +401,22 @@ const KycForm = () => {
                 setValue("lga", "");
               }}
             />
-            {errors.state && <p className="mt-1 text-sm text-red-600">{errors.state.message}</p>}
+            {errors.state && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.state.message}
+              </p>
+            )}
           </div>
           <div>
             <FormSelect
               label="LGA"
               id="lga"
-              options={state ? NIGERIA_STATES_LGAS[state] ?? [] : []}
+              options={state ? (NIGERIA_STATES_LGAS[state] ?? []) : []}
               {...register("lga")}
             />
-            {errors.lga && <p className="mt-1 text-sm text-red-600">{errors.lga.message}</p>}
+            {errors.lga && (
+              <p className="mt-1 text-sm text-red-600">{errors.lga.message}</p>
+            )}
           </div>
         </div>
 
@@ -315,7 +432,11 @@ const KycForm = () => {
                 setValue("idCardUrl", url);
               }}
             />
-            {errors.idCardUrl && <p className="mt-1 text-sm text-red-600">{errors.idCardUrl.message}</p>}
+            {errors.idCardUrl && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.idCardUrl.message}
+              </p>
+            )}
           </div>
           <div>
             <ImageUpload
@@ -328,7 +449,11 @@ const KycForm = () => {
                 setValue("cacDocumentUrl", url);
               }}
             />
-            {errors.cacDocumentUrl && <p className="mt-1 text-sm text-red-600">{errors.cacDocumentUrl.message}</p>}
+            {errors.cacDocumentUrl && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.cacDocumentUrl.message}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -349,31 +474,26 @@ const KycForm = () => {
 
 const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   const { profile } = useAuthStore();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(isVendor ? profile?.vendorProfile?.avatarUrl ?? null : profile?.clientProfile?.avatarUrl ?? null);
-  const [skills, setSkills] = useState<string[]>(profile?.vendorProfile?.skills ?? ["Wedding DJ", "MC"]);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(
+    isVendor
+      ? (profile?.vendorProfile?.avatarUrl ?? null)
+      : (profile?.clientProfile?.avatarUrl ?? null),
+  );
+  const [skills, setSkills] = useState<string[]>(
+    profile?.vendorProfile?.skills ?? ["Wedding DJ", "MC"],
+  );
   const [skillInput, setSkillInput] = useState("");
 
-  const { register, handleSubmit, setValue, formState: { errors, isValid, isSubmitting } } = useForm({
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    reset, // <-- Add reset
+    formState: { errors },
+  } = useForm({
     resolver: zodResolver(profileUpdateSchema),
     mode: "onChange",
-    defaultValues: {
-      username: profile?.username ?? "",
-      // Client-specific fields
-      name: !isVendor ? (profile?.clientProfile?.name ?? "") : undefined,
-      // Vendor-specific fields
-      companyName: isVendor ? (profile?.vendorProfile?.companyName ?? "") : undefined,
-      title: isVendor ? (profile?.vendorProfile?.title ?? "") : undefined,
-      about: isVendor ? (profile?.vendorProfile?.about ?? "") : undefined,
-      skills: isVendor ? (profile?.vendorProfile?.skills ?? ["Wedding DJ", "MC"]) : undefined,
-      languages: isVendor ? (profile?.vendorProfile?.languages ?? []) : undefined,
-      // Shared fields
-      location: profile?.vendorProfile?.location ?? profile?.clientProfile?.location ?? "",
-      avatarUrl: avatarUrl ?? undefined,
-    },
   });
-
-  // Debug: Log form state changes
-  console.log('PublicProfileForm - isValid:', isValid, 'errors:', errors, 'isSubmitting:', isSubmitting);
 
   const utils = api.useUtils();
   const updateProfile = api.settings.updateProfile.useMutation({
@@ -400,10 +520,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   };
 
   const onSubmit = (data: z.infer<typeof profileUpdateSchema>) => {
-    console.log('Form submitted with data:', data);
-    console.log('Form errors:', errors);
-    console.log('Is valid:', isValid);
-    
     // Filter data based on user role - only send relevant fields
     const filteredData = isVendor
       ? {
@@ -422,9 +538,29 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
           avatarUrl: data.avatarUrl,
           location: data.location,
         };
-    
+
     updateProfile.mutate(filteredData);
   };
+
+  useEffect(() => {
+    if (profile) {
+      reset({
+        username: profile.username ?? "",
+        name: profile.clientProfile?.name ?? "",
+        avatarUrl: isVendor
+          ? (profile.vendorProfile?.avatarUrl ?? "")
+          : (profile.clientProfile?.avatarUrl ?? ""),
+        location: isVendor
+          ? (profile.vendorProfile?.location ?? "")
+          : (profile.clientProfile?.location ?? ""),
+        companyName: profile.vendorProfile?.companyName ?? "",
+        title: profile.vendorProfile?.title ?? "",
+        about: profile.vendorProfile?.about ?? "",
+        skills: profile.vendorProfile?.skills ?? [],
+        languages: profile.vendorProfile?.languages ?? [],
+      });
+    }
+  }, [profile, isVendor, reset]);
 
   return (
     <form
@@ -457,7 +593,11 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
             placeholder="yourusername"
             {...register("username")}
           />
-          {errors.username && <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>}
+          {errors.username && (
+            <p className="mt-1 text-sm text-red-600">
+              {errors.username.message}
+            </p>
+          )}
         </div>
 
         {/* Client Fields */}
@@ -469,7 +609,9 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
               placeholder="Adebayo Popoola"
               {...register("name")}
             />
-            {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
+            {errors.name && (
+              <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+            )}
           </div>
         )}
 
@@ -481,7 +623,11 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
             placeholder="Lagos, Nigeria"
             {...register("location")}
           />
-          {errors.location && <p className="mt-1 text-sm text-red-600">{errors.location.message}</p>}
+          {errors.location && (
+            <p className="mt-1 text-sm text-red-600">
+              {errors.location.message}
+            </p>
+          )}
         </div>
 
         {isVendor && (
@@ -493,7 +639,11 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                 placeholder="DJ SpinMaster Entertainment"
                 {...register("companyName")}
               />
-              {errors.companyName && <p className="mt-1 text-sm text-red-600">{errors.companyName.message}</p>}
+              {errors.companyName && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.companyName.message}
+                </p>
+              )}
             </div>
             <div>
               <FormInput
@@ -502,7 +652,11 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                 placeholder="Professional Wedding & Event DJ"
                 {...register("title")}
               />
-              {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
+              {errors.title && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.title.message}
+                </p>
+              )}
             </div>
             {/* About Me */}
             <div>
@@ -519,7 +673,11 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                 placeholder="Tell clients a bit about yourself and your services..."
                 {...register("about")}
               ></textarea>
-              {errors.about && <p className="mt-1 text-sm text-red-600">{errors.about.message}</p>}
+              {errors.about && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.about.message}
+                </p>
+              )}
             </div>
             {/* Skills */}
             <div>
@@ -549,7 +707,9 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                   id="skills"
                   value={skillInput}
                   onChange={(e) => setSkillInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill())}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && (e.preventDefault(), addSkill())
+                  }
                   className="grow rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
                   placeholder="Add a new skill (e.g. Afrobeats)"
                 />
@@ -570,7 +730,10 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
               </label>
               <div className="mb-2 flex flex-wrap gap-2">
                 {(profile?.vendorProfile?.languages ?? []).map((lang) => (
-                  <span key={lang} className="rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-700">
+                  <span
+                    key={lang}
+                    className="rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-700"
+                  >
                     {lang}
                   </span>
                 ))}
@@ -582,7 +745,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
       <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-6">
         <button
           type="submit"
-          disabled={ updateProfile.isPending}
+          disabled={updateProfile.isPending}
           className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50"
         >
           {updateProfile.isPending ? "Saving..." : "Save Profile"}
@@ -594,7 +757,11 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
 
 // Placeholder for Security
 const SecuritySettings = () => {
-  const { register, handleSubmit, formState: { errors, isValid } } = useForm({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+  } = useForm({
     resolver: zodResolver(passwordUpdateSchema),
     mode: "onChange",
     defaultValues: {
@@ -610,30 +777,67 @@ const SecuritySettings = () => {
   });
 
   const onSubmit = (data: z.infer<typeof passwordUpdateSchema>) => {
-    updatePassword.mutate({ currentPassword: data.currentPassword, newPassword: data.newPassword });
+    updatePassword.mutate({
+      currentPassword: data.currentPassword,
+      newPassword: data.newPassword,
+    });
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="rounded-lg border border-gray-200 bg-white shadow-sm">
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="rounded-lg border border-gray-200 bg-white shadow-sm"
+    >
       <div className="border-b border-gray-200 p-6">
         <h2 className="text-xl font-semibold">Password & Security</h2>
       </div>
       <div className="space-y-6 p-6">
         <div>
-          <FormInput label="Current Password" id="currentPass" type="password" {...register("currentPassword")} />
-          {errors.currentPassword && <p className="mt-1 text-sm text-red-600">{errors.currentPassword.message}</p>}
+          <FormInput
+            label="Current Password"
+            id="currentPass"
+            type="password"
+            {...register("currentPassword")}
+          />
+          {errors.currentPassword && (
+            <p className="mt-1 text-sm text-red-600">
+              {errors.currentPassword.message}
+            </p>
+          )}
         </div>
         <div>
-          <FormInput label="New Password" id="newPass" type="password" {...register("newPassword")} />
-          {errors.newPassword && <p className="mt-1 text-sm text-red-600">{errors.newPassword.message}</p>}
+          <FormInput
+            label="New Password"
+            id="newPass"
+            type="password"
+            {...register("newPassword")}
+          />
+          {errors.newPassword && (
+            <p className="mt-1 text-sm text-red-600">
+              {errors.newPassword.message}
+            </p>
+          )}
         </div>
         <div>
-          <FormInput label="Confirm New Password" id="confirmPass" type="password" {...register("confirmPassword")} />
-          {errors.confirmPassword && <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>}
+          <FormInput
+            label="Confirm New Password"
+            id="confirmPass"
+            type="password"
+            {...register("confirmPassword")}
+          />
+          {errors.confirmPassword && (
+            <p className="mt-1 text-sm text-red-600">
+              {errors.confirmPassword.message}
+            </p>
+          )}
         </div>
       </div>
       <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-6">
-        <button type="submit" disabled={!isValid || updatePassword.isPending} className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50">
+        <button
+          type="submit"
+          disabled={!isValid || updatePassword.isPending}
+          className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50"
+        >
           {updatePassword.isPending ? "Updating..." : "Update Password"}
         </button>
       </div>
@@ -737,64 +941,66 @@ const NotificationSettings = () => {
 
 // --- Shared Form Utilities ---
 
-const FormInput = React.forwardRef<HTMLInputElement, {
-  label: string;
-  id: string;
-} & React.InputHTMLAttributes<HTMLInputElement>>(
-  ({ label, id, type = "text", ...props }, ref) => (
-    <div>
-      <label
-        htmlFor={id}
-        className="mb-1.5 block text-sm font-semibold text-gray-700"
-      >
-        {label}
-      </label>
-      <input
-        ref={ref}
-        type={type}
-        id={id}
-        {...props}
-        className="w-full rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
-      />
-    </div>
-  )
-);
+const FormInput = React.forwardRef<
+  HTMLInputElement,
+  {
+    label: string;
+    id: string;
+  } & React.InputHTMLAttributes<HTMLInputElement>
+>(({ label, id, type = "text", ...props }, ref) => (
+  <div>
+    <label
+      htmlFor={id}
+      className="mb-1.5 block text-sm font-semibold text-gray-700"
+    >
+      {label}
+    </label>
+    <input
+      ref={ref}
+      type={type}
+      id={id}
+      {...props}
+      className="w-full rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
+    />
+  </div>
+));
 FormInput.displayName = "FormInput";
 
-const FormSelect = React.forwardRef<HTMLSelectElement, {
-  label: string;
-  id: string;
-  options: string[];
-} & React.SelectHTMLAttributes<HTMLSelectElement>>(
-  ({ label, id, options, ...props }, ref) => (
-    <div>
-      <label
-        htmlFor={id}
-        className="mb-1.5 block text-sm font-semibold text-gray-700"
+const FormSelect = React.forwardRef<
+  HTMLSelectElement,
+  {
+    label: string;
+    id: string;
+    options: string[];
+  } & React.SelectHTMLAttributes<HTMLSelectElement>
+>(({ label, id, options, ...props }, ref) => (
+  <div>
+    <label
+      htmlFor={id}
+      className="mb-1.5 block text-sm font-semibold text-gray-700"
+    >
+      {label}
+    </label>
+    <div className="relative">
+      <select
+        ref={ref}
+        id={id}
+        {...props}
+        className="w-full appearance-none rounded-md border border-gray-300 bg-white p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
       >
-        {label}
-      </label>
-      <div className="relative">
-        <select
-          ref={ref}
-          id={id}
-          {...props}
-          className="w-full appearance-none rounded-md border border-gray-300 bg-white p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
-        >
-          <option value="" disabled>
-            Select...
+        <option value="" disabled>
+          Select...
+        </option>
+        {options.map((option: string) => (
+          <option key={option} value={option}>
+            {option}
           </option>
-          {options.map((option: string) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-        <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
-      </div>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
     </div>
-  )
-);
+  </div>
+));
 FormSelect.displayName = "FormSelect";
 
 export default SettingsPage;

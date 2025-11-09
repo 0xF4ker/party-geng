@@ -12,10 +12,14 @@ export type Profile = User & {
 
 interface AuthState {
   profile: Profile | null;
+  isLoading: boolean;
   setProfile: (profile: Profile | null) => void;
+  setIsLoading: (isLoading: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   profile: null,
+  isLoading: true,
   setProfile: (profile) => set({ profile }),
+  setIsLoading: (isLoading) => set({ isLoading }),
 }));

@@ -5,44 +5,36 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setProfile } = useAuthStore();
-  const [hasSession, setHasSession] = useState<boolean | null>(null);
+  const { setProfile, setIsLoading } = useAuthStore();
+  const [isSessionChecked, setIsSessionChecked] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
 
-  // Only fetch profile if we have a session
-  const {
-    data: profile,
-    isLoading,
-    error,
-  } = api.user.getProfile.useQuery(undefined, {
-    enabled: hasSession === true, // Only run query if session exists
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-    refetchOnWindowFocus: false,
-  });
-
-  // Quick session check on mount
-  useEffect(() => {
-    const supabase = createClient();
-
-    void supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log(
-        "[AuthProvider] Session check:",
-        session ? "Has session" : "No session",
-      );
-      setHasSession(!!session);
-
-      if (!session) {
-        // No session, clear profile immediately
-        setProfile(null);
-      }
+  const { data: profile, isLoading: isProfileLoading } =
+    api.user.getProfile.useQuery(undefined, {
+      enabled: hasSession,
+      staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+      refetchOnWindowFocus: false,
     });
 
-    // Listen for auth changes
+  // Check session on mount and on auth changes
+  useEffect(() => {
+    const supabase = createClient();
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setHasSession(!!session);
+      setIsSessionChecked(true);
+      if (!session) {
+        setProfile(null);
+      }
+    };
+    void checkSession();
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log("[AuthProvider] Auth state changed:", _event);
       setHasSession(!!session);
-
       if (!session) {
         setProfile(null);
       }
@@ -51,16 +43,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [setProfile]);
 
-  // Update profile when fetched
+  // Update profile in store
   useEffect(() => {
     if (profile) {
-      console.log("[AuthProvider] Setting profile:", profile);
       setProfile(profile);
-    } else if (hasSession === false) {
-      // Ensure profile is cleared if no session
-      setProfile(null);
     }
-  }, [profile, hasSession, setProfile]);
+  }, [profile, setProfile]);
+
+  // Determine overall loading state
+  useEffect(() => {
+    const isLoading = !isSessionChecked || (hasSession && isProfileLoading);
+    setIsLoading(isLoading);
+  }, [isSessionChecked, hasSession, isProfileLoading, setIsLoading]);
 
   return <>{children}</>;
 }

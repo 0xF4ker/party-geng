@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { X, Check, ArrowLeft, Mail } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { api } from "@/trpc/react";
-import { useRouter } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import { toast } from "sonner";
 // import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth";
@@ -280,11 +280,11 @@ const AuthModal = ({
           const userRole = data.user?.user_metadata?.role as string;
 
           if (userRole === "VENDOR") {
-            router.push("/v/dashboard");
+            redirect("/v/dashboard");
           } else if (userRole === "CLIENT") {
-            router.push("/c/manage_events");
+            redirect("/c/manage_events");
           } else {
-            router.push("/");
+            redirect("/");
           }
         }
       } else {

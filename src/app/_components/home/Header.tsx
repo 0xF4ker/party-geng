@@ -84,6 +84,20 @@ const Header = () => {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Determine user type
+  const isVendor =
+    user?.vendorProfile !== null && user?.vendorProfile !== undefined;
+  // const isClient = user?.clientProfile !== null && user?.clientProfile !== undefined;
+  const isGuest = !user;
+
+  // Get avatar and name from appropriate profile
+  const avatarUrl = isVendor
+    ? user?.vendorProfile?.avatarUrl
+    : user?.clientProfile?.avatarUrl;
+  const displayName = isVendor
+    ? (user?.vendorProfile?.companyName ?? user?.username)
+    : (user?.clientProfile?.name ?? user?.username);
+
   // --- Search State ---
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -150,20 +164,6 @@ const Header = () => {
     };
   }, [isProfileDropdownOpen]);
 
-  // Determine user type
-  const isVendor =
-    user?.vendorProfile !== null && user?.vendorProfile !== undefined;
-  // const isClient = user?.clientProfile !== null && user?.clientProfile !== undefined;
-  const isGuest = !user;
-
-  // Get avatar and name from appropriate profile
-  const avatarUrl = isVendor
-    ? user?.vendorProfile?.avatarUrl
-    : user?.clientProfile?.avatarUrl;
-  const displayName = isVendor
-    ? (user?.vendorProfile?.companyName ?? user?.username)
-    : (user?.clientProfile?.name ?? user?.username);
-
   return (
     <>
       <header
@@ -198,27 +198,41 @@ const Header = () => {
             </div>
 
             {/* Middle: Search Bar (sm to lg) - Only for guests and clients */}
-            {!isVendor && (
+            {loading ? (
               <div className="mx-4 hidden grow sm:flex lg:mx-16">
-                <SearchInput
-                  placeholder="Find services"
-                  className="w-full max-w-lg transition-all"
-                  isFocused={isSearchFocused}
-                  setIsFocused={setIsSearchFocused}
-                  query={searchQuery}
-                  setQuery={handleSearchChange}
-                  results={searchResults}
-                  onClear={clearSearch}
-                />
+                <Skeleton className="h-10 w-full max-w-lg" />
               </div>
+            ) : (
+              !isVendor && (
+                <div className="mx-4 hidden grow sm:flex lg:mx-16">
+                  <SearchInput
+                    placeholder="Find services"
+                    className="w-full max-w-lg transition-all"
+                    isFocused={isSearchFocused}
+                    setIsFocused={setIsSearchFocused}
+                    query={searchQuery}
+                    setQuery={handleSearchChange}
+                    results={searchResults}
+                    onClear={clearSearch}
+                  />
+                </div>
+              )
             )}
 
             {/* Right Side: Nav Links */}
             {loading ? (
-              <div className="flex items-center space-x-2">
-                <Skeleton className="h-10 w-20" />
-                <Skeleton className="h-10 w-20" />
-              </div>
+              <>
+                {/* Desktop Skeleton */}
+                <div className="hidden items-center space-x-6 lg:flex">
+                  <Skeleton className="h-6 w-24" />
+                  <Skeleton className="h-6 w-24" />
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                </div>
+                {/* Mobile Skeleton */}
+                <div className="flex items-center lg:hidden">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                </div>
+              </>
             ) : isGuest ? (
               // Guest Navigation
               <>
@@ -319,11 +333,11 @@ const Header = () => {
                             {displayName}
                           </p>
                           <p className="text-sm text-gray-500">
-                            @{user.username}
+                            @{user?.username}
                           </p>
                         </div>
                         <Link
-                          href={`/c/${user.id}`}
+                          href={`/c/${user?.id}`}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                         >
                           <Eye className="h-4 w-4" />
@@ -382,11 +396,11 @@ const Header = () => {
                           {displayName}
                         </p>
                         <p className="text-sm text-gray-500">
-                          @{user.username}
+                          @{user?.username}
                         </p>
                       </div>
                       <Link
-                        href={`/c/${user.id}`}
+                        href={`/c/${user?.id}`}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                       >
                         <Eye className="h-4 w-4" />
@@ -466,11 +480,11 @@ const Header = () => {
                             {displayName}
                           </p>
                           <p className="text-sm text-gray-500">
-                            @{user.username}
+                            @{user?.username}
                           </p>
                         </div>
                         <Link
-                          href={`/c/${user.id}`}
+                          href={`/c/${user?.id}`}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                         >
                           <Eye className="h-4 w-4" />
@@ -534,11 +548,11 @@ const Header = () => {
                             {displayName}
                           </p>
                           <p className="text-sm text-gray-500">
-                            @{user.username}
+                            @{user?.username}
                           </p>
                         </div>
                         <Link
-                          href={`/c/${user.id}`}
+                          href={`/c/${user?.id}`}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                         >
                           <Eye className="h-4 w-4" />
@@ -570,18 +584,24 @@ const Header = () => {
           </div>
 
           {/* === Bottom Row: Search Bar (Mobile < sm) - Only for guests and clients === */}
-          {!isVendor && (
+          {loading ? (
             <div className="mt-3 w-full sm:hidden">
-              <SearchInput
-                placeholder="Find services"
-                isFocused={isSearchFocused}
-                setIsFocused={setIsSearchFocused}
-                query={searchQuery}
-                setQuery={handleSearchChange}
-                results={searchResults}
-                onClear={clearSearch}
-              />
+              <Skeleton className="h-10 w-full" />
             </div>
+          ) : (
+            !isVendor && (
+              <div className="mt-3 w-full sm:hidden">
+                <SearchInput
+                  placeholder="Find services"
+                  isFocused={isSearchFocused}
+                  setIsFocused={setIsSearchFocused}
+                  query={searchQuery}
+                  setQuery={handleSearchChange}
+                  results={searchResults}
+                  onClear={clearSearch}
+                />
+              </div>
+            )
           )}
         </div>
 
@@ -590,10 +610,16 @@ const Header = () => {
 
         {/* --- Category Carousel (Now part of the header) - Only for guests and clients --- */}
         {/* It will be hidden on mobile (<sm) by its own classes */}
-        {!isVendor && (
-          <div className="w-full">
-            <CategoryCarousel />
+        {loading ? (
+          <div className="hidden w-full sm:block">
+            <Skeleton className="h-10 w-full" />
           </div>
+        ) : (
+          !isVendor && (
+            <div className="w-full">
+              <CategoryCarousel />
+            </div>
+          )
         )}
       </header>
 
