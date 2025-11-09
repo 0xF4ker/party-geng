@@ -280,11 +280,11 @@ const AuthModal = ({
           const userRole = data.user?.user_metadata?.role as string;
 
           if (userRole === "VENDOR") {
-            redirect("/v/dashboard");
+            router.push("/v/dashboard");
           } else if (userRole === "CLIENT") {
-            redirect("/c/manage_events");
+            router.push("/c/manage_events");
           } else {
-            redirect("/");
+            router.push("/");
           }
         }
       } else {
@@ -292,8 +292,8 @@ const AuthModal = ({
         setStep("username");
       }
     } catch (error) {
-      console.error("Auth error:", error);
-      toast.error("An error occurred. Please try again.");
+      console.log("Auth error:", error);
+      toast.error(`An error occurred. Please try again.`);
     } finally {
       setLoading(false);
     }

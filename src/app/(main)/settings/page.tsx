@@ -2,7 +2,7 @@
 
 import { api } from "@/trpc/react";
 import { useAuthStore } from "@/stores/auth";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import React from "react";
 import {
   User,
@@ -474,6 +474,88 @@ const KycForm = () => {
 
 // --- SHARED SETTINGS PAGES ---
 
+const SkillsInput: React.FC<{
+  skills: string[];
+  setSkills: React.Dispatch<React.SetStateAction<string[]>>;
+}> = ({ skills, setSkills }) => {
+  const [skillInput, setSkillInput] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const addSkill = () => {
+    const trimmedInput = skillInput.trim();
+    if (trimmedInput && !skills.includes(trimmedInput)) {
+      setSkills([...skills, trimmedInput]);
+      setSkillInput("");
+    }
+  };
+
+  const removeSkill = (skillToRemove: string) => {
+    setSkills(skills.filter((skill) => skill !== skillToRemove));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addSkill();
+    } else if (e.key === "Backspace" && !skillInput && skills.length > 0) {
+      e.preventDefault();
+      removeSkill(skills[skills.length - 1] ?? "");
+    }
+  };
+
+  return (
+    <div>
+      <label
+        htmlFor="skills-input"
+        className="mb-2 block text-sm font-semibold text-gray-700"
+      >
+        Skills
+      </label>
+      <div
+        className="flex flex-wrap items-center gap-2 rounded-md border border-gray-300 p-2 focus-within:ring-1 focus-within:ring-pink-500 focus-within:outline-pink-500"
+        onClick={() => inputRef.current?.focus()} // Focus input when clicking container
+      >
+        {skills.map((skill) => (
+          <span
+            key={skill}
+            className="flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1.5 text-sm font-medium text-pink-700"
+          >
+            {skill}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent container click
+                removeSkill(skill);
+              }}
+              className="text-pink-500 hover:text-pink-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </span>
+        ))}
+        {/* The input is now *inside* the wrapper */}
+        <input
+          ref={inputRef}
+          type="text"
+          id="skills-input"
+          value={skillInput}
+          onChange={(e) => setSkillInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="-grow min-w-[150px] bg-transparent p-1.5 text-sm outline-none"
+          placeholder={
+            skills.length > 0
+              ? "Add more..."
+              : "Add a new skill (e.g. Afrobeats)"
+          }
+        />
+      </div>
+      <p className="mt-1 text-xs text-gray-400">
+        Press Enter or comma to add a skill. Press Backspace to remove.
+      </p>
+    </div>
+  );
+};
+
 const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   const { profile } = useAuthStore();
   const [skillInput, setSkillInput] = useState("");
@@ -703,48 +785,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
               )}
             </div>
             {/* Skills */}
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">
-                Skills
-              </label>
-              <div className="mb-2 flex flex-wrap gap-2">
-                {skills.map((skill) => (
-                  <span
-                    key={skill}
-                    className="flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1.5 text-sm font-medium text-pink-700"
-                  >
-                    {skill}
-                    <button
-                      type="button"
-                      onClick={() => removeSkill(skill)}
-                      className="text-pink-500 hover:text-pink-700"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  id="skills"
-                  value={skillInput}
-                  onChange={(e) => setSkillInput(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && (e.preventDefault(), addSkill())
-                  }
-                  className="grow rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
-                  placeholder="Add a new skill (e.g. Afrobeats)"
-                />
-                <button
-                  type="button"
-                  onClick={addSkill}
-                  className="rounded-md bg-gray-700 px-5 py-3 font-semibold text-white transition-colors hover:bg-gray-800"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
+            <SkillsInput skills={skills} setSkills={setSkills} />
 
             {/* Languages */}
             <div>
