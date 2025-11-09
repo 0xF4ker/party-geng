@@ -8,17 +8,21 @@ import { toast } from "sonner";
 interface ImageUploadProps {
   currentImage?: string | null;
   onUploadComplete: (url: string) => void;
-  bucket: "profile-images" | "kyc-documents";
+  bucket: "profile-images" | "kyc-documents"; // You can add "avatars", "gigs" etc.
   accept?: string;
   maxSizeMB?: number;
   label?: string;
   description?: string;
+  // FIX: Added a stable file path, e.g., "avatar" or "cac_document"
+  // This will be combined with the user's ID.
+  fileName: string;
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({
   currentImage,
   onUploadComplete,
   bucket,
+  fileName, // Use the new prop
   accept = "image/*",
   maxSizeMB = 5,
   label = "Upload Image",
@@ -27,8 +31,23 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [preview, setPreview] = useState<string | null>(currentImage ?? null);
+  // FIX: State to hold the actual file path for deletion
+  const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
+
+  // Parse the file path from an existing URL (for removal)
+  const getPathFromUrl = (url: string) => {
+    try {
+      const { pathname } = new URL(url);
+      // Path is /storage/v1/object/public/bucket-name/file-path
+      const path = pathname.split(`/${bucket}/`)[1]!;
+      return path;
+    } catch (error) {
+      console.error("Error parsing URL:", error);
+      return null;
+    }
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -65,9 +84,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         return;
       }
 
-      // Generate unique file path
+      // FIX: Generate stable file path using the prop
       const fileExt = file.name.split(".").pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      const stableFilePath = `${user.id}/${fileName}.${fileExt}`;
+      setUploadedFilePath(stableFilePath); // Save path for removal
 
       // Simulate progress (Supabase doesn't provide real-time progress)
       const progressInterval = setInterval(() => {
@@ -80,9 +100,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       // Upload to Supabase Storage
       const { data, error } = await supabase.storage
         .from(bucket)
-        .upload(fileName, file, {
+        .upload(stableFilePath, file, {
           cacheControl: "3600",
-          upsert: false,
+          // FIX: Set upsert to true to overwrite existing file
+          upsert: true,
         });
 
       clearInterval(progressInterval);
@@ -94,17 +115,19 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
       // Get public URL
       let publicUrl: string;
-      
+
       if (bucket === "profile-images") {
         const { data: urlData } = supabase.storage
           .from(bucket)
-          .getPublicUrl(fileName);
-        publicUrl = urlData.publicUrl;
+          .getPublicUrl(stableFilePath);
+
+        // FIX: Add cache-busting timestamp
+        publicUrl = `${urlData.publicUrl}?t=${new Date().getTime()}`;
       } else {
         // For private buckets, create signed URL (valid for 1 year)
         const { data: urlData, error: urlError } = await supabase.storage
           .from(bucket)
-          .createSignedUrl(fileName, 60 * 60 * 24 * 365);
+          .createSignedUrl(stableFilePath, 60 * 60 * 24 * 365);
 
         if (urlError) throw urlError;
         publicUrl = urlData.signedUrl;
@@ -120,21 +143,45 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       toast.success("File uploaded successfully!");
     } catch (error) {
       console.error("Upload error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to upload file";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to upload file";
       toast.error(errorMessage);
-      setPreview(null);
+      setPreview(currentImage ?? null); // Revert to original image on fail
     } finally {
       setUploading(false);
       setUploadProgress(0);
     }
   };
 
-  const handleRemove = () => {
+  const handleRemove = async () => {
+    // FIX: Remove from Supabase Storage
+    let fileToRemove = uploadedFilePath;
+
+    // If file path isn't in state (e.g., it was an existing `currentImage`)
+    if (!fileToRemove && (currentImage || preview)) {
+      fileToRemove = getPathFromUrl(preview ?? currentImage!);
+    }
+
+    if (fileToRemove) {
+      try {
+        const { error } = await supabase.storage
+          .from(bucket)
+          .remove([fileToRemove]);
+        if (error) throw error;
+        toast.success("Image removed.");
+      } catch (error) {
+        console.error("Remove error:", error);
+        toast.error("Could not remove file from storage.");
+        return; // Don't clear UI if server-side removal fails
+      }
+    }
+
     setPreview(null);
+    setUploadedFilePath(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-    onUploadComplete("");
+    onUploadComplete(""); // Pass empty string up
   };
 
   return (
@@ -156,7 +203,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50">
               <div className="text-center">
                 <Loader2 className="mx-auto h-8 w-8 animate-spin text-white" />
-                <p className="mt-2 text-xs font-semibold text-white">{uploadProgress}%</p>
+                <p className="mt-2 text-xs font-semibold text-white">
+                  {uploadProgress}%
+                </p>
               </div>
             </div>
           )}

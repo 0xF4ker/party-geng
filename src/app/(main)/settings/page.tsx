@@ -431,6 +431,7 @@ const KycForm = () => {
                 setIdCardUrl(url);
                 setValue("idCardUrl", url);
               }}
+              fileName={`id_card-${profile?.id}`}
             />
             {errors.idCardUrl && (
               <p className="mt-1 text-sm text-red-600">
@@ -448,6 +449,7 @@ const KycForm = () => {
                 setCacDocumentUrl(url);
                 setValue("cacDocumentUrl", url);
               }}
+              fileName={`cac_document-${profile?.id}`}
             />
             {errors.cacDocumentUrl && (
               <p className="mt-1 text-sm text-red-600">
@@ -603,6 +605,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
             setValue("avatarUrl", url);
           }}
           bucket="profile-images"
+          fileName={`avatar-${profile?.id}`}
         />
 
         {/* Username */}
