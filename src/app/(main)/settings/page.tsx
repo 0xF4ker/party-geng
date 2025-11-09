@@ -474,6 +474,7 @@ const KycForm = () => {
 
 const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   const { profile } = useAuthStore();
+  const [skillInput, setSkillInput] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(
     isVendor
       ? (profile?.vendorProfile?.avatarUrl ?? null)
@@ -482,7 +483,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   const [skills, setSkills] = useState<string[]>(
     profile?.vendorProfile?.skills ?? ["Wedding DJ", "MC"],
   );
-  const [skillInput, setSkillInput] = useState("");
 
   const {
     register,
@@ -490,10 +490,50 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
     setValue,
     reset, // <-- Add reset
     formState: { errors },
+    // watch,
   } = useForm({
     resolver: zodResolver(profileUpdateSchema),
     mode: "onChange",
   });
+
+  // const avatarUrl = watch("avatarUrl");
+  // const skills = watch("skills") ?? [];
+
+  useEffect(() => {
+    if (profile) {
+      const clientProfile = profile.clientProfile;
+      const vendorProfile = profile.vendorProfile;
+
+      const commonData = {
+        username: profile.username ?? "",
+        avatarUrl: isVendor
+          ? (vendorProfile?.avatarUrl ?? "")
+          : (clientProfile?.avatarUrl ?? ""),
+        location: isVendor
+          ? (vendorProfile?.location ?? "")
+          : (clientProfile?.location ?? ""),
+      };
+
+      const specificData = isVendor
+        ? {
+            companyName: vendorProfile?.companyName ?? "",
+            title: vendorProfile?.title ?? "",
+            about: vendorProfile?.about ?? "",
+            skills: vendorProfile?.skills ?? [],
+            languages: vendorProfile?.languages ?? [],
+          }
+        : {
+            name: clientProfile?.name ?? "",
+          };
+
+      const data: Partial<z.infer<typeof profileUpdateSchema>> = {
+        ...commonData,
+        ...specificData,
+      };
+
+      reset(data);
+    }
+  }, [profile, isVendor, reset]);
 
   const utils = api.useUtils();
   const updateProfile = api.settings.updateProfile.useMutation({
@@ -541,26 +581,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
 
     updateProfile.mutate(filteredData);
   };
-
-  useEffect(() => {
-    if (profile) {
-      reset({
-        username: profile.username ?? "",
-        name: profile.clientProfile?.name ?? "",
-        avatarUrl: isVendor
-          ? (profile.vendorProfile?.avatarUrl ?? "")
-          : (profile.clientProfile?.avatarUrl ?? ""),
-        location: isVendor
-          ? (profile.vendorProfile?.location ?? "")
-          : (profile.clientProfile?.location ?? ""),
-        companyName: profile.vendorProfile?.companyName ?? "",
-        title: profile.vendorProfile?.title ?? "",
-        about: profile.vendorProfile?.about ?? "",
-        skills: profile.vendorProfile?.skills ?? [],
-        languages: profile.vendorProfile?.languages ?? [],
-      });
-    }
-  }, [profile, isVendor, reset]);
 
   return (
     <form
