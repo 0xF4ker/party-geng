@@ -1,21 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 
-export default function PaymentCallbackPage() {
+function PaymentCallback() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [status, setStatus] = useState<"verifying" | "success" | "failed">("verifying");
+  const [status, setStatus] = useState<"verifying" | "success" | "failed">(
+    "verifying",
+  );
   const [message, setMessage] = useState("Verifying your payment...");
 
   const verifyPayment = api.payment.verifyPayment.useMutation({
     onSuccess: (data) => {
       setStatus("success");
-      setMessage(`Payment successful! ₦${data.amount.toLocaleString()} has been added to your wallet.`);
-      
+      setMessage(
+        `Payment successful! ₦${data.amount.toLocaleString()} has been added to your wallet.`,
+      );
+
       // Redirect to earnings page after 3 seconds
       setTimeout(() => {
         router.push("/earnings");
@@ -23,13 +27,15 @@ export default function PaymentCallbackPage() {
     },
     onError: (error) => {
       setStatus("failed");
-      setMessage(error.message || "Payment verification failed. Please contact support.");
+      setMessage(
+        error.message || "Payment verification failed. Please contact support.",
+      );
     },
   });
 
   useEffect(() => {
     const reference = searchParams.get("reference");
-    
+
     if (!reference) {
       setStatus("failed");
       setMessage("Invalid payment reference");
@@ -38,7 +44,7 @@ export default function PaymentCallbackPage() {
 
     // Verify the payment
     verifyPayment.mutate({ reference });
-  }, [searchParams]);
+  }, [searchParams, verifyPayment]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
@@ -89,5 +95,13 @@ export default function PaymentCallbackPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PaymentCallbackPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PaymentCallback />
+    </Suspense>
   );
 }
