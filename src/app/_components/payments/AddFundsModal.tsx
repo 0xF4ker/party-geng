@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 "use client";
 
 import React, { useState } from "react";
@@ -11,7 +12,10 @@ interface AddFundsModalProps {
   onSuccess?: () => void;
 }
 
-export const AddFundsModal: React.FC<AddFundsModalProps> = ({ onClose, onSuccess }) => {
+export const AddFundsModal: React.FC<AddFundsModalProps> = ({
+  onClose,
+  onSuccess,
+}) => {
   const { profile } = useAuthStore();
   const [amount, setAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -78,7 +82,7 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({ onClose, onSuccess
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="Enter amount"
-              className="w-full rounded-md border border-gray-300 p-3 focus:outline-pink-500 focus:ring-1 focus:ring-pink-500"
+              className="w-full rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
               min="100"
               step="100"
               required
@@ -87,9 +91,10 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({ onClose, onSuccess
             <p className="mt-1 text-xs text-gray-500">Minimum amount: ₦100</p>
           </div>
 
-          <div className="rounded-md bg-blue-50 p-4 mb-4">
+          <div className="mb-4 rounded-md bg-blue-50 p-4">
             <p className="text-sm text-blue-800">
-              You will be redirected to Paystack to complete your payment securely.
+              You will be redirected to Paystack to complete your payment
+              securely.
             </p>
           </div>
 

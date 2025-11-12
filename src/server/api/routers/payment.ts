@@ -4,6 +4,11 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 
+// const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY ?? undefined;
+
+// Do not construct the Paystack client at module scope to avoid unsafe construction;
+// create or use HTTP calls inside procedures where the secret key is validated.
+
 export const paymentRouter = createTRPCRouter({
   getWallet: protectedProcedure.query(async ({ ctx }) => {
     // Create wallet if it doesn't exist
