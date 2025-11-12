@@ -11,21 +11,20 @@ import {
   Trash2,
   CheckCircle,
   ChevronDown,
-  UploadCloud, // For image upload
+  UploadCloud,
+  Loader2,
 } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { api } from "@/trpc/react";
+import { cn } from "@/lib/utils";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@/server/api/root";
 
-// Mock cn function for demonstration
-const cn = (...inputs: (string | boolean | undefined | null)[]) => {
-  return inputs.filter(Boolean).join(" ");
-};
+type routerOutput = inferRouterOutputs<AppRouter>;
+type Category = routerOutput["category"]["getAll"][0];
 
 // --- Type Definitions ---
-interface Category {
-  name: string;
-  services: string[];
-}
-
 interface Step {
   id: number;
   name: string;
@@ -42,17 +41,6 @@ interface Faq {
   a: string;
 }
 
-// --- Mock Data ---
-const categories: Category[] = [
-  { name: "Music & DJs", services: ["DJ", "Live Band", "Solo Musician", "MC"] },
-  {
-    name: "Food & Beverage",
-    services: ["Catering", "Bartender", "Cake Artist"],
-  },
-  { name: "Media", services: ["Photographer", "Videographer", "Photobooth"] },
-  { name: "Planning", services: ["Event Planner", "Day-of Coordinator"] },
-];
-
 const steps: Step[] = [
   { id: 1, name: "Overview", icon: Edit },
   { id: 2, name: "Pricing", icon: DollarSign },
@@ -64,33 +52,53 @@ const steps: Step[] = [
 
 // --- Main Page Component ---
 const CreateGigPage = () => {
+  const router = useRouter();
   const [isSidebarSticky, setIsSidebarSticky] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(0);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [activeStep, setActiveStep] = useState(1);
 
+  // Fetch categories from API
+  const { data: categories, isLoading: categoriesLoading } =
+    api.category.getAll.useQuery();
+
   // --- Form State ---
   // Step 1
-  const [selectedCategory, setSelectedCategory] = useState(categories[0]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+    null,
+  );
+  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(
+    null,
+  );
   const [gigTitle, setGigTitle] = useState("");
+  const [tags, setTags] = useState("");
   // Step 2
   const [basePrice, setBasePrice] = useState("");
   const [baseIncludes, setBaseIncludes] = useState(
     "- 4 hours of service\n- Professional sound system\n- MC services",
   );
-  const [addOns, setAddOns] = useState([
-    { title: "Extra Hour", price: 25000 },
-    { title: "Dance Floor Lighting", price: 40000 },
-  ]);
+  const [addOns, setAddOns] = useState<AddOn[]>([]);
   // Step 3
   const [description, setDescription] = useState("");
-  const [faqs, setFaqs] = useState([
-    {
-      q: "Do you take song requests?",
-      a: "Yes, I'm happy to take requests on the night, as long as they fit the vibe of the event!",
+  const [faqs, setFaqs] = useState<Faq[]>([]);
+  // Step 4
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+
+  // Get selected category data
+  const selectedCategory = categories?.find((c) => c.id === selectedCategoryId);
+  const availableServices = selectedCategory?.services ?? [];
+
+  // Create gig mutation
+  const createGig = api.gig.create.useMutation({
+    onSuccess: () => {
+      router.push("/v/manage_gigs");
     },
-  ]);
+    onError: (error) => {
+      alert(`Error creating gig: ${error.message}`);
+    },
+  });
 
   // Effect to capture sidebar width
   useLayoutEffect(() => {
@@ -153,7 +161,7 @@ const CreateGigPage = () => {
   const handleNextStep = () => {
     if (activeStep < steps.length) {
       setActiveStep(activeStep + 1);
-      window.scrollTo(0, 0); // Scroll to top on step change
+      window.scrollTo(0, 0);
     }
   };
 
@@ -162,6 +170,58 @@ const CreateGigPage = () => {
       setActiveStep(activeStep - 1);
       window.scrollTo(0, 0);
     }
+  };
+
+  const handleSubmit = () => {
+    // Validation
+    if (!gigTitle.trim()) {
+      alert("Please enter a gig title");
+      setActiveStep(1);
+      return;
+    }
+    if (!selectedServiceId) {
+      alert("Please select a service category");
+      setActiveStep(1);
+      return;
+    }
+    if (!basePrice || parseFloat(basePrice) <= 0) {
+      alert("Please enter a valid base price");
+      setActiveStep(2);
+      return;
+    }
+    if (!description.trim()) {
+      alert("Please enter a description");
+      setActiveStep(3);
+      return;
+    }
+
+    // Parse tags
+    const tagArray = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, 5);
+
+    // Parse base includes
+    const baseIncludesArray = baseIncludes
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    // Submit
+    createGig.mutate({
+      title: gigTitle,
+      description: description,
+      serviceId: selectedServiceId,
+      tags: tagArray,
+      basePrice: parseFloat(basePrice),
+      basePriceIncludes: baseIncludesArray,
+      addOns: addOns.filter((a) => a.title && a.price > 0),
+      faqs: faqs,
+      galleryImageUrls: galleryImages,
+      youtubeUrl: youtubeUrl || undefined,
+      status: "ACTIVE",
+    });
   };
 
   return (
@@ -188,8 +248,14 @@ const CreateGigPage = () => {
               <OverviewForm
                 gigTitle={gigTitle}
                 setGigTitle={setGigTitle}
-                selectedCategory={selectedCategory!}
-                setSelectedCategory={setSelectedCategory}
+                categories={categories}
+                categoriesLoading={categoriesLoading}
+                selectedCategoryId={selectedCategoryId}
+                setSelectedCategoryId={setSelectedCategoryId}
+                selectedServiceId={selectedServiceId}
+                setSelectedServiceId={setSelectedServiceId}
+                tags={tags}
+                setTags={setTags}
               />
             )}
 
@@ -216,7 +282,14 @@ const CreateGigPage = () => {
             )}
 
             {/* --- STEP 4: GALLERY --- */}
-            {activeStep === 4 && <GalleryForm />}
+            {activeStep === 4 && (
+              <GalleryForm
+                youtubeUrl={youtubeUrl}
+                setYoutubeUrl={setYoutubeUrl}
+                galleryImages={galleryImages}
+                setGalleryImages={setGalleryImages}
+              />
+            )}
 
             {/* --- STEP 5: PUBLISH --- */}
             {activeStep === 5 && <PublishForm />}
@@ -233,12 +306,20 @@ const CreateGigPage = () => {
                 Back
               </button>
               <button
-                onClick={handleNextStep}
-                className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700"
+                onClick={
+                  activeStep === steps.length ? handleSubmit : handleNextStep
+                }
+                disabled={createGig.isPending}
+                className="flex items-center gap-2 rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50"
               >
-                {activeStep === steps.length
-                  ? "Save & Publish"
-                  : "Save & Continue"}
+                {createGig.isPending && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                {createGig.isPending
+                  ? "Creating..."
+                  : activeStep === steps.length
+                    ? "Save & Publish"
+                    : "Save & Continue"}
               </button>
             </div>
           </div>
@@ -341,94 +422,146 @@ const GigFormStepper = ({
 const OverviewForm = ({
   gigTitle,
   setGigTitle,
-  selectedCategory,
-  setSelectedCategory,
+  categories,
+  categoriesLoading,
+  selectedCategoryId,
+  setSelectedCategoryId,
+  selectedServiceId,
+  setSelectedServiceId,
+  tags,
+  setTags,
 }: {
   gigTitle: string;
   setGigTitle: (title: string) => void;
-  selectedCategory: Category;
-  setSelectedCategory: (category: Category) => void;
-}) => (
-  <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-    <div className="border-b border-gray-200 p-6">
-      <h2 className="text-xl font-semibold">Gig Overview</h2>
-    </div>
-    <form className="space-y-6 p-6">
-      {/* Gig Title */}
-      <div>
-        <label
-          htmlFor="gigTitle"
-          className="mb-2 block text-sm font-semibold text-gray-700"
-        >
-          Gig title
-          <span className="ml-1 font-normal text-gray-400">
-            (Write a clear, concise title that describes the service you offer)
-          </span>
-        </label>
-        <div className="flex items-center">
+  categories?: Category[];
+  categoriesLoading: boolean;
+  selectedCategoryId: number | null;
+  setSelectedCategoryId: (id: number | null) => void;
+  selectedServiceId: number | null;
+  setSelectedServiceId: (id: number | null) => void;
+  tags: string;
+  setTags: (tags: string) => void;
+}) => {
+  const selectedCategory = categories?.find((c) => c.id === selectedCategoryId);
+  const availableServices = selectedCategory?.services ?? [];
+
+  if (categoriesLoading) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div className="p-6 text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-pink-600" />
+          <p className="mt-2 text-gray-500">Loading categories...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="border-b border-gray-200 p-6">
+        <h2 className="text-xl font-semibold">Gig Overview</h2>
+      </div>
+      <form className="space-y-6 p-6">
+        {/* Gig Title */}
+        <div>
+          <label
+            htmlFor="gigTitle"
+            className="mb-2 block text-sm font-semibold text-gray-700"
+          >
+            Gig title
+            <span className="ml-1 font-normal text-gray-400">
+              (Write a clear, concise title that describes the service you
+              offer)
+            </span>
+          </label>
+          <div className="flex items-center">
+            <input
+              type="text"
+              id="gigTitle"
+              value={gigTitle}
+              onChange={(e) => setGigTitle(e.target.value)}
+              maxLength={80}
+              className="w-full grow rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
+              placeholder="e.g. Professional Wedding DJ for Lagos & Abuja Events"
+            />
+          </div>
+          <p className="mt-1 text-right text-xs text-gray-400">
+            {gigTitle.length} / 80 max
+          </p>
+        </div>
+
+        {/* Category */}
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-gray-700">
+            Category
+            <span className="ml-1 font-normal text-gray-400">
+              (Choose the most suitable category for your gig)
+            </span>
+          </label>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <select
+              value={selectedCategoryId ?? ""}
+              onChange={(e) => {
+                const id = e.target.value ? parseInt(e.target.value) : null;
+                setSelectedCategoryId(id);
+                setSelectedServiceId(null); // Reset service when category changes
+              }}
+              className="w-full appearance-none rounded-md border border-gray-300 bg-white p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
+            >
+              <option value="">Select category...</option>
+              {categories?.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={selectedServiceId ?? ""}
+              onChange={(e) => {
+                const id = e.target.value ? parseInt(e.target.value) : null;
+                setSelectedServiceId(id);
+              }}
+              disabled={!selectedCategoryId}
+              className="w-full appearance-none rounded-md border border-gray-300 bg-white p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500 disabled:bg-gray-100"
+            >
+              <option value="">Select service...</option>
+              {availableServices.map((service) => (
+                <option key={service.id} value={service.id}>
+                  {service.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Search Tags */}
+        <div>
+          <label
+            htmlFor="searchTags"
+            className="mb-2 block text-sm font-semibold text-gray-700"
+          >
+            Search tags
+            <span className="ml-1 font-normal text-gray-400">
+              (Tag your gig with buzzwords that are relevant to the services you
+              offer. 5 tags maximum.)
+            </span>
+          </label>
           <input
             type="text"
-            id="gigTitle"
-            value={gigTitle}
-            onChange={(e) => setGigTitle(e.target.value)}
-            maxLength={80}
-            className="w-full grow rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
-            placeholder="e.g. Professional Wedding DJ for Lagos & Abuja Events"
+            id="searchTags"
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
+            className="w-full rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
+            placeholder="e.g. Wedding DJ, Afrobeats, MC, Party, Lagos"
           />
+          <p className="mt-1 text-xs text-gray-400">
+            5 tags maximum. Separate with commas.
+          </p>
         </div>
-        <p className="mt-1 text-right text-xs text-gray-400">
-          {gigTitle.length} / 80 max
-        </p>
-      </div>
-
-      {/* Category */}
-      <div>
-        <label className="mb-2 block text-sm font-semibold text-gray-700">
-          Category
-          <span className="ml-1 font-normal text-gray-400">
-            (Choose the most suitable category for your gig)
-          </span>
-        </label>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <SelectBox
-            value={selectedCategory.name}
-            options={categories.map((c) => c.name)}
-            onChange={(val) => {
-              const category = categories.find((c) => c.name === val);
-              if (category) {
-                setSelectedCategory(category);
-              }
-            }}
-          />
-          <SelectBox options={selectedCategory.services} />
-        </div>
-      </div>
-
-      {/* Search Tags */}
-      <div>
-        <label
-          htmlFor="searchTags"
-          className="mb-2 block text-sm font-semibold text-gray-700"
-        >
-          Search tags
-          <span className="ml-1 font-normal text-gray-400">
-            (Tag your gig with buzzwords that are relevant to the services you
-            offer. 5 tags maximum.)
-          </span>
-        </label>
-        <input
-          type="text"
-          id="searchTags"
-          className="w-full rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
-          placeholder="e.g. Wedding DJ, Afrobeats, MC, Party, Lagos"
-        />
-        <p className="mt-1 text-xs text-gray-400">
-          5 tags maximum. Use letters and numbers only.
-        </p>
-      </div>
-    </form>
-  </div>
-);
+      </form>
+    </div>
+  );
+};
 
 const PricingForm = ({
   basePrice,
@@ -682,7 +815,17 @@ const DescriptionForm = ({
   );
 };
 
-const GalleryForm = () => (
+const GalleryForm = ({
+  youtubeUrl,
+  setYoutubeUrl,
+  galleryImages,
+  setGalleryImages,
+}: {
+  youtubeUrl: string;
+  setYoutubeUrl: (url: string) => void;
+  galleryImages: string[];
+  setGalleryImages: (images: string[]) => void;
+}) => (
   <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
     <div className="border-b border-gray-200 p-6">
       <h2 className="text-xl font-semibold">Gallery</h2>
@@ -733,6 +876,8 @@ const GalleryForm = () => (
         <input
           type="text"
           id="videoUrl"
+          value={youtubeUrl}
+          onChange={(e) => setYoutubeUrl(e.target.value)}
           className="w-full rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
           placeholder="https://www.youtube.com/watch?v=..."
         />

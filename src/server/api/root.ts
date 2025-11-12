@@ -8,6 +8,8 @@ import { orderRouter } from "@/server/api/routers/order";
 import { eventRouter } from "@/server/api/routers/event";
 import { paymentRouter } from "@/server/api/routers/payment";
 import { settingsRouter } from "@/server/api/routers/settings";
+import { categoryRouter } from "@/server/api/routers/category";
+import { wishlistRouter } from "@/server/api/routers/wishlist";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 
 /**
@@ -26,6 +28,8 @@ export const appRouter = createTRPCRouter({
   event: eventRouter,
   payment: paymentRouter,
   settings: settingsRouter,
+  category: categoryRouter,
+  wishlist: wishlistRouter,
 });
 
 // export type definition of API

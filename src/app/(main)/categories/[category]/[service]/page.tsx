@@ -10,120 +10,66 @@ import {
   ChevronLeft,
   SlidersHorizontal,
   Check,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useParams } from "next/navigation";
+import { api } from "@/trpc/react";
+// import { notFound } from "next/navigation";
+import { cn } from "@/lib/utils";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@/server/api/root";
 
-// Mock cn function for demonstration
-const cn = (...inputs: (string | boolean | undefined | null)[]) => {
-  return inputs.filter(Boolean).join(" ");
-};
+// --- Types ---
+type routerOutput = inferRouterOutputs<AppRouter>;
+type gig = routerOutput["gig"]["getById"];
 
-// --- Mock Data ---
-const serviceDetails = {
-  category: "Music & DJs",
-  service: "Wedding DJs",
-  categorySlug: "music-djs",
-  serviceSlug: "wedding-djs",
-};
-
-interface Gig {
-  id: number;
-  sellerName: string;
-  level: string;
-  description: string;
-  rating: number;
-  reviews: number | string;
-  price: number;
-  imageUrl: string;
+interface FilterState {
+  minBudget?: number;
+  maxBudget?: number;
+  vendorLevels: string[];
+  tags: string[];
 }
-
-const gigsData: Gig[] = [
-  {
-    id: 1,
-    sellerName: "DJ SpinMaster",
-    level: "Level 2",
-    description: "I will be the professional wedding DJ for your reception",
-    rating: 4.9,
-    reviews: 131,
-    price: 150000,
-    imageUrl: "https://placehold.co/400x300/ec4899/ffffff?text=Wedding+DJ",
-  },
-  {
-    id: 2,
-    sellerName: "MC King",
-    level: "Top Rated",
-    description: "I will be your charismatic MC and event host",
-    rating: 5.0,
-    reviews: 210,
-    price: 120000,
-    imageUrl: "https://placehold.co/400x300/8b5cf6/ffffff?text=Event+MC",
-  },
-  {
-    id: 3,
-    sellerName: "Lagos Party Band",
-    level: "Level 2",
-    description: "I will play live high-energy music for your party",
-    rating: 4.8,
-    reviews: 78,
-    price: 250000,
-    imageUrl: "https://placehold.co/400x300/3b82f6/ffffff?text=Live+Band",
-  },
-  {
-    id: 4,
-    sellerName: "DJ Switch",
-    level: "Pro Verified",
-    description: "I will provide premium DJ services for corporate events",
-    rating: 5.0,
-    reviews: "1k+",
-    price: 400000,
-    imageUrl: "https://placehold.co/400x300/ef4444/ffffff?text=Corporate+DJ",
-  },
-  {
-    id: 5,
-    sellerName: "Abuja String Quartet",
-    level: "Level 1",
-    description: "I will play beautiful classical music for your ceremony",
-    rating: 4.9,
-    reviews: 42,
-    price: 180000,
-    imageUrl: "https://placehold.co/400x300/f59e0b/ffffff?text=String+Quartet",
-  },
-  {
-    id: 6,
-    sellerName: "Photobooth Fun",
-    level: "Level 2",
-    description: "I will provide a modern photobooth for your event",
-    rating: 4.9,
-    reviews: 112,
-    price: 80000,
-    imageUrl: "https://placehold.co/400x300/10b981/ffffff?text=Photobooth",
-  },
-  {
-    id: 7,
-    sellerName: "SaxAppeal",
-    level: "Top Rated",
-    description: "I will play romantic saxophone music for your dinner",
-    rating: 5.0,
-    reviews: 98,
-    price: 100000,
-    imageUrl: "https://placehold.co/400x300/6366f1/ffffff?text=Saxophonist",
-  },
-  {
-    id: 8,
-    sellerName: "SnapPro",
-    level: "Pro Verified",
-    description: "I will provide full-day wedding photography coverage",
-    rating: 5.0,
-    reviews: 55,
-    price: 550000,
-    imageUrl: "https://placehold.co/400x300/8d99ae/ffffff?text=Photographer",
-  },
-];
-// --- End Mock Data ---
 
 // --- Main Page Component ---
 const ServiceListingPage = () => {
+  const params = useParams();
+  const categorySlug = params?.category as string;
+  const serviceSlug = params?.service as string;
+
+  // Convert slug to service name
+  const serviceName = serviceSlug
+    ?.split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+  // Filter state
+  const [filters, setFilters] = useState<FilterState>({
+    vendorLevels: [],
+    tags: [],
+  });
+  const [page, setPage] = useState(1);
+  const limit = 20;
+  const offset = (page - 1) * limit;
+
+  // Fetch gigs with filters
+  const { data, isLoading } = api.gig.getByService.useQuery({
+    serviceName,
+    filters: {
+      minBudget: filters.minBudget,
+      maxBudget: filters.maxBudget,
+      vendorLevels:
+        filters.vendorLevels.length > 0 ? filters.vendorLevels : undefined,
+      tags: filters.tags.length > 0 ? filters.tags : undefined,
+    },
+    limit,
+    offset,
+  });
+
+  const gigs = data?.gigs ?? [];
+  const totalCount = data?.totalCount ?? 0;
+  const totalPages = Math.ceil(totalCount / limit);
   const [isFilterSticky, setIsFilterSticky] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const filterPlaceholderRef = useRef<HTMLDivElement>(null);
@@ -150,6 +96,31 @@ const ServiceListingPage = () => {
     };
   }, []);
 
+  // Apply filters handler
+  const handleApplyFilters = (newFilters: Partial<FilterState>) => {
+    setFilters((prev) => ({ ...prev, ...newFilters }));
+    setPage(1); // Reset to first page when filters change
+  };
+
+  // Clear filters handler
+  const handleClearFilters = () => {
+    setFilters({ vendorLevels: [], tags: [] });
+    setPage(1);
+  };
+
+  // Loading state
+  if (isLoading && !data) {
+    return (
+      <div className="min-h-screen bg-white pt-[122px] text-gray-900 lg:pt-[127px]">
+        <div className="container mx-auto px-4 py-8 sm:px-8">
+          <div className="flex h-96 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-pink-600" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     // FIX: Use specific pixel values for header padding
     <div className="min-h-screen bg-white pt-[122px] text-gray-900 lg:pt-[127px]">
@@ -161,21 +132,22 @@ const ServiceListingPage = () => {
             <Home className="h-4 w-4" />
           </Link>
           <ChevronRight className="mx-1 h-4 w-4" />
-          <a
-            href={`/categories/${serviceDetails.categorySlug}`}
+          <Link
+            href={`/categories/${categorySlug}`}
             className="hover:text-pink-600"
           >
-            {serviceDetails.category}
-          </a>
+            {categorySlug
+              ?.split("-")
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" ")}
+          </Link>
         </div>
 
         {/* Title */}
-        <h1 className="mb-4 text-3xl font-bold md:text-4xl">
-          {serviceDetails.service}
-        </h1>
+        <h1 className="mb-4 text-3xl font-bold md:text-4xl">{serviceName}</h1>
         <p className="mb-6 max-w-3xl text-lg text-gray-600">
-          Find the best DJs to bring your wedding reception to life. Book
-          verified, professional DJs on Partygeng.
+          Find the best {serviceName?.toLowerCase()} for your event. Book
+          verified, professional vendors on Party-Geng.
         </p>
 
         {/* Sticky Filter Bar Placeholder */}
@@ -196,17 +168,48 @@ const ServiceListingPage = () => {
             <div className="flex flex-wrap items-center gap-2 py-4">
               {/* FIX: Replaced simple buttons with interactive dropdowns */}
               <FilterDropdown title="Event Type">
-                <EventTypeFilter />
+                <EventTypeFilter
+                  selectedTags={filters.tags}
+                  onApply={(tags) => handleApplyFilters({ tags })}
+                  onClear={() => handleApplyFilters({ tags: [] })}
+                />
               </FilterDropdown>
               <FilterDropdown title="Seller Details">
-                <SellerDetailsFilter />
+                <SellerDetailsFilter
+                  selectedLevels={filters.vendorLevels}
+                  onApply={(levels) =>
+                    handleApplyFilters({ vendorLevels: levels })
+                  }
+                  onClear={() => handleApplyFilters({ vendorLevels: [] })}
+                />
               </FilterDropdown>
               <FilterDropdown title="Budget">
-                <BudgetFilter />
+                <BudgetFilter
+                  minBudget={filters.minBudget}
+                  maxBudget={filters.maxBudget}
+                  onApply={(min, max) =>
+                    handleApplyFilters({ minBudget: min, maxBudget: max })
+                  }
+                  onClear={() =>
+                    handleApplyFilters({
+                      minBudget: undefined,
+                      maxBudget: undefined,
+                    })
+                  }
+                />
               </FilterDropdown>
-              <FilterDropdown title="Event Date">
-                <EventDateFilter />
-              </FilterDropdown>
+
+              {filters.vendorLevels.length > 0 ||
+              filters.tags.length > 0 ||
+              filters.minBudget ||
+              filters.maxBudget ? (
+                <button
+                  onClick={handleClearFilters}
+                  className="ml-auto text-sm font-medium text-pink-600 hover:text-pink-700"
+                >
+                  Clear all filters
+                </button>
+              ) : null}
 
               <button className="ml-auto rounded-md border p-2 hover:bg-gray-100 lg:hidden">
                 <SlidersHorizontal className="h-5 w-5" />
@@ -215,26 +218,55 @@ const ServiceListingPage = () => {
           </div>
         </div>
 
-        {/* Results Info & Sort */}
+        {/* Results Info */}
         <div className="my-6 flex items-center justify-between">
-          <span className="text-sm text-gray-600">1,800+ results</span>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-500">Sort by:</span>
-            <button className="flex items-center font-semibold text-gray-900 hover:text-pink-600">
-              Best selling <ChevronDown className="ml-1 h-4 w-4" />
-            </button>
-          </div>
+          <span className="text-sm text-gray-600">
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              `${totalCount.toLocaleString()} results`
+            )}
+          </span>
         </div>
 
         {/* Gigs Grid */}
-        <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {gigsData.map((gig) => (
-            <GigCard key={gig.id} gig={gig} />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="flex h-96 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-pink-600" />
+          </div>
+        ) : gigs.length === 0 ? (
+          <div className="flex h-96 flex-col items-center justify-center">
+            <p className="text-lg text-gray-600">
+              No services found matching your criteria.
+            </p>
+            <button
+              onClick={handleClearFilters}
+              className="mt-4 text-sm font-medium text-pink-600 hover:text-pink-700"
+            >
+              Clear all filters
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {gigs.map((gig) => (
+              <GigCard
+                key={gig.id}
+                gig={gig}
+                categorySlug={categorySlug}
+                serviceSlug={serviceSlug}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Pagination */}
-        <Pagination />
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        )}
       </div>
     </div>
   );
@@ -288,20 +320,6 @@ const FilterDropdown = ({
       {isOpen && (
         <div className="absolute top-full left-0 z-20 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl">
           <div className="max-h-64 overflow-y-auto p-4">{children}</div>
-          <div className="flex items-center justify-between rounded-b-lg border-t border-gray-200 bg-gray-50 p-3">
-            <button
-              onClick={() => setIsOpen(false)}
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-            >
-              Clear
-            </button>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="rounded-md bg-pink-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-pink-700"
-            >
-              Apply
-            </button>
-          </div>
         </div>
       )}
     </div>
@@ -310,12 +328,21 @@ const FilterDropdown = ({
 
 // --- Specific Filter UIs ---
 
-const CheckboxItem = ({ label, count }: { label: string; count: number }) => {
-  const [isChecked, setIsChecked] = useState(false);
+const CheckboxItem = ({
+  label,
+  value,
+  isChecked,
+  onToggle,
+}: {
+  label: string;
+  value: string;
+  isChecked: boolean;
+  onToggle: () => void;
+}) => {
   return (
     <label className="flex cursor-pointer items-center space-x-3 rounded p-1.5 hover:bg-gray-50">
       <div
-        onClick={() => setIsChecked(!isChecked)}
+        onClick={onToggle}
         className={cn(
           "flex h-5 w-5 shrink-0 items-center justify-center rounded border-2",
           isChecked ? "border-pink-600 bg-pink-600" : "border-gray-300",
@@ -324,100 +351,216 @@ const CheckboxItem = ({ label, count }: { label: string; count: number }) => {
         {isChecked && <Check className="h-3 w-3 text-white" />}
       </div>
       <span className="grow text-sm text-gray-700">{label}</span>
-      <span className="text-xs text-gray-400">({count})</span>
     </label>
   );
 };
 
-const EventTypeFilter = () => (
-  <div className="space-y-2">
-    <CheckboxItem label="Wedding" count={800} />
-    <CheckboxItem label="Birthday Party" count={450} />
-    <CheckboxItem label="Corporate Event" count={320} />
-    <CheckboxItem label="Concert" count={150} />
-    <CheckboxItem label="Other" count={80} />
-  </div>
-);
+const EventTypeFilter = ({
+  selectedTags,
+  onApply,
+  onClear,
+}: {
+  selectedTags: string[];
+  onApply: (tags: string[]) => void;
+  onClear: () => void;
+}) => {
+  const [localTags, setLocalTags] = useState<string[]>(selectedTags);
 
-const SellerDetailsFilter = () => (
-  <div className="space-y-2">
-    <CheckboxItem label="Top Rated Seller" count={50} />
-    <CheckboxItem label="Level 2 Seller" count={400} />
-    <CheckboxItem label="Level 1 Seller" count={600} />
-    <CheckboxItem label="New Seller" count={750} />
-    <CheckboxItem label="Pro Verified" count={25} />
-  </div>
-);
+  const eventTypes = [
+    { label: "Wedding", value: "Wedding" },
+    { label: "Birthday Party", value: "Birthday" },
+    { label: "Corporate Event", value: "Corporate" },
+    { label: "Concert", value: "Concert" },
+    { label: "Other", value: "Other" },
+  ];
 
-const BudgetFilter = () => (
-  <div className="flex items-center space-x-3">
-    <input
-      type="number"
-      placeholder="Min (₦)"
-      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-pink-500"
-    />
-    <span className="text-gray-400">-</span>
-    <input
-      type="number"
-      placeholder="Max (₦)"
-      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-pink-500"
-    />
-  </div>
-);
+  const toggleTag = (tag: string) => {
+    setLocalTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+    );
+  };
 
-const EventDateFilter = () => {
-  const [selected, setSelected] = useState("any");
   return (
-    <div className="space-y-2">
-      <label className="flex cursor-pointer items-center space-x-3 rounded p-1.5 hover:bg-gray-50">
-        <input
-          type="radio"
-          name="event-date"
-          value="any"
-          checked={selected === "any"}
-          onChange={(e) => setSelected(e.target.value)}
-          className="h-4 w-4 border-gray-300 text-pink-600 focus:ring-pink-500"
-        />
-        <span className="text-sm text-gray-700">Anytime</span>
-      </label>
-      <label className="flex cursor-pointer items-center space-x-3 rounded p-1.5 hover:bg-gray-50">
-        <input
-          type="radio"
-          name="event-date"
-          value="30days"
-          checked={selected === "30days"}
-          onChange={(e) => setSelected(e.target.value)}
-          className="h-4 w-4 border-gray-300 text-pink-600 focus:ring-pink-500"
-        />
-        <span className="text-sm text-gray-700">Next 30 days</span>
-      </label>
-      <label className="flex cursor-pointer items-center space-x-3 rounded p-1.5 hover:bg-gray-50">
-        <input
-          type="radio"
-          name="event-date"
-          value="custom"
-          checked={selected === "custom"}
-          onChange={(e) => setSelected(e.target.value)}
-          className="h-4 w-4 border-gray-300 text-pink-600 focus:ring-pink-500"
-        />
-        <span className="text-sm text-gray-700">Pick a date</span>
-      </label>
+    <div>
+      <div className="space-y-2">
+        {eventTypes.map((type) => (
+          <CheckboxItem
+            key={type.value}
+            label={type.label}
+            value={type.value}
+            isChecked={localTags.includes(type.value)}
+            onToggle={() => toggleTag(type.value)}
+          />
+        ))}
+      </div>
+      <div className="mt-4 flex items-center justify-between border-t border-gray-200 bg-gray-50 pt-3">
+        <button
+          onClick={() => {
+            setLocalTags([]);
+            onClear();
+          }}
+          className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+        >
+          Clear
+        </button>
+        <button
+          onClick={() => onApply(localTags)}
+          className="rounded-md bg-pink-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-pink-700"
+        >
+          Apply
+        </button>
+      </div>
     </div>
   );
 };
 
-const GigCard = ({ gig }: { gig: Gig }) => {
+const SellerDetailsFilter = ({
+  selectedLevels,
+  onApply,
+  onClear,
+}: {
+  selectedLevels: string[];
+  onApply: (levels: string[]) => void;
+  onClear: () => void;
+}) => {
+  const [localLevels, setLocalLevels] = useState<string[]>(selectedLevels);
+
+  const vendorLevels = [
+    { label: "Top Rated Seller", value: "Top Rated" },
+    { label: "Level 2 Seller", value: "Level 2" },
+    { label: "Level 1 Seller", value: "Level 1" },
+    { label: "Level 0 Seller", value: "Level 0" },
+  ];
+
+  const toggleLevel = (level: string) => {
+    setLocalLevels((prev) =>
+      prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level],
+    );
+  };
+
+  return (
+    <div>
+      <div className="space-y-2">
+        {vendorLevels.map((level) => (
+          <CheckboxItem
+            key={level.value}
+            label={level.label}
+            value={level.value}
+            isChecked={localLevels.includes(level.value)}
+            onToggle={() => toggleLevel(level.value)}
+          />
+        ))}
+      </div>
+      <div className="mt-4 flex items-center justify-between border-t border-gray-200 bg-gray-50 pt-3">
+        <button
+          onClick={() => {
+            setLocalLevels([]);
+            onClear();
+          }}
+          className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+        >
+          Clear
+        </button>
+        <button
+          onClick={() => onApply(localLevels)}
+          className="rounded-md bg-pink-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-pink-700"
+        >
+          Apply
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const BudgetFilter = ({
+  minBudget,
+  maxBudget,
+  onApply,
+  onClear,
+}: {
+  minBudget?: number;
+  maxBudget?: number;
+  onApply: (min?: number, max?: number) => void;
+  onClear: () => void;
+}) => {
+  const [localMin, setLocalMin] = useState<string>(minBudget?.toString() ?? "");
+  const [localMax, setLocalMax] = useState<string>(maxBudget?.toString() ?? "");
+
+  return (
+    <div>
+      <div className="flex items-center space-x-3">
+        <input
+          type="number"
+          placeholder="Min (₦)"
+          value={localMin}
+          onChange={(e) => setLocalMin(e.target.value)}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-pink-500"
+        />
+        <span className="text-gray-400">-</span>
+        <input
+          type="number"
+          placeholder="Max (₦)"
+          value={localMax}
+          onChange={(e) => setLocalMax(e.target.value)}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-pink-500"
+        />
+      </div>
+      <div className="mt-4 flex items-center justify-between border-t border-gray-200 bg-gray-50 pt-3">
+        <button
+          onClick={() => {
+            setLocalMin("");
+            setLocalMax("");
+            onClear();
+          }}
+          className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+        >
+          Clear
+        </button>
+        <button
+          onClick={() => {
+            const min = localMin ? parseFloat(localMin) : undefined;
+            const max = localMax ? parseFloat(localMax) : undefined;
+            onApply(min, max);
+          }}
+          className="rounded-md bg-pink-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-pink-700"
+        >
+          Apply
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const GigCard = ({
+  gig,
+  categorySlug,
+  serviceSlug,
+}: {
+  gig: gig;
+  categorySlug: string;
+  serviceSlug: string;
+}) => {
+  if (!gig) return null;
+  const vendorName = gig.vendor.user.username;
+  const vendorLevel = gig.vendor.level ?? "Level 0";
+  const vendorAvatar = gig.vendor.avatarUrl;
+  const rating = gig.vendor.rating;
+  const orderCount = gig._count.orders;
+  const imageUrl =
+    gig.galleryImageUrls[0] ??
+    "https://placehold.co/400x300/ec4899/ffffff?text=Gig";
+
   return (
     <div className="w-full">
-      <a
-        href={`/categories/${serviceDetails.categorySlug}/${serviceDetails.serviceSlug}/${gig.id}`}
+      <Link
+        href={`/categories/${categorySlug}/${serviceSlug}/${gig.id}`}
         className="group"
       >
         {/* Image */}
         <div className="relative mb-3 aspect-4/3 w-full overflow-hidden rounded-lg">
           <Image
-            src={gig.imageUrl}
-            alt={gig.description}
+            src={imageUrl}
+            alt={gig.title}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             width={400}
             height={300}
@@ -430,82 +573,136 @@ const GigCard = ({ gig }: { gig: Gig }) => {
         {/* Seller Info */}
         <div className="mb-1.5 flex items-center gap-2">
           <Image
-            src={`https://placehold.co/24x24/eee/333?text=${gig.sellerName[0]?.toUpperCase()}`}
-            alt={gig.sellerName}
+            src={
+              vendorAvatar ??
+              `https://placehold.co/24x24/eee/333?text=${vendorName[0]?.toUpperCase()}`
+            }
+            alt={vendorName}
             className="h-6 w-6 rounded-full"
             width={24}
             height={24}
           />
           <div>
             <span className="text-sm font-semibold hover:underline">
-              {gig.sellerName}
+              {vendorName}
             </span>
-            <p className="text-xs text-gray-500">{gig.level}</p>
+            <p className="text-xs text-gray-500">{vendorLevel}</p>
           </div>
         </div>
 
-        {/* Description */}
+        {/* Title */}
         <p className="mb-1.5 text-base text-gray-800 transition-colors hover:text-pink-600">
-          {gig.description}
+          {gig.title}
         </p>
 
         {/* Rating */}
         <div className="mb-2 flex items-center gap-1 text-sm text-gray-700">
           <Star className="h-4 w-4 fill-current text-yellow-400" />
-          <span className="font-bold text-yellow-500">{gig.rating}</span>
-          <span className="text-gray-400">({gig.reviews})</span>
+          <span className="font-bold text-yellow-500">{rating.toFixed(1)}</span>
+          <span className="text-gray-400">
+            ({orderCount > 1000 ? "1k+" : orderCount})
+          </span>
         </div>
 
         {/* Price */}
         <div>
           <span className="text-xs font-medium text-gray-500">FROM</span>
           <span className="ml-1.5 text-lg font-bold text-gray-900">
-            ₦{gig.price.toLocaleString()}
+            ₦{gig.basePrice.toLocaleString()}
           </span>
         </div>
-      </a>
+      </Link>
     </div>
   );
 };
 
-const Pagination = () => {
+const Pagination = ({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) => {
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+
+    if (totalPages <= 7) {
+      // Show all pages if 7 or fewer
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Always show first page
+      pages.push(1);
+
+      if (currentPage > 3) {
+        pages.push("...");
+      }
+
+      // Show pages around current page
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (currentPage < totalPages - 2) {
+        pages.push("...");
+      }
+
+      // Always show last page
+      pages.push(totalPages);
+    }
+
+    return pages;
+  };
+
   return (
     <nav
       className="mt-16 flex items-center justify-center space-x-2"
       aria-label="Pagination"
     >
       <button
-        className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100"
+        onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+        disabled={currentPage === 1}
+        className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Previous page"
       >
         <ChevronLeft className="h-5 w-5" />
       </button>
 
+      {getPageNumbers().map((page, idx) =>
+        typeof page === "number" ? (
+          <button
+            key={idx}
+            onClick={() => onPageChange(page)}
+            className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-full font-semibold transition-colors",
+              page === currentPage
+                ? "bg-pink-600 text-white"
+                : "text-gray-600 hover:bg-gray-100",
+            )}
+            aria-current={page === currentPage ? "page" : undefined}
+          >
+            {page}
+          </button>
+        ) : (
+          <span
+            key={idx}
+            className="flex h-10 w-10 items-end justify-center text-gray-500"
+          >
+            {page}
+          </span>
+        ),
+      )}
+
       <button
-        className="flex h-10 w-10 items-center justify-center rounded-full bg-pink-600 font-semibold text-white"
-        aria-current="page"
-      >
-        1
-      </button>
-
-      <button className="flex h-10 w-10 items-center justify-center rounded-full font-semibold text-gray-600 transition-colors hover:bg-gray-100">
-        2
-      </button>
-
-      <button className="flex h-10 w-10 items-center justify-center rounded-full font-semibold text-gray-600 transition-colors hover:bg-gray-100">
-        3
-      </button>
-
-      <span className="flex h-10 w-10 items-end justify-center text-gray-500">
-        ...
-      </span>
-
-      <button className="flex h-10 w-10 items-center justify-center rounded-full font-semibold text-gray-600 transition-colors hover:bg-gray-100">
-        12
-      </button>
-
-      <button
-        className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100"
+        onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+        disabled={currentPage === totalPages}
+        className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Next page"
       >
         <ChevronRight className="h-5 w-5" />

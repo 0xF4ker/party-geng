@@ -11,98 +11,75 @@ import {
   Hourglass, // For Clearing
   Briefcase, // For Active Gigs
 } from "lucide-react";
+import { api } from "@/trpc/react";
+import { useAuthStore } from "@/stores/auth";
+import { toast } from "sonner";
+import { AddFundsModal } from "@/app/_components/payments/AddFundsModal";
+import { WithdrawModal } from "@/app/_components/payments/WithdrawModal";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
   return inputs.filter(Boolean).join(" ");
 };
 
-// --- Mock Data ---
-const vendorData = {
-  available: 150000,
-  clearing: 80000,
-  active: 250000,
-};
-
-const clientData = {
-  available: 20000,
-  earnings: 5000, // from refunds/gifts
-  expenses: 320000,
-};
-
-const transactions = [
-  {
-    id: "tx-1", // Add unique ID
-    date: "Oct 28, 2025",
-    activity: "Sale",
-    description: "Wedding DJ services for Chioma E.",
-    orderId: "ch-1234",
-    amount: 250000,
-  },
-  {
-    id: "tx-2", // Add unique ID
-    date: "Oct 26, 2025",
-    activity: "Withdrawal",
-    description: "Payout to GTBank",
-    orderId: "wd-5678",
-    amount: -50000,
-  },
-  {
-    id: "tx-3", // Add unique ID
-    date: "Oct 22, 2025",
-    activity: "Expense",
-    description: "Service Fee for Order #ch-1234",
-    orderId: "ch-1234",
-    amount: -25000,
-  },
-];
-// --- End Mock Data ---
-
 // --- Main Page Component ---
 const EarningsPage = () => {
-  const [userType, setUserType] = useState("vendor"); // 'vendor' or 'client'
+  const { profile } = useAuthStore();
+  const userType = profile?.role === "VENDOR" ? "vendor" : "client";
   const [activeTab, setActiveTab] = useState("overview");
+  const [showAddFundsModal, setShowAddFundsModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+
+  // Fetch wallet data
+  const { data: wallet, isLoading: walletLoading, refetch: refetchWallet } = api.payment.getWallet.useQuery();
+  const { data: transactionsData, isLoading: transactionsLoading, refetch: refetchTransactions } = api.payment.getTransactions.useQuery({
+    limit: 20,
+    offset: 0,
+  });
+
+  // Calculate balances from wallet data
+  const availableBalance = wallet?.availableBalance ?? 0;
+  const clearingBalance = wallet?.clearingBalance ?? 0;
+  const activeOrderBalance = wallet?.activeOrderBalance ?? 0;
+  const totalExpenses = wallet?.totalExpenses ?? 0;
+  const totalEarnings = wallet?.totalEarnings ?? 0;
+
+  // Format transactions for display
+  const formattedTransactions = transactionsData?.map(tx => ({
+    id: tx.id,
+    date: new Date(tx.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    activity: tx.type === 'PAYMENT' ? 'Payment' : tx.type === 'PAYOUT' ? 'Withdrawal' : tx.type === 'SERVICE_FEE' ? 'Fee' : tx.type === 'REFUND' ? 'Refund' : tx.type,
+    description: tx.description,
+    orderId: tx.order?.id ?? '-',
+    amount: tx.amount,
+  })) ?? [];
+
+  const handleAddFundsSuccess = () => {
+    void refetchWallet();
+    void refetchTransactions();
+    setShowAddFundsModal(false);
+    toast.success('Funds added successfully!');
+  };
+
+  if (walletLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
+        <div className="container mx-auto px-4 py-8 sm:px-8">
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-pink-600 border-r-transparent"></div>
+              <p className="mt-4 text-gray-600">Loading earnings...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
       <div className="container mx-auto px-4 py-8 sm:px-8">
         <h1 className="mb-6 text-3xl font-bold">Earnings</h1>
-
-        {/* "Our Twist" - Toggle to show conditional logic */}
-        <div className="mb-6 rounded-lg border border-purple-200 bg-purple-50 p-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <span className="font-semibold text-purple-800">Demo:</span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setUserType("vendor")}
-                className={cn(
-                  "rounded-md px-4 py-2 text-sm font-medium transition-all",
-                  userType === "vendor"
-                    ? "bg-pink-600 text-white shadow"
-                    : "bg-white text-gray-700 hover:bg-gray-100",
-                )}
-              >
-                View as Vendor
-              </button>
-              <button
-                onClick={() => setUserType("client")}
-                className={cn(
-                  "rounded-md px-4 py-2 text-sm font-medium transition-all",
-                  userType === "client"
-                    ? "bg-pink-600 text-white shadow"
-                    : "bg-white text-gray-700 hover:bg-gray-100",
-                )}
-              >
-                View as Client
-              </button>
-            </div>
-            <p className="text-sm text-purple-700">
-              {userType === "vendor"
-                ? "Showing earnings cards for a Vendor."
-                : "Showing earnings/expense cards for a Client."}
-            </p>
-          </div>
-        </div>
 
         {/* Tabs (Overview / Financial Docs) */}
         <div className="flex items-center border-b border-gray-200">
@@ -126,18 +103,23 @@ const EarningsPage = () => {
               {/* Card 1: Available Funds (COMMON) */}
               <AvailableFundsCard
                 userType={userType}
-                data={userType === "vendor" ? vendorData : clientData}
+                availableBalance={availableBalance}
+                onAddFunds={() => setShowAddFundsModal(true)}
+                onWithdraw={() => setShowWithdrawModal(true)}
               />
 
               {/* Card 2: Conditional */}
               {userType === "vendor" ? (
-                <FuturePaymentsCard data={vendorData} />
+                <FuturePaymentsCard 
+                  clearingBalance={clearingBalance}
+                  activeOrderBalance={activeOrderBalance}
+                />
               ) : (
-                <ClientEarningsExpensesCard data={clientData} />
+                <ClientEarningsExpensesCard 
+                  totalEarnings={totalEarnings}
+                  totalExpenses={totalExpenses}
+                />
               )}
-
-              {/* Card 3: Empty or other info */}
-              {/* You can add a third card here if needed, e.g., "Taxes" or "Earnings to Date" for vendors */}
             </div>
 
             {/* --- Transaction History --- */}
@@ -148,7 +130,16 @@ const EarningsPage = () => {
                 <FilterDropdown title="Activity" icon={ArrowDownUp} />
               </div>
               {/* Table */}
-              <TransactionTable transactions={transactions} />
+              {transactionsLoading ? (
+                <div className="flex items-center justify-center p-10">
+                  <div className="text-center">
+                    <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-solid border-pink-600 border-r-transparent"></div>
+                    <p className="mt-2 text-sm text-gray-600">Loading transactions...</p>
+                  </div>
+                </div>
+              ) : (
+                <TransactionTable transactions={formattedTransactions} />
+              )}
             </div>
           </div>
         )}
@@ -162,6 +153,26 @@ const EarningsPage = () => {
             </p>
             {/* ...Financial documents content would go here... */}
           </div>
+        )}
+
+        {/* Modals */}
+        {showAddFundsModal && (
+          <AddFundsModal
+            onClose={() => setShowAddFundsModal(false)}
+            onSuccess={handleAddFundsSuccess}
+          />
+        )}
+
+        {showWithdrawModal && (
+          <WithdrawModal
+            onClose={() => setShowWithdrawModal(false)}
+            availableBalance={availableBalance}
+            onSuccess={() => {
+              void refetchWallet();
+              void refetchTransactions();
+              setShowWithdrawModal(false);
+            }}
+          />
         )}
       </div>
     </div>
@@ -209,52 +220,53 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
 );
 
 // Card 1: Available Funds (Common)
-interface VendorData {
-  available: number;
-  clearing: number;
-  active: number;
-}
-
-interface ClientData {
-  available: number;
-  earnings: number;
-  expenses: number;
-}
-
 interface AvailableFundsCardProps {
   userType: string;
-  data: VendorData | ClientData;
+  availableBalance: number;
+  onAddFunds: () => void;
+  onWithdraw: () => void;
 }
 
 const AvailableFundsCard: React.FC<AvailableFundsCardProps> = ({
   userType,
-  data,
+  availableBalance,
+  onAddFunds,
+  onWithdraw,
 }) => (
   <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
     <h3 className="mb-3 text-sm font-medium text-gray-500">Available funds</h3>
     <p className="mb-1 text-sm text-gray-500">Balance available for use</p>
     <p className="mb-5 text-4xl font-bold text-gray-900">
-      ₦{data.available.toLocaleString()}
+      ₦{availableBalance.toLocaleString()}
     </p>
-    {userType === "vendor" && (
-      <button className="w-full rounded-md bg-pink-600 py-2.5 font-semibold text-white transition-colors hover:bg-pink-700">
+    {userType === "vendor" ? (
+      <button 
+        onClick={onWithdraw}
+        className="w-full rounded-md bg-pink-600 py-2.5 font-semibold text-white transition-colors hover:bg-pink-700"
+      >
         Withdraw Funds
       </button>
-    )}
-    {userType === "client" && (
-      <p className="text-xs text-gray-400">
-        This balance can be used for future purchases or withdrawn.
-      </p>
+    ) : (
+      <button 
+        onClick={onAddFunds}
+        className="w-full rounded-md bg-pink-600 py-2.5 font-semibold text-white transition-colors hover:bg-pink-700"
+      >
+        Add Funds
+      </button>
     )}
   </div>
 );
 
 // Card 2: Vendor View
 interface FuturePaymentsCardProps {
-  data: VendorData;
+  clearingBalance: number;
+  activeOrderBalance: number;
 }
 
-const FuturePaymentsCard: React.FC<FuturePaymentsCardProps> = ({ data }) => (
+const FuturePaymentsCard: React.FC<FuturePaymentsCardProps> = ({ 
+  clearingBalance,
+  activeOrderBalance,
+}) => (
   <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
     <h3 className="mb-5 text-sm font-medium text-gray-500">Future payments</h3>
 
@@ -266,7 +278,7 @@ const FuturePaymentsCard: React.FC<FuturePaymentsCardProps> = ({ data }) => (
           <Info className="ml-1.5 h-3.5 w-3.5 text-gray-400" />
         </p>
         <p className="text-2xl font-semibold text-gray-800">
-          ₦{data.clearing.toLocaleString()}
+          ₦{clearingBalance.toLocaleString()}
         </p>
       </div>
     </div>
@@ -279,7 +291,7 @@ const FuturePaymentsCard: React.FC<FuturePaymentsCardProps> = ({ data }) => (
           <Info className="ml-1.5 h-3.5 w-3.5 text-gray-400" />
         </p>
         <p className="text-2xl font-semibold text-gray-800">
-          ₦{data.active.toLocaleString()}
+          ₦{activeOrderBalance.toLocaleString()}
         </p>
       </div>
     </div>
@@ -288,11 +300,13 @@ const FuturePaymentsCard: React.FC<FuturePaymentsCardProps> = ({ data }) => (
 
 // Card 2: Client View
 interface ClientEarningsExpensesCardProps {
-  data: ClientData;
+  totalEarnings: number;
+  totalExpenses: number;
 }
 
 const ClientEarningsExpensesCard: React.FC<ClientEarningsExpensesCardProps> = ({
-  data,
+  totalEarnings,
+  totalExpenses,
 }) => (
   <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
     <h3 className="mb-5 text-sm font-medium text-gray-500">
@@ -307,7 +321,7 @@ const ClientEarningsExpensesCard: React.FC<ClientEarningsExpensesCardProps> = ({
           <Info className="ml-1.5 h-3.5 w-3.5 text-gray-400" />
         </p>
         <p className="text-2xl font-semibold text-green-600">
-          +₦{data.earnings.toLocaleString()}
+          +₦{totalEarnings.toLocaleString()}
         </p>
       </div>
     </div>
@@ -320,7 +334,7 @@ const ClientEarningsExpensesCard: React.FC<ClientEarningsExpensesCardProps> = ({
           <Info className="ml-1.5 h-3.5 w-3.5 text-gray-400" />
         </p>
         <p className="text-2xl font-semibold text-gray-800">
-          ₦{data.expenses.toLocaleString()}
+          ₦{totalExpenses.toLocaleString()}
         </p>
       </div>
     </div>

@@ -9,113 +9,53 @@ import {
   Award,
   MessageSquare,
   Clock,
+  Loader2,
 } from "lucide-react";
 import Image from "next/image";
+import { useParams, useRouter } from "next/navigation";
+import { api } from "@/trpc/react";
+import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@/server/api/root";
 
-// Mock cn function for demonstration
-const cn = (...inputs: (string | boolean | undefined | null)[]) => {
-  return inputs.filter(Boolean).join(" ");
-};
-
-// --- Mock Data ---
-const vendorDetails = {
-  name: "DJ SpinMaster",
-  handle: "@djspinmaster",
-  level: "Level 2",
-  title: "Professional Wedding & Event DJ",
-  rating: 4.9,
-  reviews: 131,
-  avatarUrl: "https://placehold.co/128x128/ec4899/ffffff?text=DJ",
-  location: "Lagos, Nigeria",
-  languages: ["English", "Yoruba", "Pidgin"],
-  avgResponseTime: "1 Hour",
-  about:
-    "Hi everyone, let me introduce myself. My name is DJ SpinMaster, and I am a professional event DJ with over 5 years of experience.\n\nI love creating unforgettable atmospheres for weddings, corporate events, and private parties. I specialize in Afrobeats, Amapiano, Hip Hop, and classic party anthems. Let's work together to make your event amazing!",
-  skills: [
-    "Wedding DJ",
-    "Corporate Events",
-    "MC",
-    "Afrobeats",
-    "Amapiano",
-    "Playlist Curation",
-    "Sound Engineering",
-  ],
-};
-
-const gigsData = [
-  {
-    id: 1,
-    sellerName: "DJ SpinMaster",
-    level: "Level 2",
-    description: "I will be the professional wedding DJ for your reception",
-    rating: 4.9,
-    reviews: 131,
-    price: 150000,
-    imageUrl: "https://placehold.co/400x300/ec4899/ffffff?text=Wedding+DJ",
-    isFeatured: false, // Removed featured concept
-  },
-  {
-    id: 2,
-    sellerName: "DJ SpinMaster",
-    level: "Level 2",
-    description: "I will provide premium DJ services for corporate events",
-    rating: 4.9,
-    reviews: 131,
-    price: 400000,
-    imageUrl: "https://placehold.co/400x300/ef4444/ffffff?text=Corporate+DJ",
-  },
-  {
-    id: 3,
-    sellerName: "DJ SpinMaster",
-    level: "Level 2",
-    description: "I will DJ your birthday party with Afrobeats & Amapiano",
-    rating: 4.9,
-    reviews: 131,
-    price: 100000,
-    imageUrl: "https://placehold.co/400x300/3b82f6/ffffff?text=Birthday+Party",
-  },
-  {
-    id: 4,
-    sellerName: "DJ SpinMaster",
-    level: "Level 2",
-    description: "I will provide full sound system rental for your event",
-    rating: 4.9,
-    reviews: 131,
-    price: 80000,
-    imageUrl: "https://placehold.co/400x300/10b981/ffffff?text=Sound+System",
-  },
-];
-
-const reviewData = [
-  {
-    id: 1,
-    reviewerName: "Adebayo P.",
-    location: "Nigeria",
-    rating: 5,
-    date: "2 weeks ago",
-    comment:
-      "DJ SpinMaster was amazing! He kept the dance floor full all night and was so professional to work with. Highly recommend for any wedding!",
-    avatarUrl: "https://placehold.co/40x40/eee/333?text=A",
-  },
-  {
-    id: 2,
-    reviewerName: "Chioma E.",
-    location: "Nigeria",
-    rating: 5,
-    date: "1 month ago",
-    comment:
-      "Booked for our corporate end-of-year party. Punctual, great music selection, and read the crowd perfectly. Will book again.",
-    avatarUrl: "https://placehold.co/40x40/eee/333?text=C",
-  },
-];
-// --- End Mock Data ---
+type routerOutput = inferRouterOutputs<AppRouter>;
+type vendor = routerOutput["vendor"]["getByUsername"];
+type gig = routerOutput["gig"]["getByVendorUsername"][number];
 
 // --- Main Page Component ---
 const VendorProfilePage = () => {
+  const params = useParams();
+  const username = params.user as string;
+  const router = useRouter();
+  const { user } = useAuth();
+
+  // Fetch vendor profile and gigs
+  const {
+    data: vendorProfile,
+    isLoading: vendorLoading,
+    error: vendorError,
+  } = api.vendor.getByUsername.useQuery({ username });
+  const { data: gigs, isLoading: gigsLoading } =
+    api.gig.getByVendorUsername.useQuery({ username });
+
+  // Create conversation mutation
+  const createConversation = api.chat.createConversationWithMessage.useMutation(
+    {
+      onSuccess: (data) => {
+        router.push(`/inbox?conversation=${data.conversationId}`);
+      },
+      onError: (error) => {
+        console.error("Failed to create conversation:", error);
+        alert("Please sign in to contact this vendor");
+      },
+    },
+  );
+
   const [isSidebarSticky, setIsSidebarSticky] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(0);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null); // Ref for the right-side content
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Effect to capture sidebar width
   useLayoutEffect(() => {
@@ -183,6 +123,56 @@ const VendorProfilePage = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [isSidebarSticky]);
 
+  const handleContactVendor = () => {
+    if (!user) {
+      alert("Please sign in to contact this vendor");
+      return;
+    }
+
+    if (!vendorProfile?.userId) {
+      alert("Unable to contact this vendor");
+      return;
+    }
+
+    // Prevent contacting yourself
+    if (user.id === vendorProfile.userId) {
+      alert("You cannot message yourself");
+      return;
+    }
+
+    createConversation.mutate({
+      otherUserId: vendorProfile.userId,
+      initialMessage: `Hi! I'd like to know more about your services.`,
+    });
+  };
+
+  if (vendorError) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
+        <div className="container mx-auto px-4 py-8 sm:px-8">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
+            <h2 className="text-xl font-bold text-red-800">Vendor Not Found</h2>
+            <p className="mt-2 text-red-600">
+              The vendor profile you&apos;re looking for doesn&apos;t exist.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (vendorLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
+        <div className="container mx-auto px-4 py-8 sm:px-8">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-12 w-12 animate-spin text-pink-600" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
       {/* Container */}
@@ -193,7 +183,11 @@ const VendorProfilePage = () => {
           <div className="relative lg:col-span-1">
             {/* Mobile View: Static Card */}
             <div className="lg:hidden">
-              <StickySellerInfoCard />
+              <StickySellerInfoCard
+                vendorProfile={vendorProfile ?? ({} as vendor)}
+                onContactClick={handleContactVendor}
+                isCreatingConversation={createConversation.isPending}
+              />
             </div>
             {/* Desktop View: Sticky Wrapper */}
             <div
@@ -220,21 +214,33 @@ const VendorProfilePage = () => {
                     }
               }
             >
-              <StickySellerInfoCard />
+              <StickySellerInfoCard
+                vendorProfile={vendorProfile ?? ({} as vendor)}
+                onContactClick={handleContactVendor}
+                isCreatingConversation={createConversation.isPending}
+              />
             </div>
           </div>
 
           {/* Right Column (Main Content) */}
           <div className="space-y-8 lg:col-span-2" ref={contentRef}>
-            <MyGigsSection />
-            <ReviewsSection />
+            <MyGigsSection gigs={gigs} isLoading={gigsLoading} />
+            <ReviewsSection vendorProfile={vendorProfile ?? ({} as vendor)} />
           </div>
         </div>
       </div>
 
       {/* Innovation: Floating Chat Button */}
-      <button className="fixed bottom-6 left-6 z-20 rounded-full bg-pink-600 p-4 text-white shadow-lg transition-transform hover:scale-105 hover:bg-pink-700 lg:bottom-10 lg:left-10">
-        <MessageSquare className="h-6 w-6" />
+      <button
+        onClick={handleContactVendor}
+        disabled={createConversation.isPending}
+        className="fixed bottom-6 left-6 z-20 rounded-full bg-pink-600 p-4 text-white shadow-lg transition-transform hover:scale-105 hover:bg-pink-700 disabled:cursor-not-allowed disabled:opacity-50 lg:bottom-10 lg:left-10"
+      >
+        {createConversation.isPending ? (
+          <Loader2 className="h-6 w-6 animate-spin" />
+        ) : (
+          <MessageSquare className="h-6 w-6" />
+        )}
       </button>
     </div>
   );
@@ -242,165 +248,186 @@ const VendorProfilePage = () => {
 
 // --- Sub-Components ---
 
-const StickySellerInfoCard = () => (
+const StickySellerInfoCard = ({
+  vendorProfile,
+  onContactClick,
+  isCreatingConversation,
+}: {
+  vendorProfile: vendor;
+  onContactClick: () => void;
+  isCreatingConversation: boolean;
+}) => (
   <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
     <div className="flex flex-col items-center">
       <Image
-        src={vendorDetails.avatarUrl}
-        alt={vendorDetails.name}
+        src={
+          vendorProfile?.avatarUrl ??
+          "https://placehold.co/128x128/ec4899/ffffff?text=V"
+        }
+        alt={vendorProfile?.companyName ?? "Vendor"}
         className="mb-4 h-32 w-32 rounded-full"
         width={128}
         height={128}
       />
-      <h1 className="text-2xl font-bold text-gray-800">{vendorDetails.name}</h1>
-      <p className="text-center text-gray-600">{vendorDetails.title}</p>
+      <h1 className="text-2xl font-bold text-gray-800">
+        {vendorProfile?.companyName ?? "Vendor"}
+      </h1>
+      <p className="text-center text-gray-600">
+        {vendorProfile?.title ?? "Service Provider"}
+      </p>
       <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
         <Star className="h-5 w-5 fill-current text-yellow-400" />
         <span className="font-bold text-yellow-500">
-          {vendorDetails.rating}
+          {vendorProfile?.rating?.toFixed(1) ?? "0.0"}
         </span>
-        <span className="text-sm text-gray-500">({vendorDetails.reviews})</span>
         <span className="mx-1 hidden text-gray-300 sm:inline">|</span>
         <Award className="h-5 w-5 text-pink-500" />
         <span className="text-sm font-semibold text-gray-700">
-          {vendorDetails.level}
+          {vendorProfile?.level ?? "Level 0"}
         </span>
       </div>
     </div>
 
     <div className="mt-6">
       {/* FIX: Changed to "Request Quote" to match event flow */}
-      <button className="w-full rounded-md bg-pink-600 py-3 font-bold text-white transition-colors hover:bg-pink-700">
-        Request Quote
+      <button
+        onClick={onContactClick}
+        disabled={isCreatingConversation}
+        className="flex w-full items-center justify-center gap-2 rounded-md bg-pink-600 py-3 font-bold text-white transition-colors hover:bg-pink-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isCreatingConversation ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span>Starting conversation...</span>
+          </>
+        ) : (
+          "Request Quote"
+        )}
       </button>
     </div>
 
     <div className="mt-6 border-t pt-6">
       <div className="flex flex-col space-y-3">
-        <div className="flex items-start gap-3 text-sm">
-          <MapPin className="h-5 w-5 shrink-0 text-gray-500" />
-          <span>
-            From <strong>{vendorDetails.location}</strong>
-          </span>
-        </div>
-        <div className="flex items-start gap-3 text-sm">
-          <Languages className="h-5 w-5 shrink-0 text-gray-500" />
-          <span>
-            Speaks <strong>{vendorDetails.languages.join(", ")}</strong>
-          </span>
-        </div>
-        <div className="flex items-start gap-3 text-sm">
-          <Clock className="h-5 w-5 shrink-0 text-gray-500" />
-          <span>
-            Avg. response time: <strong>{vendorDetails.avgResponseTime}</strong>
-          </span>
-        </div>
+        {vendorProfile?.location && (
+          <div className="flex items-start gap-3 text-sm">
+            <MapPin className="h-5 w-5 shrink-0 text-gray-500" />
+            <span>
+              From <strong>{vendorProfile.location}</strong>
+            </span>
+          </div>
+        )}
+        {vendorProfile?.languages && vendorProfile.languages.length > 0 && (
+          <div className="flex items-start gap-3 text-sm">
+            <Languages className="h-5 w-5 shrink-0 text-gray-500" />
+            <span>
+              Speaks <strong>{vendorProfile.languages.join(", ")}</strong>
+            </span>
+          </div>
+        )}
+        {vendorProfile?.avgResponseTime && (
+          <div className="flex items-start gap-3 text-sm">
+            <Clock className="h-5 w-5 shrink-0 text-gray-500" />
+            <span>
+              Avg. response time:{" "}
+              <strong>{vendorProfile.avgResponseTime}</strong>
+            </span>
+          </div>
+        )}
       </div>
     </div>
 
-    <div className="mt-6 border-t pt-6">
-      <h3 className="mb-3 text-lg font-semibold">About me</h3>
-      <p className="text-sm leading-relaxed whitespace-pre-line text-gray-600">
-        {vendorDetails.about}
-      </p>
-    </div>
+    {vendorProfile?.about && (
+      <div className="mt-6 border-t pt-6">
+        <h3 className="mb-3 text-lg font-semibold">About me</h3>
+        <p className="text-sm leading-relaxed whitespace-pre-line text-gray-600">
+          {vendorProfile.about}
+        </p>
+      </div>
+    )}
 
-    <div className="mt-6 border-t pt-6">
-      <h3 className="mb-4 text-lg font-semibold">Skills</h3>
-      <div className="flex flex-wrap gap-2">
-        {vendorDetails.skills.map((skill) => (
-          <span
-            key={skill}
-            className="rounded-full bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700"
-          >
-            {skill}
-          </span>
+    {vendorProfile?.skills && vendorProfile.skills.length > 0 && (
+      <div className="mt-6 border-t pt-6">
+        <h3 className="mb-4 text-lg font-semibold">Skills</h3>
+        <div className="flex flex-wrap gap-2">
+          {vendorProfile.skills.map((skill: string) => (
+            <span
+              key={skill}
+              className="rounded-full bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700"
+            >
+              {skill}
+            </span>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+);
+
+const MyGigsSection = ({
+  gigs,
+  isLoading,
+}: {
+  gigs?: gig[] | undefined;
+  isLoading: boolean;
+}) => {
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-pink-600" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!gigs || gigs.length === 0) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-6 text-2xl font-bold text-gray-800">Gigs</h2>
+        <p className="py-8 text-center text-gray-500">No gigs available yet</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <h2 className="mb-6 text-2xl font-bold text-gray-800">
+        Gigs ({gigs.length})
+      </h2>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {gigs.map((gig) => (
+          <GigCard key={gig.id} gig={gig} />
         ))}
       </div>
     </div>
-  </div>
-);
+  );
+};
 
-const MyGigsSection = () => (
+const ReviewsSection = ({ vendorProfile }: { vendorProfile: vendor }) => (
   <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-    <h2 className="mb-6 text-2xl font-bold text-gray-800">My Gigs</h2>
-    {/* FIX: Changed to a responsive grid */}
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-      {gigsData.map((gig) => (
-        <GigCard key={gig.id} gig={gig} />
-      ))}
+    <h2 className="mb-4 text-2xl font-bold text-gray-800">Reviews</h2>
+    <div className="py-8 text-center">
+      <Star className="mx-auto mb-2 h-12 w-12 text-gray-300" />
+      <p className="text-gray-500">No reviews yet</p>
+      <p className="mt-1 text-sm text-gray-400">
+        Be the first to work with this vendor!
+      </p>
     </div>
   </div>
 );
 
-{
-  /* NEW: Reviews Section Component */
-}
-const ReviewsSection = () => (
-  <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-    <h2 className="mb-4 text-2xl font-bold text-gray-800">
-      Reviews ({reviewData.length})
-    </h2>
-    <div className="divide-y divide-gray-100">
-      {reviewData.map((review) => (
-        <div className="py-6" key={review.id}>
-          <div className="mb-3 flex items-center space-x-3">
-            <Image
-              src={review.avatarUrl}
-              alt={review.reviewerName}
-              className="h-10 w-10 rounded-full"
-              width={40}
-              height={40}
-            />
-            <div>
-              <h4 className="font-semibold">{review.reviewerName}</h4>
-              <p className="text-sm text-gray-500">{review.location}</p>
-            </div>
-          </div>
-          <div className="mb-3 flex items-center gap-1">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star
-                key={i}
-                className={cn(
-                  "h-5 w-5",
-                  i < review.rating
-                    ? "fill-current text-yellow-400"
-                    : "text-gray-300",
-                )}
-              />
-            ))}
-            <span className="ml-2 font-bold text-yellow-500">
-              {review.rating.toFixed(1)}
-            </span>
-            <span className="ml-2 text-sm text-gray-400">| {review.date}</span>
-          </div>
-          <p className="leading-relaxed text-gray-600">{review.comment}</p>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-interface Gig {
-  id: number;
-  sellerName: string;
-  level: string;
-  description: string;
-  rating: number;
-  reviews: number;
-  price: number;
-  imageUrl: string;
-}
-
-const GigCard = ({ gig }: { gig: Gig }) => {
+const GigCard = ({ gig }: { gig: gig }) => {
+  const firstImage =
+    gig.galleryImageUrls?.[0] ??
+    "https://placehold.co/400x300/ec4899/ffffff?text=Gig";
   return (
     <div className="w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-      <a href="#" className="group">
+      <a href={`/gigs/${gig.id}`} className="group">
         {/* Image */}
         <div className="relative aspect-4/3 w-full overflow-hidden">
           <Image
-            src={gig.imageUrl}
-            alt={gig.description}
+            src={firstImage}
+            alt={gig.title}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
             width={400}
             height={300}
@@ -411,23 +438,21 @@ const GigCard = ({ gig }: { gig: Gig }) => {
         </div>
 
         <div className="p-4">
-          {/* Description */}
+          {/* Title */}
           <p className="mb-1.5 h-12 overflow-hidden text-base text-gray-800 transition-colors hover:text-pink-600">
-            {gig.description}
+            {gig.title}
           </p>
 
-          {/* Rating */}
-          <div className="mb-2 flex items-center gap-1 text-sm text-gray-700">
-            <Star className="h-4 w-4 fill-current text-yellow-400" />
-            <span className="font-bold text-yellow-500">{gig.rating}</span>
-            <span className="text-gray-400">({gig.reviews})</span>
+          {/* Category */}
+          <div className="mb-2 text-xs text-gray-500">
+            {gig.service?.category?.name} • {gig.service?.name}
           </div>
 
           {/* Price */}
           <div>
             <span className="text-xs font-medium text-gray-500">FROM</span>
             <span className="ml-1.5 text-lg font-bold text-gray-900">
-              ₦{gig.price.toLocaleString()}
+              ₦{gig.basePrice.toLocaleString()}
             </span>
           </div>
         </div>

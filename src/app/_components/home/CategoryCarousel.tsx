@@ -1,30 +1,43 @@
 "use client";
 
-import { categoriesData } from "@/app/local/categoryv2";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import { slugify } from "@/lib/utils";
+import { api } from "@/trpc/react";
+import Link from "next/link";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@/server/api/root";
+
+// --- Types ---
+type routerOutput = inferRouterOutputs<AppRouter>;
+// 1. Get the type for the entire procedure's output (which can be null)
+type CategoryOutput = routerOutput["category"]["getAll"][number];
+
+type Category = NonNullable<CategoryOutput>;
 
 const MegaMenu = ({
   category,
   onMouseEnter,
   onMouseLeave,
 }: {
-  category: (typeof categoriesData)[0];
+  category: Category;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }) => {
-  // Flatten services if they are in groups, then split into columns for better layout
-  const allServices = category.services.flatMap((service) =>
-    typeof service === "string" ? service : service.items,
+  // Split services into columns for better layout
+  const allServices = category.services;
+  const columns = allServices.reduce(
+    (acc, service, index) => {
+      const colIndex = Math.floor(index / 10); // 10 items per column
+      acc[colIndex] ??= [];
+      acc[colIndex].push(service);
+      return acc;
+    },
+    [] as (typeof allServices)[],
   );
-  const columns = allServices.reduce((acc, service, index) => {
-    const colIndex = Math.floor(index / 10); // 10 items per column
-    acc[colIndex] ??= [];
-    acc[colIndex].push(service);
-    return acc;
-  }, [] as string[][]);
+
+  const categorySlug = slugify(category.name);
 
   return (
     <div
@@ -41,26 +54,33 @@ const MegaMenu = ({
             <p className="mt-2 text-gray-600">
               Find the best {category.name.toLowerCase()} for your event.
             </p>
-            <a
-              href={`/categories/${slugify(category.name)}`}
+            <Link
+              href={`/categories/${categorySlug}`}
               className="mt-4 inline-block font-semibold text-pink-500 hover:underline"
             >
               All {category.name} services &rarr;
-            </a>
+            </Link>
           </div>
           <div className="flex grow flex-row gap-8">
             {columns.map((column, colIndex) => (
               <ul key={colIndex} className="flex flex-col space-y-3">
-                {column.map((service) => (
-                  <li key={service}>
-                    <a
-                      href={`/categories/${category.name}/${slugify(service)}`}
-                      className="text-gray-700 hover:text-pink-500"
-                    >
-                      {service}
-                    </a>
-                  </li>
-                ))}
+                {column.map((service) => {
+                  const serviceSlug = slugify(service.name);
+                  const gigCount = service._count.gigs;
+                  return (
+                    <li key={service.id}>
+                      <Link
+                        href={`/categories/${categorySlug}/${serviceSlug}`}
+                        className="flex items-center gap-2 text-gray-700 hover:text-pink-500"
+                      >
+                        <span>{service.name}</span>
+                        <span className="text-xs text-gray-400">
+                          ({gigCount})
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             ))}
           </div>
@@ -71,12 +91,13 @@ const MegaMenu = ({
 };
 
 const CategoryCarousel = () => {
+  // Fetch categories from database
+  const { data: categoriesData = [] } = api.category.getAll.useQuery();
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
-  const [hoveredCategory, setHoveredCategory] = useState<
-    (typeof categoriesData)[0] | null
-  >(null);
+  const [hoveredCategory, setHoveredCategory] = useState<Category | null>(null);
   const megaMenuTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const checkScroll = () => {
@@ -112,7 +133,7 @@ const CategoryCarousel = () => {
     }
   };
 
-  const handleMouseEnter = (category: (typeof categoriesData)[0]) => {
+  const handleMouseEnter = (category: Category) => {
     if (megaMenuTimerRef.current) {
       clearTimeout(megaMenuTimerRef.current);
     }
@@ -148,14 +169,14 @@ const CategoryCarousel = () => {
       >
         <div className="flex items-center space-x-4">
           {categoriesData.map((category) => (
-            <a
-              key={category.name}
+            <Link
+              key={category.id}
               href={`/categories/${slugify(category.name)}`}
               className="px-2 py-3 text-sm font-medium whitespace-nowrap text-gray-600 transition-all hover:border-b-2 hover:border-pink-500 hover:text-pink-500"
               onMouseEnter={() => handleMouseEnter(category)}
             >
               {category.name}
-            </a>
+            </Link>
           ))}
         </div>
       </div>

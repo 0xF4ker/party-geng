@@ -11,185 +11,70 @@ import {
   MoreVertical,
   CheckCircle,
   X,
-  Copy, // Added
-  ToggleLeft, // Added
-  ToggleRight, // Added
-  Trash2, // Added
-  ShieldCheck, // Added
+  Copy,
+  ToggleLeft,
+  ToggleRight,
+  Trash2,
+  ShieldCheck,
+  Loader2,
 } from "lucide-react";
 import Image from "next/image";
+import { api } from "@/trpc/react";
+import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@/server/api/root";
 
-// Mock cn function for demonstration
-const cn = (...inputs: (string | boolean | undefined | null)[]) => {
-  return inputs.filter(Boolean).join(" ");
-};
+type routerOutput = inferRouterOutputs<AppRouter>;
+type user = routerOutput["user"]["getByUsername"];
+// getMyEvents returns { upcoming: EventType[]; past: EventType[] }, derive the event item type from the upcoming array
+type event = routerOutput["event"]["getMyEvents"]["upcoming"][number];
+type eventPast = routerOutput["event"]["getMyEvents"]["past"][number];
+type WishlistObject = event["wishlist"];
+// 2. Get the 'items' array type from the non-null Wishlist object
+type WishlistItemsArray = NonNullable<WishlistObject>["items"];
+// 3. Get the type of a single item from that array
+type wishlistItem = WishlistItemsArray[number];
 
-// --- Mock Data ---
-const clientEvents = [
-  {
-    id: 1,
-    title: "Adebayo's 30th Birthday Bash",
-    date: "December 15, 2025",
-    isPublic: true,
-    coverImage:
-      "https://placehold.co/600x300/ec4899/ffffff?text=30th+Birthday+Bash",
-    hiredVendors: [
-      {
-        id: 1,
-        name: "DJ SpinMaster",
-        avatarUrl: "https://placehold.co/40x40/ec4899/ffffff?text=DJ",
-      },
-      {
-        id: 2,
-        name: "SnapPro",
-        avatarUrl: "https://placehold.co/40x40/8d99ae/ffffff?text=S",
-      },
-      {
-        id: 3,
-        name: "Cakes 'n' Bakes",
-        avatarUrl: "https://placehold.co/40x40/f59e0b/ffffff?text=C",
-      },
-    ],
-    // FIX: Updated Wishlist data structure
-    wishlistItems: [
-      {
-        id: 1,
-        name: "Bottle of Veuve Clicquot",
-        price: 65000,
-        promisors: ["Chioma E.", "Tunde O."],
-        isFulfilled: false,
-      },
-      {
-        id: 2,
-        name: "Professional Fog Machine",
-        price: 40000,
-        promisors: [],
-        isFulfilled: false,
-      },
-      {
-        id: 3,
-        name: "Custom Neon Sign ('Adebayo 30')",
-        price: 80000,
-        promisors: ["Chioma E."],
-        isFulfilled: true,
-      },
-      {
-        id: 4,
-        name: "Sparklers (Pack of 50)",
-        price: 15000,
-        promisors: [],
-        isFulfilled: false,
-      },
-    ],
-  },
-  {
-    id: 2,
-    title: "End of Year Corporate Party 2024",
-    date: "December 20, 2024",
-    isPublic: false,
-    coverImage:
-      "https://placehold.co/600x300/8b5cf6/ffffff?text=Corporate+Party",
-    hiredVendors: [
-      {
-        id: 1,
-        name: "Lagos Party Band",
-        avatarUrl: "https://placehold.co/40x40/3b82f6/ffffff?text=L",
-      },
-    ],
-    wishlistItems: [],
-  },
-];
+type vendor = event["hiredVendors"][number]["vendor"];
 
-const pastEvents = [
-  {
-    id: 3,
-    title: "Chioma's Wedding",
-    date: "October 26, 2024",
-    coverImage: "https://placehold.co/600x300/10b981/ffffff?text=Wedding",
-    hiredVendors: [],
-    wishlistItems: [],
-  },
-];
-
-// NEW: Mock data for vendors the client has active orders with
-const activeVendors = [
-  {
-    id: 1,
-    name: "DJ SpinMaster",
-    service: "Wedding DJ",
-    avatarUrl: "https://placehold.co/40x40/ec4899/ffffff?text=DJ",
-    isAdded: true,
-  },
-  {
-    id: 2,
-    name: "SnapPro",
-    service: "Photographer",
-    avatarUrl: "https://placehold.co/40x40/8d99ae/ffffff?text=S",
-    isAdded: true,
-  },
-  {
-    id: 3,
-    name: "Cakes 'n' Bakes",
-    service: "Catering",
-    avatarUrl: "https://placehold.co/40x40/f59e0b/ffffff?text=C",
-    isAdded: true,
-  },
-  {
-    id: 4,
-    name: "Lagos Party Band",
-    service: "Live Band",
-    avatarUrl: "https://placehold.co/40x40/3b82f6/ffffff?text=L",
-    isAdded: false,
-  }, // Not added to this event
-];
-// --- End Mock Data ---
-
-interface HiredVendor {
-  id: number;
-  name: string;
-  avatarUrl: string;
-}
-
-interface WishlistItem {
-  id: number;
-  name: string;
-  price: number;
-  promisors: string[];
-  isFulfilled: boolean;
-}
-
-interface ClientEvent {
-  id: number;
-  title: string;
-  date: string;
-  isPublic?: boolean;
-  coverImage: string;
-  hiredVendors: HiredVendor[];
-  wishlistItems: WishlistItem[];
-}
-
-interface ActiveVendor {
-  id: number;
+type ActiveVendor = {
+  id: string;
   name: string;
   service: string;
   avatarUrl: string;
   isAdded: boolean;
-}
+};
 
 // --- Main Page Component ---
 const ClientEventPlannerPage = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("upcoming");
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<ClientEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<event | null>(null);
 
-  const openWishlist = (event: ClientEvent) => {
+  // Fetch events from API
+  const { data: eventsData, isLoading: eventsLoading } =
+    api.event.getMyEvents.useQuery(undefined, {
+      enabled: !!user,
+    });
+
+  // Fetch orders to get vendors with active orders
+  const { data: orders } = api.order.getMyOrders.useQuery(
+    { status: "ACTIVE" },
+    {
+      enabled: !!user,
+    },
+  );
+
+  const openWishlist = (event: event) => {
     setSelectedEvent(event);
     setIsWishlistOpen(true);
   };
 
-  const openAddVendor = (event: ClientEvent) => {
+  const openAddVendor = (event: event) => {
     setSelectedEvent(event);
     setIsVendorModalOpen(true);
   };
@@ -198,6 +83,21 @@ const ClientEventPlannerPage = () => {
     setIsWishlistOpen(false);
     setSelectedEvent(null);
   };
+
+  // Get active vendors from orders
+  const activeVendors =
+    orders?.map((order) => ({
+      id: order.vendor.id,
+      name:
+        order.vendor.vendorProfile?.companyName ??
+        order.vendor.username ??
+        "Vendor",
+      service: order.gig?.service?.name ?? "Service",
+      avatarUrl:
+        order.vendor.vendorProfile?.avatarUrl ??
+        "https://placehold.co/40x40/ec4899/ffffff?text=V",
+      isAdded: false, // Will be set dynamically per event
+    })) ?? [];
 
   return (
     <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
@@ -230,26 +130,51 @@ const ClientEventPlannerPage = () => {
           />
         </div>
 
+        {/* Loading State */}
+        {eventsLoading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-12 w-12 animate-spin text-pink-600" />
+          </div>
+        )}
+
         {/* --- Tab Content: Upcoming Events --- */}
-        {activeTab === "upcoming" && (
+        {!eventsLoading && activeTab === "upcoming" && (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {clientEvents.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                onWishlistClick={() => openWishlist(event)}
-                onAddVendorClick={() => openAddVendor(event)}
-              />
-            ))}
+            {eventsData?.upcoming && eventsData.upcoming.length > 0 ? (
+              eventsData.upcoming.map((event) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  onWishlistClick={() => openWishlist(event)}
+                  onAddVendorClick={() => openAddVendor(event)}
+                />
+              ))
+            ) : (
+              <div className="col-span-full rounded-lg border border-gray-200 bg-white p-12 text-center">
+                <p className="text-gray-500">No upcoming events yet</p>
+                <button
+                  onClick={() => setIsEventModalOpen(true)}
+                  className="mt-4 font-semibold text-pink-600 hover:text-pink-700"
+                >
+                  Create your first event
+                </button>
+              </div>
+            )}
           </div>
         )}
 
         {/* --- Tab Content: Past Events --- */}
-        {activeTab === "past" && (
+        {!eventsLoading && activeTab === "past" && (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {pastEvents.map((event) => (
-              <EventCard key={event.id} event={event} isPast={true} />
-            ))}
+            {eventsData?.past && eventsData.past.length > 0 ? (
+              eventsData.past.map((event) => (
+                <EventCard key={event.id} event={event} isPast={true} />
+              ))
+            ) : (
+              <div className="col-span-full rounded-lg border border-gray-200 bg-white p-12 text-center">
+                <p className="text-gray-500">No past events</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -268,6 +193,7 @@ const ClientEventPlannerPage = () => {
       {isVendorModalOpen && selectedEvent && (
         <AddVendorModal
           event={selectedEvent}
+          vendors={activeVendors}
           onClose={() => setIsVendorModalOpen(false)}
         />
       )}
@@ -305,19 +231,56 @@ const EventCard = ({
   onAddVendorClick,
   isPast = false,
 }: {
-  event: ClientEvent;
+  event: event;
   onWishlistClick?: () => void;
   onAddVendorClick?: () => void;
   isPast?: boolean;
 }) => {
-  const wishlistCount = event.wishlistItems.length;
-  // FIX: Changed from promisedCount to fulfilledCount
-  const fulfilledCount = event.wishlistItems.filter(
-    (item: WishlistItem) => item.isFulfilled,
+  const wishlistItems = event.wishlist?.items ?? [];
+  const wishlistCount = wishlistItems.length;
+  const fulfilledCount = wishlistItems.filter(
+    (item) => item.isFulfilled,
   ).length;
   const [isPublic, setIsPublic] = useState(event.isPublic);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Mutations
+  const utils = api.useUtils();
+  const updateEvent = api.event.update.useMutation({
+    onSuccess: () => {
+      void utils.event.getMyEvents.invalidate();
+    },
+  });
+  const deleteEvent = api.event.delete.useMutation({
+    onSuccess: () => {
+      void utils.event.getMyEvents.invalidate();
+    },
+  });
+
+  const handleTogglePublic = () => {
+    const newIsPublic = !isPublic;
+    setIsPublic(newIsPublic);
+    updateEvent.mutate({ id: event.id, isPublic: newIsPublic });
+  };
+
+  const handleDelete = () => {
+    if (confirm(`Are you sure you want to delete "${event.title}"?`)) {
+      deleteEvent.mutate({ id: event.id });
+      setIsMenuOpen(false);
+    }
+  };
+
+  // Transform hired vendors
+  const hiredVendors =
+    event.hiredVendors?.map((ev: event["hiredVendors"][number]) => ({
+      id: ev.vendor.id,
+      name:
+        ev.vendor.vendorProfile?.companyName ?? ev.vendor.username ?? "Vendor",
+      avatarUrl:
+        ev.vendor.vendorProfile?.avatarUrl ??
+        "https://placehold.co/40x40/ec4899/ffffff?text=V",
+    })) ?? [];
 
   // Close menu on outside click
   useEffect(() => {
@@ -333,7 +296,10 @@ const EventCard = ({
   return (
     <div className="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
       <Image
-        src={event.coverImage}
+        src={
+          event.coverImage ??
+          "https://placehold.co/600x300/ec4899/ffffff?text=Event"
+        }
         alt={event.title}
         className="h-40 w-full object-cover"
         width={600}
@@ -343,7 +309,13 @@ const EventCard = ({
         {/* Card Header */}
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm font-semibold text-pink-600">{event.date}</p>
+            <p className="text-sm font-semibold text-pink-600">
+              {new Date(event.date).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </p>
             <h3 className="mt-1 text-xl font-bold text-gray-800">
               {event.title}
             </h3>
@@ -375,13 +347,16 @@ const EventCard = ({
                     <Users className="h-4 w-4" /> Manage Vendors
                   </button>
                   <button
-                    onClick={() => {
-                      alert("Event Deleted!");
-                      setIsMenuOpen(false);
-                    }}
-                    className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                    onClick={handleDelete}
+                    disabled={deleteEvent.isPending}
+                    className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
                   >
-                    <Trash2 className="h-4 w-4" /> Delete Event
+                    {deleteEvent.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    Delete Event
                   </button>
                 </div>
               )}
@@ -393,10 +368,10 @@ const EventCard = ({
           {/* Hired Vendors */}
           <div>
             <h4 className="mb-2 text-xs font-semibold text-gray-500 uppercase">
-              Hired Vendors ({event.hiredVendors.length})
+              Hired Vendors ({hiredVendors.length})
             </h4>
             <div className="flex items-center gap-2">
-              {event.hiredVendors.slice(0, 3).map((vendor: HiredVendor) => (
+              {hiredVendors.slice(0, 3).map((vendor) => (
                 <Image
                   key={vendor.id}
                   src={vendor.avatarUrl}
@@ -450,7 +425,10 @@ const EventCard = ({
               <span className="text-sm font-semibold text-gray-700">
                 Make Public
               </span>
-              <button onClick={() => setIsPublic(!isPublic)}>
+              <button
+                onClick={handleTogglePublic}
+                disabled={updateEvent.isPending}
+              >
                 {isPublic ? (
                   <ToggleRight className="h-10 w-10 text-pink-600" />
                 ) : (
@@ -471,12 +449,30 @@ const WishlistModal = ({
   event,
   onClose,
 }: {
-  event: ClientEvent;
+  event: event;
   onClose: () => void;
 }) => {
   const [copied, setCopied] = useState(false);
-  // FIX: Add state to manage wishlist items locally for toggling
-  const [items, setItems] = useState<WishlistItem[]>(event.wishlistItems);
+  const utils = api.useUtils();
+
+  // Mutations for wishlist items
+  const addItem = api.wishlist.addItem.useMutation({
+    onSuccess: () => {
+      void utils.event.getMyEvents.invalidate();
+    },
+  });
+  const updateItem = api.wishlist.updateItem.useMutation({
+    onSuccess: () => {
+      void utils.event.getMyEvents.invalidate();
+    },
+  });
+  const deleteItem = api.wishlist.deleteItem.useMutation({
+    onSuccess: () => {
+      void utils.event.getMyEvents.invalidate();
+    },
+  });
+
+  const items = event.wishlist?.items ?? [];
 
   const copyLink = async () => {
     // This is a mock link. In a real app, this would be a unique URL.
@@ -508,17 +504,13 @@ const WishlistModal = ({
   };
 
   // FIX: Add handler to toggle fulfillment
-  const handleToggleFulfilled = (itemId: number) => {
-    setItems((currentItems: WishlistItem[]) =>
-      currentItems.map((item: WishlistItem) =>
-        item.id === itemId ? { ...item, isFulfilled: !item.isFulfilled } : item,
-      ),
-    );
-    // In a real app, you would also send this update to your backend
+  const handleToggleFulfilled = (item: wishlistItem) => {
+    updateItem.mutate({ itemId: item.id, isFulfilled: !item.isFulfilled });
   };
 
   const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!event.wishlist) return;
     const form = e.target as HTMLFormElement;
     const newItemName = (form.elements.namedItem("newItem") as HTMLInputElement)
       ?.value;
@@ -527,22 +519,16 @@ const WishlistModal = ({
     )?.value;
     if (!newItemName || !newItemPrice) return;
 
-    const newItem: WishlistItem = {
-      id: items.length + 100, // mock new id
+    addItem.mutate({
+      eventId: event.id,
       name: newItemName,
       price: Number(newItemPrice),
-      promisors: [],
-      isFulfilled: false,
-    };
-    setItems([...items, newItem]);
+    });
     form.reset();
   };
 
-  const handleRemoveItem = (itemId: number) => {
-    setItems((currentItems: WishlistItem[]) =>
-      currentItems.filter((item: WishlistItem) => item.id !== itemId),
-    );
-    // In a real app, send this delete request to backend
+  const handleRemoveItem = (itemId: string) => {
+    deleteItem.mutate({ itemId });
   };
 
   return (
@@ -596,13 +582,14 @@ const WishlistModal = ({
           <h4 className="mb-3 font-semibold text-gray-800">Wishlist Items</h4>
           {/* FIX: Updated list to show new logic */}
           <ul className="divide-y divide-gray-100">
-            {items.map((item: WishlistItem) => (
+            {items.map((item) => (
               <li key={item.id} className="flex items-start gap-4 py-3">
                 {/* Checkbox for Owner */}
                 <input
                   type="checkbox"
                   checked={item.isFulfilled}
-                  onChange={() => handleToggleFulfilled(item.id)}
+                  onChange={() => handleToggleFulfilled(item)}
+                  disabled={updateItem.isPending}
                   className="mt-1 h-5 w-5 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
                 />
                 <div className="grow">
@@ -620,7 +607,7 @@ const WishlistModal = ({
                       item.isFulfilled ? "text-gray-400" : "text-gray-500",
                     )}
                   >
-                    Est. Price: ₦{item.price.toLocaleString()}
+                    Est. Price: ₦{item.price?.toLocaleString()}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
@@ -629,11 +616,11 @@ const WishlistModal = ({
                       <CheckCircle className="h-5 w-5" />
                       Fulfilled!
                     </span>
-                  ) : item.promisors.length > 0 ? (
+                  ) : item.promises.length > 0 ? (
                     <div>
                       <p className="font-semibold text-blue-600">Promised</p>
                       <p className="text-xs text-gray-500">
-                        by {item.promisors.join(", ")}
+                        by {item.promises.map((p) => p.guestName).join(", ")}
                       </p>
                     </div>
                   ) : (
@@ -644,9 +631,15 @@ const WishlistModal = ({
                 </div>
                 <button
                   onClick={() => handleRemoveItem(item.id)}
-                  className="ml-2 text-gray-400 hover:text-red-500"
+                  disabled={deleteItem.isPending}
+                  className="ml-2 text-gray-400 hover:text-red-500 disabled:opacity-50"
                 >
-                  <X className="h-4 w-4" />
+                  {deleteItem.isPending &&
+                  deleteItem.variables?.itemId === item.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <X className="h-4 w-4" />
+                  )}
                 </button>
               </li>
             ))}
@@ -662,6 +655,7 @@ const WishlistModal = ({
                   placeholder="Add new item name"
                   className="grow rounded-md border border-gray-300 p-2 text-sm"
                   aria-label="New item name"
+                  required
                 />
                 <input
                   type="number"
@@ -669,11 +663,16 @@ const WishlistModal = ({
                   placeholder="Price (₦)"
                   className="w-full rounded-md border border-gray-300 p-2 text-sm sm:w-32"
                   aria-label="New item price"
+                  required
                 />
                 <button
                   type="submit"
-                  className="rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+                  disabled={addItem.isPending}
+                  className="flex items-center justify-center rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
                 >
+                  {addItem.isPending && (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
                   Add Item
                 </button>
               </form>
@@ -687,6 +686,34 @@ const WishlistModal = ({
 
 // NEW: Create Event Modal
 const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
+  const utils = api.useUtils();
+  const createEvent = api.event.create.useMutation({
+    onSuccess: () => {
+      void utils.event.getMyEvents.invalidate();
+      onClose();
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const title = (form.elements.namedItem("eventName") as HTMLInputElement)
+      ?.value;
+    const dateString = (
+      form.elements.namedItem("eventDate") as HTMLInputElement
+    )?.value;
+
+    if (!title || !dateString) {
+      alert("Please fill in all fields");
+      return;
+    }
+
+    createEvent.mutate({
+      title,
+      date: new Date(dateString),
+    });
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="m-4 w-full max-w-lg rounded-lg bg-white shadow-xl">
@@ -702,7 +729,7 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
         </div>
 
         {/* Form */}
-        <div className="space-y-4 p-6">
+        <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <div>
             <label
               htmlFor="eventName"
@@ -713,8 +740,10 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
             <input
               type="text"
               id="eventName"
+              name="eventName"
               placeholder="e.g. My 30th Birthday Bash"
               className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
+              required
             />
           </div>
           <div>
@@ -727,27 +756,34 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
             <input
               type="date"
               id="eventDate"
-              defaultValue={new Date().toISOString().split("T")[0]}
+              name="eventDate"
+              min={new Date().toISOString().split("T")[0]}
               className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
+              required
             />
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end border-t border-gray-200 bg-gray-50 p-4">
-          <button
-            onClick={onClose}
-            className="mr-2 rounded-md px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onClose} // In real app, this would submit
-            className="rounded-md bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-700"
-          >
-            Create Event
-          </button>
-        </div>
+          {/* Footer */}
+          <div className="flex items-center justify-end border-t border-gray-200 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="mr-2 rounded-md px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={createEvent.isPending}
+              className="flex items-center gap-2 rounded-md bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-700 disabled:opacity-50"
+            >
+              {createEvent.isPending && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              Create Event
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -756,11 +792,30 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
 // NEW: Add Vendor Modal
 const AddVendorModal = ({
   event,
+  vendors,
   onClose,
 }: {
-  event: ClientEvent;
+  event: event;
+  vendors: ActiveVendor[];
   onClose: () => void;
 }) => {
+  const utils = api.useUtils();
+  const addVendor = api.event.addVendor.useMutation({
+    onSuccess: () => {
+      void utils.event.getMyEvents.invalidate();
+    },
+  });
+
+  const handleAddVendor = (vendorId: string) => {
+    addVendor.mutate({ eventId: event.id, vendorId });
+  };
+
+  // Check which vendors are already added
+  const eventVendorIds = event.hiredVendors?.map((ev) => ev.vendor.id) ?? [];
+  const vendorsWithStatus = vendors.map((v) => ({
+    ...v,
+    isAdded: eventVendorIds.includes(v.id),
+  }));
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="m-4 flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg bg-white shadow-xl">
@@ -795,38 +850,51 @@ const AddVendorModal = ({
           <h4 className="mb-2 px-2 font-semibold text-gray-800">
             Vendors with Active Orders
           </h4>
-          <ul className="divide-y divide-gray-100">
-            {activeVendors.map((vendor: ActiveVendor) => (
-              <li
-                key={vendor.id}
-                className="flex items-center justify-between px-2 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <Image
-                    src={vendor.avatarUrl}
-                    alt={vendor.name}
-                    className="h-10 w-10 rounded-full"
-                    width={40}
-                    height={40}
-                  />
-                  <div>
-                    <p className="font-medium text-gray-800">{vendor.name}</p>
-                    <p className="text-sm text-gray-500">{vendor.service}</p>
+          {vendorsWithStatus.length === 0 ? (
+            <p className="px-2 py-8 text-center text-gray-500">
+              No active vendors. Place orders first to add vendors to events.
+            </p>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {vendorsWithStatus.map((vendor) => (
+                <li
+                  key={vendor.id}
+                  className="flex items-center justify-between px-2 py-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <Image
+                      src={vendor.avatarUrl}
+                      alt={vendor.name}
+                      className="h-10 w-10 rounded-full"
+                      width={40}
+                      height={40}
+                    />
+                    <div>
+                      <p className="font-medium text-gray-800">{vendor.name}</p>
+                      <p className="text-sm text-gray-500">{vendor.service}</p>
+                    </div>
                   </div>
-                </div>
-                {vendor.isAdded ? (
-                  <span className="flex items-center gap-1.5 text-sm font-semibold text-green-600">
-                    <ShieldCheck className="h-5 w-5" />
-                    Added
-                  </span>
-                ) : (
-                  <button className="rounded-md bg-pink-100 px-3 py-1.5 text-sm font-semibold text-pink-700 hover:bg-pink-200">
-                    Add to Event
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
+                  {vendor.isAdded ? (
+                    <span className="flex items-center gap-1.5 text-sm font-semibold text-green-600">
+                      <ShieldCheck className="h-5 w-5" />
+                      Added
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleAddVendor(vendor.id)}
+                      disabled={addVendor.isPending}
+                      className="flex items-center gap-2 rounded-md bg-pink-100 px-3 py-1.5 text-sm font-semibold text-pink-700 hover:bg-pink-200 disabled:opacity-50"
+                    >
+                      {addVendor.isPending && (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      )}
+                      Add to Event
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

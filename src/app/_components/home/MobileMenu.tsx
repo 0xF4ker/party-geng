@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { X, ChevronRight, ArrowLeft } from "lucide-react";
-import { categoriesData } from "./../../local/categoryv2";
 import { cn } from "@/lib/utils";
 import {
   Accordion,
@@ -10,6 +9,17 @@ import {
 } from "@/components/ui/accordion";
 import Link from "next/link";
 import { type Profile } from "@/stores/auth";
+import { api } from "@/trpc/react";
+
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@/server/api/root";
+
+// --- Types ---
+type routerOutput = inferRouterOutputs<AppRouter>;
+// 1. Get the type for the entire procedure's output (which can be null)
+type CategoryOutput = routerOutput["category"]["getAll"][number];
+
+type Category = NonNullable<CategoryOutput>;
 
 interface MobileMenuProps {
   isOpen: boolean;
@@ -31,9 +41,10 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
   // const isClient = user?.clientProfile !== null && user?.clientProfile !== undefined;
   const isGuest = !user;
   const [currentView, setCurrentView] = useState("main"); // 'main' or category name
-  const [currentCategory, setCurrentCategory] = useState<
-    (typeof categoriesData)[0] | null
-  >(null);
+  const [currentCategory, setCurrentCategory] = useState<Category | null>(null);
+
+  // Fetch categories from database
+  const { data: categoriesData = [] } = api.category.getAll.useQuery();
 
   // Reset view when menu is closed
   useEffect(() => {
@@ -46,7 +57,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     }
   }, [isOpen]);
 
-  const handleCategoryClick = (category: (typeof categoriesData)[0]) => {
+  const handleCategoryClick = (category: Category) => {
     setCurrentCategory(category);
     setCurrentView("category");
   };
@@ -292,37 +303,27 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
           </div>
           <div className="flex flex-col border-t border-gray-200">
             {currentCategory?.services.map((service) => {
-              if (typeof service === "string") {
-                return (
-                  <Link
-                    key={service}
-                    href={`/categories/${
-                      currentCategory.name
-                    }/${service.toLowerCase().replace(/ /g, "-")}`}
-                    className="border-b border-gray-100 p-4 text-base text-gray-700 hover:bg-gray-50"
-                  >
-                    {service}
-                  </Link>
-                );
-              }
-              // NOTE: As of now, no category uses ServiceGroup, but this handles it.
+              // Convert category and service names to slugs
+              const categorySlug = currentCategory.name
+                .toLowerCase()
+                .replace(/ & /g, "-")
+                .replace(/ /g, "-");
+              const serviceSlug = service.name
+                .toLowerCase()
+                .replace(/ & /g, "-")
+                .replace(/ /g, "-");
+              const gigCount = service._count.gigs;
+
               return (
-                <div key={service.groupName}>
-                  <h4 className="p-4 font-semibold text-gray-500">
-                    {service.groupName}
-                  </h4>
-                  {service.items.map((item) => (
-                    <Link
-                      key={item}
-                      href={`/categories/${
-                        currentCategory.name
-                      }/${item.toLowerCase().replace(/ /g, "-")}`}
-                      className="border-b border-gray-100 p-4 pl-8 text-base text-gray-700 hover:bg-gray-50"
-                    >
-                      {item}
-                    </Link>
-                  ))}
-                </div>
+                <Link
+                  key={service.id}
+                  href={`/categories/${categorySlug}/${serviceSlug}`}
+                  className="flex items-center justify-between border-b border-gray-100 p-4 text-base text-gray-700 hover:bg-gray-50"
+                  onClick={onClose}
+                >
+                  <span>{service.name}</span>
+                  <span className="text-sm text-gray-400">({gigCount})</span>
+                </Link>
               );
             })}
           </div>

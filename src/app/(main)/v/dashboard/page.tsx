@@ -14,72 +14,16 @@ import {
   Eye,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
+import { api } from "@/trpc/react";
+import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@/server/api/root";
 
-// Mock cn function for demonstration
-const cn = (...inputs: (string | boolean | undefined | null)[]) => {
-  return inputs.filter(Boolean).join(" ");
-};
-
-// --- Mock Data ---
-const vendorDetails = {
-  name: "DJ SpinMaster",
-  avatarUrl: "https://placehold.co/128x128/ec4899/ffffff?text=DJ",
-  level: "Level 2",
-  rating: 4.9,
-  responseRate: "98%",
-  isAvailable: true,
-  earningsThisMonth: 450000,
-};
-
-const newLeads = [
-  {
-    id: 1,
-    name: "Adebayo P.",
-    message: "Hi! Looking for a DJ for my 30th birthday...",
-    time: "2h ago",
-    avatar: "https://placehold.co/40x40/3b82f6/ffffff?text=A",
-  },
-  {
-    id: 2,
-    name: "Chioma E.",
-    message: "Requesting a quote for our corporate end-of-year party...",
-    time: "8h ago",
-    avatar: "https://placehold.co/40x40/10b981/ffffff?text=C",
-  },
-];
-
-const activeGigs = [
-  {
-    id: 1,
-    title: "Chioma's Wedding",
-    status: "Booked",
-    date: "Oct 26, 2024",
-    price: 250000,
-    client: "Chioma E.",
-  },
-];
-
-const recentMessages = [
-  {
-    id: 1,
-    name: "Adebayo P.",
-    time: "2h ago",
-    lastMessage: "Hi! Looking for a DJ...",
-  },
-  {
-    id: 2,
-    name: "Chioma E.",
-    time: "8h ago",
-    lastMessage: "Requesting a quote...",
-  },
-  {
-    id: 3,
-    name: "Tunde O.",
-    time: "1d ago",
-    lastMessage: "Thanks for the great set!",
-  },
-];
-// --- End Mock Data ---
+type routerOutput = inferRouterOutputs<AppRouter>;
+type quote = routerOutput["quote"]["getMyQuotesAsVendor"][0];
+type order = routerOutput["order"]["getMyActiveOrders"][0];
 
 // --- Main Page Component ---
 const VendorDashboardPage = () => {
@@ -88,6 +32,16 @@ const VendorDashboardPage = () => {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState("leads");
+
+  // Fetch real data from API
+  const { data: stats, isLoading: statsLoading } =
+    api.gig.getMyStats.useQuery();
+  const { data: pendingQuotes, isLoading: quotesLoading } =
+    api.quote.getMyQuotesAsVendor.useQuery({
+      status: "PENDING",
+    });
+  const { data: activeOrders, isLoading: ordersLoading } =
+    api.order.getMyActiveOrders.useQuery();
 
   // Effect to capture sidebar width
   useLayoutEffect(() => {
@@ -188,9 +142,7 @@ const VendorDashboardPage = () => {
 
           {/* Right Column (Main Content) */}
           <div className="space-y-8 lg:col-span-3" ref={contentRef}>
-            <h1 className="text-3xl font-bold text-gray-800">
-              Welcome, {vendorDetails.name}!
-            </h1>
+            <h1 className="text-3xl font-bold text-gray-800">Welcome back!</h1>
 
             {/* Alert */}
             <div className="rounded-md border-l-4 border-yellow-400 bg-yellow-50 p-4 shadow-sm">
@@ -217,26 +169,30 @@ const VendorDashboardPage = () => {
             {/* "Our Twist": Key Metric Cards */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               <StatCard
-                title="Total Earnings (Oct)"
-                value={`₦${vendorDetails.earningsThisMonth.toLocaleString()}`}
+                title="Monthly Earnings"
+                value={
+                  statsLoading
+                    ? "..."
+                    : `₦${(stats?.monthlyEarnings ?? 0).toLocaleString()}`
+                }
                 icon={DollarSign}
                 color="text-green-600 bg-green-100"
               />
               <StatCard
                 title="Pending Quotes"
-                value={newLeads.length}
+                value={quotesLoading ? "..." : (pendingQuotes?.length ?? 0)}
                 icon={MessageSquare}
                 color="text-pink-600 bg-pink-100"
               />
               <StatCard
                 title="Active Gigs"
-                value={activeGigs.length}
+                value={statsLoading ? "..." : (stats?.activeGigs ?? 0)}
                 icon={Briefcase}
                 color="text-blue-600 bg-blue-100"
               />
               <StatCard
-                title="Response Rate"
-                value={vendorDetails.responseRate}
+                title="Active Orders"
+                value={ordersLoading ? "..." : (activeOrders?.length ?? 0)}
                 icon={TrendingUp}
                 color="text-purple-600 bg-purple-100"
               />
@@ -247,22 +203,32 @@ const VendorDashboardPage = () => {
               <div className="flex items-center border-b border-gray-200">
                 <TabButton
                   title="New Leads"
-                  count={newLeads.length}
+                  count={pendingQuotes?.length ?? 0}
                   isActive={activeTab === "leads"}
                   onClick={() => setActiveTab("leads")}
                 />
                 <TabButton
-                  title="Active Gigs"
-                  count={activeGigs.length}
-                  isActive={activeTab === "gigs"}
-                  onClick={() => setActiveTab("gigs")}
+                  title="Active Orders"
+                  count={activeOrders?.length ?? 0}
+                  isActive={activeTab === "orders"}
+                  onClick={() => setActiveTab("orders")}
                 />
               </div>
 
               {/* Tab Content */}
               <div className="p-4 sm:p-6">
-                {activeTab === "leads" && <NewLeadsSection />}
-                {activeTab === "gigs" && <ActiveGigsSection />}
+                {activeTab === "leads" && (
+                  <NewLeadsSection
+                    quotes={pendingQuotes}
+                    isLoading={quotesLoading}
+                  />
+                )}
+                {activeTab === "orders" && (
+                  <ActiveOrdersSection
+                    orders={activeOrders}
+                    isLoading={ordersLoading}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -275,34 +241,46 @@ const VendorDashboardPage = () => {
 // --- Sub-Components ---
 
 const VendorSidebar = () => {
-  const [isAvailable, setIsAvailable] = useState(vendorDetails.isAvailable);
+  const [isAvailable, setIsAvailable] = useState(true);
+  const { data: stats } = api.gig.getMyStats.useQuery();
+  const { data: vendorProfile } = api.vendor.getMyProfile.useQuery();
+
   return (
     <div className="space-y-6">
       {/* Profile Card */}
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex items-center space-x-4">
           <Image
-            src={vendorDetails.avatarUrl}
-            alt={vendorDetails.name}
+            src={
+              vendorProfile?.avatarUrl ??
+              "https://placehold.co/128x128/ec4899/ffffff?text=V"
+            }
+            alt={vendorProfile?.companyName ?? "Vendor"}
             className="h-16 w-16 rounded-full"
             width={64}
             height={64}
           />
           <div>
             <h2 className="text-xl font-bold text-gray-800">
-              {vendorDetails.name}
+              {vendorProfile?.companyName ?? "Vendor"}
             </h2>
-            <span className="text-sm text-gray-500">{vendorDetails.level}</span>
+            <span className="text-sm text-gray-500">
+              {vendorProfile?.level ?? "Level 0"}
+            </span>
           </div>
         </div>
-        <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-md bg-pink-600 py-2.5 font-semibold text-white transition-colors hover:bg-pink-700">
-          <Plus className="h-5 w-5" />
-          Create New Gig
-        </button>
-        <button className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 py-2.5 font-semibold text-gray-700 transition-colors hover:bg-gray-100">
-          <Eye className="h-5 w-5" />
-          View Public Profile
-        </button>
+        <Link href="/v/manage_gigs/new">
+          <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-md bg-pink-600 py-2.5 font-semibold text-white transition-colors hover:bg-pink-700">
+            <Plus className="h-5 w-5" />
+            Create New Gig
+          </button>
+        </Link>
+        <Link href={`/v/${vendorProfile?.user.username ?? ""}`}>
+          <button className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 py-2.5 font-semibold text-gray-700 transition-colors hover:bg-gray-100">
+            <Eye className="h-5 w-5" />
+            View Public Profile
+          </button>
+        </Link>
       </div>
 
       {/* Performance Card */}
@@ -312,20 +290,20 @@ const VendorSidebar = () => {
           <li className="flex items-center justify-between">
             <span className="text-gray-600">My Level</span>
             <span className="font-semibold text-gray-900">
-              {vendorDetails.level}
+              {vendorProfile?.level ?? "Level 0"}
             </span>
           </li>
           <li className="flex items-center justify-between">
             <span className="text-gray-600">Rating</span>
             <span className="flex items-center gap-1 font-semibold text-gray-900">
               <Star className="h-4 w-4 fill-current text-yellow-400" />{" "}
-              {vendorDetails.rating}
+              {vendorProfile?.rating?.toFixed(1) ?? "0.0"}
             </span>
           </li>
           <li className="flex items-center justify-between">
-            <span className="text-gray-600">Response Rate</span>
+            <span className="text-gray-600">Total Gigs</span>
             <span className="font-semibold text-green-600">
-              {vendorDetails.responseRate}
+              {stats?.totalGigs ?? 0}
             </span>
           </li>
         </ul>
@@ -362,42 +340,20 @@ const VendorSidebar = () => {
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-lg font-semibold">Earnings</h3>
-          <span className="text-xs font-semibold text-gray-500">OCT 2025</span>
+          <span className="text-xs font-semibold text-gray-500">
+            {new Date()
+              .toLocaleString("en-US", { month: "short", year: "numeric" })
+              .toUpperCase()}
+          </span>
         </div>
         <p className="text-3xl font-bold text-gray-900">
-          ₦{vendorDetails.earningsThisMonth.toLocaleString()}
+          ₦{(stats?.monthlyEarnings ?? 0).toLocaleString()}
         </p>
-        <button className="mt-3 text-sm font-semibold text-pink-600 hover:text-pink-700">
-          View Details
-        </button>
-      </div>
-
-      {/* Inbox Card */}
-      <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-        <div className="border-b border-gray-100 p-6">
-          <h3 className="text-lg font-semibold">Inbox</h3>
-        </div>
-        <div className="divide-y divide-gray-100">
-          {recentMessages.map((msg) => (
-            <button
-              key={msg.id}
-              className="w-full p-4 text-left hover:bg-gray-50"
-            >
-              <div className="mb-1 flex items-center justify-between">
-                <span className="text-sm font-semibold">{msg.name}</span>
-                <span className="text-xs text-gray-400">{msg.time}</span>
-              </div>
-              <p className="truncate text-sm text-gray-500">
-                {msg.lastMessage}
-              </p>
-            </button>
-          ))}
-        </div>
-        <div className="rounded-b-lg bg-gray-50 p-4">
-          <button className="w-full text-center text-sm font-semibold text-pink-600 hover:text-pink-700">
-            View All Messages
+        <Link href="/v/earnings">
+          <button className="mt-3 text-sm font-semibold text-pink-600 hover:text-pink-700">
+            View Details
           </button>
-        </div>
+        </Link>
       </div>
     </div>
   );
@@ -459,59 +415,129 @@ const TabButton = ({
   </button>
 );
 
-const NewLeadsSection = () => (
-  <div className="space-y-4">
-    {newLeads.map((lead) => (
-      <div
-        key={lead.id}
-        className="flex items-start space-x-4 rounded-lg border border-gray-200 p-4 hover:bg-gray-50 sm:items-center"
-      >
-        <Image
-          src={lead.avatar}
-          alt={lead.name}
-          className="h-10 w-10 shrink-0 rounded-full"
-          width={40}
-          height={40}
-        />
-        <div className="grow">
-          <div className="mb-1 flex flex-col justify-between sm:flex-row sm:items-center">
-            <span className="font-semibold text-gray-800">{lead.name}</span>
-            <span className="text-xs text-gray-400">{lead.time}</span>
-          </div>
-          <p className="mb-2 text-sm text-gray-600 sm:mb-0">{lead.message}</p>
-        </div>
-        <button className="shrink-0 rounded-md bg-pink-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-pink-700">
-          Send Quote
-        </button>
+const NewLeadsSection = ({
+  quotes,
+  isLoading,
+}: {
+  quotes?: quote[];
+  isLoading: boolean;
+}) => {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-gray-500">Loading quotes...</div>
       </div>
-    ))}
-  </div>
-);
+    );
+  }
 
-const ActiveGigsSection = () => (
-  <div className="space-y-4">
-    {activeGigs.map((gig) => (
-      <div
-        key={gig.id}
-        className="flex flex-col rounded-lg border border-gray-200 p-4 hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between"
-      >
-        <div>
-          <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">
-            {gig.status}
-          </span>
-          <p className="mt-2 font-semibold text-gray-800">{gig.title}</p>
-          <p className="mt-1 text-sm text-gray-500">
-            Client: {gig.client} | Date: {gig.date}
-          </p>
-        </div>
-        <div className="mt-3 shrink-0 sm:mt-0 sm:ml-4">
-          <span className="text-xl font-bold text-gray-900">
-            ₦{gig.price.toLocaleString()}
-          </span>
-        </div>
+  if (!quotes || quotes.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <MessageSquare className="mb-4 h-12 w-12 text-gray-300" />
+        <p className="text-gray-500">No pending quote requests</p>
+        <p className="mt-1 text-sm text-gray-400">New leads will appear here</p>
       </div>
-    ))}
-  </div>
-);
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {quotes.map((quote) => (
+        <div
+          key={quote.id}
+          className="flex items-start space-x-4 rounded-lg border border-gray-200 p-4 hover:bg-gray-50 sm:items-center"
+        >
+          <Image
+            src={
+              quote.client.clientProfile?.avatarUrl ??
+              "https://placehold.co/40x40/3b82f6/ffffff?text=C"
+            }
+            alt={quote.client.username}
+            className="h-10 w-10 shrink-0 rounded-full"
+            width={40}
+            height={40}
+          />
+          <div className="grow">
+            <div className="mb-1 flex flex-col justify-between sm:flex-row sm:items-center">
+              <span className="font-semibold text-gray-800">
+                {quote.client.username}
+              </span>
+              <span className="text-xs text-gray-400">
+                {formatDistanceToNow(new Date(quote.createdAt), {
+                  addSuffix: true,
+                })}
+              </span>
+            </div>
+            <p className="mb-2 text-sm text-gray-600 sm:mb-0">
+              {quote.title} - ₦{quote.price.toLocaleString()}
+            </p>
+          </div>
+          <Link href={`/v/quotes/${quote.id}`}>
+            <button className="shrink-0 rounded-md bg-pink-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-pink-700">
+              View Quote
+            </button>
+          </Link>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const ActiveOrdersSection = ({
+  orders,
+  isLoading,
+}: {
+  orders?: order[];
+  isLoading: boolean;
+}) => {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-gray-500">Loading orders...</div>
+      </div>
+    );
+  }
+
+  if (!orders || orders.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <Briefcase className="mb-4 h-12 w-12 text-gray-300" />
+        <p className="text-gray-500">No active orders</p>
+        <p className="mt-1 text-sm text-gray-400">
+          Booked events will appear here
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {orders.map((order) => (
+        <div
+          key={order.id}
+          className="flex flex-col rounded-lg border border-gray-200 p-4 hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">
+              {order.status}
+            </span>
+            <p className="mt-2 font-semibold text-gray-800">
+              {order.quote.title}
+            </p>
+            <p className="mt-1 text-sm text-gray-500">
+              Client: {order.client.username} | Date:{" "}
+              {new Date(order.eventDate).toLocaleDateString()}
+            </p>
+          </div>
+          <div className="mt-3 shrink-0 sm:mt-0 sm:ml-4">
+            <span className="text-xl font-bold text-gray-900">
+              ₦{order.amount.toLocaleString()}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export default VendorDashboardPage;

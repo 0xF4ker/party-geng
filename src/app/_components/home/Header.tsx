@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   Eye,
+  Wallet,
 } from "lucide-react";
 import LoginJoinComponent from "../LoginJoinComponent";
 import CategoryCarousel from "./CategoryCarousel";
@@ -24,6 +25,7 @@ import MobileMenu from "./MobileMenu";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
+import { api } from "@/trpc/react";
 
 const Modal = ({
   children,
@@ -83,6 +85,11 @@ const Header = () => {
   const [modalView, setModalView] = useState<"login" | "join">("login");
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch wallet balance
+  const { data: wallet } = api.payment.getWallet.useQuery(undefined, {
+    enabled: !!user,
+  });
 
   // Determine user type
   const isVendor =
@@ -280,24 +287,30 @@ const Header = () => {
             ) : isVendor ? (
               // Vendor Navigation
               <>
-                <nav className="hidden items-center space-x-6 lg:flex">
+                <nav className="hidden items-center space-x-4 lg:flex">
                   <Link
                     href="/v/dashboard"
-                    className="font-medium hover:text-pink-500"
+                    className="font-medium text-gray-700 hover:text-pink-500"
                   >
                     Dashboard
                   </Link>
                   <Link
                     href="/manage_orders"
-                    className="font-medium hover:text-pink-500"
+                    className="font-medium text-gray-700 hover:text-pink-500"
                   >
                     Orders
                   </Link>
                   <Link
                     href="/earnings"
-                    className="font-medium hover:text-pink-500"
+                    className="font-medium text-gray-700 hover:text-pink-500"
                   >
                     Earnings
+                  </Link>
+                  <Link href="/inbox" className="relative">
+                    <Mail className="h-6 w-6 text-gray-600 hover:text-pink-500" />
+                  </Link>
+                  <Link href="/notifications" className="relative">
+                    <Bell className="h-6 w-6 text-gray-600 hover:text-pink-500" />
                   </Link>
 
                   {/* Profile Dropdown */}
@@ -337,7 +350,19 @@ const Header = () => {
                           </p>
                         </div>
                         <Link
-                          href={`/c/${user?.id}`}
+                          href="/earnings"
+                          className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 hover:bg-gray-50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Wallet className="h-4 w-4 text-green-600" />
+                            <span className="text-sm font-medium text-gray-700">Wallet</span>
+                          </div>
+                          <span className="text-sm font-semibold text-green-600">
+                            ₦{wallet?.availableBalance.toLocaleString() ?? "0"}
+                          </span>
+                        </Link>
+                        <Link
+                          href={`/v/${user?.username}`}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                         >
                           <Eye className="h-4 w-4" />
@@ -400,7 +425,48 @@ const Header = () => {
                         </p>
                       </div>
                       <Link
-                        href={`/c/${user?.id}`}
+                        href="/c/manage_events"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 lg:hidden"
+                      >
+                        <Calendar className="h-4 w-4" />
+                        My Events
+                      </Link>
+                      <Link
+                        href="/manage_orders"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 lg:hidden"
+                      >
+                        <ShoppingBag className="h-4 w-4" />
+                        Orders
+                      </Link>
+                      <Link
+                        href="/inbox"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 lg:hidden"
+                      >
+                        <Mail className="h-4 w-4" />
+                        Messages
+                      </Link>
+                      <Link
+                        href="/notifications"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 lg:hidden"
+                      >
+                        <Bell className="h-4 w-4" />
+                        Notifications
+                      </Link>
+                      <div className="border-t border-gray-100"></div>
+                      <Link
+                        href="/earnings"
+                        className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 hover:bg-gray-50"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Wallet className="h-4 w-4 text-green-600" />
+                          <span className="text-sm font-medium text-gray-700">Wallet</span>
+                        </div>
+                        <span className="text-sm font-semibold text-green-600">
+                          ₦{wallet?.availableBalance.toLocaleString() ?? "0"}
+                        </span>
+                      </Link>
+                      <Link
+                        href={`/c/${user?.username}`}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                       >
                         <Eye className="h-4 w-4" />
@@ -431,11 +497,11 @@ const Header = () => {
               // Client Navigation
               <>
                 <nav className="hidden items-center space-x-4 lg:flex">
-                  <Link href="/c/manage_events">
-                    <button className="flex items-center gap-2 rounded-md bg-pink-600 px-4 py-2 font-semibold text-white hover:bg-pink-700">
-                      <Calendar className="h-4 w-4" />
-                      Plan Event
-                    </button>
+                  <Link
+                    href="/manage_orders"
+                    className="font-medium text-gray-700 hover:text-pink-500"
+                  >
+                    Orders
                   </Link>
                   <Link href="/inbox" className="relative">
                     <Mail className="h-6 w-6 text-gray-600 hover:text-pink-500" />
@@ -443,8 +509,11 @@ const Header = () => {
                   <Link href="/notifications" className="relative">
                     <Bell className="h-6 w-6 text-gray-600 hover:text-pink-500" />
                   </Link>
-                  <Link href="/manage_orders">
-                    <ShoppingBag className="h-6 w-6 text-gray-600 hover:text-pink-500" />
+                  <Link href="/c/manage_events">
+                    <button className="flex items-center gap-2 rounded-md bg-pink-600 px-4 py-2 font-semibold text-white hover:bg-pink-700">
+                      <Calendar className="h-4 w-4" />
+                      Plan Event
+                    </button>
                   </Link>
 
                   {/* Profile Dropdown */}
@@ -484,6 +553,18 @@ const Header = () => {
                           </p>
                         </div>
                         <Link
+                          href="/earnings"
+                          className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 hover:bg-gray-50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Wallet className="h-4 w-4 text-green-600" />
+                            <span className="text-sm font-medium text-gray-700">Wallet</span>
+                          </div>
+                          <span className="text-sm font-semibold text-green-600">
+                            ₦{wallet?.availableBalance.toLocaleString() ?? "0"}
+                          </span>
+                        </Link>
+                        <Link
                           href={`/c/${user?.id}`}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                         >
@@ -512,12 +593,8 @@ const Header = () => {
                   </div>
                 </nav>
 
-                {/* Mobile Profile Icon + Icons */}
+                {/* Mobile Profile Icon */}
                 <div className="flex items-center space-x-3 lg:hidden">
-                  <Link href="/c/manage_events">
-                    <Calendar className="h-6 w-6 text-gray-600 hover:text-pink-500" />
-                  </Link>
-
                   <div className="relative">
                     <button
                       onClick={() =>
@@ -551,6 +628,18 @@ const Header = () => {
                             @{user?.username}
                           </p>
                         </div>
+                        <Link
+                          href="/earnings"
+                          className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 hover:bg-gray-50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Wallet className="h-4 w-4 text-green-600" />
+                            <span className="text-sm font-medium text-gray-700">Wallet</span>
+                          </div>
+                          <span className="text-sm font-semibold text-green-600">
+                            ₦{wallet?.availableBalance.toLocaleString() ?? "0"}
+                          </span>
+                        </Link>
                         <Link
                           href={`/c/${user?.id}`}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"

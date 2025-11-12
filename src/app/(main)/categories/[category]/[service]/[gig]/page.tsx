@@ -8,66 +8,43 @@ import {
   ChevronLeft,
   Check,
   MapPin,
-  Globe,
   Calendar,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useParams, useRouter } from "next/navigation";
+import { api } from "@/trpc/react";
+import { notFound } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@/server/api/root";
 
-// Mock cn function for demonstration
-const cn = (...inputs: (string | boolean | undefined | null)[]) => {
-  return inputs.filter(Boolean).join(" ");
-};
-
-// --- Mock Data ---
-const gigDetails = {
-  category: "Music & DJs",
-  service: "Wedding DJs",
-  categorySlug: "music-djs",
-  serviceSlug: "wedding-djs",
-  title: "I will be the professional wedding DJ for your reception",
-  seller: {
-    name: "DJ SpinMaster",
-    level: "Level 2",
-    rating: 4.9,
-    reviews: 131,
-    avatarUrl: "https://placehold.co/40x40/ec4899/ffffff?text=DJ",
-    location: "Lagos, Nigeria",
-    WillingToTravel: "Yes",
-  },
-  images: [
-    "https://placehold.co/600x400/ec4899/ffffff?text=Wedding+DJ+1",
-    "https://placehold.co/600x400/7c3aed/ffffff?text=My+Setup",
-    "https://placehold.co/600x400/3b82f6/ffffff?text=Past+Event",
-    "https://placehold.co/600x400/ef4444/ffffff?text=Dance+Floor",
-    "https://placehold.co/600x400/10b981/ffffff?text=Happy+Couple",
-  ],
-  about:
-    "Get the party started with a professional DJ experience! I have over 5 years of experience playing at weddings, corporate events, and private parties across Lagos and Abuja. I'll work with you to create the perfect playlist and keep your guests on the dance floor all night long. My setup is professional, and my music library is vast, covering everything from Afrobeats and Highlife to Pop, Hip Hop, and classic wedding anthems.",
-
-  // FIX: Replaced 'packages' with 'basePrice' and 'basePriceIncludes'
-  basePrice: 150000,
-  basePriceIncludes: [
-    "4 hours of DJ service",
-    "Professional sound system",
-    "MC services",
-    "1 playlist consultation",
-  ],
-  // NEW: Added Add-ons data
-  addOns: [
-    { title: "Extra Hour", price: 25000 },
-    { title: "Dance Floor Lighting", price: 40000 },
-    { title: "Ceremony Audio Setup", price: 30000 },
-  ],
-};
-// --- End Mock Data ---
+// --- Types ---
+type routerOutput = inferRouterOutputs<AppRouter>;
+type gig = routerOutput["gig"]["getById"];
 
 // --- Main Page Component ---
 const GigDetailPage = () => {
+  const params = useParams();
+  // const router = useRouter();
+  const gigId = params?.gig as string;
+  const categorySlug = params?.category as string;
+  const serviceSlug = params?.service as string;
+
+  // Fetch gig data
+  const { data: gig, isLoading } = api.gig.getById.useQuery({ id: gigId });
+
   const [isSidebarSticky, setIsSidebarSticky] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(0);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // If gig not found after loading
+  if (!isLoading && !gig) {
+    notFound();
+  }
 
   // Effect to capture sidebar width
   useLayoutEffect(() => {
@@ -127,6 +104,22 @@ const GigDetailPage = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [isSidebarSticky]);
 
+  // Loading state
+  if (isLoading || !gig) {
+    return (
+      <div className="min-h-screen bg-white pt-[122px] text-gray-900 lg:pt-[127px]">
+        <div className="container mx-auto px-4 py-8 sm:px-8">
+          <div className="flex h-96 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-pink-600" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const categoryName = gig.service.category.name;
+  const serviceName = gig.service.name;
+
   return (
     <div className="min-h-screen bg-white pt-[122px] text-gray-900 lg:pt-[127px]">
       {/* Container */}
@@ -137,38 +130,38 @@ const GigDetailPage = () => {
             <Home className="h-4 w-4" />
           </Link>
           <ChevronRight className="mx-1 h-4 w-4" />
-          <a
-            href={`/categories/${gigDetails.categorySlug}`}
+          <Link
+            href={`/categories/${categorySlug}`}
             className="hover:text-pink-600"
           >
-            {gigDetails.category}
-          </a>
+            {categoryName}
+          </Link>
           <ChevronRight className="mx-1 h-4 w-4" />
-          <a
-            href={`/categories/${gigDetails.categorySlug}/${gigDetails.serviceSlug}`}
+          <Link
+            href={`/categories/${categorySlug}/${serviceSlug}`}
             className="hover:text-pink-600"
           >
-            {gigDetails.service}
-          </a>
+            {serviceName}
+          </Link>
         </div>
 
         {/* Main Layout Grid */}
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
           {/* Left Column (Main Content) */}
           <div className="lg:col-span-2" ref={contentRef}>
-            <GigTitleBar />
+            <GigTitleBar gig={gig ?? ({} as gig)} />
             <h2 className="mb-4 text-2xl font-bold text-gray-800 lg:hidden">
               Portfolio & Gallery
             </h2>
-            <GigImageCarousel images={gigDetails.images} />
+            <GigImageCarousel images={gig.galleryImageUrls} />
 
             {/* FIX: Booking Card for Mobile */}
             <div className="mb-12 lg:hidden">
-              <BookingCard />
+              <BookingCard gig={gig} />
             </div>
 
-            <GigAbout />
-            <GigSellerInfo />
+            <GigAbout gig={gig} />
+            <GigSellerInfo gig={gig} />
             <GigReviews />
           </div>
 
@@ -197,7 +190,7 @@ const GigDetailPage = () => {
               }
             >
               {/* FIX: Renamed PricingCard to BookingCard */}
-              <BookingCard />
+              <BookingCard gig={gig} />
             </div>
           </div>
         </div>
@@ -208,59 +201,78 @@ const GigDetailPage = () => {
 
 // --- Left Column Components ---
 
-const GigTitleBar = () => (
-  <div className="mb-6">
-    <h1 className="mb-4 text-2xl font-bold text-gray-800 md:text-3xl">
-      {gigDetails.title}
-    </h1>
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <Image
-        src={gigDetails.seller.avatarUrl}
-        alt={gigDetails.seller.name}
-        className="h-10 w-10 rounded-full"
-      />
-      <span className="text-lg font-semibold">{gigDetails.seller.name}</span>
-      <span className="hidden text-sm text-gray-500 sm:inline">|</span>
-      <span className="text-sm text-gray-500">{gigDetails.seller.level}</span>
-      <div className="flex items-center gap-1">
-        <Star className="h-5 w-5 fill-current text-yellow-400" />
-        <span className="font-bold text-yellow-500">
-          {gigDetails.seller.rating}
-        </span>
-        <span className="text-sm text-gray-500">
-          ({gigDetails.seller.reviews} reviews)
-        </span>
+const GigTitleBar = ({ gig }: { gig: gig }) => {
+  const vendorName = gig?.vendor.user.username;
+  const vendorLevel = gig?.vendor.level ?? "Level 0";
+  const vendorRating = gig?.vendor.rating;
+  const orderCount = gig?._count.orders;
+  const vendorAvatar = gig?.vendor.avatarUrl;
+  const vendorLocation = gig?.vendor.location ?? "Nigeria";
+
+  return (
+    <div className="mb-6">
+      <h1 className="mb-4 text-2xl font-bold text-gray-800 md:text-3xl">
+        {gig?.title}
+      </h1>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Image
+          src={
+            vendorAvatar ??
+            `https://placehold.co/40x40/ec4899/ffffff?text=${
+              vendorName?.[0]?.toUpperCase() ?? "V"
+            }`
+          }
+          alt={vendorName ?? "Vendor"}
+          className="h-10 w-10 rounded-full"
+          width={40}
+          height={40}
+        />
+        <span className="text-lg font-semibold">{vendorName}</span>
+        <span className="hidden text-sm text-gray-500 sm:inline">|</span>
+        <span className="text-sm text-gray-500">{vendorLevel}</span>
+        <div className="flex items-center gap-1">
+          <Star className="h-5 w-5 fill-current text-yellow-400" />
+          <span className="font-bold text-yellow-500">
+            {vendorRating?.toFixed(1)}
+          </span>
+          <span className="text-sm text-gray-500">
+            {`(${(orderCount ?? 0) > 1000 ? "1k+" : (orderCount ?? 0)} orders)`}
+          </span>
+        </div>
+      </div>
+      {/* NEW: Event-specific details */}
+      <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-600">
+        <div className="flex items-center gap-2 text-sm">
+          <MapPin className="h-4 w-4 text-gray-500" />
+          <span>
+            Based in <strong>{vendorLocation}</strong>
+          </span>
+        </div>
       </div>
     </div>
-    {/* NEW: Event-specific details */}
-    <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-600">
-      <div className="flex items-center gap-2 text-sm">
-        <MapPin className="h-4 w-4 text-gray-500" />
-        <span>
-          Based in <strong>{gigDetails.seller.location}</strong>
-        </span>
-      </div>
-      <div className="flex items-center gap-2 text-sm">
-        <Globe className="h-4 w-4 text-gray-500" />
-        <span>
-          Willing to travel:{" "}
-          <strong>{gigDetails.seller.WillingToTravel}</strong>
-        </span>
-      </div>
-    </div>
-  </div>
-);
+  );
+};
 
 const GigImageCarousel = ({ images }: { images: string[] }) => {
   const [currentImage, setCurrentImage] = useState(0);
 
+  // Use placeholder if no images
+  const displayImages =
+    images.length > 0
+      ? images
+      : ["https://placehold.co/600x400/ec4899/ffffff?text=No+Image"];
+
   const nextImage = () =>
-    setCurrentImage((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+    setCurrentImage((prev) =>
+      prev === displayImages.length - 1 ? 0 : prev + 1,
+    );
   const prevImage = () =>
-    setCurrentImage((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+    setCurrentImage((prev) =>
+      prev === 0 ? displayImages.length - 1 : prev - 1,
+    );
 
   // Ensure src passed to Next/Image is always a string (fallback to first image or empty string)
-  const safeSrc: string = images[currentImage] ?? images[0] ?? "";
+  const safeSrc: string = displayImages[currentImage] ?? displayImages[0] ?? "";
 
   return (
     <div className="mb-8">
@@ -289,7 +301,7 @@ const GigImageCarousel = ({ images }: { images: string[] }) => {
       </div>
       {/* NEW: Thumbnails */}
       <div className="mt-2 flex space-x-2 overflow-x-auto pb-2">
-        {images.map((img, index) => (
+        {displayImages.map((img, index) => (
           <button
             key={index}
             onClick={() => setCurrentImage(index)}
@@ -312,59 +324,73 @@ const GigImageCarousel = ({ images }: { images: string[] }) => {
   );
 };
 
-const GigAbout = () => (
+const GigAbout = ({ gig }: { gig: gig }) => (
   <div className="mb-12">
     <h2 className="mb-4 border-b pb-2 text-2xl font-bold text-gray-800">
       About this gig
     </h2>
     <p className="text-base leading-relaxed whitespace-pre-line text-gray-600">
-      {gigDetails.about}
+      {gig?.description}
     </p>
   </div>
 );
 
-const GigSellerInfo = () => (
-  <div className="mb-12">
-    <h2 className="mb-4 border-b pb-2 text-2xl font-bold text-gray-800">
-      About the seller
-    </h2>
-    {/* FIX: Stack vertically on mobile */}
-    <div className="flex flex-col items-start sm:flex-row sm:items-center sm:space-x-4">
-      <Image
-        src={gigDetails.seller.avatarUrl}
-        alt={gigDetails.seller.name}
-        className="mb-4 h-20 w-20 rounded-full sm:mb-0"
-        width={80}
-        height={80}
-      />
-      <div>
-        <h3 className="text-xl font-semibold">{gigDetails.seller.name}</h3>
-        <p className="text-gray-500">{gigDetails.seller.level}</p>
-        <div className="mt-1 flex items-center gap-1">
-          <Star className="h-5 w-5 fill-current text-yellow-400" />
-          <span className="font-bold text-yellow-500">
-            {gigDetails.seller.rating}
-          </span>
-          <span className="text-sm text-gray-500">
-            ({gigDetails.seller.reviews})
-          </span>
+const GigSellerInfo = ({ gig }: { gig: gig }) => {
+  if (!gig) return null;
+  const vendorName = gig.vendor.user.username;
+  const vendorLevel = gig.vendor.level ?? "Level 0";
+  const vendorRating = gig.vendor.rating;
+  const orderCount = gig._count.orders;
+  const vendorAvatar = gig.vendor.avatarUrl;
+  const vendorLocation = gig.vendor.location ?? "Nigeria";
+  const vendorAbout = gig.vendor.about;
+  const avgResponseTime = gig.vendor.avgResponseTime ?? "N/A";
+
+  return (
+    <div className="mb-12">
+      <h2 className="mb-4 border-b pb-2 text-2xl font-bold text-gray-800">
+        About the seller
+      </h2>
+      {/* FIX: Stack vertically on mobile */}
+      <div className="flex flex-col items-start sm:flex-row sm:items-center sm:space-x-4">
+        <Image
+          src={
+            vendorAvatar ??
+            `https://placehold.co/80x80/ec4899/ffffff?text=${vendorName[0]?.toUpperCase()}`
+          }
+          alt={vendorName}
+          className="mb-4 h-20 w-20 rounded-full sm:mb-0"
+          width={80}
+          height={80}
+        />
+        <div>
+          <h3 className="text-xl font-semibold">{vendorName}</h3>
+          <p className="text-gray-500">{vendorLevel}</p>
+          <div className="mt-1 flex items-center gap-1">
+            <Star className="h-5 w-5 fill-current text-yellow-400" />
+            <span className="font-bold text-yellow-500">
+              {vendorRating.toFixed(1)}
+            </span>
+            <span className="text-sm text-gray-500">
+              ({orderCount > 1000 ? "1k+" : orderCount})
+            </span>
+          </div>
         </div>
       </div>
+      <div className="mt-6 rounded-lg border p-6">
+        <p className="text-gray-600">
+          From {vendorLocation}. Avg. response time: {avgResponseTime}.
+        </p>
+        {vendorAbout && (
+          <p className="mt-4 whitespace-pre-line text-gray-600">
+            {vendorAbout}
+          </p>
+        )}
+        <ContactVendorButton vendorId={gig.vendor.userId} gigId={gig.id} />
+      </div>
     </div>
-    <div className="mt-6 rounded-lg border p-6">
-      <p className="text-gray-600">
-        From Lagos, Nigeria. Avg. response time: 1 Hour.
-      </p>
-      <p className="mt-4 text-gray-600">
-        Verified professional DJ with 5+ years of experience. Let&apos;s make
-        your event unforgettable!
-      </p>
-      <button className="mt-6 w-full rounded-md border border-gray-700 py-2.5 font-semibold text-gray-700 transition-colors hover:bg-gray-100">
-        Contact me
-      </button>
-    </div>
-  </div>
-);
+  );
+};
 
 const GigReviews = () => (
   <div className="mb-12">
@@ -406,8 +432,112 @@ const GigReviews = () => (
 
 // --- Right Column Components ---
 
+// Contact Vendor Button Component
+const ContactVendorButton = ({
+  vendorId,
+  gigId,
+}: {
+  vendorId: string;
+  gigId: string;
+}) => {
+  const router = useRouter();
+  const { user } = useAuth();
+  const [isCreating, setIsCreating] = useState(false);
+
+  const createConversation = api.chat.createConversationWithMessage.useMutation(
+    {
+      onSuccess: (data) => {
+        router.push(`/inbox?conversation=${data.conversationId}`);
+      },
+    },
+  );
+
+  const handleContact = () => {
+    if (!user) {
+      alert("Please sign in to contact the vendor");
+      return;
+    }
+
+    if (user.id === vendorId) {
+      alert("You cannot contact yourself");
+      return;
+    }
+
+    setIsCreating(true);
+    createConversation.mutate({
+      otherUserId: vendorId,
+      initialMessage: `Hi! I'm interested in your service. Can we discuss the details?`,
+      gigId,
+    });
+  };
+
+  return (
+    <button
+      onClick={handleContact}
+      disabled={isCreating || createConversation.isPending}
+      className="mt-6 w-full rounded-md border border-gray-700 py-2.5 font-semibold text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-50"
+    >
+      {isCreating || createConversation.isPending ? (
+        <Loader2 className="mx-auto h-5 w-5 animate-spin" />
+      ) : (
+        "Contact me"
+      )}
+    </button>
+  );
+};
+
 // FIX: Renamed from PricingCard to BookingCard and simplified
-const BookingCard = () => {
+const BookingCard = ({ gig }: { gig: gig }) => {
+  const router = useRouter();
+  const { user } = useAuth();
+  const [isRequestingQuote, setIsRequestingQuote] = useState(false);
+  if (!gig) return null;
+
+  const createConversation = api.chat.createConversationWithMessage.useMutation(
+    {
+      onSuccess: (data) => {
+        router.push(`/inbox?conversation=${data.conversationId}`);
+      },
+    },
+  );
+
+  const handleRequestQuote = () => {
+    if (!user) {
+      alert("Please sign in to request a quote");
+      return;
+    }
+
+    if (user.id === gig.vendor.userId) {
+      alert("You cannot request a quote from yourself");
+      return;
+    }
+
+    setIsRequestingQuote(true);
+    createConversation.mutate({
+      otherUserId: gig.vendor.userId,
+      initialMessage: `Hi! I would like to request a quote for ${gig.title}. Can you provide more details?`,
+      gigId: gig.id,
+    });
+  };
+
+  const handleChatWithSeller = () => {
+    if (!user) {
+      alert("Please sign in to chat with the seller");
+      return;
+    }
+
+    if (user.id === gig.vendor.userId) {
+      alert("You cannot chat with yourself");
+      return;
+    }
+
+    createConversation.mutate({
+      otherUserId: gig.vendor.userId,
+      initialMessage: `Hi! I'm interested in ${gig.title}. Are you available for my event?`,
+      gigId: gig.id,
+    });
+  };
+
   return (
     <div className="rounded-lg border border-gray-200 shadow-sm">
       {/* REMOVED: Tabs */}
@@ -437,7 +567,7 @@ const BookingCard = () => {
         <div className="mb-4 flex items-baseline">
           <span className="text-sm text-gray-500">Starting at</span>
           <span className="ml-2 text-3xl font-bold text-gray-900">
-            ₦{gigDetails.basePrice.toLocaleString()}
+            ₦{gig.basePrice.toLocaleString()}
           </span>
         </div>
 
@@ -447,7 +577,7 @@ const BookingCard = () => {
             What&apos;s Included (Base Offer):
           </h4>
           <ul className="space-y-3">
-            {gigDetails.basePriceIncludes.map((feature: string) => (
+            {gig.basePriceIncludes.map((feature: string) => (
               <li key={feature} className="flex items-center gap-3">
                 <Check className="h-5 w-5 text-green-500" />
                 <span className="text-sm text-gray-600">{feature}</span>
@@ -457,31 +587,49 @@ const BookingCard = () => {
         </div>
 
         {/* NEW: Display Add-ons */}
-        <div className="mb-6">
-          <h4 className="mb-2 font-semibold text-gray-800">
-            Available Add-ons:
-          </h4>
-          <ul className="space-y-2">
-            {gigDetails.addOns.map((addon) => (
-              <li
-                key={addon.title}
-                className="flex items-center justify-between text-sm"
-              >
-                <span className="text-gray-600">{addon.title}</span>
-                <span className="font-semibold text-gray-700">
-                  + ₦{addon.price.toLocaleString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        {gig.addOns && gig.addOns.length > 0 && (
+          <div className="mb-6">
+            <h4 className="mb-2 font-semibold text-gray-800">
+              Available Add-ons:
+            </h4>
+            <ul className="space-y-2">
+              {gig.addOns.map((addon) => (
+                <li
+                  key={addon.id}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <span className="text-gray-600">{addon.title}</span>
+                  <span className="font-semibold text-gray-700">
+                    + ₦{addon.price.toLocaleString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* FIX: Updated button text to match flow */}
-        <button className="w-full rounded-md bg-pink-600 py-3 font-bold text-white transition-colors hover:bg-pink-700">
-          Request Quote
+        <button
+          onClick={handleRequestQuote}
+          disabled={isRequestingQuote || createConversation.isPending}
+          className="w-full rounded-md bg-pink-600 py-3 font-bold text-white transition-colors hover:bg-pink-700 disabled:opacity-50"
+        >
+          {isRequestingQuote || createConversation.isPending ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin" />
+          ) : (
+            "Request Quote"
+          )}
         </button>
-        <button className="mt-3 w-full rounded-md border border-gray-700 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-100">
-          Chat with Seller
+        <button
+          onClick={handleChatWithSeller}
+          disabled={createConversation.isPending}
+          className="mt-3 w-full rounded-md border border-gray-700 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-50"
+        >
+          {createConversation.isPending ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin" />
+          ) : (
+            "Chat with Seller"
+          )}
         </button>
       </div>
     </div>
