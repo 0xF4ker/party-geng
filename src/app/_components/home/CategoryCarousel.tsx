@@ -98,7 +98,7 @@ const CategoryCarousel = () => {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [hoveredCategory, setHoveredCategory] = useState<Category | null>(null);
-  const megaMenuTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const menuTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const checkScroll = () => {
     const el = scrollContainerRef.current;
@@ -133,18 +133,28 @@ const CategoryCarousel = () => {
     }
   };
 
-  const handleMouseEnter = (category: Category) => {
-    if (megaMenuTimerRef.current) {
-      clearTimeout(megaMenuTimerRef.current);
+  const openMenu = (category: Category) => {
+    if (menuTimerRef.current) {
+      clearTimeout(menuTimerRef.current);
     }
-    setHoveredCategory(category);
+    menuTimerRef.current = setTimeout(() => {
+      setHoveredCategory(category);
+    }, 500);
   };
 
-  const handleMouseLeave = () => {
-    // Delay closing to allow mouse to move into the mega menu
-    megaMenuTimerRef.current = setTimeout(() => {
+  const closeMenu = () => {
+    if (menuTimerRef.current) {
+      clearTimeout(menuTimerRef.current);
+    }
+    menuTimerRef.current = setTimeout(() => {
       setHoveredCategory(null);
     }, 200);
+  };
+
+  const cancelMenuTimer = () => {
+    if (menuTimerRef.current) {
+      clearTimeout(menuTimerRef.current);
+    }
   };
 
   return (
@@ -152,7 +162,7 @@ const CategoryCarousel = () => {
       className={cn(
         "relative container mx-auto hidden w-full max-w-7xl px-4 sm:block",
       )}
-      onMouseLeave={handleMouseLeave}
+      onMouseLeave={closeMenu}
     >
       {/* Show on sm+ screens */}
       {canScrollLeft && (
@@ -173,7 +183,8 @@ const CategoryCarousel = () => {
               key={category.id}
               href={`/categories/${slugify(category.name)}`}
               className="px-2 py-3 text-sm font-medium whitespace-nowrap text-gray-600 transition-all hover:border-b-2 hover:border-pink-500 hover:text-pink-500"
-              onMouseEnter={() => handleMouseEnter(category)}
+              onMouseEnter={() => openMenu(category)}
+              onMouseLeave={cancelMenuTimer}
             >
               {category.name}
             </Link>
@@ -198,8 +209,8 @@ const CategoryCarousel = () => {
       {hoveredCategory && (
         <MegaMenu
           category={hoveredCategory}
-          // Handle mouse enter/leave to keep it open when hovering over it
-          onMouseEnter={() => handleMouseEnter(hoveredCategory)}
+          onMouseEnter={cancelMenuTimer}
+          onMouseLeave={closeMenu}
         />
       )}
     </div>
