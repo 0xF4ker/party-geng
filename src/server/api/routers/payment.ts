@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -9,13 +11,11 @@ export const paymentRouter = createTRPCRouter({
       where: { userId: ctx.user.id },
     });
 
-    if (!wallet) {
-      wallet = await ctx.db.wallet.create({
-        data: {
-          userId: ctx.user.id,
-        },
-      });
-    }
+    wallet ??= await ctx.db.wallet.create({
+      data: {
+        userId: ctx.user.id,
+      },
+    });
 
     return wallet;
   }),
@@ -27,7 +27,7 @@ export const paymentRouter = createTRPCRouter({
         amount: z.number().min(100), // Minimum 100 naira
         email: z.string().email(),
         reference: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
@@ -38,33 +38,36 @@ export const paymentRouter = createTRPCRouter({
         });
       }
 
-      const reference = input.reference || `pg_${Date.now()}_${ctx.user.id}`;
+      const reference = input.reference ?? `pg_${Date.now()}_${ctx.user.id}`;
 
       try {
-        const response = await fetch("https://api.paystack.co/transaction/initialize", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${paystackSecretKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            amount: Math.round(input.amount * 100), // Convert to kobo
-            email: input.email,
-            reference,
-            callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/callback`,
-            metadata: {
-              user_id: ctx.user.id,
-              type: "wallet_topup",
+        const response = await fetch(
+          "https://api.paystack.co/transaction/initialize",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${paystackSecretKey}`,
+              "Content-Type": "application/json",
             },
-          }),
-        });
+            body: JSON.stringify({
+              amount: Math.round(input.amount * 100), // Convert to kobo
+              email: input.email,
+              reference,
+              callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/callback`,
+              metadata: {
+                user_id: ctx.user.id,
+                type: "wallet_topup",
+              },
+            }),
+          },
+        );
 
         const data = await response.json();
 
         if (!data.status) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: data.message || "Payment initialization failed",
+            message: data.message ?? "Payment initialization failed",
           });
         }
 
@@ -86,7 +89,7 @@ export const paymentRouter = createTRPCRouter({
     .input(
       z.object({
         reference: z.string(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
@@ -104,7 +107,7 @@ export const paymentRouter = createTRPCRouter({
             headers: {
               Authorization: `Bearer ${paystackSecretKey}`,
             },
-          }
+          },
         );
 
         const data = await response.json();
@@ -175,7 +178,7 @@ export const paymentRouter = createTRPCRouter({
       z.object({
         limit: z.number().min(1).max(100).default(20),
         offset: z.number().min(0).default(0),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const wallet = await ctx.db.wallet.findUnique({
@@ -200,7 +203,7 @@ export const paymentRouter = createTRPCRouter({
         },
       });
 
-      return wallet?.transactions || [];
+      return wallet?.transactions ?? [];
     }),
 
   // Withdraw funds (for vendors)
@@ -211,7 +214,7 @@ export const paymentRouter = createTRPCRouter({
         bankCode: z.string(),
         accountNumber: z.string(),
         accountName: z.string(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const wallet = await ctx.db.wallet.findUnique({

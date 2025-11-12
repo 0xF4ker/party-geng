@@ -88,13 +88,11 @@ export const wishlistRouter = createTRPCRouter({
 
       // Create wishlist if it doesn't exist
       let wishlist = event.wishlist;
-      if (!wishlist) {
-        wishlist = await ctx.db.wishlist.create({
+      wishlist ??= await ctx.db.wishlist.create({
           data: {
             clientEventId: input.eventId,
           },
         });
-      }
 
       return ctx.db.wishlistItem.create({
         data: {
