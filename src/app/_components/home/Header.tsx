@@ -355,7 +355,9 @@ const Header = () => {
                         >
                           <div className="flex items-center gap-3">
                             <Wallet className="h-4 w-4 text-green-600" />
-                            <span className="text-sm font-medium text-gray-700">Wallet</span>
+                            <span className="text-sm font-medium text-gray-700">
+                              Wallet
+                            </span>
                           </div>
                           <span className="text-sm font-semibold text-green-600">
                             ₦{wallet?.availableBalance.toLocaleString() ?? "0"}
@@ -459,7 +461,9 @@ const Header = () => {
                       >
                         <div className="flex items-center gap-3">
                           <Wallet className="h-4 w-4 text-green-600" />
-                          <span className="text-sm font-medium text-gray-700">Wallet</span>
+                          <span className="text-sm font-medium text-gray-700">
+                            Wallet
+                          </span>
                         </div>
                         <span className="text-sm font-semibold text-green-600">
                           ₦{wallet?.availableBalance.toLocaleString() ?? "0"}
@@ -558,14 +562,16 @@ const Header = () => {
                         >
                           <div className="flex items-center gap-3">
                             <Wallet className="h-4 w-4 text-green-600" />
-                            <span className="text-sm font-medium text-gray-700">Wallet</span>
+                            <span className="text-sm font-medium text-gray-700">
+                              Wallet
+                            </span>
                           </div>
                           <span className="text-sm font-semibold text-green-600">
                             ₦{wallet?.availableBalance.toLocaleString() ?? "0"}
                           </span>
                         </Link>
                         <Link
-                          href={`/c/${user?.id}`}
+                          href={`/c/${user?.username}`}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                         >
                           <Eye className="h-4 w-4" />
@@ -634,14 +640,16 @@ const Header = () => {
                         >
                           <div className="flex items-center gap-3">
                             <Wallet className="h-4 w-4 text-green-600" />
-                            <span className="text-sm font-medium text-gray-700">Wallet</span>
+                            <span className="text-sm font-medium text-gray-700">
+                              Wallet
+                            </span>
                           </div>
                           <span className="text-sm font-semibold text-green-600">
                             ₦{wallet?.availableBalance.toLocaleString() ?? "0"}
                           </span>
                         </Link>
                         <Link
-                          href={`/c/${user?.id}`}
+                          href={`/c/${user?.username}`}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                         >
                           <Eye className="h-4 w-4" />
