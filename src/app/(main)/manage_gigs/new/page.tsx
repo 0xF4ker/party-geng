@@ -93,7 +93,7 @@ const CreateGigPage = () => {
   // Create gig mutation
   const createGig = api.gig.create.useMutation({
     onSuccess: () => {
-      router.push("/v/manage_gigs");
+      router.push("/manage_gigs");
     },
     onError: (error) => {
       alert(`Error creating gig: ${error.message}`);

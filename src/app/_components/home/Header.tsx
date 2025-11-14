@@ -289,7 +289,7 @@ const Header = () => {
               <>
                 <nav className="hidden items-center space-x-4 lg:flex">
                   <Link
-                    href="/v/dashboard"
+                    href="/dashboard"
                     className="font-medium text-gray-700 hover:text-pink-500"
                   >
                     Dashboard
@@ -427,7 +427,7 @@ const Header = () => {
                         </p>
                       </div>
                       <Link
-                        href="/c/manage_events"
+                        href="/manage_events"
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 lg:hidden"
                       >
                         <Calendar className="h-4 w-4" />
@@ -513,7 +513,7 @@ const Header = () => {
                   <Link href="/notifications" className="relative">
                     <Bell className="h-6 w-6 text-gray-600 hover:text-pink-500" />
                   </Link>
-                  <Link href="/c/manage_events">
+                  <Link href="/manage_events">
                     <button className="flex items-center gap-2 rounded-md bg-pink-600 px-4 py-2 font-semibold text-white hover:bg-pink-700">
                       <Calendar className="h-4 w-4" />
                       Plan Event

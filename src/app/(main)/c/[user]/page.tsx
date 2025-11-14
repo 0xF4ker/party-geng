@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, { useState } from "react";
 import {
   Star,
   Check,
@@ -10,6 +10,7 @@ import {
   Gift,
   Loader2,
   Edit,
+  MoreHorizontal,
 } from "lucide-react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
@@ -19,74 +20,15 @@ import { cn } from "@/lib/utils";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 
+import ProfileHeader from "@/app/_components/profile/ProfileHeader";
+
 type routerOutput = inferRouterOutputs<AppRouter>;
 type user = routerOutput["user"]["getByUsername"];
 type clientProfile = user["clientProfile"];
-// getMyEvents returns { upcoming: EventType[]; past: EventType[] }, derive the event item type from the upcoming array
 type event = routerOutput["event"]["getMyEvents"]["upcoming"][number];
 type eventPast = routerOutput["event"]["getMyEvents"]["past"][number];
 
 // --- Mock Data ---
-const clientDetails = {
-  name: "Adebayo P.",
-  avatarUrl: "https://placehold.co/128x128/3b82f6/ffffff?text=A",
-  location: "Lagos, Nigeria",
-  memberSince: "Joined July 2024",
-  stats: {
-    eventsHosted: 3,
-    vendorsHired: 5,
-  },
-};
-
-// RE-ADDED: Public upcoming events
-const upcomingEvents = [
-  {
-    id: 1,
-    title: "Adebayo's 30th Birthday Bash",
-    date: "December 15, 2025",
-    status: "Public - Seeking Vendors",
-    coverImage:
-      "https://placehold.co/600x300/ec4899/ffffff?text=30th+Birthday+Bash",
-    wishlistCount: 12, // Updated to be item count
-    hiredVendors: [
-      {
-        id: 1,
-        name: "DJ SpinMaster",
-        avatarUrl: "https://placehold.co/40x40/ec4899/ffffff?text=DJ",
-      },
-      {
-        id: 2,
-        name: "SnapPro",
-        avatarUrl: "https://placehold.co/40x40/8d99ae/ffffff?text=S",
-      },
-    ],
-  },
-];
-
-const pastEvents = [
-  {
-    id: 2,
-    title: "End of Year Corporate Party 2024",
-    date: "December 20, 2024",
-    gallery: [
-      "https://placehold.co/400x300/8b5cf6/ffffff?text=Corporate+1",
-      "https://placehold.co/400x300/8b5cf6/ffffff?text=Corporate+2",
-      "https://placehold.co/400x300/8b5cf6/ffffff?text=Corporate+3",
-    ],
-  },
-  {
-    id: 3,
-    title: "Chioma's Wedding",
-    date: "October 26, 2024",
-    gallery: [
-      "https://placehold.co/400x300/10b981/ffffff?text=Wedding+1",
-      "https://placehold.co/400x300/10b981/ffffff?text=Wedding+2",
-      "https://placehold.co/400x300/10b981/ffffff?text=Wedding+3",
-      "https://placehold.co/400x300/10b981/ffffff?text=Wedding+4",
-    ],
-  },
-];
-
 const vendorReviews = [
   {
     id: 1,
@@ -112,114 +54,39 @@ const vendorReviews = [
 // --- Main Page Component ---
 const ClientProfilePage = () => {
   const params = useParams();
-  const router = useRouter();
   const username = params.user as string;
   const { user: currentUser } = useAuth();
-
-  const [isSidebarSticky, setIsSidebarSticky] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(0);
-  const sidebarRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState("upcoming");
 
-  // Fetch user profile
   const {
     data: profileUser,
     isLoading: profileLoading,
     error: profileError,
   } = api.user.getByUsername.useQuery({ username });
 
-  // Fetch user's events
   const { data: eventsData, isLoading: eventsLoading } =
     api.event.getMyEvents.useQuery(undefined, {
       enabled: !!profileUser && currentUser?.id === profileUser.id,
     });
 
-  // Check if viewing own profile
   const isOwnProfile = currentUser?.id === profileUser?.id;
-
-  // Effect to capture sidebar width
-  useLayoutEffect(() => {
-    const sidebarEl = sidebarRef.current;
-    if (sidebarEl && window.innerWidth >= 1024) {
-      setSidebarWidth(sidebarEl.offsetWidth);
-    }
-
-    const handleResize = () => {
-      if (sidebarEl && window.innerWidth >= 1024) {
-        if (!isSidebarSticky) {
-          sidebarEl.style.width = "auto"; // Reset to get natural width
-        }
-        setSidebarWidth(sidebarEl.offsetWidth);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [isSidebarSticky]);
-
-  // Effect for sticky sidebar
-  useEffect(() => {
-    if (window.innerWidth < 1024) return; // Only run sticky logic on desktop
-
-    const sidebarEl = sidebarRef.current;
-    const contentEl = contentRef.current;
-    if (!sidebarEl || !contentEl) return;
-
-    const topOffset = 127; // Your header height
-
-    const handleScroll = () => {
-      if (!sidebarEl || !contentEl) return;
-
-      const contentRect = contentEl.getBoundingClientRect();
-      // const sidebarRect = sidebarEl.getBoundingClientRect();
-      const contentBottom = contentRect.bottom + window.scrollY - topOffset;
-      const sidebarHeight = sidebarEl.offsetHeight;
-      const stickyTop = document.documentElement.scrollTop + topOffset;
-
-      // Start sticky
-      const startStickyOffset = contentEl.offsetTop;
-
-      if (stickyTop > startStickyOffset) {
-        setIsSidebarSticky(true);
-      } else {
-        setIsSidebarSticky(false);
-      }
-
-      // Stop sticky (bottom out)
-      if (isSidebarSticky && stickyTop + sidebarHeight > contentBottom) {
-        sidebarEl.style.transform = `translateY(${contentBottom - (stickyTop + sidebarHeight)}px)`;
-      } else {
-        sidebarEl.style.transform = "translateY(0px)";
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [isSidebarSticky]);
 
   if (profileLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-12 w-12 animate-spin text-pink-600" />
-        </div>
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <Loader2 className="h-12 w-12 animate-spin text-pink-600" />
       </div>
     );
   }
 
   if (profileError || !profileUser?.clientProfile) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
-        <div className="container mx-auto px-4 py-20">
-          <div className="rounded-lg border border-red-200 bg-red-50 p-8 text-center">
-            <h2 className="text-2xl font-bold text-red-800">
-              Profile Not Found
-            </h2>
-            <p className="mt-2 text-red-600">
-              This client profile could not be found.
-            </p>
-          </div>
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="rounded-lg bg-red-50 p-8 text-center">
+          <h2 className="text-2xl font-bold text-red-800">Profile Not Found</h2>
+          <p className="mt-2 text-red-600">
+            This client profile could not be found.
+          </p>
         </div>
       </div>
     );
@@ -230,92 +97,29 @@ const ClientProfilePage = () => {
   const pastEvents = eventsData?.past?.filter((e) => e.isPublic) ?? [];
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
-      {/* Container */}
-      <div className="container mx-auto px-4 py-8 sm:px-8">
-        {/* Main Layout Grid */}
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* Left Column (Sticky Sidebar on Desktop) */}
-          <div className="relative lg:col-span-1">
-            {/* Mobile View: Static Card */}
-            <div className="lg:hidden">
-              <ClientInfoCard
-                clientProfile={clientProfile}
-                profileUser={profileUser}
-                isOwnProfile={isOwnProfile}
-              />
-            </div>
-            {/* Desktop View: Sticky Wrapper */}
-            <div
-              ref={sidebarRef}
-              className={cn(
-                "hidden w-full transition-all duration-100 lg:block",
-                isSidebarSticky ? "fixed" : "relative",
-              )}
-              style={
-                isSidebarSticky
-                  ? {
-                      top: "127px",
-                      width: `${sidebarWidth}px`, // Apply the saved width
-                      transform: sidebarRef.current
-                        ? sidebarRef.current.style.transform
-                        : "translateY(0px)",
-                    }
-                  : {
-                      width: "auto",
-                      top: "auto",
-                      transform: "translateY(0px)",
-                    }
-              }
-            >
-              <ClientInfoCard
-                clientProfile={clientProfile}
-                profileUser={profileUser}
-                isOwnProfile={isOwnProfile}
-              />
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50 text-gray-900">
+      <ProfileHeader
+        clientProfile={clientProfile}
+        profileUser={profileUser}
+        isOwnProfile={isOwnProfile}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
 
-          {/* Right Column (Main Content) */}
-          <div className="space-y-8 lg:col-span-2" ref={contentRef}>
-            {/* Tab Navigation */}
-            <div className="flex items-center border-b border-gray-200">
-              {/* FIX: Re-added 'Upcoming Events' tab */}
-              <TabButton
-                title="Upcoming Events"
-                isActive={activeTab === "upcoming"}
-                onClick={() => setActiveTab("upcoming")}
-              />
-              <TabButton
-                title="Past Events"
-                isActive={activeTab === "past"}
-                onClick={() => setActiveTab("past")}
-              />
-              <TabButton
-                title="Reviews From Vendors"
-                isActive={activeTab === "reviews"}
-                onClick={() => setActiveTab("reviews")}
-              />
-            </div>
-
-            {/* Tab Content */}
-            <div>
-              {activeTab === "upcoming" && (
-                <UpcomingEventsSection
-                  events={upcomingEvents}
-                  isLoading={eventsLoading}
-                  isOwnProfile={isOwnProfile}
-                />
-              )}
-              {activeTab === "past" && (
-                <PastEventsSection
-                  events={pastEvents}
-                  isLoading={eventsLoading}
-                />
-              )}
-              {activeTab === "reviews" && <ReviewsFromVendorsSection />}
-            </div>
-          </div>
+      <div className="container mx-auto max-w-4xl px-4">
+        {/* Tab Content */}
+        <div className="py-8">
+          {activeTab === "upcoming" && (
+            <UpcomingEventsSection
+              events={upcomingEvents}
+              isLoading={eventsLoading}
+              isOwnProfile={isOwnProfile}
+            />
+          )}
+          {activeTab === "past" && (
+            <PastEventsSection events={pastEvents} isLoading={eventsLoading} />
+          )}
+          {activeTab === "reviews" && <ReviewsFromVendorsSection />}
         </div>
       </div>
     </div>
@@ -323,121 +127,6 @@ const ClientProfilePage = () => {
 };
 
 // --- Sub-Components ---
-
-const ClientInfoCard = ({
-  clientProfile,
-  profileUser,
-  isOwnProfile,
-}: {
-  clientProfile: clientProfile;
-  profileUser: user;
-  isOwnProfile: boolean;
-}) => {
-  const router = useRouter();
-
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-col items-center">
-        <Image
-          src={
-            clientProfile?.avatarUrl ??
-            "https://placehold.co/128x128/3b82f6/ffffff?text=C"
-          }
-          alt={clientProfile?.name ?? "Client"}
-          className="mb-4 h-32 w-32 rounded-full"
-          width={128}
-          height={128}
-        />
-        <h1 className="text-2xl font-bold text-gray-800">
-          {clientProfile?.name ?? profileUser.username ?? "Client"}
-        </h1>
-        <div className="mt-1 flex items-center gap-2">
-          <Check className="h-5 w-5 rounded-full bg-green-500 p-0.5 text-white" />
-          <span className="text-sm font-semibold text-green-600">
-            Verified Client
-          </span>
-        </div>
-      </div>
-
-      {isOwnProfile ? (
-        <div className="mt-6 border-t pt-6">
-          <button
-            onClick={() => router.push("/settings")}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-gray-800 py-3 font-bold text-white transition-colors hover:bg-gray-900"
-          >
-            <Edit className="h-5 w-5" />
-            Edit Profile
-          </button>
-        </div>
-      ) : (
-        <div className="mt-6 border-t pt-6">
-          <button className="flex w-full items-center justify-center gap-2 rounded-md bg-pink-600 py-3 font-bold text-white transition-colors hover:bg-pink-700">
-            <MessageSquare className="h-5 w-5" />
-            Message Client
-          </button>
-        </div>
-      )}
-
-      <div className="mt-6 border-t pt-6">
-        <div className="flex items-center justify-around text-center">
-          <div>
-            <p className="text-2xl font-bold">0</p>
-            <p className="text-sm text-gray-500">Events Hosted</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold">0</p>
-            <p className="text-sm text-gray-500">Hires Made</p>
-          </div>
-        </div>
-      </div>
-
-      {clientProfile?.location && (
-        <div className="mt-6 border-t pt-6">
-          <div className="flex flex-col space-y-3">
-            <div className="flex items-start gap-3 text-sm">
-              <MapPin className="h-5 w-5 shrink-0 text-gray-500" />
-              <span>
-                From <strong>{clientProfile?.location}</strong>
-              </span>
-            </div>
-            <div className="flex items-start gap-3 text-sm">
-              <Calendar className="h-5 w-5 shrink-0 text-gray-500" />
-              <span>
-                Joined{" "}
-                {new Date(profileUser.createdAt).toLocaleDateString("en-US", {
-                  month: "long",
-                  year: "numeric",
-                })}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const TabButton = ({
-  title,
-  isActive,
-  onClick,
-}: {
-  title: string;
-  isActive: boolean;
-  onClick: () => void;
-}) => (
-  <button
-    onClick={onClick}
-    className={cn(
-      "border-b-2 px-1 py-3 text-sm font-semibold transition-colors sm:px-4 sm:text-base",
-      isActive
-        ? "border-pink-600 text-pink-600"
-        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-800",
-    )}
-  >
-    {title}
-  </button>
-);
 
 const UpcomingEventsSection = ({
   events,
@@ -452,7 +141,7 @@ const UpcomingEventsSection = ({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-pink-600" />
       </div>
     );
@@ -460,19 +149,22 @@ const UpcomingEventsSection = ({
 
   if (events.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
-        <Calendar className="mx-auto h-16 w-16 text-gray-300" />
-        <p className="mt-4 text-gray-500">
+      <div className="rounded-lg border-2 border-dashed border-gray-200 bg-white p-12 text-center">
+        <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+        <p className="mt-4 font-semibold text-gray-800">
           {isOwnProfile
             ? "You have no public upcoming events"
             : "No public upcoming events"}
         </p>
+        <p className="mt-2 text-sm text-gray-500">
+          Public events you create will show up here.
+        </p>
         {isOwnProfile && (
           <button
-            onClick={() => router.push("/c/manage_events")}
-            className="mt-4 font-semibold text-pink-600 hover:text-pink-700"
+            onClick={() => router.push("/manage_events")}
+            className="mt-6 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-pink-700"
           >
-            Create an event
+            Create an Event
           </button>
         )}
       </div>
@@ -481,64 +173,57 @@ const UpcomingEventsSection = ({
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-800 lg:hidden">
-        Upcoming Events
-      </h2>
-      {events.map((event) => {
-        const wishlistCount = event.wishlist?.items?.length ?? 0;
-        return (
-          <div
-            key={event.id}
-            className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
-          >
-            <Image
-              src={
-                event.coverImage ??
-                "https://placehold.co/600x300/ec4899/ffffff?text=Event"
-              }
-              alt={event.title}
-              className="h-40 w-full object-cover"
-              width={600}
-              height={200}
-            />
-            <div className="p-5">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-green-600">
-                    Public Event
-                  </p>
-                  <h3 className="mt-1 text-xl font-bold text-gray-800">
-                    {event.title}
-                  </h3>
-                  <p className="mt-1 text-sm font-medium text-gray-500">
-                    Event Date:{" "}
-                    {new Date(event.date).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
-                </div>
+      {events.map((event) => (
+        <EventCard key={event.id} event={event} />
+      ))}
+    </div>
+  );
+};
+
+const EventCard = ({ event }: { event: event }) => {
+  const router = useRouter();
+  const wishlistCount = event.wishlist?.items?.length ?? 0;
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white transition-all hover:shadow-md">
+      <Image
+        src={
+          event.coverImage ??
+          "https://placehold.co/600x250/ec4899/ffffff?text=Event"
+        }
+        alt={event.title}
+        className="h-48 w-full object-cover"
+        width={600}
+        height={250}
+      />
+      <div className="p-5">
+        <p className="text-sm font-semibold text-green-600">Public Event</p>
+        <h3 className="mt-1 text-xl font-bold">{event.title}</h3>
+        <p className="mt-1 text-sm text-gray-500">
+          {new Date(event.date).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}
+        </p>
+        {wishlistCount > 0 && (
+          <div className="mt-6 flex items-center justify-between rounded-lg bg-gray-50 p-4">
+            <div className="flex items-center gap-3">
+              <Gift className="h-8 w-8 text-pink-500" />
+              <div>
+                <p className="font-semibold">This event has a wishlist!</p>
+                <p className="text-sm text-gray-500">{wishlistCount} items</p>
               </div>
-              {wishlistCount > 0 && (
-                <div className="mt-6 border-t border-gray-100 pt-4">
-                  <p className="mb-3 text-center text-sm text-gray-600">
-                    🎁 This event has a public wishlist with {wishlistCount}{" "}
-                    items!
-                  </p>
-                  <button
-                    onClick={() => router.push(`/event/${event.id}/wishlist`)}
-                    className="flex w-full items-center justify-center gap-2 rounded-md bg-pink-600 px-4 py-2.5 font-bold text-white transition-colors hover:bg-pink-700"
-                  >
-                    <Gift className="h-5 w-5" />
-                    View Event Wishlist
-                  </button>
-                </div>
-              )}
             </div>
+            <button
+              onClick={() => router.push(`/event/${event.id}/wishlist`)}
+              className="rounded-full bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-300"
+            >
+              View
+            </button>
           </div>
-        );
-      })}
+        )}
+      </div>
     </div>
   );
 };
@@ -552,7 +237,7 @@ const PastEventsSection = ({
 }) => {
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-pink-600" />
       </div>
     );
@@ -560,35 +245,39 @@ const PastEventsSection = ({
 
   if (events.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
-        <Calendar className="mx-auto h-16 w-16 text-gray-300" />
-        <p className="mt-4 text-gray-500">No public past events</p>
+      <div className="rounded-lg border-2 border-dashed border-gray-200 bg-white p-12 text-center">
+        <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+        <p className="mt-4 font-semibold text-gray-800">
+          No public past events
+        </p>
+        <p className="mt-2 text-sm text-gray-500">
+          Past events will appear here once they&apos;ve concluded.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-gray-800 lg:hidden">
-        Past Events
-      </h2>
+    <div className="space-y-4">
       {events.map((event) => (
         <div
           key={event.id}
-          className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
+          className="rounded-xl border border-gray-200 bg-white p-5"
         >
-          <p className="text-sm font-semibold text-gray-500">
-            {new Date(event.date).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </p>
-          <h3 className="mt-1 mb-4 text-xl font-bold text-gray-800">
-            {event.title}
-          </h3>
-          <div className="rounded-lg border border-gray-200 p-4">
-            <p className="text-sm text-gray-500">Event gallery coming soon</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold">{event.title}</h3>
+              <p className="text-sm text-gray-500">
+                {new Date(event.date).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </p>
+            </div>
+            <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+              Concluded
+            </div>
           </div>
         </div>
       ))}
@@ -598,49 +287,45 @@ const PastEventsSection = ({
 
 const ReviewsFromVendorsSection = () => (
   <div className="space-y-6">
-    <h2 className="text-2xl font-bold text-gray-800 lg:hidden">
-      Reviews From Vendors
-    </h2>
     {vendorReviews.map((review) => (
-      <div
-        key={review.id}
-        className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
-      >
-        <div className="mb-3 flex items-center space-x-3">
-          <Image
-            src={review.vendorAvatar}
-            alt={review.vendorName}
-            className="h-10 w-10 rounded-full"
-            width={40}
-            height={40}
-          />
-          <div>
-            <h4 className="font-semibold">{review.vendorName}</h4>
-            <p className="text-sm text-gray-500">Verified Vendor</p>
-          </div>
-        </div>
-        <div className="mb-3 flex items-center gap-1">
-          {Array.from({ length: 5 }, (_, i) => i).map((i) => (
-            <Star
-              key={i}
-              className={cn(
-                "h-5 w-5",
-                i < review.rating
-                  ? "fill-current text-yellow-400"
-                  : "text-gray-300",
-              )}
-            />
-          ))}
-          <span className="ml-2 font-bold text-yellow-500">
-            {review.rating.toFixed(1)}
-          </span>
-          <span className="ml-2 text-sm text-gray-400">| {review.date}</span>
-        </div>
-        <p className="leading-relaxed text-gray-600">
-          &quot;{review.comment}&quot;
-        </p>
-      </div>
+      <ReviewCard key={review.id} review={review} />
     ))}
+  </div>
+);
+
+const ReviewCard = ({ review }: { review: (typeof vendorReviews)[0] }) => (
+  <div className="rounded-xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-md">
+    <div className="flex items-start justify-between">
+      <div className="flex items-center space-x-4">
+        <Image
+          src={review.vendorAvatar}
+          alt={review.vendorName}
+          className="h-12 w-12 rounded-full"
+          width={48}
+          height={48}
+        />
+        <div>
+          <h4 className="font-bold">{review.vendorName}</h4>
+          <p className="text-sm text-gray-500">
+            Verified Vendor · {review.date}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-1">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Star
+            key={i}
+            className={cn(
+              "h-5 w-5",
+              i < review.rating
+                ? "fill-current text-yellow-400"
+                : "text-gray-300",
+            )}
+          />
+        ))}
+      </div>
+    </div>
+    <p className="mt-4 text-gray-600">&quot;{review.comment}&quot;</p>
   </div>
 );
 

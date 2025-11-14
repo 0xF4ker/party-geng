@@ -19,7 +19,11 @@ const config = {
       {
         protocol: "https",
         hostname: "zplczncwkxlpjxscutku.supabase.co",
-    }
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
     ],
     dangerouslyAllowSVG: true,
   },

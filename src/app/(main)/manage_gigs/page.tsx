@@ -52,7 +52,7 @@ const VendorGigsPage = () => {
           <div className="space-y-8">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <h1 className="text-3xl font-bold text-gray-800">My Gigs</h1>
-              <Link href="/v/manage_gigs/new">
+              <Link href="/manage_gigs/new">
                 <button className="flex w-full items-center justify-center gap-2 rounded-md bg-pink-600 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-pink-700 md:w-auto">
                   <Plus className="h-5 w-5" />
                   Create New Gig
@@ -106,7 +106,7 @@ const VendorGigsPage = () => {
                       {activeTab === "DRAFT" && "No draft gigs saved"}
                     </p>
                     {activeTab === "ACTIVE" && (
-                      <Link href="/v/manage_gigs/new">
+                      <Link href="/manage_gigs/new">
                         <button className="rounded-md bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-700">
                           Create Your First Gig
                         </button>
@@ -296,7 +296,7 @@ const GigManagementCard = ({ gig }: { gig: GigWithRelations }) => {
             </button>
             {isMenuOpen && (
               <div className="absolute top-full right-0 z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg">
-                <Link href={`/v/manage_gigs/${gig.id}/edit`}>
+                <Link href={`/manage_gigs/${gig.id}/edit`}>
                   <button className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
                     <Edit className="h-4 w-4" /> Edit
                   </button>

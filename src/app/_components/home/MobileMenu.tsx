@@ -160,7 +160,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
               <>
                 <div className="space-y-5">
                   <Link
-                    href="/v/dashboard"
+                    href="/dashboard"
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
                     Dashboard
@@ -205,7 +205,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
               <>
                 <div className="space-y-5">
                   <Link
-                    href="/c/manage_events"
+                    href="/manage_events"
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
                     My Events

@@ -100,6 +100,8 @@ model ClientProfile {
 
   name      String?
   avatarUrl String?
+  bannerUrl  String?
+  bio       String?  @db.Text
   location  String?
 
   events ClientEvent[] @relation("EventOwner")
@@ -118,6 +120,7 @@ model VendorProfile {
   companyName String? // The public-facing name (e.g., "DJ SpinMaster Entertainment")
   title       String? // e.g., "Professional Wedding & Event DJ"
   avatarUrl   String?
+  bannerUrl    String?
   about       String?  @db.Text
   skills      String[]
   location    String?  // Public location (e.g., "Lagos, Nigeria")

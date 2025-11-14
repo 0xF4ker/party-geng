@@ -47,14 +47,15 @@ const SearchInput: React.FC<SearchInputProps> = ({
       )}
       onClick={(e) => e.stopPropagation()} // Prevent clicks from closing overlay
     >
-      <div className="relative flex w-full">
+      <div className="relative flex w-full items-center">
         <input
           ref={inputRef}
           type="text"
           placeholder={placeholder}
           className={cn(
-            "w-full border border-gray-300 px-4 py-2 text-gray-900 focus:border-pink-500 focus:ring-1 focus:ring-pink-500 focus:outline-none",
-            query.length > 0 ? "rounded-l-md" : "rounded-l-md", // Adjust rounding if clear button is visible
+            "w-full border border-r-0 border-gray-300 bg-white py-2 pl-4 pr-2 text-gray-900",
+            "focus:bg-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 focus:outline-none",
+            "rounded-l-full",
           )}
           onFocus={() => setIsFocused(true)}
           value={query}
@@ -64,15 +65,15 @@ const SearchInput: React.FC<SearchInputProps> = ({
         {query.length > 0 && (
           <button
             onClick={handleClear}
-            className="flex items-center justify-center border border-l-0 border-gray-300 bg-white px-3 text-gray-500 hover:text-gray-800"
+            className="flex items-center justify-center border-t border-b border-gray-300 bg-white px-3 text-gray-500 hover:text-gray-800"
           >
             <X className="h-5 w-5" />
           </button>
         )}
         <button
           className={cn(
-            "bg-pink-500 px-4 py-2 font-bold text-white hover:bg-pink-600",
-            query.length > 0 ? "rounded-r-md" : "rounded-none rounded-r-md",
+            "rounded-r-full bg-pink-500 px-4 py-2 font-bold text-white hover:bg-pink-600",
+            "border border-pink-500"
           )}
         >
           <Search className="h-5 w-5" />

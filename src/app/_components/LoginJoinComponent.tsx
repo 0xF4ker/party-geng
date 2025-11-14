@@ -280,9 +280,9 @@ const AuthModal = ({
           const userRole = data.user?.user_metadata?.role as string;
 
           if (userRole === "VENDOR") {
-            router.push("/v/dashboard");
+            router.push("/dashboard");
           } else if (userRole === "CLIENT") {
-            router.push("/c/manage_events");
+            router.push("/manage_events");
           } else {
             router.push("/");
           }
@@ -378,9 +378,9 @@ const AuthModal = ({
 
         // Navigate immediately based on selected role
         if (selectedRole === "vendor") {
-          router.push("/v/dashboard");
+          router.push("/dashboard");
         } else {
-          router.push("/c/manage_events");
+          router.push("/manage_events");
         }
       } else {
         // User needs to verify email

@@ -269,7 +269,7 @@ const VendorSidebar = () => {
             </span>
           </div>
         </div>
-        <Link href="/v/manage_gigs/new">
+        <Link href="/manage_gigs/new">
           <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-md bg-pink-600 py-2.5 font-semibold text-white transition-colors hover:bg-pink-700">
             <Plus className="h-5 w-5" />
             Create New Gig
