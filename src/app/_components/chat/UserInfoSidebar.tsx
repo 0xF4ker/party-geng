@@ -14,8 +14,14 @@ import {
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@/server/api/root";
+
+type routerOutput = inferRouterOutputs<AppRouter>;
+type conversationOutput = routerOutput["chat"]["getConversations"][number];
+
 interface UserInfoSidebarProps {
-  conversation: any; // Replace with your strict TRPC type
+  conversation: conversationOutput; // Replace with your strict TRPC type
   currentUserId: string;
 }
 
@@ -25,20 +31,27 @@ export const UserInfoSidebar = ({
 }: UserInfoSidebarProps) => {
   // 1. Find the "Other" user
   const otherUser = conversation.participants.find(
-    (p: any) => p.id !== currentUserId,
+    (p) => p.id !== currentUserId,
   );
 
   if (!otherUser) return null;
 
   // 2. Extract Data with Fallbacks
-  const isVendor = !!otherUser.vendorProfile;
-  const profile = isVendor ? otherUser.vendorProfile : otherUser.clientProfile;
+  const vendorProfile = otherUser.vendorProfile;
+  const clientProfile = otherUser.clientProfile;
+  const isVendor = !!vendorProfile;
 
+  // Safe extraction logic
   const displayName =
-    profile?.companyName ?? profile?.name ?? otherUser.username ?? "Unknown";
+    vendorProfile?.companyName ??
+    clientProfile?.name ??
+    otherUser.username ??
+    "Unknown";
 
-  const avatarUrl = profile?.avatarUrl;
-  const location = profile?.location ?? "Nigeria"; // Default fallback
+  const avatarUrl = vendorProfile?.avatarUrl ?? clientProfile?.avatarUrl;
+  const location =
+    vendorProfile?.location ?? clientProfile?.location ?? "Nigeria";
+
   const joinedDate = otherUser.createdAt
     ? new Date(otherUser.createdAt)
     : new Date();
@@ -77,10 +90,10 @@ export const UserInfoSidebar = ({
         </p>
 
         {/* Vendor Rating Badge */}
-        {isVendor && profile?.rating && (
+        {isVendor && vendorProfile?.rating && (
           <div className="mt-3 flex items-center gap-2 rounded-full border border-yellow-100 bg-yellow-50 px-3 py-1 text-sm font-semibold text-yellow-700">
             <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-            <span>{profile.rating.toFixed(1)}</span>
+            <span>{vendorProfile.rating.toFixed(1)}</span>
             <span className="text-yellow-300/50">|</span>
             <span className="text-xs tracking-wide text-yellow-600/80 uppercase">
               Top Rated
@@ -132,7 +145,7 @@ export const UserInfoSidebar = ({
           </div>
 
           {/* Section: Vendor Specifics */}
-          {isVendor && profile && (
+          {isVendor && vendorProfile && (
             <div>
               <div className="my-4 border-t border-gray-100" />
               <h4 className="mb-3 text-xs font-bold tracking-wider text-gray-400 uppercase">
@@ -142,13 +155,13 @@ export const UserInfoSidebar = ({
                 <InfoItem
                   icon={Clock}
                   label="Avg. Response"
-                  value={profile.avgResponseTime || "< 1 hour"}
+                  value={vendorProfile.avgResponseTime ?? "< 1 hour"}
                   color="text-orange-500"
                 />
                 <InfoItem
                   icon={Award}
                   label="Vendor Level"
-                  value={profile.level || "Rising Talent"}
+                  value={vendorProfile.level ?? "Rising Talent"}
                   color="text-purple-500"
                 />
               </ul>
@@ -167,7 +180,7 @@ const InfoItem = ({
   value,
   color = "text-gray-400",
 }: {
-  icon: any;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   label: string;
   value: string;
   color?: string;

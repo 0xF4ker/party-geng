@@ -26,8 +26,10 @@ export const chatRouter = createTRPCRouter({
                 level: true,
                 rating: true,
                 avgResponseTime: true,
+                location: true,
               },
             },
+            createdAt: true,
           },
         },
         messages: {
@@ -63,7 +65,7 @@ export const chatRouter = createTRPCRouter({
         conversationId: z.string(),
         limit: z.number().min(1).max(100).default(50),
         cursor: z.string().optional(), // For pagination
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       // Verify user is part of conversation
@@ -72,7 +74,10 @@ export const chatRouter = createTRPCRouter({
         include: { participants: { select: { id: true } } },
       });
 
-      if (!conversation || !conversation.participants.some((p) => p.id === ctx.user.id)) {
+      if (
+        !conversation ||
+        !conversation.participants.some((p) => p.id === ctx.user.id)
+      ) {
         throw new Error("Unauthorized");
       }
 
@@ -113,7 +118,7 @@ export const chatRouter = createTRPCRouter({
         conversationId: z.string(),
         text: z.string().min(1),
         optimisticId: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       // Verify user is part of conversation
@@ -122,7 +127,10 @@ export const chatRouter = createTRPCRouter({
         include: { participants: { select: { id: true } } },
       });
 
-      if (!conversation || !conversation.participants.some((p) => p.id === ctx.user.id)) {
+      if (
+        !conversation ||
+        !conversation.participants.some((p) => p.id === ctx.user.id)
+      ) {
         throw new Error("Unauthorized");
       }
 
@@ -140,7 +148,9 @@ export const chatRouter = createTRPCRouter({
                 id: true,
                 username: true,
                 clientProfile: { select: { name: true, avatarUrl: true } },
-                vendorProfile: { select: { companyName: true, avatarUrl: true } },
+                vendorProfile: {
+                  select: { companyName: true, avatarUrl: true },
+                },
               },
             },
           },
@@ -159,7 +169,7 @@ export const chatRouter = createTRPCRouter({
     .input(
       z.object({
         otherUserId: z.string(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       // Check if conversation already exists
@@ -168,7 +178,11 @@ export const chatRouter = createTRPCRouter({
           AND: [
             { participants: { some: { id: ctx.user.id } } },
             { participants: { some: { id: input.otherUserId } } },
-            { participants: { every: { id: { in: [ctx.user.id, input.otherUserId] } } } },
+            {
+              participants: {
+                every: { id: { in: [ctx.user.id, input.otherUserId] } },
+              },
+            },
           ],
         },
         include: {
@@ -213,7 +227,7 @@ export const chatRouter = createTRPCRouter({
       z.object({
         otherUserId: z.string(),
         initialMessage: z.string(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       // Check if conversation already exists
@@ -257,6 +271,9 @@ export const chatRouter = createTRPCRouter({
         },
       });
 
-      return { conversationId: conversation.id, message: conversation.messages[0] };
+      return {
+        conversationId: conversation.id,
+        message: conversation.messages[0],
+      };
     }),
 });
