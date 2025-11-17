@@ -135,25 +135,22 @@ const VendorProfileHeader = ({
         // You might want to show a toast notification here
         // alert("Failed to create conversation. Please try again.");
         toast.error("Failed to create conversation. Please try again.");
-        // Open modal if user is guest
-        if (!user) {
-          openModal("login");
-        }
       },
     },
   );
 
   const handleContactVendor = () => {
     if (!user) {
-      alert("Please sign in to contact this vendor");
+      toast.info("Please sign in to contact this vendor");
+      openModal("login");
       return;
     }
     if (!vendorProfile?.userId) {
-      alert("Unable to contact this vendor");
+      toast.error("Unable to contact this vendor");
       return;
     }
     if (user.id === vendorProfile.userId) {
-      alert("You cannot message yourself");
+      toast.error("You cannot message yourself");
       return;
     }
 
@@ -284,7 +281,7 @@ const VendorProfileHeader = ({
               </div>
             ) : (
               <nav className="flex items-center space-x-4">
-                <Link href="/inbox" className="relative">
+                <Link href="/inbox" className="relative hidden sm:block">
                   <Mail className={cn("h-6 w-6", headerIconColor)} />
                 </Link>
                 <Link href="/notifications" className="relative">

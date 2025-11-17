@@ -35,6 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import LoginJoinComponent from "../LoginJoinComponent";
 import GlobalSearch from "../home/GlobalSearch";
 import MobileMenu from "../home/MobileMenu";
+import { toast } from "sonner";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type user = routerOutput["user"]["getByUsername"];
@@ -113,6 +114,22 @@ const ProfileHeader = ({
   });
   const { data: searchList } = api.category.getSearchList.useQuery();
 
+  // --- Conversation Mutation ---
+  const createConversation = api.chat.createConversationWithMessage.useMutation(
+    {
+      onSuccess: (data) => {
+        router.push(`/inbox?conversation=${data.conversationId}`);
+      },
+      onError: (error) => {
+        console.error("Failed to create conversation:", error);
+        toast.error("Failed to create conversation. Please try again.");
+        if (!user) {
+          openModal("login");
+        }
+      },
+    },
+  );
+
   // --- Derived State ---
   const isVendor =
     user?.vendorProfile !== null && user?.vendorProfile !== undefined;
@@ -132,6 +149,27 @@ const ProfileHeader = ({
   };
   const closeModal = () => setIsModalOpen(false);
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+
+  const handleContactClient = () => {
+    if (!user) {
+      toast.info("Please sign in to message this user.");
+      openModal("login");
+      return;
+    }
+    if (!profileUser?.id) {
+      toast.error("Unable to message this user.");
+      return;
+    }
+    if (user.id === profileUser.id) {
+      toast.error("You cannot message yourself.");
+      return;
+    }
+
+    createConversation.mutate({
+      otherUserId: profileUser.id,
+      initialMessage: `Hi, I'd like to connect!`,
+    });
+  };
 
   // --- Scroll Effects ---
   useEffect(() => {
@@ -340,7 +378,16 @@ const ProfileHeader = ({
                 </>
               ) : (
                 <>
-                  <button className="rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-pink-700">
+                  <button
+                    onClick={handleContactClient}
+                    disabled={createConversation.isPending}
+                    className="flex items-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-pink-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {createConversation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <MessageSquare className="h-4 w-4" />
+                    )}
                     Message
                   </button>
                   <button className="rounded-full border border-gray-300 bg-white p-2 text-gray-500 shadow-sm hover:bg-gray-100">
