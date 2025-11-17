@@ -28,6 +28,7 @@ import {
   kycSchema,
 } from "@/lib/validations/settings";
 import { type z } from "zod";
+import AccountActions from "./_components/AccountActions";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -122,6 +123,8 @@ const SettingsPage = () => {
         return <PaymentSettings />;
       case "notifications":
         return <NotificationSettings />;
+      case "services":
+        return profile?.role === "VENDOR" ? <VendorServicesForm /> : null;
       default:
         return <PublicProfileForm isVendor={profile?.role === "VENDOR"} />;
     }
@@ -167,6 +170,9 @@ const SettingsPage = () => {
 
             {/* 2. Render active section */}
             {renderSection()}
+
+            {/* 3. Account Actions */}
+            <AccountActions />
           </div>
         </div>
       </div>
@@ -198,6 +204,12 @@ const SettingsSidebar = ({
       icon: ShieldCheck,
       for: ["vendor"],
     }, // Vendor only
+    {
+      id: "services",
+      name: "My Services",
+      icon: User, // Using User icon for now, can change later
+      for: ["vendor"],
+    },
     {
       id: "security",
       name: "Password & Security",
@@ -591,8 +603,8 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
       const commonData = {
         username: profile.username ?? "",
         avatarUrl: isVendor
-          ? (vendorProfile?.avatarUrl ?? "")
-          : (clientProfile?.avatarUrl ?? ""),
+          ? (vendorProfile?.avatarUrl ?? null)
+          : (clientProfile?.avatarUrl ?? null),
         location: isVendor
           ? (vendorProfile?.location ?? "")
           : (clientProfile?.location ?? ""),
@@ -663,6 +675,8 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
           location: data.location,
         };
 
+    console.log("Submitting profile update:", filteredData);
+
     updateProfile.mutate(filteredData);
   };
 
@@ -681,7 +695,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
         {/* Profile Picture */}
         <ImageUpload
           label="Profile Picture"
-          currentImage={avatarUrl ?? undefined}
+          currentImage={avatarUrl ?? null}
           onUploadComplete={(url) => {
             setAvatarUrl(url);
             setValue("avatarUrl", url);
@@ -819,6 +833,143 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   );
 };
 
+// Placeholder for Payments
+const PaymentSettings = () => (
+  <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div className="border-b border-gray-200 p-6">
+      <h2 className="text-xl font-semibold">Payment Methods</h2>
+    </div>
+    <div className="p-6">
+      <p className="text-gray-600">
+        Manage your payment methods and payout accounts here.
+      </p>
+      {/* ...Payment form would go here... */}
+    </div>
+  </div>
+);
+
+// --- VENDOR-ONLY SETTINGS ---
+const VendorServicesForm = () => {
+  const { profile } = useAuthStore();
+  const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
+
+  const { data: allServices, isLoading: isLoadingAllServices } =
+    api.category.getAll.useQuery();
+  const { data: userProfile, isLoading: isLoadingUserProfile } =
+    api.user.getProfile.useQuery();
+
+  useEffect(() => {
+    if (userProfile?.vendorProfile?.services) {
+      setSelectedServiceIds(
+        userProfile.vendorProfile.services.map((s) => s.serviceId),
+      );
+    }
+  }, [userProfile]);
+
+  const utils = api.useUtils();
+  const updateServices = api.settings.updateVendorServices.useMutation({
+    onSuccess: async () => {
+      toast.success("Services updated successfully!");
+      await utils.user.getProfile.invalidate(); // Invalidate to refetch vendor's services
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleServiceToggle = (serviceId: number) => {
+    setSelectedServiceIds((prev) =>
+      prev.includes(serviceId)
+        ? prev.filter((id) => id !== serviceId)
+        : [...prev, serviceId],
+    );
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateServices.mutate({ serviceIds: selectedServiceIds });
+  };
+
+  if (isLoadingAllServices || isLoadingUserProfile) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <Skeleton className="h-6 w-1/3" />
+        <Skeleton className="mt-2 h-4 w-2/3" />
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full rounded-md" />
+          ))}
+        </div>
+        <div className="mt-6 flex justify-end">
+          <Skeleton className="h-12 w-32 rounded-md" />
+        </div>
+      </div>
+    );
+  }
+
+  if (profile?.role !== "VENDOR") {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <p className="text-red-600">You must be a vendor to manage services.</p>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-lg border border-gray-200 bg-white shadow-sm"
+    >
+      <div className="border-b border-gray-200 p-6">
+        <h2 className="text-xl font-semibold">My Services</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Select the services you offer to clients.
+        </p>
+      </div>
+      <div className="space-y-6 p-6">
+        {allServices && allServices.length > 0 ? (
+          allServices.map((category) => (
+            <div key={category.id}>
+              <h3 className="mb-3 text-lg font-semibold text-gray-800">
+                {category.name}
+              </h3>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {category.services.map((service) => (
+                  <label
+                    key={service.id}
+                    htmlFor={`service-${service.id}`}
+                    className="flex cursor-pointer items-center rounded-md border border-gray-300 bg-white p-4 shadow-sm transition-all hover:border-pink-500 hover:shadow-md"
+                  >
+                    <input
+                      type="checkbox"
+                      id={`service-${service.id}`}
+                      checked={selectedServiceIds.includes(service.id)}
+                      onChange={() => handleServiceToggle(service.id)}
+                      className="h-5 w-5 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">
+                      {service.name}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-600">No services available yet.</p>
+        )}
+      </div>
+      <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-6">
+        <button
+          type="submit"
+          className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50"
+          disabled={updateServices.isPending}
+        >
+          {updateServices.isPending ? "Saving..." : "Save Services"}
+        </button>
+      </div>
+    </form>
+  );
+};
+
 // Placeholder for Security
 const SecuritySettings = () => {
   const {
@@ -908,21 +1059,6 @@ const SecuritySettings = () => {
     </form>
   );
 };
-
-// Placeholder for Payments
-const PaymentSettings = () => (
-  <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-    <div className="border-b border-gray-200 p-6">
-      <h2 className="text-xl font-semibold">Payment Methods</h2>
-    </div>
-    <div className="p-6">
-      <p className="text-gray-600">
-        Manage your payment methods and payout accounts here.
-      </p>
-      {/* ...Payment form would go here... */}
-    </div>
-  </div>
-);
 
 // Placeholder for Notifications
 const NotificationSettings = () => {

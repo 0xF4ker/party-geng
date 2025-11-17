@@ -90,17 +90,7 @@ export const chatRouter = createTRPCRouter({
               vendorProfile: { select: { companyName: true, avatarUrl: true } },
             },
           },
-          quote: {
-            include: {
-              gig: {
-                select: {
-                  id: true,
-                  title: true,
-                  service: { select: { name: true } },
-                },
-              },
-            },
-          },
+          quote: true,
         },
       });
 
@@ -122,6 +112,7 @@ export const chatRouter = createTRPCRouter({
       z.object({
         conversationId: z.string(),
         text: z.string().min(1),
+        optimisticId: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -216,13 +207,12 @@ export const chatRouter = createTRPCRouter({
       });
     }),
 
-  // Create a conversation with an initial message (for quote requests from gig page)
+  // Create a conversation with an initial message (for quote requests from service/vendor page)
   createConversationWithMessage: protectedProcedure
     .input(
       z.object({
         otherUserId: z.string(),
         initialMessage: z.string(),
-        gigId: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {

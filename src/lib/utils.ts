@@ -7,3 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export const slugify = (text: string) =>
   text.toLowerCase().replace(/ \/ /g, "-").replace(/ /g, "-");
+
+export const unslugify = (slug: string) => {
+  return slug.replace(/-/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+};

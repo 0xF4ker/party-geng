@@ -1,30 +1,24 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   Star,
-  Check,
   MapPin,
   MessageSquare,
-  Gift,
   Loader2,
   Edit,
   MoreHorizontal,
-  Briefcase,
-  History,
-  Award,
   Menu,
   Bell,
   Mail,
-  ShoppingBag,
-  Calendar,
   Settings,
   LogOut,
   Eye,
   Wallet,
+  Award,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,10 +29,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import LoginJoinComponent from "../LoginJoinComponent";
 import GlobalSearch from "../home/GlobalSearch";
 import MobileMenu from "../home/MobileMenu";
+import { toast } from "sonner";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
-type user = routerOutput["user"]["getByUsername"];
-type clientProfile = user["clientProfile"];
+type vendorProfileWithUser = routerOutput["vendor"]["getByUsername"];
 
 // Modal from Header.tsx
 const Modal = ({
@@ -77,15 +71,13 @@ const Modal = ({
 };
 
 // Main component
-const ProfileHeader = ({
-  clientProfile,
-  profileUser,
+const VendorProfileHeader = ({
+  vendorProfile,
   isOwnProfile,
   activeTab,
   setActiveTab,
 }: {
-  clientProfile: clientProfile;
-  profileUser: user;
+  vendorProfile: vendorProfileWithUser;
   isOwnProfile: boolean;
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -132,6 +124,44 @@ const ProfileHeader = ({
   };
   const closeModal = () => setIsModalOpen(false);
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+
+  const createConversation = api.chat.createConversationWithMessage.useMutation(
+    {
+      onSuccess: (data) => {
+        router.push(`/inbox?conversation=${data.conversationId}`);
+      },
+      onError: (error) => {
+        console.error("Failed to create conversation:", error);
+        // You might want to show a toast notification here
+        // alert("Failed to create conversation. Please try again.");
+        toast.error("Failed to create conversation. Please try again.");
+        // Open modal if user is guest
+        if (!user) {
+          openModal("login");
+        }
+      },
+    },
+  );
+
+  const handleContactVendor = () => {
+    if (!user) {
+      alert("Please sign in to contact this vendor");
+      return;
+    }
+    if (!vendorProfile?.userId) {
+      alert("Unable to contact this vendor");
+      return;
+    }
+    if (user.id === vendorProfile.userId) {
+      alert("You cannot message yourself");
+      return;
+    }
+
+    createConversation.mutate({
+      otherUserId: vendorProfile.userId,
+      initialMessage: `Hi! I'd like to know more about your services.`,
+    });
+  };
 
   // --- Scroll Effects ---
   useEffect(() => {
@@ -182,6 +212,8 @@ const ProfileHeader = ({
   const headerIconColor = isHeaderSticky
     ? "text-gray-600 hover:text-pink-500"
     : "text-white hover:text-pink-300";
+
+  const tabs = ["about", "services", "reviews", "portfolio"];
 
   return (
     <>
@@ -252,7 +284,7 @@ const ProfileHeader = ({
               </div>
             ) : (
               <nav className="flex items-center space-x-4">
-                <Link href="/inbox" className="relative hidden sm:block">
+                <Link href="/inbox" className="relative">
                   <Mail className={cn("h-6 w-6", headerIconColor)} />
                 </Link>
                 <Link href="/notifications" className="relative">
@@ -295,7 +327,7 @@ const ProfileHeader = ({
         >
           <Image
             src={
-              clientProfile?.bannerUrl ??
+              vendorProfile?.bannerUrl ??
               "https://images.unsplash.com/photo-1505238680356-667803448bb6?q=80&w=2070&auto=format&fit=crop"
             }
             alt="Banner"
@@ -308,18 +340,28 @@ const ProfileHeader = ({
 
         <div className="relative container mx-auto max-w-4xl px-4">
           {/* Avatar & Actions */}
-          <div className="-mt-24 flex items-end justify-between sm:-mt-28">
-            <Image
-              src={
-                clientProfile?.avatarUrl ??
-                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1964&auto=format&fit=crop"
-              }
-              alt={clientProfile?.name ?? "Client"}
-              className="h-32 w-32 rounded-full border-4 border-white bg-gray-200 object-cover sm:h-40 sm:w-40"
-              width={160}
-              height={160}
-            />
-            <div className="flex items-center space-x-2 pb-4">
+          <div className="-mt-24 flex flex-col items-center sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex flex-col items-center sm:flex-row sm:items-end">
+              <Image
+                src={
+                  vendorProfile?.avatarUrl ??
+                  "https://placehold.co/160x160/d1d5db/ffffff?text=V"
+                }
+                alt={vendorProfile?.companyName ?? "Vendor"}
+                className="h-32 w-32 rounded-full border-4 border-white bg-gray-200 object-cover sm:h-40 sm:w-40"
+                width={160}
+                height={160}
+              />
+              <div className="mt-4 text-center sm:ml-6 sm:text-left">
+                <h1 className="text-2xl font-bold sm:text-3xl">
+                  {vendorProfile?.companyName ?? "New Vendor"}
+                </h1>
+                <p className="text-md text-gray-500 sm:text-lg">
+                  {vendorProfile?.title}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center space-x-2 sm:mt-0">
               {isOwnProfile ? (
                 <>
                   <Link
@@ -339,63 +381,40 @@ const ProfileHeader = ({
                   </button>
                 </>
               ) : (
-                <>
-                  <button className="rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-pink-700">
-                    Message
-                  </button>
-                  <button className="rounded-full border border-gray-300 bg-white p-2 text-gray-500 shadow-sm hover:bg-gray-100">
-                    <MoreHorizontal className="h-5 w-5" />
-                  </button>
-                </>
+                <button
+                  onClick={handleContactVendor}
+                  disabled={createConversation.isPending}
+                  className="flex items-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-pink-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {createConversation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <MessageSquare className="h-4 w-4" />
+                  )}
+                  Request Quote
+                </button>
               )}
             </div>
           </div>
 
-          {/* User Info, Bio, etc. */}
-          <div className="mt-4">
-            <h1 className="text-2xl font-bold">
-              {clientProfile?.name ?? profileUser.username ?? "Client"}
-            </h1>
-            <p className="text-sm text-gray-500">@{profileUser.username}</p>
-            <div className="mt-1 flex items-center gap-2">
-              <Check className="h-5 w-5 rounded-full bg-green-500 p-0.5 text-white" />
-              <span className="text-sm font-semibold text-green-600">
-                Verified Client
-              </span>
-            </div>
-          </div>
-          <div className="mt-4 max-w-2xl text-sm text-gray-800">
-            <p>
-              {clientProfile?.bio ??
-                "Event enthusiast and planner. Creating memorable experiences since 2020. Let's connect and make magic happen!"}
-            </p>
-          </div>
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
-            {clientProfile?.location && (
-              <div className="flex items-center gap-1">
+          {/* Stats */}
+          <div className="mt-6 border-t border-gray-200 pt-4">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-500">
+              <div className="flex items-center gap-1.5">
                 <MapPin className="h-4 w-4" />
-                <span>{clientProfile.location}</span>
+                <span>{vendorProfile?.location}</span>
               </div>
-            )}
-            <div className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              <span>
-                Joined{" "}
-                {new Date(profileUser.createdAt).toLocaleDateString("en-US", {
-                  month: "long",
-                  year: "numeric",
-                })}
-              </span>
-            </div>
-          </div>
-          <div className="mt-4 flex items-center space-x-6">
-            <div className="text-sm">
-              <span className="font-bold text-gray-900">0</span>
-              <span className="text-gray-500"> Events Hosted</span>
-            </div>
-            <div className="text-sm">
-              <span className="font-bold text-gray-900">0</span>
-              <span className="text-gray-500"> Hires Made</span>
+              <div className="flex items-center gap-1.5">
+                <Star className="h-4 w-4" />
+                <span>
+                  {vendorProfile?.rating?.toFixed(1) ?? "0.0"} (
+                  {/* Using a placeholder for review count */}0 Reviews)
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Award className="h-4 w-4" />
+                <span>{vendorProfile?.level ?? "Level 0"}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -411,42 +430,22 @@ const ProfileHeader = ({
           )}
         >
           <div className="container mx-auto max-w-4xl px-4">
-            <div className="sm:hidden">
-              <label htmlFor="tabs" className="sr-only">
-                Select a tab
-              </label>
-              <select
-                id="tabs"
-                name="tabs"
-                className="block w-full rounded-md border-gray-300 py-2 pr-10 pl-3 text-base focus:border-pink-500 focus:ring-pink-500 focus:outline-none sm:text-sm"
-                value={activeTab}
-                onChange={(e) => setActiveTab(e.target.value)}
-              >
-                <option value="upcoming">Upcoming Events</option>
-                <option value="past">Past Events</option>
-                <option value="reviews">Reviews</option>
-              </select>
-            </div>
             <div className="hidden sm:block">
               <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                <TabButton
-                  title="Upcoming Events"
-                  icon={<Briefcase className="h-5 w-5" />}
-                  isActive={activeTab === "upcoming"}
-                  onClick={() => setActiveTab("upcoming")}
-                />
-                <TabButton
-                  title="Past Events"
-                  icon={<History className="h-5 w-5" />}
-                  isActive={activeTab === "past"}
-                  onClick={() => setActiveTab("past")}
-                />
-                <TabButton
-                  title="Reviews"
-                  icon={<Award className="h-5 w-5" />}
-                  isActive={activeTab === "reviews"}
-                  onClick={() => setActiveTab("reviews")}
-                />
+                {tabs.map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={cn(
+                      "border-b-2 px-1 py-4 text-sm font-medium capitalize",
+                      activeTab === tab
+                        ? "border-pink-600 text-pink-600"
+                        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700",
+                    )}
+                  >
+                    {tab}
+                  </button>
+                ))}
               </nav>
             </div>
           </div>
@@ -474,29 +473,4 @@ const ProfileHeader = ({
   );
 };
 
-const TabButton = ({
-  title,
-  icon,
-  isActive,
-  onClick,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  isActive: boolean;
-  onClick: () => void;
-}) => (
-  <button
-    onClick={onClick}
-    className={cn(
-      "flex items-center gap-2 border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap",
-      isActive
-        ? "border-pink-600 text-pink-600"
-        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-800",
-    )}
-  >
-    {icon}
-    {title}
-  </button>
-);
-
-export default ProfileHeader;
+export default VendorProfileHeader;

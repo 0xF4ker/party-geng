@@ -26,11 +26,11 @@ type ServicesArray = Category["services"];
 
 // 4. This is the one you want: the type for a *single service* in that array
 // This will be: { id, name, _count: {...}, gigs: [...] }
-export type ServiceWithGigs = ServicesArray[number];
+export type ServiceWithVendors = ServicesArray[number];
 
 // 5. (As a bonus) You can even go one level deeper to get the type of a single gig
-type GigsArray = ServiceWithGigs["gigs"];
-export type GigWithVendor = GigsArray[number];
+type VendorsArray = ServiceWithVendors["_count"]["vendors"];
+// export type GigWithVendor = GigsArray[number];
 
 // interface Category {
 //   name: string;
@@ -47,7 +47,7 @@ const FlatServicesList = ({
   services,
   categorySlug,
 }: {
-  services: ServiceWithGigs[];
+  services: ServiceWithVendors[];
   categorySlug: string;
 }) => (
   <ul className="columns-1 gap-x-6 sm:columns-2 md:columns-3 lg:columns-4">
@@ -57,7 +57,7 @@ const FlatServicesList = ({
           href={`/categories/${categorySlug}/${slugify(service.name)}`}
           className="text-lg text-gray-700 hover:text-pink-500 hover:underline"
         >
-          {service.name} ({service._count.gigs})
+          {service.name} ({service._count.vendors})
         </a>
       </li>
     ))}
@@ -183,7 +183,7 @@ const ExploreServices = ({
   services,
   categorySlug,
 }: {
-  services: ServiceWithGigs[];
+  services: ServiceWithVendors[];
   categorySlug: string;
 }) => {
   return <FlatServicesList categorySlug={categorySlug} services={services} />;
@@ -221,10 +221,10 @@ export default function CategoryPage({
   }
 
   const services = category.services;
-  // Get popular services (services with most gigs)
+  // Get popular services (services with most vendors)
   const popularServices = services
-    .filter((s) => s.gigs.length > 0)
-    .sort((a, b) => b.gigs.length - a.gigs.length)
+    .filter((s) => s._count.vendors > 0)
+    .sort((a, b) => b._count.vendors - a._count.vendors)
     .slice(0, 8);
 
   return (

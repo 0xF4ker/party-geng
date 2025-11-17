@@ -92,7 +92,7 @@ const ClientEventPlannerPage = () => {
         order.vendor.vendorProfile?.companyName ??
         order.vendor.username ??
         "Vendor",
-      service: order.gig?.service?.name ?? "Service",
+      service: order.quote.title ?? "Service",
       avatarUrl:
         order.vendor.vendorProfile?.avatarUrl ??
         "https://placehold.co/40x40/ec4899/ffffff?text=V",

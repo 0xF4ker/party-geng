@@ -196,11 +196,7 @@ export const paymentRouter = createTRPCRouter({
             include: {
               order: {
                 include: {
-                  gig: {
-                    include: {
-                      service: true,
-                    },
-                  },
+                  quote: true,
                 },
               },
             },

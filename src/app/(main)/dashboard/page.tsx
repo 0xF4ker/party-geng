@@ -34,8 +34,6 @@ const VendorDashboardPage = () => {
   const [activeTab, setActiveTab] = useState("leads");
 
   // Fetch real data from API
-  const { data: stats, isLoading: statsLoading } =
-    api.gig.getMyStats.useQuery();
   const { data: pendingQuotes, isLoading: quotesLoading } =
     api.quote.getMyQuotesAsVendor.useQuery({
       status: "PENDING",
@@ -167,14 +165,10 @@ const VendorDashboardPage = () => {
             </div>
 
             {/* "Our Twist": Key Metric Cards */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               <StatCard
                 title="Monthly Earnings"
-                value={
-                  statsLoading
-                    ? "..."
-                    : `₦${(stats?.monthlyEarnings ?? 0).toLocaleString()}`
-                }
+                value={"..."}
                 icon={DollarSign}
                 color="text-green-600 bg-green-100"
               />
@@ -183,12 +177,6 @@ const VendorDashboardPage = () => {
                 value={quotesLoading ? "..." : (pendingQuotes?.length ?? 0)}
                 icon={MessageSquare}
                 color="text-pink-600 bg-pink-100"
-              />
-              <StatCard
-                title="Active Gigs"
-                value={statsLoading ? "..." : (stats?.activeGigs ?? 0)}
-                icon={Briefcase}
-                color="text-blue-600 bg-blue-100"
               />
               <StatCard
                 title="Active Orders"
@@ -242,7 +230,6 @@ const VendorDashboardPage = () => {
 
 const VendorSidebar = () => {
   const [isAvailable, setIsAvailable] = useState(true);
-  const { data: stats } = api.gig.getMyStats.useQuery();
   const { data: vendorProfile } = api.vendor.getMyProfile.useQuery();
 
   return (
@@ -269,14 +256,8 @@ const VendorSidebar = () => {
             </span>
           </div>
         </div>
-        <Link href="/manage_gigs/new">
-          <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-md bg-pink-600 py-2.5 font-semibold text-white transition-colors hover:bg-pink-700">
-            <Plus className="h-5 w-5" />
-            Create New Gig
-          </button>
-        </Link>
         <Link href={`/v/${vendorProfile?.user.username ?? ""}`}>
-          <button className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 py-2.5 font-semibold text-gray-700 transition-colors hover:bg-gray-100">
+          <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 py-2.5 font-semibold text-gray-700 transition-colors hover:bg-gray-100">
             <Eye className="h-5 w-5" />
             View Public Profile
           </button>
@@ -298,12 +279,6 @@ const VendorSidebar = () => {
             <span className="flex items-center gap-1 font-semibold text-gray-900">
               <Star className="h-4 w-4 fill-current text-yellow-400" />{" "}
               {vendorProfile?.rating?.toFixed(1) ?? "0.0"}
-            </span>
-          </li>
-          <li className="flex items-center justify-between">
-            <span className="text-gray-600">Total Gigs</span>
-            <span className="font-semibold text-green-600">
-              {stats?.totalGigs ?? 0}
             </span>
           </li>
         </ul>
@@ -347,7 +322,7 @@ const VendorSidebar = () => {
           </span>
         </div>
         <p className="text-3xl font-bold text-gray-900">
-          ₦{(stats?.monthlyEarnings ?? 0).toLocaleString()}
+          ₦{0..toLocaleString()}
         </p>
         <Link href="/v/earnings">
           <button className="mt-3 text-sm font-semibold text-pink-600 hover:text-pink-700">

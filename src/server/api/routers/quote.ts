@@ -1,34 +1,41 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 
 export const quoteRouter = createTRPCRouter({
   // Create a new quote (vendor sends to client)
   create: protectedProcedure
     .input(
       z.object({
-        gigId: z.string(),
+        serviceIds: z.array(z.number()),
         clientId: z.string(),
         conversationId: z.string(),
         title: z.string(),
         price: z.number(),
         eventDate: z.date(),
         includes: z.array(z.string()),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Verify the gig belongs to the vendor
-      const gig = await ctx.db.gig.findUnique({
-        where: { id: input.gigId },
-        include: { vendor: true },
+      // Fetch service details for the provided serviceIds
+      const services = await ctx.db.service.findMany({
+        where: {
+          id: {
+            in: input.serviceIds,
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+        },
       });
 
-      if (!gig || gig.vendor.userId !== ctx.user.id) {
-        throw new Error("Unauthorized to create quote for this gig");
+      if (services.length !== input.serviceIds.length) {
+        throw new Error("One or more services not found");
       }
 
       return ctx.db.quote.create({
         data: {
-          gigId: input.gigId,
           vendorId: ctx.user.id,
           clientId: input.clientId,
           conversationId: input.conversationId,
@@ -36,13 +43,9 @@ export const quoteRouter = createTRPCRouter({
           price: input.price,
           eventDate: input.eventDate,
           includes: input.includes,
+          services: services as Prisma.JsonArray, // Store service details as JSON
         },
         include: {
-          gig: {
-            include: {
-              service: true,
-            },
-          },
           client: {
             select: {
               username: true,
@@ -59,8 +62,13 @@ export const quoteRouter = createTRPCRouter({
     .input(
       z.object({
         id: z.string(),
-        status: z.enum(["PENDING", "ACCEPTED", "REJECTED", "REVISION_REQUESTED"]),
-      })
+        status: z.enum([
+          "PENDING",
+          "ACCEPTED",
+          "REJECTED",
+          "REVISION_REQUESTED",
+        ]),
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const quote = await ctx.db.quote.findUnique({
@@ -85,9 +93,13 @@ export const quoteRouter = createTRPCRouter({
   // Get all quotes for vendor
   getMyQuotesAsVendor: protectedProcedure
     .input(
-      z.object({
-        status: z.enum(["PENDING", "ACCEPTED", "REJECTED", "REVISION_REQUESTED"]).optional(),
-      }).optional()
+      z
+        .object({
+          status: z
+            .enum(["PENDING", "ACCEPTED", "REJECTED", "REVISION_REQUESTED"])
+            .optional(),
+        })
+        .optional(),
     )
     .query(async ({ ctx, input }) => {
       return ctx.db.quote.findMany({
@@ -96,11 +108,6 @@ export const quoteRouter = createTRPCRouter({
           ...(input?.status ? { status: input.status } : {}),
         },
         include: {
-          gig: {
-            include: {
-              service: true,
-            },
-          },
           client: {
             select: {
               username: true,
@@ -119,9 +126,13 @@ export const quoteRouter = createTRPCRouter({
   // Get all quotes for client
   getMyQuotesAsClient: protectedProcedure
     .input(
-      z.object({
-        status: z.enum(["PENDING", "ACCEPTED", "REJECTED", "REVISION_REQUESTED"]).optional(),
-      }).optional()
+      z
+        .object({
+          status: z
+            .enum(["PENDING", "ACCEPTED", "REJECTED", "REVISION_REQUESTED"])
+            .optional(),
+        })
+        .optional(),
     )
     .query(async ({ ctx, input }) => {
       return ctx.db.quote.findMany({
@@ -130,11 +141,6 @@ export const quoteRouter = createTRPCRouter({
           ...(input?.status ? { status: input.status } : {}),
         },
         include: {
-          gig: {
-            include: {
-              service: true,
-            },
-          },
           vendor: {
             select: {
               username: true,
@@ -157,12 +163,6 @@ export const quoteRouter = createTRPCRouter({
       const quote = await ctx.db.quote.findUnique({
         where: { id: input.id },
         include: {
-          gig: {
-            include: {
-              service: true,
-              addOns: true,
-            },
-          },
           vendor: {
             select: {
               username: true,

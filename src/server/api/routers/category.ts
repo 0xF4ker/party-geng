@@ -1,5 +1,7 @@
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 import { z } from "zod";
+import { unslugify } from "@/lib/utils";
+import { TRPCError } from "@trpc/server";
 
 export const categoryRouter = createTRPCRouter({
   // Get all categories with their services
@@ -10,11 +12,7 @@ export const categoryRouter = createTRPCRouter({
           include: {
             _count: {
               select: {
-                gigs: {
-                  where: {
-                    status: "ACTIVE",
-                  },
-                },
+                vendors: true, // Count vendors instead of gigs
               },
             },
           },
@@ -26,72 +24,102 @@ export const categoryRouter = createTRPCRouter({
     });
   }),
 
+  getPopularServices: publicProcedure.query(async ({ ctx }) => {
+    const popularServices = await ctx.db.service.findMany({
+      select: {
+        name: true,
+        slug: true,
+        category: {
+          select: {
+            slug: true,
+          },
+        },
+        _count: {
+          select: {
+            vendors: true,
+          },
+        },
+      },
+      orderBy: {
+        vendors: {
+          _count: "desc",
+        },
+      },
+      take: 5,
+    });
+
+    return popularServices.map((service) => ({
+      label: service.name,
+      value: service.slug,
+      categorySlug: service.category.slug,
+      type: "service" as const,
+    }));
+  }),
+
+  getSearchList: publicProcedure.query(async ({ ctx }) => {
+    const categories = await ctx.db.category.findMany({
+      select: {
+        name: true,
+        slug: true,
+      },
+    });
+
+    const services = await ctx.db.service.findMany({
+      select: {
+        name: true,
+        slug: true,
+        category: {
+          select: {
+            slug: true,
+          },
+        },
+      },
+    });
+
+    const searchList = [
+      ...categories.map((category) => ({
+        label: category.name,
+        value: category.slug,
+        type: "category" as const,
+      })),
+      ...services.map((service) => ({
+        label: service.name,
+        value: service.slug,
+        categorySlug: service.category.slug,
+        type: "service" as const,
+      })),
+    ];
+
+    return searchList;
+  }),
+
   // Get category by slug with services and popular gigs
   getBySlug: publicProcedure
     .input(z.object({ slug: z.string() }))
     .query(async ({ ctx, input }) => {
-      // Convert slug to potential category name
-      // e.g., "music-djs" -> "Music & DJs" or "Music Djs"
-      const slugParts = input.slug.split("-");
-      const potentialNames = [
-        // Try with & symbol
-        slugParts
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(" & "),
-        // Try with spaces only
-        slugParts
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(" "),
-        // Try original with dashes
-        slugParts
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join("-"),
-      ];
-
-      // Try to find the category with any of the potential names
-      let category = null;
-      for (const name of potentialNames) {
-        category = await ctx.db.category.findFirst({
-          where: {
-            name: {
-              equals: name,
-              mode: "insensitive",
-            },
-          },
-          include: {
-            services: {
-              include: {
-                gigs: {
-                  where: { status: "ACTIVE" },
-                  take: 8,
-                  orderBy: {
-                    createdAt: "desc",
-                  },
-                  include: {
-                    vendor: {
-                      select: {
-                        companyName: true,
-                        avatarUrl: true,
-                        level: true,
-                        rating: true,
-                      },
-                    },
-                  },
-                },
-                _count: {
-                  select: {
-                    gigs: {
-                      where: {
-                        status: "ACTIVE",
-                      },
-                    },
-                  },
+      const decodedSlug = decodeURIComponent(input.slug);
+      const category = await ctx.db.category.findFirst({
+        where: {
+          slug: decodedSlug,
+        },
+        include: {
+          services: {
+            include: {
+              _count: {
+                select: {
+                  vendors: true, // Count vendors instead of gigs
                 },
               },
             },
           },
+        },
+      });
+
+      if (!category) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Category not found",
         });
-        if (category) break;
       }
 
       return category;
@@ -119,5 +147,30 @@ export const categoryRouter = createTRPCRouter({
           name: "asc",
         },
       });
+    }),
+
+  // Get a single service by slug
+  getServiceBySlug: publicProcedure
+    .input(z.object({ slug: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const service = await ctx.db.service.findUnique({
+        where: {
+          slug: input.slug,
+        },
+        select: {
+          id: true,
+          name: true,
+          categoryId: true,
+        },
+      });
+
+      if (!service) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Service not found",
+        });
+      }
+
+      return service;
     }),
 });

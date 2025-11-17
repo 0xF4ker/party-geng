@@ -17,7 +17,6 @@ export const orderRouter = createTRPCRouter({
         data: {
           vendorId: quote.vendorId,
           clientId: quote.clientId,
-          gigId: quote.gigId,
           quoteId: quote.id,
           amount: quote.price,
           eventDate: quote.eventDate,
@@ -41,11 +40,6 @@ export const orderRouter = createTRPCRouter({
           },
         },
         quote: true,
-        gig: {
-          include: {
-            service: true,
-          },
-        },
       },
       orderBy: {
         eventDate: "asc",
@@ -100,11 +94,6 @@ export const orderRouter = createTRPCRouter({
             },
           },
           quote: true,
-          gig: {
-            include: {
-              service: true,
-            },
-          },
         },
         orderBy: {
           createdAt: "desc",
@@ -154,11 +143,6 @@ export const orderRouter = createTRPCRouter({
                   avatarUrl: true,
                 },
               },
-            },
-          },
-          gig: {
-            include: {
-              service: true,
             },
           },
           conversation: true,

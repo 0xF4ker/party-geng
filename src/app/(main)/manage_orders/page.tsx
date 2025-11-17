@@ -71,7 +71,7 @@ const OrdersPage = () => {
     },
     {
       id: "active",
-      title: "Active Gigs",
+      title: "Active Orders",
       count: activeOrders.length,
       icon: Briefcase,
     },
@@ -485,7 +485,7 @@ const OrderCard = ({
           />
           <div className="grow">
             <p className="font-semibold text-gray-800">{name}</p>
-            <p className="text-sm text-gray-600">{order.gig.service.name}</p>
+            <p className="text-sm text-gray-600">{order.quote.title}</p>
             <p className="mt-1 flex items-center gap-2 text-sm text-gray-400">
               <CalendarDays className="h-4 w-4" />
               {new Date(order.eventDate).toLocaleDateString("en-US", {

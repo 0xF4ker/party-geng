@@ -9,7 +9,8 @@ export default function MainLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
-  const isProfilePage = pathname.startsWith("/c/");
+  const isProfilePage =
+    pathname.startsWith("/c/") || pathname.startsWith("/v/");
 
   return (
     <>

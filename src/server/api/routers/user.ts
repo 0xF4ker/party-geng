@@ -7,7 +7,11 @@ export const userRouter = createTRPCRouter({
     return ctx.db.user.findUnique({
       where: { id: ctx.user.id },
       include: {
-        vendorProfile: true,
+        vendorProfile: {
+          include: {
+            services: true,
+          },
+        },
         clientProfile: true,
       },
     });
@@ -20,7 +24,11 @@ export const userRouter = createTRPCRouter({
       const user = await ctx.db.user.findUnique({
         where: { id: input.userId },
         include: {
-          vendorProfile: true,
+          vendorProfile: {
+            include: {
+              services: true,
+            },
+          },
           clientProfile: true,
         },
       });
@@ -42,7 +50,11 @@ export const userRouter = createTRPCRouter({
       const user = await ctx.db.user.findUnique({
         where: { username: input.username },
         include: {
-          vendorProfile: true,
+          vendorProfile: {
+            include: {
+              services: true,
+            },
+          },
           clientProfile: true,
         },
       });

@@ -1,7 +1,6 @@
 import { authRouter } from "@/server/api/routers/auth";
 import { userRouter } from "@/server/api/routers/user";
 import { vendorRouter } from "@/server/api/routers/vendor";
-import { gigRouter } from "@/server/api/routers/gig";
 import { chatRouter } from "@/server/api/routers/chat";
 import { quoteRouter } from "@/server/api/routers/quote";
 import { orderRouter } from "@/server/api/routers/order";
@@ -21,7 +20,6 @@ export const appRouter = createTRPCRouter({
   auth: authRouter,
   user: userRouter,
   vendor: vendorRouter,
-  gig: gigRouter,
   chat: chatRouter,
   quote: quoteRouter,
   order: orderRouter,

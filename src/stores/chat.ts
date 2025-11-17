@@ -1,30 +1,99 @@
 import { create } from "zustand";
-import { type Conversation, type Message } from "@prisma/client";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@/server/api/root";
 
-type ConversationWithDetails = Conversation & {
-  participants: [];
-  messages: Message[];
+type RouterOutput = inferRouterOutputs<AppRouter>;
+type Message = RouterOutput["chat"]["getMessages"]["messages"][number];
+export type OptimisticMessage = Message & {
+  status: "pending" | "sent" | "failed";
 };
 
+type Conversation = RouterOutput["chat"]["getConversations"][number];
+
 interface ChatState {
-  conversations: ConversationWithDetails[];
-  setConversations: (conversations: ConversationWithDetails[]) => void;
-  addMessage: (message: Message) => void;
+  conversations: Conversation[];
+  messages: Record<string, OptimisticMessage[]>;
+  selectedConversation: Conversation | null;
+  setConversations: (conversations: Conversation[]) => void;
+  addMessage: (conversationId: string, message: OptimisticMessage) => void;
+  removeMessage: (conversationId: string, messageId: string) => void;
+  updateMessageStatus: (
+    conversationId: string,
+    messageId: string,
+    newStatus: "sent" | "failed",
+    newMessage?: Message,
+  ) => void;
+  setSelectedConversation: (conversation: Conversation | null) => void;
+  setMessages: (conversationId: string, messages: Message[]) => void;
 }
 
-export const useChatStore = create<ChatState>((set) => ({
+export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
+  messages: {},
+  selectedConversation: null,
   setConversations: (conversations) => set({ conversations }),
-  addMessage: (message) =>
+  addMessage: (conversationId, message) => {
     set((state) => ({
-      conversations: state.conversations.map((convo) => {
-        if (convo.id === message.conversationId) {
-          return {
-            ...convo,
-            messages: [...convo.messages, message],
-          };
-        }
-        return convo;
-      }),
-    })),
+      messages: {
+        ...state.messages,
+        [conversationId]: [...(state.messages[conversationId] ?? []), message],
+      },
+    }));
+  },
+  removeMessage: (conversationId, messageId) => {
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [conversationId]: (state.messages[conversationId] ?? []).filter(
+          (m) => m.id !== messageId,
+        ),
+      },
+    }));
+  },
+  updateMessageStatus: (conversationId, messageId, newStatus, newMessage) => {
+    set((state) => {
+      const conversationMessages = state.messages[conversationId] ?? [];
+      const messageIndex = conversationMessages.findIndex(
+        (m) => m.id === messageId,
+      );
+
+      if (messageIndex === -1) {
+        return state;
+      }
+
+      const newMessages = [...conversationMessages];
+      const oldMessage = newMessages[messageIndex]!;
+
+      if (newMessage) {
+        // Replace optimistic message with real message from server
+        newMessages[messageIndex] = {
+          ...newMessage,
+          status: newStatus,
+        };
+      } else {
+        // Just update status
+        newMessages[messageIndex] = {
+          ...oldMessage,
+          status: newStatus,
+        };
+      }
+
+      return {
+        messages: {
+          ...state.messages,
+          [conversationId]: newMessages,
+        },
+      };
+    });
+  },
+  setSelectedConversation: (conversation) =>
+    set({ selectedConversation: conversation }),
+  setMessages: (conversationId, messages) => {
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [conversationId]: messages.map((m) => ({ ...m, status: "sent" })),
+      },
+    }));
+  },
 }));

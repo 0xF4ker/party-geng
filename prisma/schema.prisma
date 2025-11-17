@@ -147,7 +147,7 @@ model VendorProfile {
   subscriptionStatus String @default("INACTIVE") // e.g., "ACTIVE", "INACTIVE"
 
   // Relations
-  gigs Gig[]
+  services ServicesOnVendors[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -159,57 +159,29 @@ model VendorProfile {
 model Category {
   id       Int       @id @default(autoincrement())
   name     String    @unique // e.g., "Music & DJs"
+  slug     String?    @unique // e.g., "music-&-djs"
   services Service[]
 }
 
 model Service {
   id   Int    @id @default(autoincrement())
   name String @unique // e.g., "Wedding DJ"
+  slug String @unique // e.g., "wedding-dj"
   
   category   Category @relation(fields: [categoryId], references: [id])
   categoryId Int
 
-  gigs Gig[]
+  vendors ServicesOnVendors[]
 }
 
-model Gig {
-  id    String @id @default(uuid())
-  title String
-  description String @db.Text
-  
-  vendor   VendorProfile @relation(fields: [vendorProfileId], references: [id])
+model ServicesOnVendors {
+  vendorProfile   VendorProfile @relation(fields: [vendorProfileId], references: [id])
   vendorProfileId String
+  service         Service       @relation(fields: [serviceId], references: [id])
+  serviceId       Int
+  createdAt       DateTime      @default(now())
 
-  service   Service @relation(fields: [serviceId], references: [id])
-  serviceId Int
-  
-  status String   @default("DRAFT") // DRAFT, ACTIVE, PAUSED
-  tags   String[]
-  
-  galleryImageUrls String[]
-  youtubeUrl       String?
-
-  // New Pricing Model (from CreateGigPage)
-  basePrice         Float
-  basePriceIncludes String[] // e.g., ["4 hours of service", "Sound system"]
-
-  // Relations
-  addOns GigAddOn[]
-  faqs   Json[]     // [{ "q": "...", "a": "..." }]
-  quotes Quote[]
-  orders Order[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model GigAddOn {
-  id    Int    @id @default(autoincrement())
-  title String // e.g., "Extra Hour", "Dance Floor Lighting"
-  price Float
-  
-  gig   Gig    @relation(fields: [gigId], references: [id])
-  gigId String
+  @@id([vendorProfileId, serviceId])
 }
 
 
@@ -320,9 +292,6 @@ model Quote {
   client   User   @relation("ClientQuotes", fields: [clientId], references: [id])
   clientId String
   
-  gig   Gig    @relation(fields: [gigId], references: [id])
-  gigId String
-  
   conversation   Conversation @relation(fields: [conversationId], references: [id])
   conversationId String
 
@@ -331,6 +300,7 @@ model Quote {
   price     Float
   eventDate DateTime
   includes  String[] // e.g. ["6 hours of DJ service", "Dance floor lighting"]
+  services  Json // Store services included in the quote
   
   status QuoteStatus @default(PENDING)
   
@@ -351,9 +321,6 @@ model Order {
   vendorId String
   client   User   @relation("ClientOrders", fields: [clientId], references: [id])
   clientId String
-  
-  gig   Gig    @relation(fields: [gigId], references: [id])
-  gigId String
   
   quote  Quote  @relation(fields: [quoteId], references: [id])
   quoteId String @unique // An order is created from ONE quote

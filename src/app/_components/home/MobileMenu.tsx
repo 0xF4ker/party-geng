@@ -106,13 +106,19 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
               // Guest Links
               <>
                 <button
-                  onClick={() => openModal("join")}
+                  onClick={() => {
+                    openModal("join");
+                    onClose();
+                  }}
                   className="w-full rounded-md bg-pink-500 px-4 py-2.5 text-lg font-bold text-white hover:bg-pink-600"
                 >
                   Join Partygeng
                 </button>
                 <button
-                  onClick={() => openModal("login")}
+                  onClick={() => {
+                    openModal("login");
+                    onClose();
+                  }}
                   className="text-left text-base font-medium text-gray-700 hover:text-pink-500"
                 >
                   Sign in
@@ -143,12 +149,14 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                 <div className="space-y-5">
                   <a
                     href="/pro"
+                    onClick={onClose}
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
                     Partygeng Pro
                   </a>
                   <a
                     href="/start_selling"
+                    onClick={onClose}
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
                     Become a Vendor
@@ -161,30 +169,35 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                 <div className="space-y-5">
                   <Link
                     href="/dashboard"
+                    onClick={onClose}
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
                     Dashboard
                   </Link>
                   <Link
                     href="/manage_orders"
+                    onClick={onClose}
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
                     Orders
                   </Link>
                   <Link
                     href="/earnings"
+                    onClick={onClose}
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
                     Earnings
                   </Link>
                   <Link
-                    href={`/c/${user.id}`}
+                    href={`/v/${user.username}`}
+                    onClick={onClose}
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
-                    Public Profile
+                    Profile
                   </Link>
                   <Link
                     href="/settings"
+                    onClick={onClose}
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
                     Settings
@@ -206,24 +219,28 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                 <div className="space-y-5">
                   <Link
                     href="/manage_events"
+                    onClick={onClose}
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
                     My Events
                   </Link>
                   <Link
                     href="/manage_orders"
+                    onClick={onClose}
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
                     Orders
                   </Link>
                   <Link
                     href="/inbox"
+                    onClick={onClose}
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
                     Inbox
                   </Link>
                   <Link
                     href="/notifications"
+                    onClick={onClose}
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
                     Notifications
@@ -252,13 +269,15 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                   </div>
 
                   <a
-                    href={`/c/${user.id}`}
+                    href={`/c/${user.username}`}
+                    onClick={onClose}
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
-                    Public Profile
+                    Profile
                   </a>
                   <a
                     href="/settings"
+                    onClick={onClose}
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
                     Settings
@@ -304,15 +323,9 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
           <div className="flex flex-col border-t border-gray-200">
             {currentCategory?.services.map((service) => {
               // Convert category and service names to slugs
-              const categorySlug = currentCategory.name
-                .toLowerCase()
-                .replace(/ & /g, "-")
-                .replace(/ /g, "-");
-              const serviceSlug = service.name
-                .toLowerCase()
-                .replace(/ & /g, "-")
-                .replace(/ /g, "-");
-              const gigCount = service._count.gigs;
+              const categorySlug = currentCategory.slug;
+              const serviceSlug = service.slug;
+              const vendorsCount = service._count.vendors;
 
               return (
                 <Link
@@ -322,7 +335,9 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                   onClick={onClose}
                 >
                   <span>{service.name}</span>
-                  <span className="text-sm text-gray-400">({gigCount})</span>
+                  <span className="text-sm text-gray-400">
+                    ({vendorsCount})
+                  </span>
                 </Link>
               );
             })}

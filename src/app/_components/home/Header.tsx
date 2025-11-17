@@ -13,14 +13,11 @@ import {
   LogOut,
   Eye,
   Wallet,
+  MoreHorizontal,
 } from "lucide-react";
 import LoginJoinComponent from "../LoginJoinComponent";
 import CategoryCarousel from "./CategoryCarousel";
-import SearchInput from "./SearchInput";
-import {
-  // allCategories,
-  allCategoriesAndServices,
-} from "@/app/local/categoryv2"; // Import new data
+import GlobalSearch from "./GlobalSearch";
 import MobileMenu from "./MobileMenu";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -91,6 +88,8 @@ const Header = () => {
     enabled: !!user,
   });
 
+  const { data: searchList } = api.category.getSearchList.useQuery();
+
   // Determine user type
   const isVendor =
     user?.vendorProfile !== null && user?.vendorProfile !== undefined;
@@ -105,11 +104,6 @@ const Header = () => {
     ? (user?.vendorProfile?.companyName ?? user?.username)
     : (user?.clientProfile?.name ?? user?.username);
 
-  // --- Search State ---
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<string[]>([]);
-
   // --- Modal Handlers ---
   const openModal = (view: "login" | "join") => {
     setModalView(view);
@@ -118,38 +112,6 @@ const Header = () => {
   };
   const closeModal = () => setIsModalOpen(false);
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
-
-  // --- Search Handlers ---
-  const handleSearchChange = (query: string) => {
-    setSearchQuery(query);
-    if (query.length > 0) {
-      const filtered = allCategoriesAndServices.filter(
-        (cat) =>
-          typeof cat === "string" &&
-          cat.toLowerCase().includes(query.toLowerCase()),
-      );
-      setSearchResults(filtered);
-    } else {
-      setSearchResults([]);
-    }
-  };
-
-  const clearSearch = useCallback(() => {
-    setSearchQuery("");
-    setSearchResults([]);
-  }, []);
-
-  const closeSearch = useCallback(() => {
-    setIsSearchFocused(false);
-    clearSearch();
-  }, [clearSearch]);
-
-  // Close search when mobile menu opens
-  useEffect(() => {
-    if (isMobileMenuOpen) {
-      closeSearch();
-    }
-  }, [isMobileMenuOpen, closeSearch]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -176,14 +138,12 @@ const Header = () => {
       <header
         className={cn(
           "fixed top-0 right-0 left-0 z-40 w-full bg-white text-gray-800",
-          // Add shadow only if search is not focused, to prevent weird layering
-          !isSearchFocused && "shadow-md",
+          "shadow-md",
         )}
       >
         <div
           className={cn(
             "relative container mx-auto flex flex-col px-4 py-4 sm:flex-row sm:items-center sm:justify-between",
-            isSearchFocused && "z-50", // Elevate header content
           )}
         >
           {/* === Top Row: Logo, Hamburger, Mobile Nav === */}
@@ -212,16 +172,12 @@ const Header = () => {
             ) : (
               !isVendor && (
                 <div className="mx-4 hidden grow sm:flex lg:mx-16">
-                  <SearchInput
-                    placeholder="Find services"
-                    className="w-full max-w-lg transition-all"
-                    isFocused={isSearchFocused}
-                    setIsFocused={setIsSearchFocused}
-                    query={searchQuery}
-                    setQuery={handleSearchChange}
-                    results={searchResults}
-                    onClear={clearSearch}
-                  />
+                  {searchList && (
+                    <GlobalSearch
+                      items={searchList}
+                      className="w-full max-w-lg transition-all"
+                    />
+                  )}
                 </div>
               )
             )}
@@ -315,28 +271,39 @@ const Header = () => {
 
                   {/* Profile Dropdown */}
                   <div className="relative" ref={profileDropdownRef}>
-                    <button
-                      onClick={() =>
-                        setIsProfileDropdownOpen(!isProfileDropdownOpen)
-                      }
-                      className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-pink-500"
-                    >
-                      <div className="h-10 w-10 overflow-hidden rounded-full bg-pink-100">
-                        {avatarUrl ? (
-                          <Image
-                            src={avatarUrl}
-                            alt={displayName ?? "Profile"}
-                            className="h-full w-full object-cover"
-                            width={100}
-                            height={100}
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center font-semibold text-pink-600">
-                            {displayName?.charAt(0).toUpperCase() ?? "V"}
-                          </div>
-                        )}
-                      </div>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={
+                          isVendor
+                            ? `/v/${user?.username}`
+                            : `/c/${user?.username}`
+                        }
+                        className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-pink-500"
+                      >
+                        <div className="h-10 w-10 overflow-hidden rounded-full bg-pink-100">
+                          {avatarUrl ? (
+                            <Image
+                              src={avatarUrl}
+                              alt={displayName ?? "Profile"}
+                              className="h-full w-full object-cover"
+                              width={100}
+                              height={100}
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center font-semibold text-pink-600">
+                              {displayName?.charAt(0).toUpperCase() ?? "V"}
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                      <button
+                        onClick={() =>
+                          setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                        }
+                      >
+                        <MoreHorizontal className="h-5 w-5 text-gray-600" />
+                      </button>
+                    </div>
 
                     {/* Dropdown Menu */}
                     {isProfileDropdownOpen && (
@@ -350,55 +317,26 @@ const Header = () => {
                           </p>
                         </div>
                         <Link
-                          href="/earnings"
-                          className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 hover:bg-gray-50"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Wallet className="h-4 w-4 text-green-600" />
-                            <span className="text-sm font-medium text-gray-700">
-                              Wallet
-                            </span>
-                          </div>
-                          <span className="text-sm font-semibold text-green-600">
-                            ₦{wallet?.availableBalance.toLocaleString() ?? "0"}
-                          </span>
-                        </Link>
-                        <Link
-                          href={`/v/${user?.username}`}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
-                        >
-                          <Eye className="h-4 w-4" />
-                          View Public Profile
-                        </Link>
-                        <Link
                           href="/settings"
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                         >
                           <Settings className="h-4 w-4" />
                           Settings
                         </Link>
-                        <button
-                          onClick={() => {
-                            void signOut();
-                            setIsProfileDropdownOpen(false);
-                          }}
-                          className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
-                        >
-                          <LogOut className="h-4 w-4" />
-                          Sign Out
-                        </button>
                       </div>
                     )}
                   </div>
                 </nav>
 
                 {/* Mobile Profile Icon */}
-                <div className="relative lg:hidden" ref={profileDropdownRef}>
-                  <button
-                    onClick={() =>
-                      setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                <div className="flex-shrink-0 lg:hidden">
+                  <Link
+                    href={
+                      isVendor
+                        ? `/v/${user?.username}`
+                        : `/c/${user?.username}`
                     }
-                    className="h-10 w-10 overflow-hidden rounded-full bg-pink-100 hover:ring-2 hover:ring-pink-500"
+                    className="block h-10 w-10 overflow-hidden rounded-full bg-pink-100 hover:ring-2 hover:ring-pink-500"
                   >
                     {avatarUrl ? (
                       <Image
@@ -413,88 +351,7 @@ const Header = () => {
                         {displayName?.charAt(0).toUpperCase() ?? "V"}
                       </div>
                     )}
-                  </button>
-
-                  {/* Mobile Dropdown */}
-                  {isProfileDropdownOpen && (
-                    <div className="absolute top-full right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
-                      <div className="border-b border-gray-100 px-4 py-3">
-                        <p className="font-semibold text-gray-800">
-                          {displayName}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          @{user?.username}
-                        </p>
-                      </div>
-                      <Link
-                        href="/manage_events"
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 lg:hidden"
-                      >
-                        <Calendar className="h-4 w-4" />
-                        My Events
-                      </Link>
-                      <Link
-                        href="/manage_orders"
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 lg:hidden"
-                      >
-                        <ShoppingBag className="h-4 w-4" />
-                        Orders
-                      </Link>
-                      <Link
-                        href="/inbox"
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 lg:hidden"
-                      >
-                        <Mail className="h-4 w-4" />
-                        Messages
-                      </Link>
-                      <Link
-                        href="/notifications"
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 lg:hidden"
-                      >
-                        <Bell className="h-4 w-4" />
-                        Notifications
-                      </Link>
-                      <div className="border-t border-gray-100"></div>
-                      <Link
-                        href="/earnings"
-                        className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 hover:bg-gray-50"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Wallet className="h-4 w-4 text-green-600" />
-                          <span className="text-sm font-medium text-gray-700">
-                            Wallet
-                          </span>
-                        </div>
-                        <span className="text-sm font-semibold text-green-600">
-                          ₦{wallet?.availableBalance.toLocaleString() ?? "0"}
-                        </span>
-                      </Link>
-                      <Link
-                        href={`/c/${user?.username}`}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        <Eye className="h-4 w-4" />
-                        View Public Profile
-                      </Link>
-                      <Link
-                        href="/settings"
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        <Settings className="h-4 w-4" />
-                        Settings
-                      </Link>
-                      <button
-                        onClick={() => {
-                          void signOut();
-                          setIsProfileDropdownOpen(false);
-                        }}
-                        className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Sign Out
-                      </button>
-                    </div>
-                  )}
+                  </Link>
                 </div>
               </>
             ) : (
@@ -522,28 +379,39 @@ const Header = () => {
 
                   {/* Profile Dropdown */}
                   <div className="relative" ref={profileDropdownRef}>
-                    <button
-                      onClick={() =>
-                        setIsProfileDropdownOpen(!isProfileDropdownOpen)
-                      }
-                      className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-pink-500"
-                    >
-                      <div className="h-10 w-10 overflow-hidden rounded-full bg-pink-100">
-                        {avatarUrl ? (
-                          <Image
-                            src={avatarUrl}
-                            alt={displayName ?? "Profile"}
-                            className="h-full w-full object-cover"
-                            width={100}
-                            height={100}
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center font-semibold text-pink-600">
-                            {displayName?.charAt(0).toUpperCase() ?? "C"}
-                          </div>
-                        )}
-                      </div>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={
+                          isVendor
+                            ? `/v/${user?.username}`
+                            : `/c/${user?.username}`
+                        }
+                        className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-pink-500"
+                      >
+                        <div className="h-10 w-10 overflow-hidden rounded-full bg-pink-100">
+                          {avatarUrl ? (
+                            <Image
+                              src={avatarUrl}
+                              alt={displayName ?? "Profile"}
+                              className="h-full w-full object-cover"
+                              width={100}
+                              height={100}
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center font-semibold text-pink-600">
+                              {displayName?.charAt(0).toUpperCase() ?? "C"}
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                      <button
+                        onClick={() =>
+                          setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                        }
+                      >
+                        <MoreHorizontal className="h-5 w-5 text-gray-600" />
+                      </button>
+                    </div>
 
                     {/* Dropdown Menu */}
                     {isProfileDropdownOpen && (
@@ -557,124 +425,41 @@ const Header = () => {
                           </p>
                         </div>
                         <Link
-                          href="/earnings"
-                          className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 hover:bg-gray-50"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Wallet className="h-4 w-4 text-green-600" />
-                            <span className="text-sm font-medium text-gray-700">
-                              Wallet
-                            </span>
-                          </div>
-                          <span className="text-sm font-semibold text-green-600">
-                            ₦{wallet?.availableBalance.toLocaleString() ?? "0"}
-                          </span>
-                        </Link>
-                        <Link
-                          href={`/c/${user?.username}`}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
-                        >
-                          <Eye className="h-4 w-4" />
-                          View Public Profile
-                        </Link>
-                        <Link
                           href="/settings"
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                         >
                           <Settings className="h-4 w-4" />
                           Settings
                         </Link>
-                        <button
-                          onClick={() => {
-                            void signOut();
-                            setIsProfileDropdownOpen(false);
-                          }}
-                          className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
-                        >
-                          <LogOut className="h-4 w-4" />
-                          Sign Out
-                        </button>
                       </div>
                     )}
                   </div>
                 </nav>
 
                 {/* Mobile Profile Icon */}
-                <div className="flex items-center space-x-3 lg:hidden">
-                  <div className="relative">
-                    <button
-                      onClick={() =>
-                        setIsProfileDropdownOpen(!isProfileDropdownOpen)
-                      }
-                      className="h-10 w-10 overflow-hidden rounded-full bg-pink-100 hover:ring-2 hover:ring-pink-500"
-                    >
-                      {avatarUrl ? (
-                        <Image
-                          src={avatarUrl}
-                          alt={displayName ?? "Profile"}
-                          className="h-full w-full object-cover"
-                          width={100}
-                          height={100}
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center font-semibold text-pink-600">
-                          {displayName?.charAt(0).toUpperCase() ?? "C"}
-                        </div>
-                      )}
-                    </button>
-
-                    {/* Mobile Dropdown */}
-                    {isProfileDropdownOpen && (
-                      <div className="absolute top-full right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
-                        <div className="border-b border-gray-100 px-4 py-3">
-                          <p className="font-semibold text-gray-800">
-                            {displayName}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            @{user?.username}
-                          </p>
-                        </div>
-                        <Link
-                          href="/earnings"
-                          className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 hover:bg-gray-50"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Wallet className="h-4 w-4 text-green-600" />
-                            <span className="text-sm font-medium text-gray-700">
-                              Wallet
-                            </span>
-                          </div>
-                          <span className="text-sm font-semibold text-green-600">
-                            ₦{wallet?.availableBalance.toLocaleString() ?? "0"}
-                          </span>
-                        </Link>
-                        <Link
-                          href={`/c/${user?.username}`}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
-                        >
-                          <Eye className="h-4 w-4" />
-                          View Public Profile
-                        </Link>
-                        <Link
-                          href="/settings"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
-                        >
-                          <Settings className="h-4 w-4" />
-                          Settings
-                        </Link>
-                        <button
-                          onClick={() => {
-                            void signOut();
-                            setIsProfileDropdownOpen(false);
-                          }}
-                          className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
-                        >
-                          <LogOut className="h-4 w-4" />
-                          Sign Out
-                        </button>
+                <div className="flex-shrink-0 lg:hidden">
+                  <Link
+                    href={
+                      isVendor
+                        ? `/v/${user?.username}`
+                        : `/c/${user?.username}`
+                    }
+                    className="block h-10 w-10 overflow-hidden rounded-full bg-pink-100 hover:ring-2 hover:ring-pink-500"
+                  >
+                    {avatarUrl ? (
+                      <Image
+                        src={avatarUrl}
+                        alt={displayName ?? "Profile"}
+                        className="h-full w-full object-cover"
+                        width={100}
+                        height={100}
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center font-semibold text-pink-600">
+                        {displayName?.charAt(0).toUpperCase() ?? "C"}
                       </div>
                     )}
-                  </div>
+                  </Link>
                 </div>
               </>
             )}
@@ -688,15 +473,12 @@ const Header = () => {
           ) : (
             !isVendor && (
               <div className="mt-3 w-full sm:hidden">
-                <SearchInput
-                  placeholder="Find services"
-                  isFocused={isSearchFocused}
-                  setIsFocused={setIsSearchFocused}
-                  query={searchQuery}
-                  setQuery={handleSearchChange}
-                  results={searchResults}
-                  onClear={clearSearch}
-                />
+                {searchList && (
+                  <GlobalSearch
+                    items={searchList}
+                    className="w-full max-w-lg transition-all"
+                  />
+                )}
               </div>
             )
           )}
@@ -719,14 +501,6 @@ const Header = () => {
           )
         )}
       </header>
-
-      {/* --- Search Overlay --- */}
-      {isSearchFocused && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50"
-          onClick={closeSearch}
-        ></div>
-      )}
 
       {/* --- Mobile Menu Flyout --- */}
       <MobileMenu

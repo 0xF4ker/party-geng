@@ -218,4 +218,47 @@ export const settingsRouter = createTRPCRouter({
             : null, // KYC documents are private
       };
     }),
+
+  // New procedure to update vendor's services
+  updateVendorServices: protectedProcedure
+    .input(
+      z.object({
+        serviceIds: z.array(z.number()),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.user.id;
+
+      // Verify user is a vendor
+      const user = await ctx.db.user.findUnique({
+        where: { id: userId },
+        select: { role: true, vendorProfile: true },
+      });
+
+      if (user?.role !== "VENDOR" || !user.vendorProfile) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only vendors can update their services",
+        });
+      }
+
+      const vendorProfileId = user.vendorProfile.id;
+
+      // Start a transaction to ensure atomicity
+      await ctx.db.$transaction([
+        // Delete all existing services for this vendor
+        ctx.db.servicesOnVendors.deleteMany({
+          where: { vendorProfileId: vendorProfileId },
+        }),
+        // Create new entries for the selected services
+        ctx.db.servicesOnVendors.createMany({
+          data: input.serviceIds.map((serviceId) => ({
+            vendorProfileId: vendorProfileId,
+            serviceId: serviceId,
+          })),
+        }),
+      ]);
+
+      return { success: true };
+    }),
 });

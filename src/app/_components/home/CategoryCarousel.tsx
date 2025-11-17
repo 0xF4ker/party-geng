@@ -37,7 +37,7 @@ const MegaMenu = ({
     [] as (typeof allServices)[],
   );
 
-  const categorySlug = slugify(category.name);
+  const categorySlug = category?.slug;
 
   return (
     <div
@@ -65,8 +65,8 @@ const MegaMenu = ({
             {columns.map((column, colIndex) => (
               <ul key={colIndex} className="flex flex-col space-y-3">
                 {column.map((service) => {
-                  const serviceSlug = slugify(service.name);
-                  const gigCount = service._count.gigs;
+                  const serviceSlug = service?.slug;
+                  const vendorsCount = service._count.vendors;
                   return (
                     <li key={service.id}>
                       <Link
@@ -75,7 +75,7 @@ const MegaMenu = ({
                       >
                         <span>{service.name}</span>
                         <span className="text-xs text-gray-400">
-                          ({gigCount})
+                          ({vendorsCount})
                         </span>
                       </Link>
                     </li>
