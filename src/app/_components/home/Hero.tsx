@@ -54,7 +54,7 @@ const Hero = () => {
             </p>
             <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row lg:justify-start">
               <Link
-                href="#"
+                href="/trending"
                 className="transform rounded-full bg-pink-500 px-8 py-3 font-semibold text-white shadow-lg transition-transform hover:scale-105 hover:bg-pink-600"
               >
                 Find Vendors

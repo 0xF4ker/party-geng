@@ -3,13 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import {
-  Menu,
-  Mail,
-  Calendar,
-  Settings,
-  MoreHorizontal,
-} from "lucide-react";
+import { Menu, Mail, Calendar, Settings, MoreHorizontal } from "lucide-react";
 import LoginJoinComponent from "../LoginJoinComponent";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
 import CategoryCarousel from "./CategoryCarousel";
@@ -313,13 +307,13 @@ const Header = () => {
                           )}
                         </div>
                       </Link>
-                      <button
+                      {/* <button
                         onClick={() =>
                           setIsProfileDropdownOpen(!isProfileDropdownOpen)
                         }
                       >
                         <MoreHorizontal className="h-5 w-5 text-gray-600" />
-                      </button>
+                      </button> */}
                     </div>
 
                     {/* Dropdown Menu */}
@@ -349,9 +343,7 @@ const Header = () => {
                 <div className="flex-shrink-0 lg:hidden">
                   <Link
                     href={
-                      isVendor
-                        ? `/v/${user?.username}`
-                        : `/c/${user?.username}`
+                      isVendor ? `/v/${user?.username}` : `/c/${user?.username}`
                     }
                     className="block h-10 w-10 overflow-hidden rounded-full bg-pink-100 hover:ring-2 hover:ring-pink-500"
                   >
@@ -424,13 +416,13 @@ const Header = () => {
                           )}
                         </div>
                       </Link>
-                      <button
+                      {/* <button
                         onClick={() =>
                           setIsProfileDropdownOpen(!isProfileDropdownOpen)
                         }
                       >
                         <MoreHorizontal className="h-5 w-5 text-gray-600" />
-                      </button>
+                      </button> */}
                     </div>
 
                     {/* Dropdown Menu */}
@@ -460,9 +452,7 @@ const Header = () => {
                 <div className="flex-shrink-0 lg:hidden">
                   <Link
                     href={
-                      isVendor
-                        ? `/v/${user?.username}`
-                        : `/c/${user?.username}`
+                      isVendor ? `/v/${user?.username}` : `/c/${user?.username}`
                     }
                     className="block h-10 w-10 overflow-hidden rounded-full bg-pink-100 hover:ring-2 hover:ring-pink-500"
                   >

@@ -1,10 +1,11 @@
 "use client";
 
 import { api } from "@/trpc/react";
-import { Loader2, Clapperboard, Heart, MessageCircle } from "lucide-react";
+import { Loader2, Clapperboard } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
-import { Fragment } from "react";
+import { useState } from "react";
+import PostModal from "@/app/_components/social/PostModal";
+import { useUiStore } from "@/stores/ui";
 
 const TrendingPage = () => {
   const {
@@ -18,8 +19,14 @@ const TrendingPage = () => {
     {},
     {
       getNextPageParam: (lastPage) => lastPage.nextCursor,
-    }
+    },
   );
+
+  const [selectedPostIndex, setSelectedPostIndex] = useState<number | null>(
+    null,
+  );
+
+  const { headerHeight } = useUiStore();
 
   if (isLoading) {
     return (
@@ -36,28 +43,44 @@ const TrendingPage = () => {
       </div>
     );
   }
-  
+
   const allPosts = data?.pages.flatMap((page) => page.posts);
 
   if (!allPosts || allPosts.length === 0) {
     return (
-        <div className="text-center h-48 flex flex-col justify-center items-center bg-gray-50 rounded-lg">
-            <Clapperboard className="w-12 h-12 text-gray-400" />
-            <p className="mt-4 font-semibold text-gray-700">No posts yet</p>
-            <p className="text-sm text-gray-500">Come back later to see trending posts!</p>
+      <div className="flex h-48 flex-col items-center justify-center rounded-lg bg-gray-50 text-center">
+        <Clapperboard className="h-12 w-12 text-gray-400" />
+        <p className="mt-4 font-semibold text-gray-700">No posts yet</p>
+        <p className="text-sm text-gray-500">
+          Come back later to see trending posts!
+        </p>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="container mx-auto max-w-5xl py-8 px-4">
-      <h1 className="text-3xl font-bold mb-8">Trending Posts</h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {data?.pages.map((group, i) => (
-          <Fragment key={i}>
-            {group.posts.map((post) => (
-              <Link key={post.id} href={`/post/${post.id}`}>
-                <div className="group relative aspect-square overflow-hidden rounded-lg shadow-md transition-shadow hover:shadow-xl">
+    <div>
+      <section
+        className="border-b border-gray-200 bg-white py-12 shadow-sm"
+        style={{ marginTop: headerHeight }}
+      >
+        <div className="container mx-auto px-6 text-center">
+          <h1 className="text-4xl font-bold text-gray-800">#Trending</h1>
+          <p className="mt-2 text-gray-600">
+            Explore the most popular posts from the PartyGeng community.
+          </p>
+        </div>
+      </section>
+      <section className="py-12">
+        <div className="container mx-auto px-6">
+          <div className="columns-1 gap-6 sm:columns-2 md:columns-3">
+            {allPosts.map((post, index) => (
+              <div
+                key={post.id}
+                className="mb-6 break-inside-avoid"
+                onClick={() => setSelectedPostIndex(index)}
+              >
+                <div className="group relative aspect-square cursor-pointer overflow-hidden rounded-lg shadow-md transition-shadow hover:shadow-xl">
                   {post.assets[0] && (
                     <Image
                       src={post.assets[0].url}
@@ -66,34 +89,34 @@ const TrendingPage = () => {
                       className="object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                      <div className="flex items-center gap-x-4 text-white">
-                          <div className="flex items-center gap-1">
-                              <Heart className="h-5 w-5"/>
-                              <span>{post._count.likes}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                              <MessageCircle className="h-5 w-5"/>
-                              <span>{post._count.comments}</span>
-                          </div>
-                      </div>
-                  </div>
                 </div>
-              </Link>
+              </div>
             ))}
-          </Fragment>
-        ))}
-      </div>
-      {hasNextPage && (
-        <div className="flex justify-center mt-8">
-          <button
-            onClick={() => fetchNextPage()}
-            disabled={isFetchingNextPage}
-            className="rounded-full bg-pink-600 px-6 py-2 font-semibold text-white transition hover:bg-pink-700 disabled:bg-gray-400"
-          >
-            {isFetchingNextPage ? "Loading more..." : "Load More"}
-          </button>
+          </div>
+          {hasNextPage && (
+            <div className="mt-12 text-center">
+              <button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="rounded-full bg-purple-600 px-8 py-3 font-semibold text-white transition hover:bg-purple-700"
+              >
+                {isFetchingNextPage ? "Loading..." : "Load More Posts"}
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {selectedPostIndex !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setSelectedPostIndex(null)}
+        >
+          <PostModal
+            posts={allPosts}
+            initialIndex={selectedPostIndex}
+            onClose={() => setSelectedPostIndex(null)}
+          />
         </div>
       )}
     </div>
