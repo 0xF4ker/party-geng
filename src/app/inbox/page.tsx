@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, ArrowLeft, MoreVertical, Info } from "lucide-react";
 import { api } from "@/trpc/react";
@@ -27,7 +27,7 @@ import { useUiStore } from "@/stores/ui";
 type routerOutput = inferRouterOutputs<AppRouter>;
 type conversationOutput = routerOutput["chat"]["getConversations"][number];
 
-const InboxPage = () => {
+const InboxPageContent = () => {
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
   const utils = api.useUtils();
@@ -337,5 +337,13 @@ const InboxPage = () => {
     </div>
   );
 };
+
+const InboxPage = () => {
+    return (
+        <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-pink-600" /></div>}>
+            <InboxPageContent />
+        </Suspense>
+    )
+}
 
 export default InboxPage;

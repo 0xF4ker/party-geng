@@ -399,7 +399,9 @@ const QuoteCard = ({
               text={isVendor ? "Send Quote" : "View Quote"}
               icon={FileText}
               primary
-              onClick={() => router.push(`/inbox?conversationId=${quote.conversationId}`)}
+              onClick={() =>
+                router.push(`/inbox?conversation=${quote.conversationId}`)
+              }
             />
           </div>
         </div>
@@ -422,15 +424,15 @@ const OrderCard = ({
 }) => {
   const isVendor = userType === "vendor";
   const utils = api.useContext();
-  
+
   const completeOrder = api.order.completeOrder.useMutation({
     onSuccess: () => {
-        toast.success("Order marked as complete!");
-        void utils.order.getMyOrders.invalidate();
+      toast.success("Order marked as complete!");
+      void utils.order.getMyOrders.invalidate();
     },
     onError: (error) => {
-        toast.error(error.message || "Failed to complete order.");
-    }
+      toast.error(error.message || "Failed to complete order.");
+    },
   });
 
   const profile = isVendor
@@ -452,8 +454,10 @@ const OrderCard = ({
           key="chat"
           text="View Chat"
           icon={MessageSquare}
-          onClick={() => router.push(`/inbox?conversationId=${order.quote.conversationId}`)}
-        />
+          onClick={() =>
+            router.push(`/inbox?conversation=${order.quote.conversationId}`)
+          }
+        />,
       );
     if (status === "completed")
       actionButtons.push(
@@ -462,27 +466,30 @@ const OrderCard = ({
           text="View Details"
           icon={FileText}
           onClick={() => router.push(`/orders/${order.id}`)}
-        />
+        />,
       );
-  } else { // Client view
+  } else {
+    // Client view
     if (status === "active") {
       actionButtons.push(
         <ActionButton
           key="chat"
           text="View Chat"
           icon={MessageSquare}
-          onClick={() => router.push(`/inbox?conversationId=${order.quote.conversationId}`)}
-        />
+          onClick={() =>
+            router.push(`/inbox?conversation=${order.quote.conversationId}`)
+          }
+        />,
       );
-       actionButtons.push(
-         <ActionButton
-            key="complete"
-            text={completeOrder.isPending ? "Completing..." : "Mark as Complete"}
-            icon={completeOrder.isPending ? Loader2 : CheckCircle}
-            primary
-            onClick={() => completeOrder.mutate({ orderId: order.id })}
-            disabled={completeOrder.isPending}
-        />
+      actionButtons.push(
+        <ActionButton
+          key="complete"
+          text={completeOrder.isPending ? "Completing..." : "Mark as Complete"}
+          icon={completeOrder.isPending ? Loader2 : CheckCircle}
+          primary
+          onClick={() => completeOrder.mutate({ orderId: order.id })}
+          disabled={completeOrder.isPending}
+        />,
       );
     }
     if (status === "completed")
@@ -493,7 +500,7 @@ const OrderCard = ({
           icon={Star}
           primary
           onClick={() => router.push(`/orders/${order.id}/review`)}
-        />
+        />,
       );
   }
 
@@ -526,7 +533,7 @@ const OrderCard = ({
           <span className="text-xl font-bold text-gray-900">
             ₦{order.amount.toLocaleString()}
           </span>
-          <div className="shrink-0 flex gap-2">{actionButtons}</div>
+          <div className="flex shrink-0 gap-2">{actionButtons}</div>
         </div>
       </div>
     </div>
@@ -554,7 +561,7 @@ const ActionButton = ({
       primary
         ? "bg-pink-600 text-white hover:bg-pink-700"
         : "bg-gray-100 text-gray-700 hover:bg-gray-200",
-      "disabled:opacity-50 disabled:cursor-not-allowed"
+      "disabled:cursor-not-allowed disabled:opacity-50",
     )}
   >
     <Icon className={cn("h-4 w-4", disabled && "animate-spin")} />
