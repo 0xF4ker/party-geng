@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ChevronDown,
@@ -22,8 +22,7 @@ const cn = (...inputs: (string | boolean | undefined | null)[]) => {
   return inputs.filter(Boolean).join(" ");
 };
 
-// --- Main Page Component ---
-const EarningsPage = () => {
+const EarningsPageContent = () => {
   const { profile } = useAuthStore();
   const userType = profile?.role === "VENDOR" ? "vendor" : "client";
   const [activeTab, setActiveTab] = useState("overview");
@@ -439,5 +438,14 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     </table>
   </div>
 );
+
+
+const EarningsPage = () => {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <EarningsPageContent />
+        </Suspense>
+    )
+}
 
 export default EarningsPage;
