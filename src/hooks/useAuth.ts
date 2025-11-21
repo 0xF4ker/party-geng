@@ -3,11 +3,10 @@
 import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/stores/auth";
 import { redirect, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 export function useAuth() {
   const { profile, setProfile, isLoading } = useAuthStore();
-  const router = useRouter();
 
   const signOut = async () => {
     const supabase = createClient();

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import {
   Calendar,
   Gift,
@@ -24,79 +24,6 @@ type EventWishlistOutput = routerOutput["wishlist"]["getByEventId"]["wishlist"];
 type EventWithWishlist = NonNullable<EventWishlistOutput>;
 
 type WishlistItemWithPromises = EventWithWishlist["items"][number];
-
-// --- Utils ---
-
-// --- Type Definitions ---
-type WishlistItem = {
-  id: number;
-  name: string;
-  price: number;
-  promisors: string[];
-  isFulfilled: boolean;
-};
-
-type EventDetails = {
-  id: number;
-  title: string;
-  date: string;
-  hostName: string;
-  hostAvatar: string;
-  coverImage: string;
-  welcomeMessage: string;
-  wishlistItems: WishlistItem[];
-};
-
-type WishlistItemCardProps = {
-  item: WishlistItem;
-  onPromise: (itemId: number) => void;
-  onPay: (item: WishlistItem) => void;
-};
-
-// --- Mock Data ---
-// This data would be fetched based on the page's unique URL
-const eventDetails: EventDetails = {
-  id: 1,
-  title: "Adebayo's 30th Birthday Bash",
-  date: "December 15, 2025",
-  hostName: "Adebayo P.",
-  hostAvatar: "https://placehold.co/128x128/3b82f6/ffffff?text=A",
-  coverImage:
-    "https://placehold.co/1200x400/ec4899/ffffff?text=30th+Birthday+Bash",
-  welcomeMessage:
-    "So excited to celebrate with you all! I've put together a small wishlist for things that would make the party even more amazing. No pressure at all, but if you'd like to contribute, here are a few ideas. Can't wait to see you there!",
-  wishlistItems: [
-    {
-      id: 1,
-      name: "Bottle of Veuve Clicquot",
-      price: 65000,
-      promisors: ["Chioma E.", "Tunde O."],
-      isFulfilled: false,
-    },
-    {
-      id: 2,
-      name: "Professional Fog Machine",
-      price: 40000,
-      promisors: [],
-      isFulfilled: false,
-    },
-    {
-      id: 3,
-      name: "Custom Neon Sign ('Adebayo 30')",
-      price: 80000,
-      promisors: ["Chioma E."],
-      isFulfilled: true,
-    },
-    {
-      id: 4,
-      name: "Sparklers (Pack of 50)",
-      price: 15000,
-      promisors: ["Wale K."],
-      isFulfilled: false,
-    },
-  ],
-};
-// --- End Mock Data ---
 
 // --- Main Page Component ---
 const PublicWishlistPage = () => {

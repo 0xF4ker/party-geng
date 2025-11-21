@@ -9,15 +9,17 @@ import { useAuthStore } from "@/stores/auth";
 
 interface AddFundsModalProps {
   onClose: () => void;
-  onSuccess?: () => void;
+  initialAmount?: number; // New prop
+  quoteId?: string; // New prop for redirection after funding
 }
 
 export const AddFundsModal: React.FC<AddFundsModalProps> = ({
   onClose,
-  onSuccess,
+  initialAmount,
+  quoteId,
 }) => {
   const { profile } = useAuthStore();
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(initialAmount ? String(initialAmount) : "");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const initializePayment = api.payment.initializePayment.useMutation({
@@ -49,6 +51,8 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
     initializePayment.mutate({
       amount: amountValue,
       email: profile.email,
+      // Pass quoteId if available in the metadata
+      metadata: quoteId ? { quote_id: quoteId } : undefined,
     });
   };
 

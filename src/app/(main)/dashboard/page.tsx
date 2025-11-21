@@ -5,7 +5,6 @@ import {
   Star,
   MessageSquare,
   Briefcase,
-  Plus,
   DollarSign,
   TrendingUp,
   AlertTriangle,

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { X, Check, ArrowLeft, Mail } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { api } from "@/trpc/react";
-import { redirect, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 // import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth";

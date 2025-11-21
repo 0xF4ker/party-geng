@@ -3,8 +3,6 @@
 import React, { useState } from "react";
 import {
   Star,
-  Languages,
-  Clock,
   Loader2,
 } from "lucide-react";
 import Image from "next/image";
@@ -15,45 +13,30 @@ import { cn } from "@/lib/utils";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import VendorProfileHeader from "@/app/_components/profile/VendorProfileHeader";
+import { GalleryTab } from "@/app/_components/profile/GalleryTab";
+import { formatDistanceToNow } from "date-fns";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
-type vendor = routerOutput["vendor"]["getByUsername"];
-
-// --- Mock Data ---
-const clientReviews = [
-  {
-    id: 1,
-    clientName: "Adebayo",
-    clientAvatar: "https://placehold.co/40x40/ec4899/ffffff?text=A",
-    rating: 5,
-    date: "1 month ago",
-    comment:
-      "DJ SpinMaster was absolutely phenomenal at our wedding! Kept the dance floor packed all night. Professional, energetic, and played all our requests. Highly recommend!",
-  },
-  {
-    id: 2,
-    clientName: "Funke",
-    clientAvatar: "https://placehold.co/40x40/8d99ae/ffffff?text=F",
-    rating: 4,
-    date: "3 months ago",
-    comment:
-      "SnapPro did a great job with our corporate event photos. Very discreet and captured all the key moments. A few shots were slightly out of focus, but overall very happy.",
-  },
-];
-// --- End Mock Data ---
+type review = routerOutput["review"]["getForVendor"][0];
 
 // --- Main Page Component ---
 const VendorProfilePage = () => {
   const params = useParams();
   const username = params.user as string;
   const { user: currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState("about");
+  const [activeTab, setActiveTab] = useState("gallery");
 
   const {
     data: vendorProfile,
     isLoading: vendorLoading,
     error: vendorError,
   } = api.vendor.getByUsername.useQuery({ username });
+    
+  const { data: reviews, isLoading: reviewsLoading } = api.review.getForVendor.useQuery({
+    vendorId: vendorProfile?.userId ?? "",
+  }, {
+      enabled: !!vendorProfile?.userId,
+  });
 
   const isOwnProfile = currentUser?.id === vendorProfile?.userId;
 
@@ -85,15 +68,14 @@ const VendorProfilePage = () => {
         isOwnProfile={isOwnProfile}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        reviews={reviews}
       />
 
       <main className="container mx-auto max-w-4xl px-4">
         <div className="py-8">
-          {activeTab === "about" && (
-            <AboutSection vendorProfile={vendorProfile} />
-          )}
+          {activeTab === "gallery" && <GalleryTab username={username} />}
           {activeTab === "reviews" && (
-            <ReviewsSection reviews={clientReviews} />
+            <ReviewsSection reviews={reviews ?? []} isLoading={reviewsLoading}/>
           )}
         </div>
       </main>
@@ -103,75 +85,10 @@ const VendorProfilePage = () => {
 
 // --- Sub-Components ---
 
-const AboutSection = ({ vendorProfile }: { vendorProfile: vendor }) => (
-  <div className="space-y-8 rounded-lg border border-gray-200 bg-white p-6">
-    {vendorProfile?.about && (
-      <div>
-        <h3 className="mb-3 text-lg font-semibold">About Me</h3>
-        <p className="text-sm leading-relaxed whitespace-pre-line text-gray-600">
-          {vendorProfile.about}
-        </p>
-      </div>
-    )}
-
-    {vendorProfile?.services && vendorProfile.services.length > 0 && (
-      <div className="border-t pt-6">
-        <h3 className="mb-4 text-lg font-semibold">Services Offered</h3>
-        <div className="flex flex-wrap gap-2">
-          {vendorProfile.services.map(({ service }) => (
-            <span
-              key={service.id}
-              className="rounded-full bg-pink-100 px-3 py-1.5 text-sm font-medium text-pink-700"
-            >
-              {service.name}
-            </span>
-          ))}
-        </div>
-      </div>
-    )}
-
-    {vendorProfile?.skills && vendorProfile.skills.length > 0 && (
-      <div className="border-t pt-6">
-        <h3 className="mb-4 text-lg font-semibold">Skills</h3>
-        <div className="flex flex-wrap gap-2">
-          {vendorProfile.skills.map((skill: string) => (
-            <span
-              key={skill}
-              className="rounded-full bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700"
-            >
-              {skill}
-            </span>
-          ))}
-        </div>
-      </div>
-    )}
-
-    <div className="border-t pt-6">
-      <h3 className="mb-4 text-lg font-semibold">Vendor Details</h3>
-      <div className="flex flex-col space-y-3">
-        {vendorProfile?.languages && vendorProfile.languages.length > 0 && (
-          <div className="flex items-start gap-3 text-sm">
-            <Languages className="h-5 w-5 shrink-0 text-gray-500" />
-            <span>
-              Speaks <strong>{vendorProfile.languages.join(", ")}</strong>
-            </span>
-          </div>
-        )}
-        {vendorProfile?.avgResponseTime && (
-          <div className="flex items-start gap-3 text-sm">
-            <Clock className="h-5 w-5 shrink-0 text-gray-500" />
-            <span>
-              Avg. response time:{" "}
-              <strong>{vendorProfile.avgResponseTime}</strong>
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-);
-
-const ReviewsSection = ({ reviews }: { reviews: typeof clientReviews }) => {
+const ReviewsSection = ({ reviews, isLoading }: { reviews: review[], isLoading: boolean }) => {
+  if (isLoading) {
+      return <div className="flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin"/></div>
+  }
   if (reviews.length === 0) {
     return (
       <div className="rounded-lg border-2 border-dashed border-gray-200 bg-white p-12 text-center">
@@ -192,21 +109,21 @@ const ReviewsSection = ({ reviews }: { reviews: typeof clientReviews }) => {
   );
 };
 
-const ReviewCard = ({ review }: { review: (typeof clientReviews)[0] }) => (
+const ReviewCard = ({ review }: { review: review }) => (
   <div className="rounded-xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-md">
     <div className="flex items-start justify-between">
       <div className="flex items-center space-x-4">
         <Image
-          src={review.clientAvatar}
-          alt={review.clientName}
+          src={review.author.clientProfile?.avatarUrl ?? `https://placehold.co/40x40/ec4899/ffffff?text=${review.author.username.charAt(0)}`}
+          alt={review.author.username}
           className="h-12 w-12 rounded-full"
           width={48}
           height={48}
         />
         <div>
-          <h4 className="font-bold">{review.clientName}</h4>
+          <h4 className="font-bold">{review.author.clientProfile?.name ?? review.author.username}</h4>
           <p className="text-sm text-gray-500">
-            Verified Client · {review.date}
+            Verified Client · {formatDistanceToNow(new Date(review.createdAt), { addSuffix: true })}
           </p>
         </div>
       </div>

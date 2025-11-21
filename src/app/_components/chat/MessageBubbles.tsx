@@ -2,10 +2,12 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
-import { FileText, Clock, AlertCircle, RefreshCw } from "lucide-react";
+import { FileText, Clock, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 import { api } from "@/trpc/react";
 import type { MessageWithStatus } from "@/hooks/useChatRealtime";
 import { normalizeDate } from "@/lib/dateUtils";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
@@ -26,11 +28,6 @@ export const TextMessageBubble = ({
 }) => {
   const isPending = message.status === "sending";
   const isError = message.status === "error";
-
-  // Safe Date Parsing
-  const getDateObject = (dateStr: string | Date) => {
-    return typeof dateStr === "string" ? new Date(dateStr) : dateStr;
-  };
 
   return (
     <div
@@ -109,11 +106,38 @@ export const QuoteMessageBubble = ({
   isMe: boolean;
   onUpdate: () => void;
 }) => {
+  const router = useRouter();
   const quote = message.quote;
   if (!quote) return null;
 
   const updateStatus = api.quote.updateStatus.useMutation({
     onSuccess: onUpdate,
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const payForQuote = api.payment.payForQuote.useMutation({
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success("Payment successful! Order created.");
+        onUpdate();
+      } else {
+        if (data.reason === "INSUFFICIENT_FUNDS") {
+          toast.error("Insufficient funds. Redirecting to add funds.");
+          router.push(
+            `/earnings?modal=addFunds&amount=${data.requiredAmount}&quoteId=${quote.id}`,
+          );
+        } else {
+          toast.error("Failed to pay for quote. Please try again.");
+        }
+      }
+    },
+    onError: (error) => {
+      toast.error(
+        error.message ?? "An unexpected error occurred. Please try again.",
+      );
+    },
   });
 
   const getStatusStyles = (status: string) => {
@@ -126,6 +150,8 @@ export const QuoteMessageBubble = ({
         return "border-gray-200 bg-white";
     }
   };
+
+  const isActionPending = updateStatus.isPending || payForQuote.isPending;
 
   return (
     <div className={cn("flex w-full", isMe ? "justify-end" : "justify-start")}>
@@ -166,20 +192,29 @@ export const QuoteMessageBubble = ({
                 onClick={() =>
                   updateStatus.mutate({ id: quote.id, status: "REJECTED" })
                 }
-                className="flex-1 rounded-lg bg-gray-100 py-2 text-xs font-semibold hover:bg-gray-200"
+                disabled={isActionPending}
+                className="flex-1 rounded-lg bg-gray-100 py-2 text-xs font-semibold hover:bg-gray-200 disabled:opacity-50"
               >
-                Decline
+                {updateStatus.isPending ? (
+                  <Loader2 className="mx-auto h-3 w-3 animate-spin" />
+                ) : (
+                  "Decline"
+                )}
               </button>
               <button
-                onClick={() =>
-                  updateStatus.mutate({ id: quote.id, status: "ACCEPTED" })
-                }
-                className="flex-1 rounded-lg bg-pink-600 py-2 text-xs font-semibold text-white hover:bg-pink-700"
+                onClick={() => payForQuote.mutate({ quoteId: quote.id })}
+                disabled={isActionPending}
+                className="flex-1 rounded-lg bg-pink-600 py-2 text-xs font-semibold text-white hover:bg-pink-700 disabled:opacity-50"
               >
-                Accept
+                {payForQuote.isPending ? (
+                  <Loader2 className="mx-auto h-3 w-3 animate-spin" />
+                ) : (
+                  "Accept & Pay"
+                )}
               </button>
             </div>
           )}
+
           {/* Status Badge */}
           {quote.status !== "PENDING" && (
             <div className="pt-2 text-center">
@@ -191,7 +226,7 @@ export const QuoteMessageBubble = ({
                     : "bg-red-100 text-red-700",
                 )}
               >
-                {quote.status}
+                {quote.status === "ACCEPTED" ? "Paid" : quote.status}
               </span>
             </div>
           )}

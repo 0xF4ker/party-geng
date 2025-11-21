@@ -19,12 +19,19 @@ import { api } from "@/trpc/react";
 import { cn } from "@/lib/utils";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
+import { getLocations } from "@/lib/geo/locations";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
 
 // --- Types ---
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type VendorListOutput = RouterOutput["vendor"]["getVendorsByService"];
 type vendorProfileWithUser = VendorListOutput["vendors"][number];
-
 type FilterState = {
   minRating?: number;
   location?: string;
@@ -335,21 +342,51 @@ const LocationFilter = ({
   onApply: (location?: string) => void;
   onClear: () => void;
 }) => {
+  const [locations, setLocations] = useState<{ name: string; value: string }[]>(
+    [],
+  );
   const [localLocation, setLocalLocation] = useState<string>(
     selectedLocation ?? "",
   );
 
+  useEffect(() => {
+    const fetchLocations = async () => {
+      const fetchedLocations = await getLocations();
+      setLocations(fetchedLocations);
+    };
+    void fetchLocations();
+  }, []);
+
   return (
     <div>
-      <div className="flex items-center space-x-3">
-        <input
-          type="text"
-          placeholder="e.g. Lagos"
-          value={localLocation}
-          onChange={(e) => setLocalLocation(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-pink-500"
-        />
-      </div>
+      <Command>
+        <CommandInput placeholder="Search location..." />
+        <CommandEmpty>No location found.</CommandEmpty>
+        <CommandGroup>
+          {locations.map((location) => (
+            <CommandItem
+              key={location.value}
+              value={location.value}
+              onSelect={(currentValue) => {
+                const newLocation =
+                  currentValue === localLocation ? "" : currentValue;
+                setLocalLocation(newLocation);
+                onApply(newLocation);
+              }}
+            >
+              <Check
+                className={cn(
+                  "mr-2 h-4 w-4",
+                  localLocation === location.value
+                    ? "opacity-100"
+                    : "opacity-0",
+                )}
+              />
+              {location.name}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      </Command>
       <div className="mt-4 flex items-center justify-between border-t border-gray-200 bg-gray-50 pt-3">
         <button
           onClick={() => {
@@ -373,8 +410,8 @@ const LocationFilter = ({
 
 const VendorCard = ({
   vendor,
-  categorySlug,
-  serviceSlug,
+  categorySlug: _categorySlug,
+  serviceSlug: _serviceSlug,
 }: {
   vendor: vendorProfileWithUser;
   categorySlug: string;

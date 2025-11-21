@@ -2,13 +2,10 @@
 
 import { notFound } from "next/navigation";
 import PopularServiceCarousel from "../../../_components/category/PopularServiceCarousel";
-import { ChevronDown } from "lucide-react";
-import React, { useEffect, useState, use } from "react";
+import React, { use } from "react";
 import LoopingCardAnimation from "@/app/_components/category/LoopingCardAnimation";
-import Image from "next/image";
 import { slugify } from "@/lib/utils";
 import { api } from "@/trpc/react";
-import { cn } from "@/lib/utils";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 
@@ -27,21 +24,6 @@ type ServicesArray = Category["services"];
 // 4. This is the one you want: the type for a *single service* in that array
 // This will be: { id, name, _count: {...}, gigs: [...] }
 export type ServiceWithVendors = ServicesArray[number];
-
-// 5. (As a bonus) You can even go one level deeper to get the type of a single gig
-type VendorsArray = ServiceWithVendors["_count"]["vendors"];
-// export type GigWithVendor = GigsArray[number];
-
-// interface Category {
-//   name: string;
-//   description: string;
-//   popular: string[];
-//   services: string[] | { groupName: string; image: string; items: string[] }[];
-// }
-
-// type ApiService = NonNullable<
-//   Awaited<ReturnType<typeof api.category.getBySlug.useQuery>>["data"]
-// >["services"][number];
 
 const FlatServicesList = ({
   services,
@@ -63,121 +45,6 @@ const FlatServicesList = ({
     ))}
   </ul>
 );
-
-// Component for GROUPED services (e.g., Bands)
-const GroupedServices = ({
-  services,
-}: {
-  services: { groupName: string; image: string; items: string[] }[];
-}) => {
-  const [openItem, setOpenItem] = useState<string | null>(null);
-
-  const toggleItem = (groupName: string) => {
-    setOpenItem(openItem === groupName ? null : groupName);
-  };
-
-  return (
-    <>
-      {/* --- Mobile: Accordion --- */}
-      <div className="space-y-4 md:hidden">
-        {services.map((group) => (
-          <div
-            key={group.groupName}
-            className="border-b border-gray-200 last:border-b-0"
-          >
-            <button
-              onClick={() => toggleItem(group.groupName)}
-              className="flex w-full items-center justify-between py-4"
-            >
-              <div className="flex items-center space-x-4">
-                <Image
-                  src={group.image}
-                  alt={group.groupName}
-                  className="h-16 w-20 rounded-md object-cover"
-                  width={80}
-                  height={60}
-                />
-                <h3 className="text-left text-lg font-semibold text-gray-800">
-                  {group.groupName}
-                </h3>
-              </div>
-              <ChevronDown
-                className={cn(
-                  "h-6 w-6 text-gray-500 transition-transform",
-                  openItem === group.groupName ? "rotate-180" : "",
-                )}
-              />
-            </button>
-            {/* Accordion Content */}
-            <div
-              className={cn(
-                "overflow-hidden transition-all duration-300 ease-in-out",
-                openItem === group.groupName ? "max-h-screen pb-4" : "max-h-0",
-              )}
-            >
-              <ul className="space-y-2 pl-24">
-                {group.items.map((item) => (
-                  <li key={item}>
-                    <a
-                      href={`/services/${item
-                        .toLowerCase()
-                        .replace(/ /g, "-")}`}
-                      className="text-base text-gray-700 hover:text-pink-500 hover:underline"
-                    >
-                      {item}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* --- Desktop: Visual Grid --- */}
-      <div className="hidden gap-x-6 gap-y-8 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {services.map((group) => (
-          <div key={group.groupName} className="flex flex-col">
-            <a
-              href="#" // This link could go to a "group" page if one exists
-              className="mb-4 block"
-            >
-              <Image
-                src={group.image}
-                alt={group.groupName}
-                className="aspect-4/3 h-auto w-full rounded-lg object-cover transition-transform duration-300 hover:scale-105"
-                width={320}
-                height={240}
-              />
-            </a>
-            <h3 className="mb-3 text-xl font-semibold text-gray-800">
-              {group.groupName}
-            </h3>
-            <ul className="space-y-2">
-              {group.items.map((item) => (
-                <li key={item}>
-                  <a
-                    href={`/services/${item.toLowerCase().replace(/ /g, "-")}`}
-                    className="text-base text-gray-700 hover:text-pink-500 hover:underline"
-                  >
-                    {item}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </>
-  );
-};
-
-// Main component to decide which layout to show
-type ServiceGroup = {
-  groupName: string;
-  image: string;
-  items: string[];
-};
 
 const ExploreServices = ({
   services,

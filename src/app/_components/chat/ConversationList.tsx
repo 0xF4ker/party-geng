@@ -61,6 +61,7 @@ export const ConversationList = ({
           const avatar =
             other?.vendorProfile?.avatarUrl ?? other?.clientProfile?.avatarUrl;
           const lastMsg = convo.messages[0];
+          const hasUnread = convo.unreadCount > 0;
 
           return (
             <button
@@ -103,16 +104,24 @@ export const ConversationList = ({
                     </span>
                   )}
                 </div>
-                <p
-                  className={cn(
-                    "truncate text-sm",
-                    selectedId === convo.id
-                      ? "font-medium text-pink-700"
-                      : "text-gray-500",
+                <div className="flex items-center justify-between">
+                  <p
+                    className={cn(
+                      "truncate text-sm",
+                      selectedId === convo.id
+                        ? "font-medium text-pink-700"
+                        : "text-gray-500",
+                      hasUnread && !selectedId && "font-bold text-gray-800",
+                    )}
+                  >
+                    {lastMsg?.text ?? "No messages yet"}
+                  </p>
+                  {hasUnread && (
+                    <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
+                      {convo.unreadCount}
+                    </span>
                   )}
-                >
-                  {lastMsg?.text ?? "No messages yet"}
-                </p>
+                </div>
               </div>
             </button>
           );

@@ -1,6 +1,7 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
+import { TRPCError } from "@trpc/server";
 
 export const quoteRouter = createTRPCRouter({
   // Create a new quote (vendor sends to client)
@@ -17,43 +18,115 @@ export const quoteRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Fetch service details for the provided serviceIds
-      const services = await ctx.db.service.findMany({
+      const {
+        serviceIds,
+        clientId,
+        conversationId,
+        title,
+        price,
+        eventDate,
+        includes,
+      } = input;
+      const vendorId = ctx.user.id;
+
+      // 1. Verify that the conversation exists and the vendor is a participant
+      const conversation = await ctx.db.conversation.findFirst({
         where: {
-          id: {
-            in: input.serviceIds,
-          },
-        },
-        select: {
-          id: true,
-          name: true,
+          id: conversationId,
+          participants: { some: { id: vendorId } },
         },
       });
 
-      if (services.length !== input.serviceIds.length) {
-        throw new Error("One or more services not found");
+      if (!conversation) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You are not part of this conversation.",
+        });
       }
 
-      return ctx.db.quote.create({
-        data: {
-          vendorId: ctx.user.id,
-          clientId: input.clientId,
-          conversationId: input.conversationId,
-          title: input.title,
-          price: input.price,
-          eventDate: input.eventDate,
-          includes: input.includes,
-          services: services as Prisma.JsonArray, // Store service details as JSON
-        },
-        include: {
-          client: {
-            select: {
-              username: true,
-              email: true,
-              clientProfile: true,
-            },
+      // 2. Fetch service details
+      const services = await ctx.db.service.findMany({
+        where: { id: { in: serviceIds } },
+        select: { id: true, name: true },
+      });
+
+      if (services.length !== serviceIds.length) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "One or more services not found.",
+        });
+      }
+
+      // 3. Create Quote and Message in a transaction
+      const result = await ctx.db.$transaction(async (prisma) => {
+        // Create the Quote first
+        const quote = await prisma.quote.create({
+          data: {
+            vendorId,
+            clientId,
+            conversationId,
+            title,
+            price,
+            eventDate,
+            includes,
+            services: services as Prisma.JsonArray,
           },
-        },
+        });
+
+        // Then create the Message linked to the Quote
+        const message = await prisma.message.create({
+          data: {
+            conversationId,
+            senderId: vendorId,
+            text: `Quote: ${title} - ₦${price.toLocaleString()}`, // A descriptive text for the message
+          },
+        });
+        
+        // Now, link the message back to the quote
+        const updatedQuote = await prisma.quote.update({
+            where: { id: quote.id },
+            data: { messageId: message.id },
+            include: {
+                client: {
+                    select: {
+                        username: true,
+                        email: true,
+                        clientProfile: true,
+                    },
+                },
+            },
+        });
+
+        return { quote: updatedQuote, message };
+      });
+
+      // TODO: Here you would ideally trigger a real-time event (e.g., via Supabase Realtime or Pusher)
+      // to notify the client's chat interface instantly.
+      // For now, the client will see the message on the next poll/refetch.
+
+      return result.quote;
+    }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const quote = await ctx.db.quote.findUnique({
+        where: { id: input.id },
+      });
+
+      if (!quote) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Quote not found." });
+      }
+
+      if (quote.vendorId !== ctx.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You are not authorized to delete this quote.",
+        });
+      }
+
+      return ctx.db.quote.delete({
+        where: { id: input.id },
       });
     }),
 

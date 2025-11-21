@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, publicProcedure, protectedProcedure } from "@/server/api/trpc";
-import { UserRole } from "@prisma/client";
 
 export const authRouter = createTRPCRouter({
   /**
@@ -121,7 +120,7 @@ export const authRouter = createTRPCRouter({
   /**
    * Sign out (clear session)
    */
-  signOut: protectedProcedure.mutation(async ({ ctx }) => {
+  signOut: protectedProcedure.mutation(async () => {
     // The actual sign out will be handled by Supabase client
     // This is just a placeholder for any server-side cleanup
     return { success: true };

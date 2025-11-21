@@ -10,13 +10,14 @@ import {
   Hourglass, // For Clearing
   FileText, // For Quotes
   Star, // For Reviews
-  Check, // FIX: Added missing Check icon
+  Loader2,
 } from "lucide-react";
 import Image from "next/image";
 import { api } from "@/trpc/react";
 import { useAuthStore } from "@/stores/auth";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 
@@ -37,7 +38,6 @@ const OrdersPage = () => {
   const { profile } = useAuthStore();
   const router = useRouter();
   const isVendor = profile?.role === "VENDOR";
-  const userType = isVendor ? "vendor" : "client";
 
   // Conditionally set the initial active tab
   const [activeTab, setActiveTab] = useState(isVendor ? "newLeads" : "pending");
@@ -353,7 +353,6 @@ const QuoteCard = ({
   router: ReturnType<typeof useRouter>;
 }) => {
   const isVendor = userType === "vendor";
-  const otherUser = isVendor ? quote.client : quote.vendor;
 
   const profile = isVendor
     ? quote.client.clientProfile // <-- This is safe
@@ -400,7 +399,7 @@ const QuoteCard = ({
               text={isVendor ? "Send Quote" : "View Quote"}
               icon={FileText}
               primary
-              onClick={() => router.push("/inbox")}
+              onClick={() => router.push(`/inbox?conversationId=${quote.conversationId}`)}
             />
           </div>
         </div>
@@ -422,7 +421,17 @@ const OrderCard = ({
   router: ReturnType<typeof useRouter>;
 }) => {
   const isVendor = userType === "vendor";
-  const otherUser = isVendor ? order.client : order.vendor;
+  const utils = api.useContext();
+  
+  const completeOrder = api.order.completeOrder.useMutation({
+    onSuccess: () => {
+        toast.success("Order marked as complete!");
+        void utils.order.getMyOrders.invalidate();
+    },
+    onError: (error) => {
+        toast.error(error.message || "Failed to complete order.");
+    }
+  });
 
   const profile = isVendor
     ? order.client.clientProfile // <-- This is safe
@@ -435,38 +444,54 @@ const OrderCard = ({
     profile?.avatarUrl ??
     `https://placehold.co/40x40/ec4899/ffffff?text=${name?.charAt(0)}`;
 
-  let actionButton;
+  const actionButtons = [];
   if (isVendor) {
     if (status === "active")
-      actionButton = (
+      actionButtons.push(
         <ActionButton
+          key="chat"
           text="View Chat"
           icon={MessageSquare}
-          onClick={() => router.push("/inbox")}
+          onClick={() => router.push(`/inbox?conversationId=${order.quote.conversationId}`)}
         />
       );
     if (status === "completed")
-      actionButton = (
+      actionButtons.push(
         <ActionButton
+          key="details"
           text="View Details"
           icon={FileText}
           onClick={() => router.push(`/orders/${order.id}`)}
         />
       );
-  } else {
-    if (status === "active")
-      actionButton = (
+  } else { // Client view
+    if (status === "active") {
+      actionButtons.push(
         <ActionButton
+          key="chat"
           text="View Chat"
           icon={MessageSquare}
-          onClick={() => router.push("/inbox")}
+          onClick={() => router.push(`/inbox?conversationId=${order.quote.conversationId}`)}
         />
       );
+       actionButtons.push(
+         <ActionButton
+            key="complete"
+            text={completeOrder.isPending ? "Completing..." : "Mark as Complete"}
+            icon={completeOrder.isPending ? Loader2 : CheckCircle}
+            primary
+            onClick={() => completeOrder.mutate({ orderId: order.id })}
+            disabled={completeOrder.isPending}
+        />
+      );
+    }
     if (status === "completed")
-      actionButton = (
+      actionButtons.push(
         <ActionButton
+          key="review"
           text="Leave a Review"
           icon={Star}
+          primary
           onClick={() => router.push(`/orders/${order.id}/review`)}
         />
       );
@@ -501,7 +526,7 @@ const OrderCard = ({
           <span className="text-xl font-bold text-gray-900">
             ₦{order.amount.toLocaleString()}
           </span>
-          <div className="shrink-0">{actionButton}</div>
+          <div className="shrink-0 flex gap-2">{actionButtons}</div>
         </div>
       </div>
     </div>
@@ -513,22 +538,26 @@ const ActionButton = ({
   icon: Icon,
   primary = false,
   onClick,
+  disabled = false,
 }: {
   text: string;
   icon: React.ElementType;
   primary?: boolean;
   onClick: () => void;
+  disabled?: boolean;
 }) => (
   <button
     onClick={onClick}
+    disabled={disabled}
     className={cn(
       "flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition-colors sm:w-auto",
       primary
         ? "bg-pink-600 text-white hover:bg-pink-700"
         : "bg-gray-100 text-gray-700 hover:bg-gray-200",
+      "disabled:opacity-50 disabled:cursor-not-allowed"
     )}
   >
-    <Icon className="h-4 w-4" />
+    <Icon className={cn("h-4 w-4", disabled && "animate-spin")} />
     {text}
   </button>
 );

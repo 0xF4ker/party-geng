@@ -9,13 +9,15 @@ import {
   Calendar,
   ExternalLink,
   ShieldCheck,
-  User,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { api } from "@/trpc/react";
 
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
+import { useRouter } from "next/navigation";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type conversationOutput = routerOutput["chat"]["getConversations"][number];
@@ -23,16 +25,28 @@ type conversationOutput = routerOutput["chat"]["getConversations"][number];
 interface UserInfoSidebarProps {
   conversation: conversationOutput; // Replace with your strict TRPC type
   currentUserId: string;
+  onClose?: () => void;
 }
 
 export const UserInfoSidebar = ({
   conversation,
   currentUserId,
+  onClose,
 }: UserInfoSidebarProps) => {
+  const router = useRouter();
   // 1. Find the "Other" user
   const otherUser = conversation.participants.find(
     (p) => p.id !== currentUserId,
   );
+  
+  const { data: orders } = api.order.getOrdersBetweenUsers.useQuery({
+      userOneId: currentUserId,
+      userTwoId: otherUser?.id ?? "",
+  }, {
+      enabled: !!otherUser?.id,
+  });
+  
+  const activeOrders = orders?.filter(o => o.status === 'ACTIVE');
 
   if (!otherUser) return null;
 
@@ -58,6 +72,13 @@ export const UserInfoSidebar = ({
 
   return (
     <div className="flex h-full flex-col bg-white">
+      {onClose && (
+          <div className="p-4 border-b lg:hidden">
+              <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100">
+                  <X className="h-5 w-5 text-gray-600"/>
+              </button>
+          </div>
+      )}
       {/* --- Profile Header --- */}
       <div className="flex flex-col items-center border-b border-gray-100 p-8">
         <div className="group relative mb-4">
@@ -143,6 +164,31 @@ export const UserInfoSidebar = ({
               />
             </ul>
           </div>
+          
+          {/* Active Orders */}
+          {activeOrders && activeOrders.length > 0 && (
+            <div>
+              <div className="my-4 border-t border-gray-100" />
+              <h4 className="mb-3 text-xs font-bold tracking-wider text-gray-400 uppercase">
+                Active Orders
+              </h4>
+              <ul className="space-y-2">
+                {activeOrders.map(order => (
+                    <li key={order.id} className="p-2 -mx-2 rounded-md hover:bg-gray-50">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <p className="font-semibold text-sm">{order.quote.title}</p>
+                                <p className="text-xs text-gray-500">₦{order.amount.toLocaleString()}</p>
+                            </div>
+                            <button onClick={() => router.push(`/orders/${order.id}`)} className="text-xs font-semibold text-pink-600 hover:underline">
+                                Manage
+                            </button>
+                        </div>
+                    </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Section: Vendor Specifics */}
           {isVendor && vendorProfile && (

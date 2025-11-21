@@ -1,30 +1,24 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
-  Star,
   Check,
   MapPin,
   MessageSquare,
-  Gift,
   Loader2,
-  Edit,
   MoreHorizontal,
   Briefcase,
   History,
   Award,
   Menu,
-  Bell,
   Mail,
-  ShoppingBag,
   Calendar,
   Settings,
-  LogOut,
-  Eye,
   Wallet,
+  Grid3x3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import LoginJoinComponent from "../LoginJoinComponent";
 import GlobalSearch from "../home/GlobalSearch";
 import MobileMenu from "../home/MobileMenu";
+import { NotificationDropdown } from "../notifications/NotificationDropdown";
 import { toast } from "sonner";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
@@ -112,6 +107,10 @@ const ProfileHeader = ({
   const { data: wallet } = api.payment.getWallet.useQuery(undefined, {
     enabled: !!user,
   });
+  const { data: unreadConvoCount } =
+    api.chat.getUnreadConversationCount.useQuery(undefined, {
+      enabled: !!user,
+    });
   const { data: searchList } = api.category.getSearchList.useQuery();
 
   // --- Conversation Mutation ---
@@ -292,10 +291,13 @@ const ProfileHeader = ({
               <nav className="flex items-center space-x-4">
                 <Link href="/inbox" className="relative hidden sm:block">
                   <Mail className={cn("h-6 w-6", headerIconColor)} />
-                </Link>
-                <Link href="/notifications" className="relative">
-                  <Bell className={cn("h-6 w-6", headerIconColor)} />
-                </Link>
+                  {(unreadConvoCount ?? 0) > 0 && (
+                    <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
+                      {unreadConvoCount}
+                    </span>
+                  )}
+                </Link>{" "}
+                <NotificationDropdown className={headerIconColor} />
                 {/* Profile Dropdown */}
                 <div className="relative" ref={profileDropdownRef}>
                   <Link
@@ -453,7 +455,7 @@ const ProfileHeader = ({
           className={cn(
             "z-10 mt-6 border-b border-gray-200 bg-white/80 transition-shadow",
             isTabsSticky
-              ? "sticky top-[64px] shadow-md backdrop-blur-sm"
+              ? "sticky top-16 shadow-md backdrop-blur-sm"
               : "relative",
           )}
         >
@@ -471,6 +473,7 @@ const ProfileHeader = ({
               >
                 <option value="upcoming">Upcoming Events</option>
                 <option value="past">Past Events</option>
+                <option value="gallery">Gallery</option>
                 <option value="reviews">Reviews</option>
               </select>
             </div>
@@ -487,6 +490,12 @@ const ProfileHeader = ({
                   icon={<History className="h-5 w-5" />}
                   isActive={activeTab === "past"}
                   onClick={() => setActiveTab("past")}
+                />
+                <TabButton
+                  title="Gallery"
+                  icon={<Grid3x3 className="h-5 w-5" />}
+                  isActive={activeTab === "gallery"}
+                  onClick={() => setActiveTab("gallery")}
                 />
                 <TabButton
                   title="Reviews"

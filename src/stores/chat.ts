@@ -27,7 +27,7 @@ interface ChatState {
   setMessages: (conversationId: string, messages: Message[]) => void;
 }
 
-export const useChatStore = create<ChatState>((set, get) => ({
+export const useChatStore = create<ChatState>((set) => ({
   conversations: [],
   messages: {},
   selectedConversation: null,

@@ -15,13 +15,30 @@ import {
   AlertTriangle,
   ToggleLeft, // Added missing import
   ToggleRight, // Added missing import
+  ChevronsUpDown,
+  Check,
 } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { toast } from "sonner";
 import { NIGERIA_STATES_LGAS } from "@/lib/geo/nigeria";
+import { getLocations } from "@/lib/geo/locations";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   profileUpdateSchema,
   passwordUpdateSchema,
@@ -568,9 +585,74 @@ const SkillsInput: React.FC<{
   );
 };
 
+const LocationComboBox = ({
+  value,
+  onChange,
+  locations,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  locations: { name: string; value: string }[];
+}) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div>
+      <label
+        htmlFor="location"
+        className="mb-1.5 block text-sm font-semibold text-gray-700"
+      >
+        Location
+      </label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between"
+          >
+            {value
+              ? locations.find((location) => location.value === value)?.name
+              : "Select location..."}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+          <Command>
+            <CommandInput placeholder="Search location..." />
+            <CommandEmpty>No location found.</CommandEmpty>
+            <CommandList>
+              <CommandGroup>
+                {locations.map((location) => (
+                  <CommandItem
+                    key={location.value}
+                    value={location.value}
+                    onSelect={(currentValue) => {
+                      onChange(currentValue === value ? "" : currentValue);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        value === location.value ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    {location.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+};
+
 const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   const { profile } = useAuthStore();
-  const [skillInput, setSkillInput] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(
     isVendor
       ? (profile?.vendorProfile?.avatarUrl ?? null)
@@ -580,20 +662,31 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
     profile?.vendorProfile?.skills ?? ["Wedding DJ", "MC"],
   );
 
+  const [locations, setLocations] = useState<{ name: string; value: string }[]>(
+    [],
+  );
+
+  useEffect(() => {
+    const fetchLocations = async () => {
+      const fetchedLocations = await getLocations();
+      setLocations(fetchedLocations);
+    };
+    void fetchLocations();
+  }, []);
+
   const {
     register,
     handleSubmit,
     setValue,
     reset, // <-- Add reset
+    watch,
     formState: { errors },
-    // watch,
   } = useForm({
     resolver: zodResolver(profileUpdateSchema),
     mode: "onChange",
   });
 
-  // const avatarUrl = watch("avatarUrl");
-  // const skills = watch("skills") ?? [];
+  const locationValue = watch("location");
 
   useEffect(() => {
     if (profile) {
@@ -639,21 +732,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
     },
     onError: (err) => toast.error(err.message),
   });
-
-  const addSkill = () => {
-    if (skillInput.trim() && !skills.includes(skillInput.trim())) {
-      const newSkills = [...skills, skillInput.trim()];
-      setSkills(newSkills);
-      setValue("skills", newSkills);
-      setSkillInput("");
-    }
-  };
-
-  const removeSkill = (skillToRemove: string) => {
-    const newSkills = skills.filter((skill) => skill !== skillToRemove);
-    setSkills(newSkills);
-    setValue("skills", newSkills);
-  };
 
   const onSubmit = (data: z.infer<typeof profileUpdateSchema>) => {
     // Filter data based on user role - only send relevant fields
@@ -736,11 +814,10 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
 
         {/* Shared Location */}
         <div>
-          <FormInput
-            label="Location"
-            id="location"
-            placeholder="Lagos, Nigeria"
-            {...register("location")}
+          <LocationComboBox
+            locations={locations}
+            value={locationValue ?? ""}
+            onChange={(value) => setValue("location", value)}
           />
           {errors.location && (
             <p className="mt-1 text-sm text-red-600">

@@ -9,14 +9,9 @@ import {
   MapPin,
   MessageSquare,
   Loader2,
-  Edit,
-  MoreHorizontal,
   Menu,
-  Bell,
   Mail,
   Settings,
-  LogOut,
-  Eye,
   Wallet,
   Award,
 } from "lucide-react";
@@ -29,10 +24,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import LoginJoinComponent from "../LoginJoinComponent";
 import GlobalSearch from "../home/GlobalSearch";
 import MobileMenu from "../home/MobileMenu";
+import { NotificationDropdown } from "../notifications/NotificationDropdown";
 import { toast } from "sonner";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type vendorProfileWithUser = routerOutput["vendor"]["getByUsername"];
+type reviews = routerOutput["review"]["getForVendor"];
 
 // Modal from Header.tsx
 const Modal = ({
@@ -76,11 +73,13 @@ const VendorProfileHeader = ({
   isOwnProfile,
   activeTab,
   setActiveTab,
+  reviews,
 }: {
   vendorProfile: vendorProfileWithUser;
   isOwnProfile: boolean;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  reviews: reviews | undefined;
 }) => {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
@@ -103,6 +102,10 @@ const VendorProfileHeader = ({
   const { data: wallet } = api.payment.getWallet.useQuery(undefined, {
     enabled: !!user,
   });
+  const { data: unreadConvoCount } =
+    api.chat.getUnreadConversationCount.useQuery(undefined, {
+      enabled: !!user,
+    });
   const { data: searchList } = api.category.getSearchList.useQuery();
 
   // --- Derived State ---
@@ -210,7 +213,7 @@ const VendorProfileHeader = ({
     ? "text-gray-600 hover:text-pink-500"
     : "text-white hover:text-pink-300";
 
-  const tabs = ["about", "services", "reviews", "portfolio"];
+  const tabs = ["gallery", "reviews"];
 
   return (
     <>
@@ -281,12 +284,14 @@ const VendorProfileHeader = ({
               </div>
             ) : (
               <nav className="flex items-center space-x-4">
-                <Link href="/inbox" className="relative hidden sm:block">
-                  <Mail className={cn("h-6 w-6", headerIconColor)} />
-                </Link>
-                <Link href="/notifications" className="relative">
-                  <Bell className={cn("h-6 w-6", headerIconColor)} />
-                </Link>
+                                  <Link href="/inbox" className="relative hidden sm:block">
+                                    <Mail className={cn("h-6 w-6", headerIconColor)} />
+                                    {(unreadConvoCount ?? 0) > 0 && (
+                                      <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
+                                        {unreadConvoCount}
+                                      </span>
+                                    )}
+                                  </Link>                <NotificationDropdown className={headerIconColor} />
                 {/* Profile Dropdown */}
                 <div className="relative" ref={profileDropdownRef}>
                   <Link
@@ -404,8 +409,7 @@ const VendorProfileHeader = ({
               <div className="flex items-center gap-1.5">
                 <Star className="h-4 w-4" />
                 <span>
-                  {vendorProfile?.rating?.toFixed(1) ?? "0.0"} (
-                  {/* Using a placeholder for review count */}0 Reviews)
+                  {vendorProfile?.rating?.toFixed(1) ?? "0.0"} ({reviews?.length ?? 0} Reviews)
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -414,6 +418,19 @@ const VendorProfileHeader = ({
               </div>
             </div>
           </div>
+          
+          {/* Services */}
+          {vendorProfile?.services && vendorProfile.services.length > 0 && (
+              <div className="mt-4 border-t border-gray-200 pt-4">
+                  <div className="flex flex-wrap gap-2">
+                      {vendorProfile.services.map(({ service }) => (
+                          <span key={service.id} className="rounded-full bg-pink-100 px-3 py-1 text-sm font-medium text-pink-700">
+                              {service.name}
+                          </span>
+                      ))}
+                  </div>
+              </div>
+          )}
         </div>
 
         {/* Tab Navigation */}

@@ -26,17 +26,13 @@ import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
-type user = routerOutput["user"]["getByUsername"];
 // getMyEvents returns { upcoming: EventType[]; past: EventType[] }, derive the event item type from the upcoming array
 type event = routerOutput["event"]["getMyEvents"]["upcoming"][number];
-type eventPast = routerOutput["event"]["getMyEvents"]["past"][number];
 type WishlistObject = event["wishlist"];
 // 2. Get the 'items' array type from the non-null Wishlist object
 type WishlistItemsArray = NonNullable<WishlistObject>["items"];
 // 3. Get the type of a single item from that array
 type wishlistItem = WishlistItemsArray[number];
-
-type vendor = event["hiredVendors"][number]["vendor"];
 
 type ActiveVendor = {
   id: string;

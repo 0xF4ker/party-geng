@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { X, Loader2, DollarSign, Calendar, Layers } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { X, Loader2, DollarSign, Calendar, Layers, Check, ChevronsUpDown } from "lucide-react";
 import { api } from "@/trpc/react";
-import { useAuth } from "@/hooks/useAuth"; // Adjust path to your auth hook
+import { useAuth } from "@/hooks/useAuth";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 interface QuoteModalProps {
   conversationId: string;
@@ -32,7 +36,8 @@ export const CreateQuoteModal = ({
     eventDate: "",
     includes: "",
   });
-  const [selectedServiceId, setSelectedServiceId] = useState<number | "">("");
+  const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
+  const [open, setOpen] = useState(false);
 
   // 1. Fetch Vendor Services to populate dropdown
   const { data: vendorProfile, isLoading: isLoadingServices } =
@@ -41,7 +46,7 @@ export const CreateQuoteModal = ({
       staleTime: 1000 * 60 * 5, // Cache for 5 mins
     });
 
-  const services = vendorProfile?.services ?? [];
+  const services = useMemo(() => vendorProfile?.services.map(s => s.service) ?? [], [vendorProfile]);
 
   // 2. Mutation
   const createQuote = api.quote.create.useMutation({
@@ -50,21 +55,9 @@ export const CreateQuoteModal = ({
     },
   });
 
-  // Auto-fill title when service changes
-  useEffect(() => {
-    if (selectedServiceId) {
-      const s = services.find(
-        (vs) => vs.service.id === Number(selectedServiceId),
-      );
-      if (s) {
-        setForm((prev) => ({ ...prev, title: s.service.name }));
-      }
-    }
-  }, [selectedServiceId, services]);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedServiceId) return;
+    if (selectedServiceIds.length === 0) return;
 
     // Convert includes string (newlines) to array
     const includesArray = form.includes
@@ -73,7 +66,7 @@ export const CreateQuoteModal = ({
       .filter((line) => line.length > 0);
 
     createQuote.mutate({
-      serviceIds: [Number(selectedServiceId)],
+      serviceIds: selectedServiceIds,
       clientId,
       conversationId,
       title: form.title,
@@ -104,22 +97,87 @@ export const CreateQuoteModal = ({
           {/* Service Selection */}
           <div>
             <label className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-gray-700">
-              <Layers className="h-4 w-4 text-pink-500" /> Select Service
+              <Layers className="h-4 w-4 text-pink-500" /> Select Services
             </label>
-            <select
-              value={selectedServiceId}
-              onChange={(e) => setSelectedServiceId(Number(e.target.value))}
-              disabled={isLoadingServices}
-              className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500 focus:outline-none disabled:bg-gray-100"
-              required
-            >
-              <option value="">-- Choose a service --</option>
-              {services.map((vs) => (
-                <option key={vs.service.id} value={vs.service.id}>
-                  {vs.service.name}
-                </option>
-              ))}
-            </select>
+            <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={open}
+                        className="w-full justify-between"
+                        disabled={isLoadingServices}
+                    >
+                        {selectedServiceIds.length > 0
+                            ? `${selectedServiceIds.length} service(s) selected`
+                            : "Select services..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                        <CommandInput placeholder="Search services..." />
+                        <CommandList>
+                            <CommandEmpty>No services found.</CommandEmpty>
+                            <CommandGroup>
+                                {services.map((service) => (
+                                    <CommandItem
+                                        key={service.id}
+                                        value={service.name}
+                                        onSelect={() => {
+                                            setSelectedServiceIds(prev => 
+                                                prev.includes(service.id) 
+                                                    ? prev.filter(id => id !== service.id) 
+                                                    : [...prev, service.id]
+                                            );
+                                        }}
+                                    >
+                                        <Check
+                                            className={cn(
+                                                "mr-2 h-4 w-4",
+                                                selectedServiceIds.includes(service.id) ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
+                                        {service.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                </PopoverContent>
+            </Popover>
+            <div className="pt-2 flex flex-wrap gap-2">
+                {selectedServiceIds.map(id => {
+                    const service = services.find(s => s.id === id);
+                    return service ? (
+                        <div key={id} className="flex items-center gap-1 bg-gray-100 rounded-full px-2 py-1 text-xs">
+                            {service.name}
+                            <button
+                                type="button"
+                                onClick={() => setSelectedServiceIds(prev => prev.filter(serviceId => serviceId !== id))}
+                                className="text-gray-500 hover:text-gray-800"
+                            >
+                                <X className="h-3 w-3"/>
+                            </button>
+                        </div>
+                    ) : null;
+                })}
+            </div>
+          </div>
+          
+          {/* Title */}
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-gray-700">
+                Quote Title
+            </label>
+            <input
+                type="text"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                className="w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:border-pink-500 focus:ring-1 focus:ring-pink-500 focus:outline-none"
+                placeholder="e.g., Wedding DJ Package"
+                required
+              />
           </div>
 
           <div className="grid grid-cols-2 gap-5">
@@ -185,7 +243,7 @@ export const CreateQuoteModal = ({
             </button>
             <button
               type="submit"
-              disabled={createQuote.isPending || !selectedServiceId}
+              disabled={createQuote.isPending || selectedServiceIds.length === 0}
               className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-pink-600 py-2.5 text-sm font-semibold text-white hover:bg-pink-700 disabled:opacity-50"
             >
               {createQuote.isPending ? (

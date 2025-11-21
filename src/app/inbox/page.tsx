@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Loader2, ArrowLeft, MoreVertical } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Loader2, ArrowLeft, MoreVertical, Info } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useChatRealtime,
   type MessageWithStatus,
-  type OptimisticMessage,
 } from "@/hooks/useChatRealtime";
 import { ConversationList } from "@/app/_components/chat/ConversationList";
 import {
@@ -19,10 +19,10 @@ import { UserInfoSidebar } from "@/app/_components/chat/UserInfoSidebar";
 import {
   ConversationListSkeleton,
   ChatMessagesSkeleton,
-  UserInfoSkeleton,
 } from "@/app/_components/chat/ChatSkeletons";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
+import { useUiStore } from "@/stores/ui";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type conversationOutput = routerOutput["chat"]["getConversations"][number];
@@ -30,10 +30,23 @@ type conversationOutput = routerOutput["chat"]["getConversations"][number];
 const InboxPage = () => {
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const utils = api.useUtils();
+  const searchParams = useSearchParams();
+  const conversationIdFromUrl = searchParams.get("conversation");
+  const { headerHeight } = useUiStore();
 
   // UI State
   const [selectedConvo, setSelectedConvo] = useState<conversationOutput>();
   const [showMobileChat, setShowMobileChat] = useState(false);
+  const [showInfoSidebar, setShowInfoSidebar] = useState(false);
+
+  const { mutate: markConversationAsRead } =
+    api.notification.markConversationAsRead.useMutation({
+      onSuccess: () => {
+        void utils.chat.getConversations.invalidate();
+        void utils.notification.getUnreadCount.invalidate();
+      },
+    });
 
   // 1. Fetch Conversations
   const {
@@ -52,6 +65,26 @@ const InboxPage = () => {
     { enabled: !!selectedConvo?.id },
   );
 
+  // Auto-select conversation from URL
+  useEffect(() => {
+    if (conversationIdFromUrl && conversations.length > 0 && !selectedConvo) {
+      const convoToSelect = conversations.find(
+        (c) => c.id === conversationIdFromUrl,
+      );
+      if (convoToSelect) {
+        setSelectedConvo(convoToSelect);
+        setShowMobileChat(true); // For mobile view
+      }
+    }
+  }, [conversationIdFromUrl, conversations, selectedConvo]);
+
+  // When selectedConvo changes, mark messages as read.
+  useEffect(() => {
+    if (selectedConvo?.id) {
+      markConversationAsRead({ conversationId: selectedConvo.id });
+    }
+  }, [selectedConvo?.id, markConversationAsRead]);
+
   // 3. HOOK: Handle Realtime Updates
   const {
     messages,
@@ -62,9 +95,6 @@ const InboxPage = () => {
 
   // 4. Mutation: Send Message
   const sendMessage = api.chat.sendMessage.useMutation({
-    onMutate: async (newMsg) => {
-      // OPTIONAL: Optimistic Update here for instant UI feedback
-    },
     onSuccess: () => {
       // In a perfect realtime setup, we don't even need to refetch here,
       // Supabase will echo the message back via the channel.
@@ -118,7 +148,7 @@ const InboxPage = () => {
     sendMessage.mutate(
       { conversationId: selectedConvo.id, text },
       {
-        onSuccess: (data) => {
+        onSuccess: () => {
           // Success! The Realtime socket will likely deliver the message milliseconds later.
           // We remove the optimistic one so we don't have duplicates when the real one arrives.
           removeOptimisticMessage(tempId);
@@ -146,8 +176,8 @@ const InboxPage = () => {
   const isVendor = !!user.vendorProfile;
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
-      <div className="flex h-[calc(100vh-122px)] border-t border-gray-200 bg-white text-gray-900 lg:h-[calc(100vh-127px)]">
+    <div className="min-h-screen bg-gray-50 text-gray-900" style={{ paddingTop: headerHeight }}>
+      <div className="flex border-t border-gray-200 bg-white text-gray-900" style={{ height: `calc(100vh - ${headerHeight}px)`}}>
         {/* Left Sidebar: Conversation List */}
         <aside
           className={`w-full border-r sm:w-1/3 lg:w-1/4 ${showMobileChat ? "hidden sm:flex" : "flex"}`}
@@ -192,7 +222,14 @@ const InboxPage = () => {
                     }
                   </h3>
                 </div>
-                <MoreVertical className="text-gray-400" />
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setShowInfoSidebar(true)} className="lg:hidden">
+                        <Info className="text-gray-400" />
+                    </button>
+                    <div className="hidden lg:block">
+                        <MoreVertical className="text-gray-400" />
+                    </div>
+                </div>
               </div>
 
               {/* Messages Window */}
@@ -201,25 +238,50 @@ const InboxPage = () => {
                 <ChatMessagesSkeleton />
               ) : (
                 <div className="flex-1 space-y-4 overflow-y-auto p-4">
-                  {messages.map((msg) => (
-                    <React.Fragment key={msg.id || msg.tempId}>
-                      {/* Check if it's a quote or text */}
-                      {msg.quote ? (
-                        <QuoteMessageBubble
-                          message={msg}
-                          isMe={msg.senderId === user.id}
-                          onUpdate={() => refetchMessages()}
-                        />
-                      ) : (
-                        <TextMessageBubble
-                          message={msg}
-                          isMe={msg.senderId === user.id}
-                          // Pass the retry function
-                          onRetry={() => handleSend(msg.text, msg.tempId)}
-                        />
-                      )}
-                    </React.Fragment>
-                  ))}
+                  {(() => {
+                    let shownUnreadDivider = false;
+                    return messages.map((msg) => {
+                      const isUnread =
+                        messagesData?.firstUnreadTimestamp &&
+                        new Date(msg.createdAt) >=
+                          new Date(messagesData.firstUnreadTimestamp) &&
+                        msg.senderId !== user.id;
+
+                      let showDivider = false;
+                      if (isUnread && !shownUnreadDivider) {
+                        showDivider = true;
+                        shownUnreadDivider = true;
+                      }
+
+                      return (
+                        <React.Fragment key={msg.id || msg.tempId}>
+                          {showDivider && (
+                            <div className="relative my-4 text-center">
+                              <hr className="border-gray-300" />
+                              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#efeae2] px-2 text-xs font-bold text-gray-500 uppercase">
+                                New Messages
+                              </span>
+                            </div>
+                          )}
+                          {/* Check if it's a quote or text */}
+                          {msg.quote ? (
+                            <QuoteMessageBubble
+                              message={msg}
+                              isMe={msg.senderId === user.id}
+                              onUpdate={() => refetchMessages()}
+                            />
+                          ) : (
+                            <TextMessageBubble
+                              message={msg}
+                              isMe={msg.senderId === user.id}
+                              // Pass the retry function
+                              onRetry={() => handleSend(msg.text, msg.tempId)}
+                            />
+                          )}
+                        </React.Fragment>
+                      );
+                    });
+                  })()}
                   <div ref={scrollRef} />
                 </div>
               )}
@@ -258,6 +320,19 @@ const InboxPage = () => {
             />
           )}
         </aside>
+        
+        {/* Mobile Info Sidebar */}
+        {showInfoSidebar && selectedConvo && (
+            <div className="absolute inset-0 z-20 bg-black/30 lg:hidden" onClick={() => setShowInfoSidebar(false)} style={{top: headerHeight}}>
+                <div className="absolute right-0 top-0 h-full w-4/5 max-w-sm bg-white" onClick={(e) => e.stopPropagation()}>
+                    <UserInfoSidebar
+                      conversation={selectedConvo}
+                      currentUserId={user.id}
+                      onClose={() => setShowInfoSidebar(false)}
+                    />
+                </div>
+            </div>
+        )}
       </div>
     </div>
   );

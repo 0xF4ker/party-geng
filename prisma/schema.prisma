@@ -45,6 +45,13 @@ enum TransactionType {
   REFUND
   GIFT // Client receives wallet funds
   SERVICE_FEE
+  TOPUP // User adds funds to their wallet
+}
+
+enum NotificationType {
+  NEW_MESSAGE
+  ORDER_UPDATE
+  // Future types can be added here
 }
 
 
@@ -91,6 +98,14 @@ model User {
 
   // Wishlist
   wishlistPromises WishlistPromise[] @relation("GuestPromises")
+
+  notifications Notification[]
+
+  // --- Gallery/Post Relations ---
+  posts         Post[]          @relation("Author")
+  postLikes     PostLike[]
+  postComments  PostComment[]
+  postBookmarks PostBookmark[]
 }
 
 model ClientProfile {
@@ -266,6 +281,8 @@ model Conversation {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  notifications Notification[]
 }
 
 model Message {
@@ -332,6 +349,7 @@ model Order {
   review Review? // One-to-one
 
   transactions Transaction[] // An order can have multiple transactions (payment, fee, refund)
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -361,6 +379,13 @@ model Wallet {
   updatedAt DateTime @updatedAt
 }
 
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  HELD
+}
+
 model Transaction {
   id     String @id @default(uuid())
   
@@ -370,7 +395,7 @@ model Transaction {
   type   TransactionType
   amount Float // Can be positive (deposit) or negative (withdrawal)
   
-  status String // PENDING, COMPLETED, FAILED
+  status TransactionStatus
   
   order   Order?   @relation(fields: [orderId], references: [id])
   orderId String?
@@ -398,4 +423,104 @@ model Review {
   subjectId String
 
   createdAt DateTime @default(now())
+}
+
+// --- 7. NOTIFICATIONS ---
+
+model Notification {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  type      NotificationType
+  message   String
+  link      String?  // e.g., /inbox?conversationId=...
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // For linking to specific entities
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String?
+  order          Order?        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId        String?
+}
+
+// --- 8. GALLERY / POST MODELS ---
+
+enum AssetType {
+  IMAGE
+  VIDEO
+}
+
+model Post {
+  id        String   @id @default(uuid())
+  caption   String?  @db.Text
+  author    User     @relation("Author", fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assets    PostAsset[]
+  likes     PostLike[]
+  comments  PostComment[]
+  bookmarks PostBookmark[]
+
+  @@index([authorId])
+}
+
+model PostAsset {
+  id     String    @id @default(uuid())
+  post   Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId String
+  url    String
+  type   AssetType
+  order  Int // To maintain order of images/videos
+
+  @@index([postId])
+}
+
+model PostLike {
+  id     String   @id @default(uuid())
+  post   Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model PostComment {
+  id        String   @id @default(uuid())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+
+  // For replies
+  parent   PostComment?  @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  parentId String?
+  replies  PostComment[] @relation("Replies")
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+model PostBookmark {
+  id     String   @id @default(uuid())
+  post   Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
 }

@@ -91,3 +91,43 @@ BEGIN
   RETURN lower(substring(filename from '\.([^\.]*)$'));
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
+
+-- ===== NEW: POSTS BUCKET AND POLICIES =====
+
+-- 3. Create posts bucket (public)
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('posts', 'posts', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Allow users to upload their own post assets
+CREATE POLICY "Users can upload their own post assets"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'posts' AND
+  (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Allow users to update their own post assets
+CREATE POLICY "Users can update their own post assets"
+ON storage.objects FOR UPDATE
+TO authenticated
+USING (
+  bucket_id = 'posts' AND
+  (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Allow users to delete their own post assets
+CREATE POLICY "Users can delete their own post assets"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'posts' AND
+  (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Allow anyone to view post assets (public bucket)
+CREATE POLICY "Anyone can view post assets"
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'posts');

@@ -1,5 +1,4 @@
 import React from "react";
-import { cn } from "@/lib/utils";
 
 // --- 1. Sidebar List Skeleton ---
 export const ConversationListSkeleton = () => {

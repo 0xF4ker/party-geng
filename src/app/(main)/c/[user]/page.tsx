@@ -3,14 +3,9 @@
 import React, { useState } from "react";
 import {
   Star,
-  Check,
-  MapPin,
-  MessageSquare,
   Calendar,
   Gift,
   Loader2,
-  Edit,
-  MoreHorizontal,
 } from "lucide-react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
@@ -21,10 +16,9 @@ import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 
 import ProfileHeader from "@/app/_components/profile/ProfileHeader";
+import { GalleryTab } from "@/app/_components/profile/GalleryTab";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
-type user = routerOutput["user"]["getByUsername"];
-type clientProfile = user["clientProfile"];
 type event = routerOutput["event"]["getMyEvents"]["upcoming"][number];
 type eventPast = routerOutput["event"]["getMyEvents"]["past"][number];
 
@@ -119,6 +113,7 @@ const ClientProfilePage = () => {
           {activeTab === "past" && (
             <PastEventsSection events={pastEvents} isLoading={eventsLoading} />
           )}
+          {activeTab === "gallery" && <GalleryTab username={username} />}
           {activeTab === "reviews" && <ReviewsFromVendorsSection />}
         </div>
       </div>

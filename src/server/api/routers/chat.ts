@@ -1,10 +1,11 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
+import { NotificationType } from "@prisma/client";
 
 export const chatRouter = createTRPCRouter({
   // Get all conversations for current user
   getConversations: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db.conversation.findMany({
+    const conversations = await ctx.db.conversation.findMany({
       where: { participants: { some: { id: ctx.user.id } } },
       include: {
         participants: {
@@ -56,6 +57,36 @@ export const chatRouter = createTRPCRouter({
         updatedAt: "desc",
       },
     });
+
+    const unreadCounts = await ctx.db.notification.groupBy({
+      by: ["conversationId"],
+      where: {
+        userId: ctx.user.id,
+        read: false,
+        type: "NEW_MESSAGE",
+        conversationId: {
+          in: conversations.map((c) => c.id),
+        },
+      },
+      _count: {
+        _all: true,
+      },
+    });
+
+    const unreadMap = unreadCounts.reduce(
+      (acc, curr) => {
+        if (curr.conversationId) {
+          acc[curr.conversationId] = curr._count._all;
+        }
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    return conversations.map((c) => ({
+      ...c,
+      unreadCount: unreadMap[c.id] ?? 0,
+    }));
   }),
 
   // Get messages for a specific conversation
@@ -80,6 +111,21 @@ export const chatRouter = createTRPCRouter({
       ) {
         throw new Error("Unauthorized");
       }
+
+      const firstUnread = await ctx.db.notification.findFirst({
+        where: {
+          userId: ctx.user.id,
+          conversationId: input.conversationId,
+          read: false,
+          type: "NEW_MESSAGE",
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+        select: {
+          createdAt: true,
+        },
+      });
 
       const messages = await ctx.db.message.findMany({
         where: { conversationId: input.conversationId },
@@ -108,6 +154,7 @@ export const chatRouter = createTRPCRouter({
       return {
         messages: messages.reverse(), // Return in chronological order
         nextCursor,
+        firstUnreadTimestamp: firstUnread?.createdAt ?? null,
       };
     }),
 
@@ -124,7 +171,7 @@ export const chatRouter = createTRPCRouter({
       // Verify user is part of conversation
       const conversation = await ctx.db.conversation.findUnique({
         where: { id: input.conversationId },
-        include: { participants: { select: { id: true } } },
+        include: { participants: { select: { id: true, username: true } } },
       });
 
       if (
@@ -133,6 +180,8 @@ export const chatRouter = createTRPCRouter({
       ) {
         throw new Error("Unauthorized");
       }
+
+      const sender = conversation.participants.find((p) => p.id === ctx.user.id);
 
       // Create message and update conversation
       const [message] = await ctx.db.$transaction([
@@ -160,6 +209,22 @@ export const chatRouter = createTRPCRouter({
           data: { updatedAt: new Date() },
         }),
       ]);
+
+      // Create notifications for other participants
+      const otherParticipants = conversation.participants.filter(
+        (p) => p.id !== ctx.user.id,
+      );
+      if (otherParticipants.length > 0 && sender) {
+        await ctx.db.notification.createMany({
+          data: otherParticipants.map((participant) => ({
+            userId: participant.id,
+            conversationId: input.conversationId,
+            type: NotificationType.NEW_MESSAGE,
+            message: `You have a new message from ${sender.username}`,
+            link: `/inbox?conversation=${input.conversationId}`,
+          })),
+        });
+      }
 
       return message;
     }),
@@ -276,4 +341,16 @@ export const chatRouter = createTRPCRouter({
         message: conversation.messages[0],
       };
     }),
+
+  getUnreadConversationCount: protectedProcedure.query(async ({ ctx }) => {
+    const unreadNotifications = await ctx.db.notification.findMany({
+      where: {
+        userId: ctx.user.id,
+        read: false,
+        type: "NEW_MESSAGE",
+      },
+      distinct: ["conversationId"],
+    });
+    return unreadNotifications.length;
+  }),
 });

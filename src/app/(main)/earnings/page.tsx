@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ChevronDown,
   Info,
@@ -13,7 +14,6 @@ import {
 } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useAuthStore } from "@/stores/auth";
-import { toast } from "sonner";
 import { AddFundsModal } from "@/app/_components/payments/AddFundsModal";
 import { WithdrawModal } from "@/app/_components/payments/WithdrawModal";
 
@@ -29,6 +29,16 @@ const EarningsPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+
+  const searchParams = useSearchParams();
+  const initialAmount = searchParams.get('amount');
+  const quoteId = searchParams.get('quoteId');
+
+  useEffect(() => {
+    if (searchParams.get('modal') === 'addFunds') {
+      setShowAddFundsModal(true);
+    }
+  }, [searchParams]);
 
   // Fetch wallet data
   const { data: wallet, isLoading: walletLoading, refetch: refetchWallet } = api.payment.getWallet.useQuery();
@@ -53,13 +63,6 @@ const EarningsPage = () => {
     orderId: tx.order?.id ?? '-',
     amount: tx.amount,
   })) ?? [];
-
-  const handleAddFundsSuccess = () => {
-    void refetchWallet();
-    void refetchTransactions();
-    setShowAddFundsModal(false);
-    toast.success('Funds added successfully!');
-  };
 
   if (walletLoading) {
     return (
@@ -159,7 +162,8 @@ const EarningsPage = () => {
         {showAddFundsModal && (
           <AddFundsModal
             onClose={() => setShowAddFundsModal(false)}
-            onSuccess={handleAddFundsSuccess}
+            initialAmount={initialAmount ? Number(initialAmount) : undefined}
+            quoteId={quoteId ?? undefined}
           />
         )}
 

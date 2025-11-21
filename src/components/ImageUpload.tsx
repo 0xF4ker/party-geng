@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { UploadCloud, X, Loader2, Check } from "lucide-react";
+import { UploadCloud, X, Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 
@@ -98,7 +98,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       }, 200);
 
       // Upload to Supabase Storage
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from(bucket)
         .upload(stableFilePath, file, {
           cacheControl: "3600",

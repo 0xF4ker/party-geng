@@ -3,6 +3,7 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { OrderStatus, TransactionType } from "@prisma/client";
 
 // const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY ?? undefined;
 
@@ -25,6 +26,110 @@ export const paymentRouter = createTRPCRouter({
     return wallet;
   }),
 
+  payForQuote: protectedProcedure
+    .input(z.object({ quoteId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const { quoteId } = input;
+      const clientId = ctx.user.id;
+
+      const quote = await ctx.db.quote.findUnique({
+        where: { id: quoteId },
+      });
+
+      if (quote?.clientId !== clientId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Quote not found." });
+      }
+      if (quote.status !== "PENDING") {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Quote is not pending and cannot be paid for.",
+        });
+      }
+
+      const clientWallet = await ctx.db.wallet.findUnique({
+        where: { userId: clientId },
+      });
+
+      if (!clientWallet || clientWallet.availableBalance < quote.price) {
+        return {
+            success: false,
+            reason: "INSUFFICIENT_FUNDS",
+            requiredAmount: quote.price,
+        }
+      }
+
+      const vendorWallet = await ctx.db.wallet.findUnique({
+        where: { userId: quote.vendorId },
+      });
+      if (!vendorWallet) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Vendor wallet not found.",
+        });
+      }
+
+      // Everything is good, proceed with transaction
+      const order = await ctx.db.$transaction(async (prisma) => {
+        // 1. Debit client's wallet
+        await prisma.wallet.update({
+          where: { userId: clientId },
+          data: { availableBalance: { decrement: quote.price } },
+        });
+
+        // 2. Credit vendor's active order balance (escrow)
+        await prisma.wallet.update({
+          where: { userId: quote.vendorId },
+          data: { activeOrderBalance: { increment: quote.price } },
+        });
+
+        // 3. Create the Order
+        const newOrder = await prisma.order.create({
+          data: {
+            quoteId: quote.id,
+            clientId: quote.clientId,
+            vendorId: quote.vendorId,
+            amount: quote.price,
+            status: OrderStatus.ACTIVE,
+            eventDate: quote.eventDate,
+          },
+        });
+
+        // 4. Create transactions for both client and vendor
+        await prisma.transaction.createMany({
+          data: [
+            // Client's payment transaction
+            {
+              walletId: clientWallet.id,
+              orderId: newOrder.id,
+              type: TransactionType.PAYMENT,
+              amount: -quote.price,
+              status: "COMPLETED",
+              description: `Payment for quote: ${quote.title}`,
+            },
+            // Vendor's escrow transaction
+            {
+              walletId: vendorWallet.id,
+              orderId: newOrder.id,
+              type: TransactionType.SERVICE_FEE, // Representing funds held in escrow
+              amount: quote.price,
+              status: "HELD", // A new status to indicate escrow
+              description: `Funds held in escrow for order: ${newOrder.id}`,
+            },
+          ],
+        });
+
+        // 5. Update quote status
+        await prisma.quote.update({
+          where: { id: quoteId },
+          data: { status: "ACCEPTED" },
+        });
+
+        return newOrder;
+      });
+      
+      return { success: true, order };
+    }),
+
   // Initialize Paystack payment
   initializePayment: protectedProcedure
     .input(
@@ -32,6 +137,7 @@ export const paymentRouter = createTRPCRouter({
         amount: z.number().min(100), // Minimum 100 naira
         email: z.string().email(),
         reference: z.string().optional(),
+        metadata: z.record(z.any()).optional(), // New: Added metadata
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -62,6 +168,7 @@ export const paymentRouter = createTRPCRouter({
               metadata: {
                 user_id: ctx.user.id,
                 type: "wallet_topup",
+                ...input.metadata, // Pass through any additional metadata
               },
             }),
           },
@@ -125,7 +232,8 @@ export const paymentRouter = createTRPCRouter({
         }
 
         const amount = data.data.amount / 100; // Convert from kobo to naira
-        const userId = data.data.metadata.user_id;
+        const metadata = data.data.metadata as { user_id: string; quote_id?: string };
+        const userId = metadata.user_id;
 
         // Ensure the payment is for this user
         if (userId !== ctx.user.id) {
@@ -153,17 +261,21 @@ export const paymentRouter = createTRPCRouter({
         await ctx.db.transaction.create({
           data: {
             walletId: wallet.id,
-            type: "PAYMENT",
+            type: "TOPUP",
             amount,
             status: "COMPLETED",
             description: `Wallet top-up via Paystack - ${input.reference}`,
           },
         });
 
+        // Check if there's a quote ID in metadata to redirect for immediate payment
+        const quoteId = metadata.quote_id;
+
         return {
           success: true,
           amount,
-          newBalance: wallet.availableBalance + amount,
+          newBalance: wallet.availableBalance,
+          quoteId, // Return quoteId to client for redirection
         };
       } catch (error) {
         console.error("Payment verification error:", error);

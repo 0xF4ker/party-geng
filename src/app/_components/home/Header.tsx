@@ -1,21 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
   Menu,
-  Bell,
   Mail,
-  ShoppingBag,
   Calendar,
   Settings,
-  LogOut,
-  Eye,
-  Wallet,
   MoreHorizontal,
 } from "lucide-react";
 import LoginJoinComponent from "../LoginJoinComponent";
+import { NotificationDropdown } from "../notifications/NotificationDropdown";
 import CategoryCarousel from "./CategoryCarousel";
 import GlobalSearch from "./GlobalSearch";
 import MobileMenu from "./MobileMenu";
@@ -23,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
 import { api } from "@/trpc/react";
+import { useUiStore } from "@/stores/ui";
 
 const Modal = ({
   children,
@@ -82,11 +79,27 @@ const Header = () => {
   const [modalView, setModalView] = useState<"login" | "join">("login");
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  const { setHeaderHeight } = useUiStore();
+
+  useEffect(() => {
+    if (!headerRef.current) return;
+    const resizeObserver = new ResizeObserver(() => {
+      setHeaderHeight(headerRef.current?.offsetHeight ?? 0);
+    });
+    resizeObserver.observe(headerRef.current);
+    return () => resizeObserver.disconnect();
+  }, [setHeaderHeight]);
 
   // Fetch wallet balance
-  const { data: wallet } = api.payment.getWallet.useQuery(undefined, {
+  api.payment.getWallet.useQuery(undefined, {
     enabled: !!user,
   });
+
+  const { data: unreadConvoCount } =
+    api.chat.getUnreadConversationCount.useQuery(undefined, {
+      enabled: !!user,
+    });
 
   const { data: searchList } = api.category.getSearchList.useQuery();
 
@@ -136,6 +149,7 @@ const Header = () => {
   return (
     <>
       <header
+        ref={headerRef}
         className={cn(
           "fixed top-0 right-0 left-0 z-40 w-full bg-white text-gray-800",
           "shadow-md",
@@ -264,10 +278,13 @@ const Header = () => {
                   </Link>
                   <Link href="/inbox" className="relative">
                     <Mail className="h-6 w-6 text-gray-600 hover:text-pink-500" />
+                    {(unreadConvoCount ?? 0) > 0 && (
+                      <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
+                        {unreadConvoCount}
+                      </span>
+                    )}
                   </Link>
-                  <Link href="/notifications" className="relative">
-                    <Bell className="h-6 w-6 text-gray-600 hover:text-pink-500" />
-                  </Link>
+                  <NotificationDropdown className="text-gray-600 hover:text-pink-500" />
 
                   {/* Profile Dropdown */}
                   <div className="relative" ref={profileDropdownRef}>
@@ -366,10 +383,13 @@ const Header = () => {
                   </Link>
                   <Link href="/inbox" className="relative">
                     <Mail className="h-6 w-6 text-gray-600 hover:text-pink-500" />
+                    {(unreadConvoCount ?? 0) > 0 && (
+                      <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
+                        {unreadConvoCount}
+                      </span>
+                    )}
                   </Link>
-                  <Link href="/notifications" className="relative">
-                    <Bell className="h-6 w-6 text-gray-600 hover:text-pink-500" />
-                  </Link>
+                  <NotificationDropdown className="text-gray-600 hover:text-pink-500" />
                   <Link href="/manage_events">
                     <button className="flex items-center gap-2 rounded-md bg-pink-600 px-4 py-2 font-semibold text-white hover:bg-pink-700">
                       <Calendar className="h-4 w-4" />

@@ -9,6 +9,9 @@ import { paymentRouter } from "@/server/api/routers/payment";
 import { settingsRouter } from "@/server/api/routers/settings";
 import { categoryRouter } from "@/server/api/routers/category";
 import { wishlistRouter } from "@/server/api/routers/wishlist";
+import { notificationRouter } from "@/server/api/routers/notification";
+import { postRouter } from "@/server/api/routers/post";
+import { reviewRouter } from "@/server/api/routers/review";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 
 /**
@@ -28,6 +31,9 @@ export const appRouter = createTRPCRouter({
   settings: settingsRouter,
   category: categoryRouter,
   wishlist: wishlistRouter,
+  notification: notificationRouter,
+  post: postRouter,
+  review: reviewRouter,
 });
 
 // export type definition of API

@@ -1,6 +1,5 @@
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 import { z } from "zod";
-import { unslugify } from "@/lib/utils";
 import { TRPCError } from "@trpc/server";
 
 export const categoryRouter = createTRPCRouter({
