@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { Loader2, X, ImagePlus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -22,42 +22,74 @@ import type { AssetType } from "@prisma/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
-type FilePreview = {
-  file: File;
-  preview: string;
+type AssetPreview = {
+  key: string;
+  url: string;
+  file?: File;
+  isNew: boolean;
 };
 
 export const CreatePostModal = () => {
   const { user } = useAuth();
-  const { isOpen, onClose } = useCreatePostModal();
-  const [files, setFiles] = useState<FilePreview[]>([]);
+  const { isOpen, onClose, postToEdit } = useCreatePostModal();
+  const [assets, setAssets] = useState<AssetPreview[]>([]);
   const [caption, setCaption] = useState("");
   const { upload, isLoading: isUploading } = useUpload();
   const utils = api.useUtils();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { mutate: createPostMutation, isPending } = api.post.create.useMutation(
-    {
-      onSuccess: () => {
-        toast.success("Post created successfully!");
-        handleClose();
-        void utils.post.getTrending.invalidate();
-        if (user?.username) {
-          void utils.post.getForUser.invalidate({ username: user.username });
-        }
-      },
-      onError: (error) => {
-        toast.error("Failed to create post", { description: error.message });
-      },
+  const isEditing = !!postToEdit;
+
+  useEffect(() => {
+    if (isOpen && postToEdit) {
+      setCaption(postToEdit.caption ?? "");
+      setAssets(
+        postToEdit.assets.map((asset) => ({
+          key: asset.id,
+          url: asset.url,
+          isNew: false,
+        })),
+      );
+    }
+  }, [isOpen, postToEdit]);
+
+  const createPostMutation = api.post.create.useMutation({
+    onSuccess: () => {
+      toast.success("Post created successfully!");
+      handleClose();
+      void utils.post.getTrending.invalidate();
+      if (user?.username) {
+        void utils.post.getForUser.invalidate({ username: user.username });
+      }
     },
-  );
+    onError: (error) => {
+      toast.error("Failed to create post", { description: error.message });
+    },
+  });
+
+  const updatePostMutation = api.post.update.useMutation({
+    onSuccess: () => {
+      toast.success("Post updated successfully!");
+      handleClose();
+      void utils.post.getById.invalidate({ id: postToEdit!.id });
+      void utils.post.getTrending.invalidate();
+      if (user?.username) {
+        void utils.post.getForUser.invalidate({ username: user.username });
+      }
+    },
+    onError: (error) => {
+      toast.error("Failed to update post", { description: error.message });
+    },
+  });
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.map((file) => ({
+      key: file.name + Date.now(),
       file,
-      preview: URL.createObjectURL(file),
+      url: URL.createObjectURL(file),
+      isNew: true,
     }));
-    setFiles((prev) => [...prev, ...newFiles].slice(0, 4)); // Limit to 4 files
+    setAssets((prev) => [...prev, ...newFiles].slice(0, 4)); // Limit to 4 files
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -70,59 +102,76 @@ export const CreatePostModal = () => {
     noKeyboard: true,
   });
 
-  const removeFile = (previewToRemove: string) => {
-    setFiles((prev) => prev.filter((f) => f.preview !== previewToRemove));
+  const removeAsset = (keyToRemove: string) => {
+    setAssets((prev) => prev.filter((a) => a.key !== keyToRemove));
   };
-  
+
   const handleIconClick = () => {
-      fileInputRef.current?.click();
-  }
+    fileInputRef.current?.click();
+  };
 
   const handleClose = () => {
-    setFiles([]);
+    setAssets([]);
     setCaption("");
     onClose();
   };
 
   const handleSubmit = async () => {
-    if (files.length === 0 && !caption.trim()) {
+    if (assets.length === 0 && !caption.trim()) {
       toast.error("Please add some content to your post.");
       return;
     }
 
-    const uploadedAssets: { url: string; type: AssetType; order: number }[] =
-      [];
+    const finalAssets: { url: string; type: AssetType; order: number }[] = [];
+    let order = 0;
 
-    for (const [index, filePreview] of files.entries()) {
-      const publicUrl = await upload(filePreview.file, "posts");
-      if (publicUrl) {
-        uploadedAssets.push({
-          url: publicUrl,
-          type: filePreview.file.type.startsWith("image") ? "IMAGE" : "VIDEO",
-          order: index,
-        });
-      } else {
-        toast.error(`Failed to upload ${filePreview.file.name}`);
-        return;
+    for (const asset of assets) {
+      if (asset.isNew && asset.file) {
+        const publicUrl = await upload(asset.file, "posts");
+        if (publicUrl) {
+          finalAssets.push({
+            url: publicUrl,
+            type: asset.file.type.startsWith("image") ? "IMAGE" : "VIDEO",
+            order: order++,
+          });
+        } else {
+          toast.error(`Failed to upload ${asset.file.name}`);
+          return;
+        }
+      } else if (!asset.isNew) {
+        // This is an existing asset. Find its type from postToEdit.
+        // It's already available in the postToEdit.assets map when setting state initially.
+        // asset.key is asset.id in this case.
+        const originalAsset = postToEdit?.assets.find(a => a.id === asset.key);
+        if (originalAsset) {
+            finalAssets.push({
+                url: asset.url,
+                type: originalAsset.type,
+                order: order++,
+            });
+        }
       }
     }
-
-    // Allow posting text-only posts
-    if (uploadedAssets.length === 0 && !caption.trim()) {
-      toast.error("Cannot create an empty post.");
-      return;
+    
+    if (finalAssets.length === 0 && !caption.trim()) {
+        toast.error("Cannot create an empty post.");
+        return;
     }
 
-    createPostMutation({ caption, assets: uploadedAssets });
+    if (isEditing) {
+        updatePostMutation.mutate({ postId: postToEdit.id, caption, assets: finalAssets });
+    } else {
+        createPostMutation.mutate({ caption, assets: finalAssets });
+    }
   };
 
-  const isLoading = isUploading ?? isPending;
+  const isLoading = isUploading || createPostMutation.isPending || updatePostMutation.isPending;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create a new post</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit Post" : "Create a new post"}</DialogTitle>
         </DialogHeader>
 
         <div
@@ -155,37 +204,37 @@ export const CreatePostModal = () => {
           </div>
 
           <AnimatePresence>
-            {files.length > 0 && (
+            {assets.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 className={cn("mt-4 grid gap-2", {
-                  "grid-cols-2": files.length > 1,
-                  "grid-cols-1": files.length === 1,
+                  "grid-cols-2": assets.length > 1,
+                  "grid-cols-1": assets.length === 1,
                 })}
               >
-                {files.map((filePreview) => (
+                {assets.map((asset) => (
                   <div
-                    key={filePreview.preview}
+                    key={asset.key}
                     className="relative aspect-video overflow-hidden rounded-lg"
                   >
-                    {filePreview.file.type.startsWith("image") ? (
+                    {asset.url.startsWith("blob:") || (asset.file?.type.startsWith("image") || (!asset.file && /\.(jpeg|jpg|gif|png|webp)$/i.test(asset.url))) ? (
                       <Image
-                        src={filePreview.preview}
+                        src={asset.url}
                         alt="preview"
                         fill
                         className="object-cover"
                       />
                     ) : (
                       <video
-                        src={filePreview.preview}
+                        src={asset.url}
                         controls
                         className="h-full w-full object-cover"
                       />
                     )}
                     <button
-                      onClick={() => removeFile(filePreview.preview)}
+                      onClick={() => removeAsset(asset.key)}
                       className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white"
                     >
                       <X size={14} />
@@ -209,10 +258,10 @@ export const CreatePostModal = () => {
               <p className="text-sm text-gray-500">{caption.length} / 280</p>
               <Button
                 onClick={handleSubmit}
-                disabled={isLoading || (!caption.trim() && files.length === 0)}
+                disabled={isLoading || (!caption.trim() && assets.length === 0)}
               >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Post
+                {isEditing ? "Save Changes" : "Post"}
               </Button>
             </div>
           </div>

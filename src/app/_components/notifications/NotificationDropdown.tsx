@@ -13,6 +13,7 @@ import { GroupedNotificationItem } from "./GroupedNotificationItem";
 import { cn } from "@/lib/utils";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
+import { Button } from "@/components/ui/button";
 
 type Notification = inferRouterOutputs<AppRouter>["notification"]["getAll"][number];
 
@@ -58,14 +59,14 @@ export const NotificationDropdown = ({ className }: { className?: string }) => {
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <button className={cn("relative", className)}>
+        <Button variant="ghost" size="icon" className={cn("relative", className)}>
           <Bell className="h-6 w-6" />
           {unreadCount !== undefined && unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
               {unreadCount}
             </span>
           )}
-        </button>
+        </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 rounded-xl border-gray-200 bg-white p-0 shadow-lg">
         <div className="flex items-center justify-between border-b border-gray-100 p-4">

@@ -71,22 +71,35 @@ export const postRouter = createTRPCRouter({
     }),
 
   getTrending: publicProcedure
-        .input(z.object({ cursor: z.string().nullish() }).optional())
-        .query(async ({ ctx, input }) => {
-          const limit = 20;
-          const { cursor } = input ?? {};
-          const posts = await ctx.db.post.findMany({
-            take: limit + 1,
-            cursor: cursor ? { id: cursor } : undefined,
-            orderBy: { createdAt: "desc" },
+    .input(z.object({ cursor: z.string().nullish() }).optional())
+    .query(async ({ ctx, input }) => {
+      const limit = 20;
+      const { cursor } = input ?? {};
+      const posts = await ctx.db.post.findMany({
+        take: limit + 1,
+        where: {
+          caption: {
+            not: null,
+            contains: "#",
+            mode: "insensitive",
+          },
+        },
+        cursor: cursor ? { id: cursor } : undefined,
+        orderBy: { createdAt: "desc" },
+        include: {
+          author: {
             include: {
-              assets: { orderBy: { order: "asc" }, take: 1 },
-              _count: {
-                select: { likes: true, comments: true },
-              },
+              clientProfile: true,
+              vendorProfile: true,
             },
-          });
-          let nextCursor: string | undefined = undefined;
+          },
+          assets: { orderBy: { order: "asc" }, take: 1 },
+          _count: {
+            select: { likes: true, comments: true },
+          },
+        },
+      });
+      let nextCursor: string | undefined = undefined;
       if (posts.length > limit) {
         const nextItem = posts.pop();
         nextCursor = nextItem!.id;
@@ -243,5 +256,86 @@ export const postRouter = createTRPCRouter({
         where: { postId_userId: { postId, userId } },
       });
     }),
-});
 
+  delete: protectedProcedure
+    .input(z.object({ postId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { postId } = input;
+      const userId = ctx.user.id;
+
+      const post = await ctx.db.post.findUnique({
+        where: { id: postId },
+        select: { authorId: true },
+      });
+
+      if (!post) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      if (post.authorId !== userId) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      return ctx.db.post.delete({
+        where: { id: postId },
+      });
+    }),
+
+  update: protectedProcedure
+    .input(
+      z.object({
+        postId: z.string().uuid(),
+        caption: z.string().optional(),
+        assets: z.array(
+          z.object({
+            url: z.string().url(),
+            type: z.nativeEnum(AssetType),
+            order: z.number().int(),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { postId, caption, assets } = input;
+      const userId = ctx.user.id;
+
+      const post = await ctx.db.post.findUnique({
+        where: { id: postId },
+        select: { authorId: true },
+      });
+
+      if (!post) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      if (post.authorId !== userId) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      if (assets.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "A post must have at least one asset.",
+        });
+      }
+
+      return ctx.db.$transaction(async (prisma) => {
+        await prisma.postAsset.deleteMany({
+          where: { postId },
+        });
+
+        const updatedPost = await prisma.post.update({
+          where: { id: postId },
+          data: {
+            caption,
+            assets: {
+              createMany: {
+                data: assets,
+              },
+            },
+          },
+        });
+        return updatedPost;
+      });
+    }),
+});

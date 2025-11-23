@@ -14,6 +14,7 @@ import {
   Settings,
   Wallet,
   Award,
+  Flame,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,6 +27,7 @@ import GlobalSearch from "../home/GlobalSearch";
 import MobileMenu from "../home/MobileMenu";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type vendorProfileWithUser = routerOutput["vendor"]["getByUsername"];
@@ -264,6 +266,21 @@ const VendorProfileHeader = ({
               </div>
             ) : isGuest ? (
               <div className="flex items-center gap-2">
+                <Button
+                  asChild
+                  size="sm"
+                  className={cn(
+                    "font-semibold",
+                    isHeaderSticky
+                      ? "bg-linear-to-r from-orange-400 to-pink-500 text-white hover:from-orange-500 hover:to-pink-600"
+                      : "bg-white/10 text-white hover:bg-white/20",
+                  )}
+                >
+                  <Link href="/trending">
+                    <Flame className="mr-1 h-5 w-5" />
+                    Trending
+                  </Link>
+                </Button>
                 <button
                   onClick={() => openModal("login")}
                   className="rounded-md px-3 py-1.5 text-sm font-medium hover:bg-white/10"
@@ -283,15 +300,29 @@ const VendorProfileHeader = ({
                 </button>
               </div>
             ) : (
-              <nav className="flex items-center space-x-4">
-                                  <Link href="/inbox" className="relative hidden sm:block">
-                                    <Mail className={cn("h-6 w-6", headerIconColor)} />
-                                    {(unreadConvoCount ?? 0) > 0 && (
-                                      <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
-                                        {unreadConvoCount}
-                                      </span>
-                                    )}
-                                  </Link>                <NotificationDropdown className={headerIconColor} />
+              <nav className="flex items-center space-x-2">
+                  <Button asChild size="sm" className={cn(
+                    "font-semibold hidden sm:inline-flex",
+                    isHeaderSticky
+                      ? "bg-gradient-to-r from-orange-400 to-pink-500 text-white hover:from-orange-500 hover:to-pink-600"
+                      : "bg-white/10 text-white hover:bg-white/20"
+                  )}>
+                    <Link href="/trending">
+                      <Flame className="mr-2 h-5 w-5" />
+                      Trending
+                    </Link>
+                  </Button>
+                  <Button asChild variant="ghost" size="icon" className={cn("relative hidden sm:flex", headerIconColor)}>
+                    <Link href="/inbox">
+                      <Mail className="h-6 w-6" />
+                      {(unreadConvoCount ?? 0) > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
+                          {unreadConvoCount}
+                        </span>
+                      )}
+                    </Link>
+                  </Button>
+                  <NotificationDropdown className={headerIconColor} />
                 {/* Profile Dropdown */}
                 <div className="relative" ref={profileDropdownRef}>
                   <Link
@@ -409,7 +440,8 @@ const VendorProfileHeader = ({
               <div className="flex items-center gap-1.5">
                 <Star className="h-4 w-4" />
                 <span>
-                  {vendorProfile?.rating?.toFixed(1) ?? "0.0"} ({reviews?.length ?? 0} Reviews)
+                  {vendorProfile?.rating?.toFixed(1) ?? "0.0"} (
+                  {reviews?.length ?? 0} Reviews)
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -418,18 +450,21 @@ const VendorProfileHeader = ({
               </div>
             </div>
           </div>
-          
+
           {/* Services */}
           {vendorProfile?.services && vendorProfile.services.length > 0 && (
-              <div className="mt-4 border-t border-gray-200 pt-4">
-                  <div className="flex flex-wrap gap-2">
-                      {vendorProfile.services.map(({ service }) => (
-                          <span key={service.id} className="rounded-full bg-pink-100 px-3 py-1 text-sm font-medium text-pink-700">
-                              {service.name}
-                          </span>
-                      ))}
-                  </div>
+            <div className="mt-4 border-t border-gray-200 pt-4">
+              <div className="flex flex-wrap gap-2">
+                {vendorProfile.services.map(({ service }) => (
+                  <span
+                    key={service.id}
+                    className="rounded-full bg-pink-100 px-3 py-1 text-sm font-medium text-pink-700"
+                  >
+                    {service.name}
+                  </span>
+                ))}
               </div>
+            </div>
           )}
         </div>
 
@@ -439,7 +474,7 @@ const VendorProfileHeader = ({
           className={cn(
             "z-10 mt-6 border-b border-gray-200 bg-white/80 transition-shadow",
             isTabsSticky
-              ? "sticky top-[64px] shadow-md backdrop-blur-sm"
+              ? "sticky top-16 shadow-md backdrop-blur-sm"
               : "relative",
           )}
         >

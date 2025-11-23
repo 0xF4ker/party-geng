@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Menu, Mail, Calendar, Settings, MoreHorizontal } from "lucide-react";
+import { Menu, Mail, Calendar, Settings, Flame } from "lucide-react";
 import LoginJoinComponent from "../LoginJoinComponent";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
 import CategoryCarousel from "./CategoryCarousel";
@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
 import { api } from "@/trpc/react";
 import { useUiStore } from "@/stores/ui";
+import { Button } from "@/components/ui/button";
 
 const Modal = ({
   children,
@@ -225,6 +226,16 @@ const Header = () => {
 
                 {/* Nav (Desktop >= lg) */}
                 <nav className="hidden items-center space-x-4 lg:flex">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="bg-gradient-to-r from-orange-400 to-pink-500 font-semibold text-white hover:from-orange-500 hover:to-pink-600"
+                  >
+                    <Link href="/trending">
+                      <Flame className="mr-2 h-5 w-5" />
+                      Trending
+                    </Link>
+                  </Button>
                   <a href="/pro" className="font-medium hover:text-pink-500">
                     Partygeng Pro
                   </a>
@@ -251,7 +262,17 @@ const Header = () => {
             ) : isVendor ? (
               // Vendor Navigation
               <>
-                <nav className="hidden items-center space-x-4 lg:flex">
+                <nav className="hidden items-center space-x-2 lg:flex">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="bg-gradient-to-r from-orange-400 to-pink-500 font-semibold text-white hover:from-orange-500 hover:to-pink-600"
+                  >
+                    <Link href="/trending">
+                      <Flame className="mr-2 h-5 w-5" />
+                      Trending
+                    </Link>
+                  </Button>
                   <Link
                     href="/dashboard"
                     className="font-medium text-gray-700 hover:text-pink-500"
@@ -270,15 +291,22 @@ const Header = () => {
                   >
                     Earnings
                   </Link>
-                  <Link href="/inbox" className="relative">
-                    <Mail className="h-6 w-6 text-gray-600 hover:text-pink-500" />
-                    {(unreadConvoCount ?? 0) > 0 && (
-                      <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
-                        {unreadConvoCount}
-                      </span>
-                    )}
-                  </Link>
-                  <NotificationDropdown className="text-gray-600 hover:text-pink-500" />
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon"
+                    className="relative"
+                  >
+                    <Link href="/inbox">
+                      <Mail className="h-6 w-6" />
+                      {(unreadConvoCount ?? 0) > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
+                          {unreadConvoCount}
+                        </span>
+                      )}
+                    </Link>
+                  </Button>
+                  <NotificationDropdown />
 
                   {/* Profile Dropdown */}
                   <div className="relative" ref={profileDropdownRef}>
@@ -307,13 +335,6 @@ const Header = () => {
                           )}
                         </div>
                       </Link>
-                      {/* <button
-                        onClick={() =>
-                          setIsProfileDropdownOpen(!isProfileDropdownOpen)
-                        }
-                      >
-                        <MoreHorizontal className="h-5 w-5 text-gray-600" />
-                      </button> */}
                     </div>
 
                     {/* Dropdown Menu */}
@@ -366,22 +387,39 @@ const Header = () => {
             ) : (
               // Client Navigation
               <>
-                <nav className="hidden items-center space-x-4 lg:flex">
+                <nav className="hidden items-center space-x-2 lg:flex">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="bg-gradient-to-r from-orange-400 to-pink-500 font-semibold text-white hover:from-orange-500 hover:to-pink-600"
+                  >
+                    <Link href="/trending">
+                      <Flame className="mr-2 h-5 w-5" />
+                      Trending
+                    </Link>
+                  </Button>
                   <Link
                     href="/manage_orders"
                     className="font-medium text-gray-700 hover:text-pink-500"
                   >
                     Orders
                   </Link>
-                  <Link href="/inbox" className="relative">
-                    <Mail className="h-6 w-6 text-gray-600 hover:text-pink-500" />
-                    {(unreadConvoCount ?? 0) > 0 && (
-                      <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
-                        {unreadConvoCount}
-                      </span>
-                    )}
-                  </Link>
-                  <NotificationDropdown className="text-gray-600 hover:text-pink-500" />
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon"
+                    className="relative"
+                  >
+                    <Link href="/inbox">
+                      <Mail className="h-6 w-6" />
+                      {(unreadConvoCount ?? 0) > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
+                          {unreadConvoCount}
+                        </span>
+                      )}
+                    </Link>
+                  </Button>
+                  <NotificationDropdown />
                   <Link href="/manage_events">
                     <button className="flex items-center gap-2 rounded-md bg-pink-600 px-4 py-2 font-semibold text-white hover:bg-pink-700">
                       <Calendar className="h-4 w-4" />
@@ -416,13 +454,6 @@ const Header = () => {
                           )}
                         </div>
                       </Link>
-                      {/* <button
-                        onClick={() =>
-                          setIsProfileDropdownOpen(!isProfileDropdownOpen)
-                        }
-                      >
-                        <MoreHorizontal className="h-5 w-5 text-gray-600" />
-                      </button> */}
                     </div>
 
                     {/* Dropdown Menu */}
@@ -449,7 +480,7 @@ const Header = () => {
                 </nav>
 
                 {/* Mobile Profile Icon */}
-                <div className="flex-shrink-0 lg:hidden">
+                <div className="shrink-0 lg:hidden">
                   <Link
                     href={
                       isVendor ? `/v/${user?.username}` : `/c/${user?.username}`

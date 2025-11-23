@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { api } from "@/trpc/react";
 import {
   Loader2,
@@ -11,12 +12,22 @@ import {
   Send,
   ChevronLeft,
   ChevronRight,
+  Share2,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useCreatePostModal } from "@/stores/createPostModal";
 
 type Post = {
   id: string;
@@ -31,13 +42,14 @@ const PostModal = ({
 }: {
   posts: Post[];
   initialIndex: number;
-  onClose: () => void;
+  onClose?: () => void;
 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const postId = posts[currentIndex]?.id;
 
   const { user } = useAuth();
   const utils = api.useUtils();
+  const createPostModal = useCreatePostModal();
 
   const {
     data: post,
@@ -51,6 +63,27 @@ const PostModal = ({
 
   const handlePrev = () => {
     setCurrentIndex((prev) => (prev - 1 + posts.length) % posts.length);
+  };
+
+  const deletePostMutation = api.post.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Post deleted");
+      if (onClose) onClose();
+      void utils.post.getTrending.invalidate();
+      if (user?.username) {
+        void utils.post.getForUser.invalidate({ username: user.username });
+      }
+    },
+    onError: (err) => {
+      toast.error("Failed to delete post", { description: err.message });
+    },
+  });
+
+  const handleDelete = () => {
+    if (!post) return;
+    if (window.confirm("Are you sure you want to delete this post?")) {
+      deletePostMutation.mutate({ postId: post.id });
+    }
   };
 
   const likeMutation = api.post.like.useMutation({
@@ -205,10 +238,20 @@ const PostModal = ({
       bookmarkMutation.mutate({ postId });
     }
   };
-  const avatarUrl =
-    post?.author.vendorProfile?.avatarUrl ??
-    post?.author.clientProfile?.avatarUrl;
-  const displayName = post?.author.username;
+
+  const handleShare = () => {
+    if (!postId) return;
+    const url = `${window.location.origin}/post/${postId}`;
+    navigator.clipboard.writeText(url).then(
+      () => {
+        toast.success("Link copied to clipboard!");
+      },
+      (err) => {
+        console.error("Failed to copy: ", err);
+        toast.error("Failed to copy link.");
+      },
+    );
+  };
 
   if (isLoading) {
     return (
@@ -226,7 +269,20 @@ const PostModal = ({
     );
   }
 
-  const authorProfile = post.author.vendorProfile ?? post.author.clientProfile;
+  const author = post.author;
+  const authorAvatarUrl =
+    author.role === "VENDOR"
+      ? author.vendorProfile?.avatarUrl
+      : author.clientProfile?.avatarUrl;
+  const authorDisplayName =
+    (author.role === "VENDOR"
+      ? author.vendorProfile?.companyName
+      : author.clientProfile?.name) ?? author.username;
+  const authorProfileUrl = `/${author.role === "VENDOR" ? "v" : "c"}/${
+    author.username
+  }`;
+
+  const isAuthor = user?.id === post.author.id;
 
   return (
     <div
@@ -243,96 +299,143 @@ const PostModal = ({
             className="object-contain"
           />
         )}
-        <button
-          onClick={handlePrev}
-          className="modal-nav-btn absolute top-1/2 left-4 -translate-y-1/2 rounded-full bg-black/30 p-2 text-white hover:bg-black/50"
-        >
-          <ChevronLeft className="h-8 w-8" />
-        </button>
-        <button
-          onClick={handleNext}
-          className="modal-nav-btn absolute top-1/2 right-4 -translate-y-1/2 rounded-full bg-black/30 p-2 text-white hover:bg-black/50"
-        >
-          <ChevronRight className="h-8 w-8" />
-        </button>
+        {posts.length > 1 && (
+          <>
+            <button
+              onClick={handlePrev}
+              className="modal-nav-btn absolute top-1/2 left-4 -translate-y-1/2 rounded-full bg-black/30 p-2 text-white hover:bg-black/50"
+            >
+              <ChevronLeft className="h-8 w-8" />
+            </button>
+            <button
+              onClick={handleNext}
+              className="modal-nav-btn absolute top-1/2 right-4 -translate-y-1/2 rounded-full bg-black/30 p-2 text-white hover:bg-black/50"
+            >
+              <ChevronRight className="h-8 w-8" />
+            </button>
+          </>
+        )}
       </div>
       {/* Content Section */}
-      <div className="flex min-h-0 w-full flex-grow flex-col lg:w-1/4">
+      <div className="flex min-h-0 w-full grow flex-col lg:w-1/4">
         <div className="flex items-center justify-between border-b border-gray-200 p-4">
-          <div className="flex items-center">
-            {/* <Image
-              src={authorProfile?.avatarUrl ?? ""}
-              className="mr-3 h-10 w-10 rounded-full"
-              alt="User avatar"
-              width={40}
-              height={40}
-            /> */}
-            {avatarUrl ? (
+          <Link
+            href={authorProfileUrl}
+            className="group/user flex min-w-0 items-center gap-3"
+          >
+            {authorAvatarUrl ? (
               <Image
-                src={avatarUrl}
-                className="mr-3 h-10 w-10 rounded-full"
+                src={authorAvatarUrl}
+                className="h-10 w-10 rounded-full"
                 alt="User avatar"
                 width={40}
                 height={40}
               />
             ) : (
-              <div className="mr-3 flex h-10 w-10 items-center justify-center rounded-full bg-pink-200 font-semibold text-pink-600">
-                {displayName?.charAt(0).toUpperCase() ?? "C"}
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-pink-200 font-semibold text-pink-600">
+                {authorDisplayName?.charAt(0).toUpperCase() ?? "C"}
               </div>
             )}
-            <div>
-              <p className="font-bold text-gray-800">{post.author.username}</p>
-              <p className="text-xs text-gray-500">{authorProfile?.location}</p>
+            <div className="truncate">
+              <p className="font-bold text-gray-800 group-hover/user:underline">
+                {authorDisplayName}
+              </p>
+              <p className="truncate text-xs text-gray-500">
+                {author.vendorProfile?.location ??
+                  author.clientProfile?.location}
+              </p>
             </div>
+          </Link>
+          <div className="flex items-center gap-2">
+            {isAuthor && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreHorizontal className="h-5 w-5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-40">
+                  <div className="grid gap-4">
+                    <Button
+                      variant="ghost"
+                      className="justify-start"
+                      onClick={() => createPostModal.onOpen(post)}
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start text-red-500 hover:text-red-600"
+                      onClick={handleDelete}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="text-3xl leading-none text-gray-500 hover:text-gray-800"
+              >
+                &times;
+              </button>
+            )}
           </div>
-          <button
-            onClick={onClose}
-            className="text-3xl leading-none text-gray-500 hover:text-gray-800"
-          >
-            &times;
-          </button>
         </div>
-        <div className="flex-grow overflow-y-auto p-4">
+        <div className="grow overflow-y-auto p-4">
           <p className="mb-6 text-gray-700">{post.caption}</p>
           {/* Comments Section */}
           <h3 className="mb-4 font-bold text-gray-800">Comments</h3>
           <div className="space-y-4">
-            {post.comments.map((comment) => (
-              <div key={comment.id} className="flex items-start">
-                {/* <Image
-                  src={
-                    comment.author.vendorProfile?.avatarUrl ??
-                    comment.author.clientProfile?.avatarUrl ??
-                    ""
-                  }
-                  className="mr-3 h-8 w-8 rounded-full"
-                  alt="Commenter avatar"
-                  width={32}
-                  height={32}
-                /> */}
-                {avatarUrl ? (
-                  <Image
-                    src={avatarUrl}
-                    className="mr-3 h-8 w-8 rounded-full"
-                    alt="Commenter avatar"
-                    width={32}
-                    height={32}
-                  />
-                ) : (
-                  <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-pink-200 font-semibold text-pink-600">
-                    {displayName?.charAt(0).toUpperCase() ?? "C"}
+            {post.comments.map((comment) => {
+              const commenter = comment.author;
+              const commenterAvatarUrl =
+                commenter.role === "VENDOR"
+                  ? commenter.vendorProfile?.avatarUrl
+                  : commenter.clientProfile?.avatarUrl;
+              const commenterDisplayName =
+                (commenter.role === "VENDOR"
+                  ? commenter.vendorProfile?.companyName
+                  : commenter.clientProfile?.name) ?? commenter.username;
+              const commenterProfileUrl = `/${
+                commenter.role === "VENDOR" ? "v" : "c"
+              }/${commenter.username}`;
+
+              return (
+                <div key={comment.id} className="flex items-start gap-3">
+                  <Link href={commenterProfileUrl} className="shrink-0">
+                    {commenterAvatarUrl ? (
+                      <Image
+                        src={commenterAvatarUrl}
+                        className="h-8 w-8 rounded-full"
+                        alt="Commenter avatar"
+                        width={32}
+                        height={32}
+                      />
+                    ) : (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-pink-200 text-xs font-semibold text-pink-600">
+                        {commenterDisplayName?.charAt(0).toUpperCase() ?? "A"}
+                      </div>
+                    )}
+                  </Link>
+                  <div>
+                    <p className="text-sm">
+                      <Link
+                        href={commenterProfileUrl}
+                        className="font-bold text-gray-800 hover:underline"
+                      >
+                        {commenterDisplayName}
+                      </Link>{" "}
+                      {comment.text}
+                    </p>
                   </div>
-                )}
-                <div>
-                  <p className="text-sm">
-                    <span className="font-bold text-gray-800">
-                      {comment.author.username}
-                    </span>{" "}
-                    {comment.text}
-                  </p>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
         <div className="border-t border-gray-200 p-4">
@@ -349,6 +452,12 @@ const PostModal = ({
                   )}
                 />
                 <span>{post._count.likes}</span>
+              </button>
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-2 transition-colors hover:text-blue-500"
+              >
+                <Share2 className="h-6 w-6" />,{" "}
               </button>
               <div className="flex items-center gap-2">
                 <MessageCircle className="h-6 w-6" />

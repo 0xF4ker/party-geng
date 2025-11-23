@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, ChevronRight, ArrowLeft } from "lucide-react";
+import { X, ChevronRight, ArrowLeft, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Accordion,
@@ -13,6 +13,7 @@ import { api } from "@/trpc/react";
 
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
+import { Button } from "@/components/ui/button";
 
 // --- Types ---
 type routerOutput = inferRouterOutputs<AppRouter>;
@@ -105,6 +106,16 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
             {isGuest ? (
               // Guest Links
               <>
+                <Button
+                  asChild
+                  size="lg"
+                  className="w-full bg-linear-to-r from-orange-400 to-pink-500 text-lg font-bold text-white hover:from-orange-500 hover:to-pink-600"
+                >
+                  <Link href="/trending" onClick={onClose}>
+                    <Flame className="mr-1 h-5 w-5" />
+                    Trending
+                  </Link>
+                </Button>
                 <button
                   onClick={() => {
                     openModal("join");
@@ -167,6 +178,16 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
               // Vendor Links
               <>
                 <div className="space-y-5">
+                  <Button
+                    asChild
+                    size="lg"
+                    className="w-full bg-linear-to-r from-orange-400 to-pink-500 text-lg font-bold text-white hover:from-orange-500 hover:to-pink-600"
+                  >
+                    <Link href="/trending" onClick={onClose}>
+                      <Flame className="mr-1 h-5 w-5" />
+                      Trending
+                    </Link>
+                  </Button>
                   <Link
                     href="/dashboard"
                     onClick={onClose}
@@ -217,6 +238,16 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
               // Client Links
               <>
                 <div className="space-y-5">
+                  <Button
+                    asChild
+                    size="lg"
+                    className="w-full bg-linear-to-r from-orange-400 to-pink-500 text-lg font-bold text-white hover:from-orange-500 hover:to-pink-600"
+                  >
+                    <Link href="/trending" onClick={onClose}>
+                      <Flame className="mr-1 h-5 w-5" />
+                      Trending
+                    </Link>
+                  </Button>
                   <Link
                     href="/manage_events"
                     onClick={onClose}

@@ -19,6 +19,7 @@ import {
   Settings,
   Wallet,
   Grid3x3,
+  Flame,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,6 +32,7 @@ import GlobalSearch from "../home/GlobalSearch";
 import MobileMenu from "../home/MobileMenu";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type user = routerOutput["user"]["getByUsername"];
@@ -269,6 +271,21 @@ const ProfileHeader = ({
               </div>
             ) : isGuest ? (
               <div className="flex items-center gap-2">
+                <Button
+                  asChild
+                  size="sm"
+                  className={cn(
+                    "font-semibold",
+                    isHeaderSticky
+                      ? "bg-linear-to-r from-orange-400 to-pink-500 text-white hover:from-orange-500 hover:to-pink-600"
+                      : "bg-white/10 text-white hover:bg-white/20",
+                  )}
+                >
+                  <Link href="/trending">
+                    <Flame className="mr-1 h-5 w-5" />
+                    Trending
+                  </Link>
+                </Button>
                 <button
                   onClick={() => openModal("login")}
                   className="rounded-md px-3 py-1.5 text-sm font-medium hover:bg-white/10"
@@ -288,15 +305,28 @@ const ProfileHeader = ({
                 </button>
               </div>
             ) : (
-              <nav className="flex items-center space-x-4">
-                <Link href="/inbox" className="relative hidden sm:block">
-                  <Mail className={cn("h-6 w-6", headerIconColor)} />
-                  {(unreadConvoCount ?? 0) > 0 && (
-                    <span className="absolute -top-1 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
-                      {unreadConvoCount}
-                    </span>
-                  )}
-                </Link>{" "}
+              <nav className="flex items-center space-x-2">
+                <Button asChild size="sm" className={cn(
+                    "font-semibold hidden sm:inline-flex",
+                    isHeaderSticky
+                      ? "bg-gradient-to-r from-orange-400 to-pink-500 text-white hover:from-orange-500 hover:to-pink-600"
+                      : "bg-white/10 text-white hover:bg-white/20"
+                  )}>
+                    <Link href="/trending">
+                      <Flame className="mr-2 h-5 w-5" />
+                      Trending
+                    </Link>
+                  </Button>
+                <Button asChild variant="ghost" size="icon" className={cn("relative hidden sm:flex", headerIconColor)}>
+                  <Link href="/inbox">
+                    <Mail className="h-6 w-6" />
+                    {(unreadConvoCount ?? 0) > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
+                        {unreadConvoCount}
+                      </span>
+                    )}
+                  </Link>
+                </Button>
                 <NotificationDropdown className={headerIconColor} />
                 {/* Profile Dropdown */}
                 <div className="relative" ref={profileDropdownRef}>
