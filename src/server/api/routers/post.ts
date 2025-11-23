@@ -80,7 +80,7 @@ export const postRouter = createTRPCRouter({
         where: {
           caption: {
             not: null,
-            contains: "#",
+            contains: "#trending",
             mode: "insensitive",
           },
         },
