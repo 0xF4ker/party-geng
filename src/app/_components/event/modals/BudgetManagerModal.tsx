@@ -36,16 +36,24 @@ export const BudgetManagerModal = ({
       await utils.event.getById.cancel({ id: event.id });
       const previousEvent = utils.event.getById.getData({ id: event.id });
       if (previousEvent && previousEvent.budget) {
-        utils.event.getById.setData({ id: event.id }, {
-          ...previousEvent,
-          budget: {
-            ...previousEvent.budget,
-            items: [
-              ...previousEvent.budget.items,
-              { ...newItem, id: "optimistic", actualCost: null, createdAt: new Date() },
-            ],
+        utils.event.getById.setData(
+          { id: event.id },
+          {
+            ...previousEvent,
+            budget: {
+              ...previousEvent.budget,
+              items: [
+                ...previousEvent.budget.items,
+                {
+                  ...newItem,
+                  id: "optimistic",
+                  actualCost: null,
+                  createdAt: new Date(),
+                },
+              ],
+            },
           },
-        });
+        );
       }
       return { previousEvent };
     },
@@ -60,27 +68,32 @@ export const BudgetManagerModal = ({
   });
   const updateBudgetItem = api.event.updateBudgetItem.useMutation({
     onMutate: async (updatedItem) => {
-        await utils.event.getById.cancel({ id: event.id });
-        const previousEvent = utils.event.getById.getData({ id: event.id });
-        if (previousEvent && previousEvent.budget) {
-            const newItems = previousEvent.budget.items.map(item => item.id === updatedItem.itemId ? {...item, ...updatedItem} : item);
-            utils.event.getById.setData({ id: event.id }, {
-                ...previousEvent,
-                budget: {
-                    ...previousEvent.budget,
-                    items: newItems,
-                },
-            });
-        }
-        return { previousEvent };
+      await utils.event.getById.cancel({ id: event.id });
+      const previousEvent = utils.event.getById.getData({ id: event.id });
+      if (previousEvent && previousEvent.budget) {
+        const newItems = previousEvent.budget.items.map((item) =>
+          item.id === updatedItem.itemId ? { ...item, ...updatedItem } : item,
+        );
+        utils.event.getById.setData(
+          { id: event.id },
+          {
+            ...previousEvent,
+            budget: {
+              ...previousEvent.budget,
+              items: newItems,
+            },
+          },
+        );
+      }
+      return { previousEvent };
     },
     onError: (err, newItem, context) => {
-        if (context?.previousEvent) {
-            utils.event.getById.setData({ id: event.id }, context.previousEvent);
-        }
+      if (context?.previousEvent) {
+        utils.event.getById.setData({ id: event.id }, context.previousEvent);
+      }
     },
     onSettled: () => {
-        void utils.event.getById.invalidate({ id: event.id });
+      void utils.event.getById.invalidate({ id: event.id });
     },
   });
   const deleteBudgetItem = api.event.deleteBudgetItem.useMutation({
@@ -130,19 +143,19 @@ export const BudgetManagerModal = ({
             <p>Total Actual:</p>
             <p>₦{totalActual.toLocaleString()}</p>
           </div>
-          <div className="flex justify-between font-bold text-lg">
+          <div className="flex justify-between text-lg font-bold">
             <p>Remaining:</p>
             <p>₦{(totalEstimated - totalActual).toLocaleString()}</p>
           </div>
         </div>
 
         <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-semibold text-gray-500">
-                <p className="flex-grow">Description</p>
-                <p className="w-32">Estimated</p>
-                <p className="w-32">Actual</p>
-                <div className="w-10"></div>
-            </div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-gray-500">
+            <p className="flex-grow">Description</p>
+            <p className="w-32">Estimated</p>
+            <p className="w-32">Actual</p>
+            <div className="w-10"></div>
+          </div>
           {budget.items.map((item) => (
             <div key={item.id} className="flex items-center gap-2">
               <Input
@@ -166,19 +179,19 @@ export const BudgetManagerModal = ({
                 }
                 className="w-32"
               />
-            <Input
+              <Input
                 type="number"
                 defaultValue={item.actualCost ?? ""}
                 placeholder="Actual"
                 onBlur={(e) => {
-                    const value = e.target.value;
-                    updateBudgetItem.mutate({
-                        itemId: item.id,
-                        actualCost: value === "" ? null : Number(value),
-                    })
+                  const value = e.target.value;
+                  updateBudgetItem.mutate({
+                    itemId: item.id,
+                    actualCost: value === "" ? undefined : Number(value),
+                  });
                 }}
                 className="w-32"
-            />
+              />
               <Button
                 variant="ghost"
                 size="icon"

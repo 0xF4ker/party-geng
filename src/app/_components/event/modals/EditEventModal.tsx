@@ -30,7 +30,7 @@ export const EditEventModal = ({
   const utils = api.useUtils();
   const updateEvent = api.event.update.useMutation({
     onSuccess: () => {
-      utils.event.getById.invalidate({ id: event.id });
+      void utils.event.getById.invalidate({ id: event.id });
       onClose();
     },
   });

@@ -17,12 +17,12 @@ import Image from "next/image";
 type routerOutput = inferRouterOutputs<AppRouter>;
 type event = routerOutput["event"]["getById"];
 type ActiveVendor = {
-    id: string;
-    name: string;
-    service: string;
-    avatarUrl: string;
-    isAdded: boolean;
-  };
+  id: string;
+  name: string;
+  service: string;
+  avatarUrl: string;
+  isAdded: boolean;
+};
 
 interface AddVendorModalProps {
   event: event;
@@ -31,11 +31,16 @@ interface AddVendorModalProps {
   onClose: () => void;
 }
 
-export const AddVendorModal = ({ event, vendors, isOpen, onClose }: AddVendorModalProps) => {
+export const AddVendorModal = ({
+  event,
+  vendors,
+  isOpen,
+  onClose,
+}: AddVendorModalProps) => {
   const utils = api.useUtils();
   const addVendor = api.event.addVendor.useMutation({
     onSuccess: () => {
-      utils.event.getById.invalidate({ id: event.id });
+      void utils.event.getById.invalidate({ id: event.id });
     },
   });
 
