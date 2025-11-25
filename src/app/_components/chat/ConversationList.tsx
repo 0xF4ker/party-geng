@@ -26,6 +26,11 @@ export const ConversationList = ({
 
   const filtered = useMemo(() => {
     return conversations.filter((c) => {
+      if (c.isGroup) {
+        return c.clientEvent?.title
+          .toLowerCase()
+          .includes(search.toLowerCase());
+      }
       const other = c.participants.find((p) => p.id !== currentUserId);
       const name =
         other?.vendorProfile?.companyName ??
@@ -53,13 +58,25 @@ export const ConversationList = ({
 
       <div className="flex-1 overflow-y-auto">
         {filtered.map((convo) => {
-          const other = convo.participants.find((p) => p.id !== currentUserId);
-          const name =
-            other?.vendorProfile?.companyName ??
-            other?.clientProfile?.name ??
-            "User";
-          const avatar =
-            other?.vendorProfile?.avatarUrl ?? other?.clientProfile?.avatarUrl;
+          const isGroup = convo.isGroup;
+          let name: string;
+          let avatar: string | null | undefined;
+
+          if (isGroup) {
+            name = convo.clientEvent?.title ?? "Event Group Chat";
+            avatar = null; // Or a default group icon
+          } else {
+            const other = convo.participants.find(
+              (p) => p.id !== currentUserId,
+            );
+            name =
+              other?.vendorProfile?.companyName ??
+              other?.clientProfile?.name ??
+              "User";
+            avatar =
+              other?.vendorProfile?.avatarUrl ?? other?.clientProfile?.avatarUrl;
+          }
+
           const lastMsg = convo.messages[0];
           const hasUnread = convo.unreadCount > 0;
 
@@ -84,11 +101,11 @@ export const ConversationList = ({
                   />
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-pink-100 font-bold text-pink-700">
-                    {name[0]}
+                    {isGroup ? "G" : name[0]}
                   </div>
                 )}
                 {/* Online Indicator Placeholder */}
-                <span className="absolute right-0 bottom-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+                {!isGroup && <span className="absolute right-0 bottom-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />}
               </div>
 
               <div className="min-w-0 flex-1 overflow-hidden">

@@ -39,6 +39,53 @@ export const UserInfoSidebar = ({
     (p) => p.id !== currentUserId,
   );
   
+  if (conversation.isGroup && conversation.clientEvent) {
+    return (
+      <div className="flex h-full flex-col bg-white">
+        {onClose && (
+          <div className="p-4 border-b lg:hidden">
+            <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100">
+              <X className="h-5 w-5 text-gray-600" />
+            </button>
+          </div>
+        )}
+        <div className="flex flex-col items-center border-b border-gray-100 p-8">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-pink-100 to-pink-200 text-3xl font-bold text-pink-600 shadow-inner">
+            G
+          </div>
+          <h2 className="mt-4 text-center text-xl font-bold text-gray-900">
+            {conversation.clientEvent.title}
+          </h2>
+          <p className="mt-1 text-sm font-medium text-gray-500">
+            Event Group Chat
+          </p>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 pt-2">
+          <h4 className="mb-3 text-xs font-bold tracking-wider text-gray-400 uppercase">
+            Participants ({conversation.participants.length})
+          </h4>
+          <ul className="space-y-3">
+            {conversation.participants.map(p => (
+              <li key={p.id} className="flex items-center gap-3">
+                <Image
+                  src={p.vendorProfile?.avatarUrl ?? p.clientProfile?.avatarUrl ?? "https://placehold.co/40x40"}
+                  alt={p.username}
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 rounded-full"
+                />
+                <div>
+                  <p className="font-semibold text-gray-800">{p.vendorProfile?.companyName ?? p.clientProfile?.name ?? p.username}</p>
+                  <p className="text-sm text-gray-500">{p.id === conversation.groupAdminId ? "Admin" : "Member"}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    );
+  }
+
   const { data: orders } = api.order.getOrdersBetweenUsers.useQuery({
       userOneId: currentUserId,
       userTwoId: otherUser?.id ?? "",

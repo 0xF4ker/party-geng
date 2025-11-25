@@ -91,6 +91,7 @@ model User {
   // The 'events' field was wrong. It should link to the 'EventVendor' join table.
   // This field (`hiredGigs`) is the missing opposite relation for `EventVendor.vendor`.
   hiredGigs EventVendor[] @relation("HiredVendor")
+  assignedTodos   EventTodoItem[] @relation("AssignedTodos")
   
   // Reviews
   authoredReviews Review[] @relation("AuthoredReviews")
@@ -209,6 +210,7 @@ model ClientEvent {
   
   coverImage String?
   isPublic   Boolean  @default(false) // Client can toggle this
+  location   String?
 
   client   ClientProfile @relation("EventOwner", fields: [clientProfileId], references: [id])
   clientProfileId String
@@ -217,6 +219,14 @@ model ClientEvent {
   hiredVendors EventVendor[] @relation("Event")
 
   wishlist Wishlist? // One-to-one
+
+  // For group chat
+  conversation   Conversation? @relation("EventConversation")
+
+  // New relations for event management
+  todos      EventTodoList[]
+  budget     EventBudget?
+  guestLists EventGuestList[]
 }
 
 // NEW: Explicit join table for Hired Vendors
@@ -283,6 +293,12 @@ model Conversation {
   updatedAt DateTime @updatedAt
 
   notifications Notification[]
+
+  // For Event Group Chats
+  isGroup       Boolean     @default(false)
+  groupAdminId  String? // Links to User ID of admin
+  clientEvent   ClientEvent? @relation("EventConversation", fields: [clientEventId], references: [id], onDelete: Cascade)
+  clientEventId String?     @unique
 }
 
 model Message {
@@ -523,4 +539,85 @@ model PostBookmark {
   @@unique([postId, userId])
   @@index([postId])
   @@index([userId])
+}
+
+// --- 9. EVENT MANAGEMENT MODELS ---
+
+// To-Do List / Kanban Board for an Event
+model EventTodoList {
+  id      String    @id @default(uuid())
+  title   String // e.g., "To Do", "In Progress", "Done"
+  order   Int // To maintain column order
+  event   ClientEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+
+  items EventTodoItem[]
+
+  @@index([eventId])
+}
+
+model EventTodoItem {
+  id      String   @id @default(uuid())
+  content String   @db.Text
+  order   Int // To maintain card order within a list
+
+  list   EventTodoList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  listId String
+
+  assignedTo   User?    @relation("AssignedTodos", fields: [assignedToId], references: [id], onUpdate: NoAction, onDelete: SetNull)
+  assignedToId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([listId])
+}
+
+// Budget Manager for an Event
+model EventBudget {
+  id          String   @id @default(uuid())
+  event       ClientEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId     String   @unique
+
+  items EventBudgetItem[]
+}
+
+model EventBudgetItem {
+  id            String    @id @default(uuid())
+  description   String
+  estimatedCost Float
+  actualCost    Float?
+
+  budget   EventBudget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  budgetId String
+
+  createdAt DateTime @default(now())
+
+  @@index([budgetId])
+}
+
+// Guest List for an Event
+model EventGuestList {
+  id      String    @id @default(uuid())
+  title   String // e.g., "Family", "Friends", "Colleagues"
+  event   ClientEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+
+  guests EventGuest[]
+
+  @@index([eventId])
+}
+
+model EventGuest {
+  id     String   @id @default(uuid())
+  name   String
+  email  String?
+  status String // e.g., "Invited", "Attending", "Declined"
+
+  list   EventGuestList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  listId String
+
+  createdAt DateTime @default(now())
+
+  @@index([listId])
 }

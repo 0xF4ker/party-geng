@@ -6,6 +6,7 @@ import Header from "@/app/_components/home/Header";
 import Footer from "@/app/_components/home/Footer";
 import { CreatePostButton } from "@/app/_components/posts/CreatePostButton";
 import { CreatePostModal } from "@/app/_components/posts/CreatePostModal";
+import { EventChatButton } from "@/app/_components/event/EventChatButton";
 
 export default function MainLayout({
   children,
@@ -19,6 +20,7 @@ export default function MainLayout({
       {!isProfilePage && <Header />}
       <main>{children}</main>
       {!isProfilePage && <Footer />}
+      <EventChatButton />
       <CreatePostButton />
       <CreatePostModal />
     </>

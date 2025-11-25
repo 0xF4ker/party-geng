@@ -20,9 +20,9 @@ import {
   ConversationListSkeleton,
   ChatMessagesSkeleton,
 } from "@/app/_components/chat/ChatSkeletons";
+import { useUiStore } from "@/stores/ui";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
-import { useUiStore } from "@/stores/ui";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type conversationOutput = routerOutput["chat"]["getConversations"][number];
@@ -176,8 +176,14 @@ const InboxPageContent = () => {
   const isVendor = !!user.vendorProfile;
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900" style={{ paddingTop: headerHeight }}>
-      <div className="flex border-t border-gray-200 bg-white text-gray-900" style={{ height: `calc(100vh - ${headerHeight}px)`}}>
+    <div
+      className="min-h-screen bg-gray-50 text-gray-900"
+      style={{ paddingTop: headerHeight }}
+    >
+      <div
+        className="flex border-t border-gray-200 bg-white text-gray-900"
+        style={{ height: `calc(100vh - ${headerHeight}px)` }}
+      >
         {/* Left Sidebar: Conversation List */}
         <aside
           className={`w-full border-r sm:w-1/3 lg:w-1/4 ${showMobileChat ? "hidden sm:flex" : "flex"}`}
@@ -215,20 +221,23 @@ const InboxPageContent = () => {
                     <ArrowLeft />
                   </button>
                   <h3 className="font-bold text-gray-800">
-                    {/* Logic to get name */}
-                    {
-                      selectedConvo.participants.find((p) => p.id !== user.id)
-                        ?.username
-                    }
+                    {selectedConvo.isGroup
+                      ? selectedConvo.clientEvent?.title ?? "Group Chat"
+                      : selectedConvo.participants.find(
+                          (p) => p.id !== user.id,
+                        )?.username}
                   </h3>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button onClick={() => setShowInfoSidebar(true)} className="lg:hidden">
-                        <Info className="text-gray-400" />
-                    </button>
-                    <div className="hidden lg:block">
-                        <MoreVertical className="text-gray-400" />
-                    </div>
+                  <button
+                    onClick={() => setShowInfoSidebar(true)}
+                    className="lg:hidden"
+                  >
+                    <Info className="text-gray-400" />
+                  </button>
+                  <div className="hidden lg:block">
+                    <MoreVertical className="text-gray-400" />
+                  </div>
                 </div>
               </div>
 
@@ -320,18 +329,25 @@ const InboxPageContent = () => {
             />
           )}
         </aside>
-        
+
         {/* Mobile Info Sidebar */}
         {showInfoSidebar && selectedConvo && (
-            <div className="absolute inset-0 z-20 bg-black/30 lg:hidden" onClick={() => setShowInfoSidebar(false)} style={{top: headerHeight}}>
-                <div className="absolute right-0 top-0 h-full w-4/5 max-w-sm bg-white" onClick={(e) => e.stopPropagation()}>
-                    <UserInfoSidebar
-                      conversation={selectedConvo}
-                      currentUserId={user.id}
-                      onClose={() => setShowInfoSidebar(false)}
-                    />
-                </div>
+          <div
+            className="absolute inset-0 z-20 bg-black/30 lg:hidden"
+            onClick={() => setShowInfoSidebar(false)}
+            style={{ top: headerHeight }}
+          >
+            <div
+              className="absolute top-0 right-0 h-full w-4/5 max-w-sm bg-white"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <UserInfoSidebar
+                conversation={selectedConvo}
+                currentUserId={user.id}
+                onClose={() => setShowInfoSidebar(false)}
+              />
             </div>
+          </div>
         )}
       </div>
     </div>
@@ -339,11 +355,17 @@ const InboxPageContent = () => {
 };
 
 const InboxPage = () => {
-    return (
-        <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-pink-600" /></div>}>
-            <InboxPageContent />
-        </Suspense>
-    )
-}
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center">
+          <Loader2 className="animate-spin text-pink-600" />
+        </div>
+      }
+    >
+      <InboxPageContent />
+    </Suspense>
+  );
+};
 
 export default InboxPage;

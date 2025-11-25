@@ -2,16 +2,12 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Check,
   Users,
   Plus,
-  // Image as ImageIcon,
   Search,
   Gift,
   MoreVertical,
-  CheckCircle,
   X,
-  Copy,
   ToggleLeft,
   ToggleRight,
   Trash2,
@@ -19,6 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { api } from "@/trpc/react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -28,11 +25,6 @@ import type { AppRouter } from "@/server/api/root";
 type routerOutput = inferRouterOutputs<AppRouter>;
 // getMyEvents returns { upcoming: EventType[]; past: EventType[] }, derive the event item type from the upcoming array
 type event = routerOutput["event"]["getMyEvents"]["upcoming"][number];
-type WishlistObject = event["wishlist"];
-// 2. Get the 'items' array type from the non-null Wishlist object
-type WishlistItemsArray = NonNullable<WishlistObject>["items"];
-// 3. Get the type of a single item from that array
-type wishlistItem = WishlistItemsArray[number];
 
 type ActiveVendor = {
   id: string;
@@ -46,7 +38,6 @@ type ActiveVendor = {
 const ClientEventPlannerPage = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("upcoming");
-  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<event | null>(null);
@@ -65,19 +56,9 @@ const ClientEventPlannerPage = () => {
     },
   );
 
-  const openWishlist = (event: event) => {
-    setSelectedEvent(event);
-    setIsWishlistOpen(true);
-  };
-
   const openAddVendor = (event: event) => {
     setSelectedEvent(event);
     setIsVendorModalOpen(true);
-  };
-
-  const closeWishlist = () => {
-    setIsWishlistOpen(false);
-    setSelectedEvent(null);
   };
 
   // Get active vendors from orders
@@ -138,12 +119,15 @@ const ClientEventPlannerPage = () => {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {eventsData?.upcoming && eventsData.upcoming.length > 0 ? (
               eventsData.upcoming.map((event) => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  onWishlistClick={() => openWishlist(event)}
-                  onAddVendorClick={() => openAddVendor(event)}
-                />
+                <Link href={`/event/${event.id}`} key={event.id}>
+                  <EventCard
+                    event={event}
+                    onAddVendorClick={(e) => {
+                      if (e) e.preventDefault();
+                      openAddVendor(event);
+                    }}
+                  />
+                </Link>
               ))
             ) : (
               <div className="col-span-full rounded-lg border border-gray-200 bg-white p-12 text-center">
@@ -174,11 +158,6 @@ const ClientEventPlannerPage = () => {
           </div>
         )}
       </div>
-
-      {/* --- Wishlist Modal --- */}
-      {isWishlistOpen && selectedEvent && (
-        <WishlistModal event={selectedEvent} onClose={closeWishlist} />
-      )}
 
       {/* --- Create Event Modal --- */}
       {isEventModalOpen && (
@@ -223,13 +202,11 @@ const TabButton = ({
 
 const EventCard = ({
   event,
-  onWishlistClick,
   onAddVendorClick,
   isPast = false,
 }: {
   event: event;
-  onWishlistClick?: () => void;
-  onAddVendorClick?: () => void;
+  onAddVendorClick?: (e?: React.MouseEvent<HTMLButtonElement>) => void;
   isPast?: boolean;
 }) => {
   const wishlistItems = event.wishlist?.items ?? [];
@@ -327,15 +304,13 @@ const EventCard = ({
               </button>
               {isMenuOpen && (
                 <div className="absolute top-full right-0 z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg">
-                  <button
-                    onClick={() => {
-                      onWishlistClick?.();
-                      setIsMenuOpen(false);
-                    }}
-                    className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    <Gift className="h-4 w-4" /> Manage Wishlist
-                  </button>
+<Link href={`/event/${event.id}/wishlist`}>
+                    <button
+                      className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <Gift className="h-4 w-4" /> Manage Wishlist
+                    </button>
+                  </Link>
                   <button
                     onClick={() => setIsMenuOpen(false)} // Placeholder for Manage Vendors page
                     className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
@@ -439,246 +414,8 @@ const EventCard = ({
   );
 };
 
+
 // --- MODAL COMPONENTS ---
-
-const WishlistModal = ({
-  event,
-  onClose,
-}: {
-  event: event;
-  onClose: () => void;
-}) => {
-  const [copied, setCopied] = useState(false);
-  const utils = api.useUtils();
-
-  // Mutations for wishlist items
-  const addItem = api.wishlist.addItem.useMutation({
-    onSuccess: () => {
-      void utils.event.getMyEvents.invalidate();
-    },
-  });
-  const updateItem = api.wishlist.updateItem.useMutation({
-    onSuccess: () => {
-      void utils.event.getMyEvents.invalidate();
-    },
-  });
-  const deleteItem = api.wishlist.deleteItem.useMutation({
-    onSuccess: () => {
-      void utils.event.getMyEvents.invalidate();
-    },
-  });
-
-  const items = event.wishlist?.items ?? [];
-
-  const copyLink = async () => {
-    // This is a mock link. In a real app, this would be a unique URL.
-    const textToCopy = `https://partygeng.com/events/${event.id}/wishlist`;
-
-    // Fallback for non-navigator.clipboard environments
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      // Fallback for http or iframes
-      const textArea = document.createElement("textarea");
-      textArea.value = textToCopy;
-      textArea.style.position = "fixed"; // Avoid scrolling to bottom
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      console.error(err);
-      try {
-        document.execCommand("copy");
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (err) {
-        console.error("Fallback: Oops, unable to copy", err);
-      }
-      document.body.removeChild(textArea);
-    }
-  };
-
-  // FIX: Add handler to toggle fulfillment
-  const handleToggleFulfilled = (item: wishlistItem) => {
-    updateItem.mutate({ itemId: item.id, isFulfilled: !item.isFulfilled });
-  };
-
-  const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!event.wishlist) return;
-    const form = e.target as HTMLFormElement;
-    const newItemName = (form.elements.namedItem("newItem") as HTMLInputElement)
-      ?.value;
-    const newItemPrice = (
-      form.elements.namedItem("newItemPrice") as HTMLInputElement
-    )?.value;
-    if (!newItemName || !newItemPrice) return;
-
-    addItem.mutate({
-      eventId: event.id,
-      name: newItemName,
-      price: Number(newItemPrice),
-    });
-    form.reset();
-  };
-
-  const handleRemoveItem = (itemId: string) => {
-    deleteItem.mutate({ itemId });
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="m-4 flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-xl">
-        {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 p-4">
-          <div>
-            <h3 className="text-xl font-semibold">Event Wishlist</h3>
-            <p className="text-sm text-gray-500">{event.title}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* FIX: Re-added Shareable Link Section */}
-        <div className="shrink-0 border-b border-gray-200 p-4">
-          <label className="mb-2 block text-sm font-semibold text-gray-700">
-            Share Your Wishlist
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              readOnly
-              value={`partygeng.com/events/${event.id}/wishlist`}
-              className="w-full rounded-md border border-gray-300 bg-gray-50 p-2 text-sm"
-            />
-            <button
-              onClick={copyLink}
-              className={cn(
-                "flex shrink-0 items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold text-white",
-                copied ? "bg-green-600" : "bg-pink-600 hover:bg-pink-700",
-              )}
-            >
-              {copied ? (
-                <Check className="h-4 w-4" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
-              {copied ? "Copied!" : "Copy Link"}
-            </button>
-          </div>
-        </div>
-
-        {/* Wishlist Items */}
-        <div className="overflow-y-auto p-4">
-          <h4 className="mb-3 font-semibold text-gray-800">Wishlist Items</h4>
-          {/* FIX: Updated list to show new logic */}
-          <ul className="divide-y divide-gray-100">
-            {items.map((item) => (
-              <li key={item.id} className="flex items-start gap-4 py-3">
-                {/* Checkbox for Owner */}
-                <input
-                  type="checkbox"
-                  checked={item.isFulfilled}
-                  onChange={() => handleToggleFulfilled(item)}
-                  disabled={updateItem.isPending}
-                  className="mt-1 h-5 w-5 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
-                />
-                <div className="grow">
-                  <p
-                    className={cn(
-                      "font-medium text-gray-800",
-                      item.isFulfilled && "text-gray-500 line-through",
-                    )}
-                  >
-                    {item.name}
-                  </p>
-                  <p
-                    className={cn(
-                      "text-sm",
-                      item.isFulfilled ? "text-gray-400" : "text-gray-500",
-                    )}
-                  >
-                    Est. Price: ₦{item.price?.toLocaleString()}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  {item.isFulfilled ? (
-                    <span className="flex items-center gap-1.5 font-semibold text-green-600">
-                      <CheckCircle className="h-5 w-5" />
-                      Fulfilled!
-                    </span>
-                  ) : item.promises.length > 0 ? (
-                    <div>
-                      <p className="font-semibold text-blue-600">Promised</p>
-                      <p className="text-xs text-gray-500">
-                        by {item.promises.map((p) => p.guestName).join(", ")}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm font-semibold text-gray-400">
-                      Not yet promised
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={() => handleRemoveItem(item.id)}
-                  disabled={deleteItem.isPending}
-                  className="ml-2 text-gray-400 hover:text-red-500 disabled:opacity-50"
-                >
-                  {deleteItem.isPending &&
-                  deleteItem.variables?.itemId === item.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <X className="h-4 w-4" />
-                  )}
-                </button>
-              </li>
-            ))}
-            {/* Add new item */}
-            <li className="py-4">
-              <form
-                className="flex flex-col gap-2 sm:flex-row"
-                onSubmit={handleAddItem}
-              >
-                <input
-                  type="text"
-                  name="newItem"
-                  placeholder="Add new item name"
-                  className="grow rounded-md border border-gray-300 p-2 text-sm"
-                  aria-label="New item name"
-                  required
-                />
-                <input
-                  type="number"
-                  name="newItemPrice"
-                  placeholder="Price (₦)"
-                  className="w-full rounded-md border border-gray-300 p-2 text-sm sm:w-32"
-                  aria-label="New item price"
-                  required
-                />
-                <button
-                  type="submit"
-                  disabled={addItem.isPending}
-                  className="flex items-center justify-center rounded-md bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
-                >
-                  {addItem.isPending && (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  )}
-                  Add Item
-                </button>
-              </form>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // NEW: Create Event Modal
 const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
@@ -698,6 +435,8 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
     const dateString = (
       form.elements.namedItem("eventDate") as HTMLInputElement
     )?.value;
+    const location = (form.elements.namedItem("eventLocation") as HTMLInputElement)
+      ?.value;
 
     if (!title || !dateString) {
       alert("Please fill in all fields");
@@ -707,6 +446,7 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
     createEvent.mutate({
       title,
       date: new Date(dateString),
+      location,
     });
   };
 
@@ -756,6 +496,21 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
               min={new Date().toISOString().split("T")[0]}
               className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
               required
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="eventLocation"
+              className="mb-1 block text-sm font-semibold text-gray-700"
+            >
+              Location (Optional)
+            </label>
+            <input
+              type="text"
+              id="eventLocation"
+              name="eventLocation"
+              placeholder="e.g. Lagos, Nigeria"
+              className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
             />
           </div>
 

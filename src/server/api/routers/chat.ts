@@ -1,6 +1,7 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { NotificationType } from "@prisma/client";
+import { TRPCError } from "@trpc/server";
 
 export const chatRouter = createTRPCRouter({
   // Get all conversations for current user
@@ -8,6 +9,12 @@ export const chatRouter = createTRPCRouter({
     const conversations = await ctx.db.conversation.findMany({
       where: { participants: { some: { id: ctx.user.id } } },
       include: {
+        clientEvent: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
         participants: {
           select: {
             id: true,
@@ -352,5 +359,78 @@ export const chatRouter = createTRPCRouter({
       distinct: ["conversationId"],
     });
     return unreadNotifications.length;
+  }),
+
+  createEventGroupChat: protectedProcedure
+  .input(
+    z.object({
+      eventId: z.string(),
+      memberIds: z.array(z.string()),
+    }),
+  )
+  .mutation(async ({ ctx, input }) => {
+    const { eventId, memberIds } = input;
+    const userId = ctx.user.id;
+
+    // 1. Find the event and ensure the current user is the owner
+    const event = await ctx.db.clientEvent.findUnique({
+      where: { id: eventId },
+      include: { client: true },
+    });
+
+    if (!event || event.client.userId !== userId) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "You don't have permission to create a chat for this event.",
+      });
+    }
+
+    // 2. Check if a group chat already exists for this event
+    let conversation = await ctx.db.conversation.findUnique({
+      where: { clientEventId: eventId },
+    });
+
+    if (conversation) {
+      // 3a. If it exists, add new members
+      const existingParticipantIds = await ctx.db.conversation
+        .findUnique({ where: { id: conversation.id } })
+        .participants({ select: { id: true } });
+
+      if (!existingParticipantIds) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Conversation not found",
+        });
+      }
+
+      const existingIdsSet = new Set(existingParticipantIds.map((p) => p.id));
+      const newMemberIds = memberIds.filter((id) => !existingIdsSet.has(id));
+
+      if (newMemberIds.length > 0) {
+        await ctx.db.conversation.update({
+          where: { id: conversation.id },
+          data: {
+            participants: {
+              connect: newMemberIds.map((id) => ({ id })),
+            },
+          },
+        });
+      }
+    } else {
+      // 3b. If it doesn't exist, create it
+      const allParticipantIds = [...new Set([userId, ...memberIds])];
+      conversation = await ctx.db.conversation.create({
+        data: {
+          clientEventId: eventId,
+          isGroup: true,
+          groupAdminId: userId,
+          participants: {
+            connect: allParticipantIds.map((id) => ({ id })),
+          },
+        },
+      });
+    }
+
+    return conversation;
   }),
 });
