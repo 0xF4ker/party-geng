@@ -35,7 +35,7 @@ const PublicWishlistPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                {event.title}'s Wishlist
+                {event.title}&apos;s Wishlist
               </h1>
               <p className="mt-1 text-gray-500">
                 Created by {event.client.name}
@@ -57,17 +57,21 @@ const PublicWishlistPage = () => {
                 {event.wishlist.items.map((item) => (
                   <li key={item.id} className="py-4">
                     <div className="flex items-center justify-between">
-                        <div>
-                            <p className="font-medium">{item.name}</p>
-                            <p className="text-sm text-gray-500">Est. Price: ₦{item.price?.toLocaleString()}</p>
-                        </div>
-                        <div>
-                            {item.isFulfilled ? (
-                                <span className="text-green-600 font-semibold">Fulfilled!</span>
-                            ): (
-                                <Button>Promise to Fulfill</Button>
-                            )}
-                        </div>
+                      <div>
+                        <p className="font-medium">{item.name}</p>
+                        <p className="text-sm text-gray-500">
+                          Est. Price: ₦{item.price?.toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        {item.isFulfilled ? (
+                          <span className="font-semibold text-green-600">
+                            Fulfilled!
+                          </span>
+                        ) : (
+                          <Button>Promise to Fulfill</Button>
+                        )}
+                      </div>
                     </div>
                   </li>
                 ))}

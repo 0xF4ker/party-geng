@@ -493,6 +493,7 @@ export function KanbanBoardColumn({
       onDrop={(event) => {
         const data = event.dataTransfer.getData(DATA_TRANSFER_TYPES.CARD);
         onDropOverColumn?.(data);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         onDragEnd(JSON.parse(data).id as string, columnId);
         setIsDropTarget(false);
       }}
@@ -650,6 +651,7 @@ export function KanbanBoardColumnListItem({
         const data = event.dataTransfer.getData(DATA_TRANSFER_TYPES.CARD);
         onDropOverListItem?.(data, dropDirection);
 
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         onDragEnd(JSON.parse(data).id as string, cardId);
         setDropDirection("none");
       }}
