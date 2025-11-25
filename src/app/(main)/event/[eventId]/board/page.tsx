@@ -100,7 +100,7 @@ export default function EventKanbanBoardPage() {
   );
 }
 
-export function MyKanbanBoard({ event }: { event: EventDetails }) {
+function MyKanbanBoard({ event }: { event: EventDetails }) {
   const [columns, setColumns] = useState<Column[]>(
     [...event.todos].sort((a, b) => a.order - b.order),
   );
