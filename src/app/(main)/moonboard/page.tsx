@@ -95,7 +95,7 @@ export default function KanbanBoardPage() {
   );
 }
 
-export function MyKanbanBoard() {
+function MyKanbanBoard() {
   const [columns, setColumns] = useState<Column[]>([
     {
       id: "eowdjiak9f9jr27po347jr47",
