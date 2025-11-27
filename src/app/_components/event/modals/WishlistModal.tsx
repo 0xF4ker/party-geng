@@ -94,7 +94,7 @@ export const WishlistModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-h-[100vh] max-w-3xl overflow-y-auto sm:max-h-[85vh]">
         <DialogHeader>
           <DialogTitle>{event.title}&apos;s Wishlist</DialogTitle>
           <DialogDescription>
