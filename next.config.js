@@ -31,6 +31,9 @@ const config = {
     ],
     dangerouslyAllowSVG: true,
   },
+  experimental: {
+    optimizePackageImports: ["@chakra-ui/react"],
+  },
 };
 
 export default config;

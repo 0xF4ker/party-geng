@@ -58,6 +58,7 @@ import { useParams } from "next/navigation";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { Loader2 } from "lucide-react";
+import Breadcrumb from "@/components/ui/breadcrumb";
 
 const api = createTRPCReact<AppRouter>();
 
@@ -82,6 +83,12 @@ export default function EventKanbanBoardPage() {
     );
   }
 
+  const breadcrumbItems = [
+    { label: "My Events", href: "/manage_events" },
+    { label: event.title, href: `/event/${event.id}` },
+    { label: "To-Do Board", href: `/event/${event.id}/board` },
+  ];
+
   return (
     <div
       className="grid h-screen grid-rows-[var(--header-height)_1fr_6rem] overflow-x-hidden sm:grid-rows-[var(--header-height)_1fr_var(--header-height)]"
@@ -89,6 +96,7 @@ export default function EventKanbanBoardPage() {
     >
       <main className="relative">
         <div className="absolute inset-0 h-full overflow-x-hidden px-4 py-4 md:px-6">
+          <Breadcrumb items={breadcrumbItems} className="mb-4" />
           <KanbanBoardProvider>
             <MyKanbanBoard event={event} />
           </KanbanBoardProvider>
@@ -110,22 +118,130 @@ function MyKanbanBoard({ event }: { event: EventDetails }) {
   }, [event.todos]);
 
   const addColumnMutation = api.event.addEmptyTodoList.useMutation({
-    onSuccess: () => void utils.event.getById.invalidate({ id: eventId }),
+    onMutate: async ({ title }) => {
+      await utils.event.getById.cancel({ id: eventId });
+      const previousEvent = utils.event.getById.getData({ id: eventId });
+      if (previousEvent) {
+        utils.event.getById.setData({ id: eventId }, {
+          ...previousEvent,
+          todos: [
+            ...previousEvent.todos,
+            {
+              id: `temp-col-${Date.now()}`,
+              title,
+              eventId,
+              order: previousEvent.todos.length,
+              items: [],
+            },
+          ],
+        });
+      }
+      return { previousEvent };
+    },
+    onError: (err, newColumn, context) => {
+      if (context?.previousEvent) {
+        utils.event.getById.setData({ id: eventId }, context.previousEvent);
+      }
+    },
+    onSettled: () => {
+      void utils.event.getById.invalidate({ id: eventId });
+    },
   });
   const updateColumnMutation = api.event.updateTodoItem.useMutation({
-    onSuccess: () => void utils.event.getById.invalidate({ id: eventId }),
+    onSettled: () => void utils.event.getById.invalidate({ id: eventId }),
   });
   const addTodoItemMutation = api.event.addTodoItem.useMutation({
-    onSuccess: () => void utils.event.getById.invalidate({ id: eventId }),
+    onMutate: async ({ listId, content, order }) => {
+        await utils.event.getById.cancel({ id: eventId });
+        const previousEvent = utils.event.getById.getData({ id: eventId });
+        if (previousEvent) {
+            utils.event.getById.setData({ id: eventId }, (oldEvent) => {
+              if (!oldEvent) return previousEvent;
+              return {
+                ...oldEvent,
+                todos: oldEvent.todos.map((todo) => {
+                    if (todo.id === listId) {
+                        return {
+                            ...todo,
+                            items: [
+                                ...todo.items,
+                                {
+                                    id: `temp-item-${Date.now()}`,
+                                    content,
+                                    listId,
+                                    order,
+                                    createdAt: new Date(),
+                                    updatedAt: new Date(),
+                                    isFulfilled: false,
+                                    assignedToId: null,
+                                },
+                            ],
+                        };
+                    }
+                    return todo;
+                }),
+              }
+            });
+        }
+        return { previousEvent };
+    },
+
+    onError: (err, newItem, context) => {
+        if (context?.previousEvent) {
+            utils.event.getById.setData({ id: eventId }, context.previousEvent);
+        }
+    },
+    onSettled: () => {
+        void utils.event.getById.invalidate({ id: eventId });
+    },
   });
   const deleteColumnMutation = api.event.deleteTodoList.useMutation({
-    onSuccess: () => void utils.event.getById.invalidate({ id: eventId }),
+    onMutate: async ({ listId }) => {
+      await utils.event.getById.cancel({ id: eventId });
+      const previousEvent = utils.event.getById.getData({ id: eventId });
+      if (previousEvent) {
+        utils.event.getById.setData({ id: eventId }, {
+          ...previousEvent,
+          todos: previousEvent.todos.filter((todo) => todo.id !== listId),
+        });
+      }
+      return { previousEvent };
+    },
+    onError: (err, deletedColumn, context) => {
+      if (context?.previousEvent) {
+        utils.event.getById.setData({ id: eventId }, context.previousEvent);
+      }
+    },
+    onSettled: () => {
+      void utils.event.getById.invalidate({ id: eventId });
+    },
   });
   const updateColumnTitleMutation = api.event.updateTodoList.useMutation({
-    onSuccess: () => void utils.event.getById.invalidate({ id: eventId }),
+    onSettled: () => void utils.event.getById.invalidate({ id: eventId }),
   });
   const deleteTodoItemMutation = api.event.deleteTodoItem.useMutation({
-    onSuccess: () => void utils.event.getById.invalidate({ id: eventId }),
+    onMutate: async ({ itemId }) => {
+        await utils.event.getById.cancel({ id: eventId });
+        const previousEvent = utils.event.getById.getData({ id: eventId });
+        if (previousEvent) {
+            utils.event.getById.setData({ id: eventId }, {
+                ...previousEvent,
+                todos: previousEvent.todos.map((todo) => ({
+                    ...todo,
+                    items: todo.items.filter((item) => item.id !== itemId),
+                })),
+            });
+        }
+        return { previousEvent };
+    },
+    onError: (err, deletedItem, context) => {
+        if (context?.previousEvent) {
+            utils.event.getById.setData({ id: eventId }, context.previousEvent);
+        }
+    },
+    onSettled: () => {
+        void utils.event.getById.invalidate({ id: eventId });
+    },
   });
 
   const scrollContainerReference = useRef<HTMLDivElement>(null);

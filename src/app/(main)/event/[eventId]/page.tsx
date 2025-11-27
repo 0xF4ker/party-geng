@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 
 import { EventHeader } from "@/app/_components/event/EventHeader";
 import { WishlistCard } from "@/app/_components/event/WishlistCard";
-import { BudgetManagerCard } from "@/app/_components/event/BudgetManagerCard";
+import { NewBudgetManagerCard } from "@/app/_components/event/NewBudgetManagerCard";
 import { GuestListCard } from "@/app/_components/event/GuestListCard";
 import { BookedVendorsCard } from "@/app/_components/event/BookedVendorsCard";
 import { TodoListCard } from "@/app/_components/event/TodoListCard";
@@ -16,6 +16,7 @@ import { WishlistModal } from "@/app/_components/event/modals/WishlistModal";
 import { BudgetManagerModal } from "@/app/_components/event/modals/BudgetManagerModal";
 import { GuestListModal } from "@/app/_components/event/modals/GuestListModal";
 import { AddVendorModal } from "@/app/_components/event/modals/AddVendorModal";
+import Breadcrumb from "@/components/ui/breadcrumb";
 
 const EventDetailPage = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -69,13 +70,24 @@ const EventDetailPage = () => {
     );
   }
 
+  const breadcrumbItems = [
+    { label: "My Events", href: "/manage_events" },
+    { label: event.title, href: `/event/${event.id}` },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50 pt-24 text-gray-900 sm:pt-28 md:pt-32">
       <div className="container mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <Breadcrumb items={breadcrumbItems} className="mb-4" />
         <EventHeader event={event} onEdit={() => setIsEditModalOpen(true)} />
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="flex flex-col gap-8 lg:col-span-2">
             <TodoListCard todos={event.todos} eventId={event.id} />
+            <NewBudgetManagerCard
+              budget={event.budget}
+              _eventId={event.id}
+              onManage={() => setIsBudgetModalOpen(true)}
+            />
             {/* Other main content can go here */}
           </div>
           <div className="flex flex-col gap-8 lg:col-span-1">
@@ -88,11 +100,6 @@ const EventDetailPage = () => {
               wishlist={event.wishlist}
               _eventId={event.id}
               onManage={() => setIsWishlistModalOpen(true)}
-            />
-            <BudgetManagerCard
-              budget={event.budget}
-              _eventId={event.id}
-              onManage={() => setIsBudgetModalOpen(true)}
             />
             <GuestListCard
               guestLists={event.guestLists}

@@ -23,7 +23,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body>
         <TRPCReactProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
           <Toaster />
         </TRPCReactProvider>
       </body>
