@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ImageUpload } from "@/components/ImageUpload"; // Import ImageUpload
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type event = routerOutput["event"]["getById"];
@@ -35,6 +36,9 @@ export const WishlistModal = ({
 }: WishlistModalProps) => {
   const [copied, setCopied] = useState(false);
   const [editingItem, setEditingItem] = useState<wishlistItem | null>(null);
+  const [newItemImageUrl, setNewItemImageUrl] = useState<string | undefined>(
+    undefined,
+  ); // State for new item image
   const utils = api.useUtils();
 
   const addItem = api.wishlist.addItem.useMutation({
@@ -60,9 +64,9 @@ export const WishlistModal = ({
     const newItemPrice = (
       form.elements.namedItem("newItemPrice") as HTMLInputElement
     )?.value;
-    const newItemImageUrl = (
-      form.elements.namedItem("newItemImageUrl") as HTMLInputElement
-    )?.value;
+    // const newItemImageUrl = (
+    //   form.elements.namedItem("newItemImageUrl") as HTMLInputElement
+    // )?.value; // Now from state
     const newItemStoreUrl = (
       form.elements.namedItem("newItemStoreUrl") as HTMLInputElement
     )?.value;
@@ -79,12 +83,13 @@ export const WishlistModal = ({
       eventId: event.id,
       name: newItemName,
       price: newItemPrice ? Number(newItemPrice) : undefined,
-      imageUrl: newItemImageUrl || undefined,
+      imageUrl: newItemImageUrl ?? undefined, // Use state here
       storeUrl: newItemStoreUrl || undefined,
       storeName: newItemStoreName || undefined,
       cashContribution: newItemCashContribution,
     });
     form.reset();
+    setNewItemImageUrl(undefined); // Clear image state after adding
   };
 
   return (
@@ -139,12 +144,13 @@ export const WishlistModal = ({
                 placeholder="e.g., 50000"
               />
             </div>
-            <div>
-              <Label htmlFor="newItemImageUrl">Image URL</Label>
-              <Input
-                name="newItemImageUrl"
-                type="url"
-                placeholder="e.g., https://example.com/item.jpg"
+            <div className="sm:col-span-2">
+              <ImageUpload
+                bucket="wishlist-images"
+                fileName={`wishlist-item-new-${Date.now()}`} // Unique name for new item
+                onUploadComplete={(url) => setNewItemImageUrl(url)}
+                label="Item Image"
+                currentImage={newItemImageUrl} // Pass current image for preview
               />
             </div>
             <div>
@@ -281,16 +287,13 @@ const WishlistItemRow = ({
             placeholder="Price (₦)"
           />
         </div>
-        <div>
-          <Label htmlFor="editItemImageUrl" className="sr-only">
-            Image URL
-          </Label>
-          <Input
-            id="editItemImageUrl"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            type="url"
-            placeholder="Image URL"
+        <div className="sm:col-span-2">
+          <ImageUpload
+            currentImage={imageUrl}
+            bucket="wishlist-images"
+            fileName={`wishlist-item-${item.id}`} // Stable name for existing item
+            onUploadComplete={(url) => setImageUrl(url)}
+            label="Item Image"
           />
         </div>
         <div>

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 interface ImageUploadProps {
   currentImage?: string | null;
   onUploadComplete: (url: string) => void;
-  bucket: "profile-images" | "kyc-documents"; // You can add "avatars", "gigs" etc.
+  bucket: "profile-images" | "kyc-documents" | "wishlist-images" | "posts"; // You can add "avatars", "gigs" etc.
   accept?: string;
   maxSizeMB?: number;
   label?: string;

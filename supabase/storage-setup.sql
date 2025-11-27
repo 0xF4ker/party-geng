@@ -131,3 +131,43 @@ CREATE POLICY "Anyone can view post assets"
 ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'posts');
+
+-- ===== NEW: WISHLIST IMAGES BUCKET AND POLICIES =====
+
+-- 4. Create wishlist-images bucket (public)
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('wishlist-images', 'wishlist-images', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Allow users to upload their own wishlist images
+CREATE POLICY "Users can upload their own wishlist images"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'wishlist-images' AND
+  (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Allow users to update their own wishlist images
+CREATE POLICY "Users can update their own wishlist images"
+ON storage.objects FOR UPDATE
+TO authenticated
+USING (
+  bucket_id = 'wishlist-images' AND
+  (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Allow users to delete their own wishlist images
+CREATE POLICY "Users can delete their own wishlist images"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'wishlist-images' AND
+  (storage.foldername(name))[1] = auth.uid()::text
+);
+
+-- Allow anyone to view wishlist images (public bucket)
+CREATE POLICY "Anyone can view wishlist images"
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'wishlist-images');
