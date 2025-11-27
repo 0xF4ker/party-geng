@@ -2,12 +2,21 @@
 
 import React, { useState } from "react";
 import { api } from "@/trpc/react";
-import { Loader2, X, Check, Copy } from "lucide-react";
+import { Loader2, Check, Copy, Pencil, Trash2 } from "lucide-react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type event = routerOutput["event"]["getById"];
@@ -19,21 +28,18 @@ interface WishlistModalProps {
   onClose: () => void;
 }
 
-export const WishlistModal = ({ event, isOpen, onClose }: WishlistModalProps) => {
+export const WishlistModal = ({
+  event,
+  isOpen,
+  onClose,
+}: WishlistModalProps) => {
   const [copied, setCopied] = useState(false);
+  const [editingItem, setEditingItem] = useState<wishlistItem | null>(null);
   const utils = api.useUtils();
 
   const addItem = api.wishlist.addItem.useMutation({
     onSuccess: () => utils.event.getById.invalidate({ id: event.id }),
   });
-  const updateItem = api.wishlist.updateItem.useMutation({
-    onSuccess: () => utils.event.getById.invalidate({ id: event.id }),
-  });
-  const deleteItem = api.wishlist.deleteItem.useMutation({
-    onSuccess: () => utils.event.getById.invalidate({ id: event.id }),
-  });
-
-  const items = event.wishlist?.items ?? [];
 
   const copyLink = async () => {
     const textToCopy = `${window.location.origin}/wishlist/${event.id}`;
@@ -46,10 +52,6 @@ export const WishlistModal = ({ event, isOpen, onClose }: WishlistModalProps) =>
     }
   };
 
-  const handleToggleFulfilled = (item: wishlistItem) => {
-    updateItem.mutate({ itemId: item.id, isFulfilled: !item.isFulfilled });
-  };
-
   const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
@@ -58,126 +60,142 @@ export const WishlistModal = ({ event, isOpen, onClose }: WishlistModalProps) =>
     const newItemPrice = (
       form.elements.namedItem("newItemPrice") as HTMLInputElement
     )?.value;
-    if (!newItemName || !newItemPrice) return;
+    const newItemImageUrl = (
+      form.elements.namedItem("newItemImageUrl") as HTMLInputElement
+    )?.value;
+    const newItemStoreUrl = (
+      form.elements.namedItem("newItemStoreUrl") as HTMLInputElement
+    )?.value;
+    const newItemStoreName = (
+      form.elements.namedItem("newItemStoreName") as HTMLInputElement
+    )?.value;
+    const newItemCashContribution = (
+      form.elements.namedItem("newItemCashContribution") as HTMLInputElement
+    )?.checked;
+
+    if (!newItemName) return;
 
     addItem.mutate({
       eventId: event.id,
       name: newItemName,
-      price: Number(newItemPrice),
+      price: newItemPrice ? Number(newItemPrice) : undefined,
+      imageUrl: newItemImageUrl || undefined,
+      storeUrl: newItemStoreUrl || undefined,
+      storeName: newItemStoreName || undefined,
+      cashContribution: newItemCashContribution,
     });
     form.reset();
   };
 
-  const handleRemoveItem = (itemId: string) => {
-    deleteItem.mutate({ itemId });
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[625px]">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Event Wishlist</DialogTitle>
+          <DialogTitle>{event.title}&apos;s Wishlist</DialogTitle>
+          <DialogDescription>
+            Manage your event&apos;s wishlist. Add, edit, or remove items as you
+            wish.
+          </DialogDescription>
         </DialogHeader>
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 p-4">
-          <div>
-            <h3 className="text-xl font-semibold">Event Wishlist</h3>
-            <p className="text-sm text-gray-500">{event.title}</p>
-          </div>
-        </div>
 
-        <div className="shrink-0 border-b border-gray-200 p-4">
-          <label className="mb-2 block text-sm font-semibold text-gray-700">
-            Share Your Wishlist
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
+        <div className="mt-4 border-t pt-4">
+          <Label className="text-sm font-medium">Shareable Link</Label>
+          <div className="mt-2 flex gap-2">
+            <Input
               readOnly
               value={`${window.location.origin}/wishlist/${event.id}`}
-              className="w-full rounded-md border border-gray-300 bg-gray-50 p-2 text-sm"
+              className="bg-gray-100"
             />
-            <Button onClick={copyLink} disabled={copied}>
-                {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
-                {copied ? "Copied!" : "Copy Link"}
+            <Button onClick={copyLink} disabled={copied} variant="outline">
+              {copied ? (
+                <Check className="mr-2 h-4 w-4 text-green-500" />
+              ) : (
+                <Copy className="mr-2 h-4 w-4" />
+              )}
+              {copied ? "Copied!" : "Copy"}
             </Button>
           </div>
         </div>
 
-        <div className="overflow-y-auto p-4">
-          <h4 className="mb-3 font-semibold text-gray-800">Wishlist Items</h4>
-          <ul className="divide-y divide-gray-100">
-            {items.map((item) => (
-              <li key={item.id} className="flex items-start gap-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={item.isFulfilled}
-                  onChange={() => handleToggleFulfilled(item)}
-                  disabled={updateItem.isPending}
-                  className="mt-1 h-5 w-5 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
-                />
-                <div className="grow">
-                  <p className={cn("font-medium text-gray-800", item.isFulfilled && "text-gray-500 line-through")}>
-                    {item.name}
-                  </p>
-                  <p className={cn("text-sm", item.isFulfilled ? "text-gray-400" : "text-gray-500")}>
-                    Est. Price: ₦{item.price?.toLocaleString()}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  {item.isFulfilled ? (
-                    <span className="flex items-center gap-1.5 font-semibold text-green-600">
-                      <Check className="h-5 w-5" />
-                      Fulfilled!
-                    </span>
-                  ) : item.promises.length > 0 ? (
-                    <div>
-                      <p className="font-semibold text-blue-600">Promised</p>
-                      <p className="text-xs text-gray-500">
-                        by {item.promises.map((p) => p.guestName).join(", ")}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm font-semibold text-gray-400">
-                      Not yet promised
-                    </p>
-                  )}
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)} disabled={deleteItem.isPending}>
-                  {deleteItem.isPending && deleteItem.variables?.itemId === item.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <X className="h-4 w-4" />
-                  )}
-                </Button>
-              </li>
-            ))}
-            <li className="py-4">
-              <form
-                className="flex flex-col gap-2 sm:flex-row"
-                onSubmit={handleAddItem}
+        <div className="mt-4 border-t pt-4">
+          <h4 className="mb-2 font-semibold">Add New Item</h4>
+          <form
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2"
+            onSubmit={handleAddItem}
+          >
+            <div className="sm:col-span-2">
+              <Label htmlFor="newItem">Item Name</Label>
+              <Input
+                name="newItem"
+                placeholder="e.g., Custom Birthday Cake"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="newItemPrice">Estimated Price (₦)</Label>
+              <Input
+                name="newItemPrice"
+                type="number"
+                placeholder="e.g., 50000"
+              />
+            </div>
+            <div>
+              <Label htmlFor="newItemImageUrl">Image URL</Label>
+              <Input
+                name="newItemImageUrl"
+                type="url"
+                placeholder="e.g., https://example.com/item.jpg"
+              />
+            </div>
+            <div>
+              <Label htmlFor="newItemStoreUrl">Store URL</Label>
+              <Input
+                name="newItemStoreUrl"
+                type="url"
+                placeholder="e.g., https://amazon.com/item"
+              />
+            </div>
+            <div>
+              <Label htmlFor="newItemStoreName">Store Name</Label>
+              <Input name="newItemStoreName" placeholder="e.g., Amazon" />
+            </div>
+            <div className="flex items-center space-x-2 sm:col-span-2">
+              <Checkbox
+                id="newItemCashContribution"
+                name="newItemCashContribution"
+              />
+              <Label htmlFor="newItemCashContribution">
+                Allow cash contributions
+              </Label>
+            </div>
+            <div className="sm:col-span-2">
+              <Button
+                type="submit"
+                disabled={addItem.isPending}
+                className="w-full"
               >
-                <input
-                  type="text"
-                  name="newItem"
-                  placeholder="Add new item name"
-                  className="grow rounded-md border border-gray-300 p-2 text-sm"
-                  aria-label="New item name"
-                  required
-                />
-                <input
-                  type="number"
-                  name="newItemPrice"
-                  placeholder="Price (₦)"
-                  className="w-full rounded-md border border-gray-300 p-2 text-sm sm:w-32"
-                  aria-label="New item price"
-                  required
-                />
-                <Button type="submit" disabled={addItem.isPending}>
-                  {addItem.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Add Item
-                </Button>
-              </form>
-            </li>
+                {addItem.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Add Item
+              </Button>
+            </div>
+          </form>
+        </div>
+
+        <div className="mt-4 h-[300px] overflow-y-auto border-t pt-4 pr-2">
+          <h4 className="mb-2 font-semibold">Wishlist Items</h4>
+          <ul className="space-y-2">
+            {event.wishlist?.items.map((item) => (
+              <WishlistItemRow
+                key={item.id}
+                item={item}
+                onEdit={() => setEditingItem(item)}
+                isEditing={editingItem?.id === item.id}
+                onCancelEdit={() => setEditingItem(null)}
+                eventId={event.id}
+              />
+            ))}
           </ul>
         </div>
       </DialogContent>
@@ -185,3 +203,204 @@ export const WishlistModal = ({ event, isOpen, onClose }: WishlistModalProps) =>
   );
 };
 
+// --- Sub-component for each wishlist item row ---
+const WishlistItemRow = ({
+  item,
+  onEdit,
+  isEditing,
+  onCancelEdit,
+  eventId,
+}: {
+  item: wishlistItem;
+  onEdit: () => void;
+  isEditing: boolean;
+  onCancelEdit: () => void;
+  eventId: string;
+}) => {
+  const utils = api.useUtils();
+  const [name, setName] = useState(item.name);
+  const [price, setPrice] = useState(item.price ?? "");
+  const [imageUrl, setImageUrl] = useState(item.imageUrl ?? "");
+  const [storeUrl, setStoreUrl] = useState(item.storeUrl ?? "");
+  const [storeName, setStoreName] = useState(item.storeName ?? "");
+  const [cashContribution, setCashContribution] = useState(
+    item.cashContribution ?? false,
+  );
+
+  const updateItem = api.wishlist.updateItem.useMutation({
+    onSuccess: () => {
+      void utils.event.getById.invalidate({ id: eventId });
+      onCancelEdit();
+    },
+  });
+
+  const deleteItem = api.wishlist.deleteItem.useMutation({
+    onSuccess: () => utils.event.getById.invalidate({ id: eventId }),
+  });
+
+  const handleUpdate = () => {
+    if (!name.trim()) return;
+    updateItem.mutate({
+      itemId: item.id,
+      name: name,
+      price: price ? Number(price) : undefined,
+      imageUrl: imageUrl || undefined,
+      storeUrl: storeUrl || undefined,
+      storeName: storeName || undefined,
+      cashContribution: cashContribution,
+    });
+  };
+
+  const handleToggleFulfilled = () => {
+    updateItem.mutate({ itemId: item.id, isFulfilled: !item.isFulfilled });
+  };
+
+  if (isEditing) {
+    return (
+      <li className="grid grid-cols-1 gap-2 rounded-lg bg-gray-50 p-2 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <Label htmlFor="editItemName" className="sr-only">
+            Item Name
+          </Label>
+          <Input
+            id="editItemName"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="flex-grow"
+          />
+        </div>
+        <div>
+          <Label htmlFor="editItemPrice" className="sr-only">
+            Estimated Price
+          </Label>
+          <Input
+            id="editItemPrice"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            type="number"
+            placeholder="Price (₦)"
+          />
+        </div>
+        <div>
+          <Label htmlFor="editItemImageUrl" className="sr-only">
+            Image URL
+          </Label>
+          <Input
+            id="editItemImageUrl"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            type="url"
+            placeholder="Image URL"
+          />
+        </div>
+        <div>
+          <Label htmlFor="editItemStoreUrl" className="sr-only">
+            Store URL
+          </Label>
+          <Input
+            id="editItemStoreUrl"
+            value={storeUrl}
+            onChange={(e) => setStoreUrl(e.target.value)}
+            type="url"
+            placeholder="Store URL"
+          />
+        </div>
+        <div>
+          <Label htmlFor="editItemStoreName" className="sr-only">
+            Store Name
+          </Label>
+          <Input
+            id="editItemStoreName"
+            value={storeName}
+            onChange={(e) => setStoreName(e.target.value)}
+            placeholder="Store Name"
+          />
+        </div>
+        <div className="flex items-center space-x-2 sm:col-span-2">
+          <Checkbox
+            id="editItemCashContribution"
+            checked={cashContribution}
+            onCheckedChange={(checked) =>
+              setCashContribution(checked as boolean)
+            }
+          />
+          <Label htmlFor="editItemCashContribution">
+            Allow cash contributions
+          </Label>
+        </div>
+        <div className="mt-2 flex justify-end gap-2 sm:col-span-2">
+          <Button
+            onClick={handleUpdate}
+            size="sm"
+            disabled={updateItem.isPending}
+          >
+            {updateItem.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Save"
+            )}
+          </Button>
+          <Button onClick={onCancelEdit} size="sm" variant="ghost">
+            Cancel
+          </Button>
+        </div>
+      </li>
+    );
+  }
+
+  return (
+    <li className="flex items-center gap-2 rounded-lg p-2 transition-colors hover:bg-gray-50">
+      <input
+        type="checkbox"
+        checked={item.isFulfilled}
+        onChange={handleToggleFulfilled}
+        disabled={updateItem.isPending}
+        className="h-5 w-5 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+      />
+      <div className="flex-grow">
+        <p
+          className={cn(
+            "font-medium",
+            item.isFulfilled && "text-gray-400 line-through",
+          )}
+        >
+          {item.name}
+        </p>
+        <p className="text-sm text-gray-500">
+          {item.price ? `Est. ₦${item.price.toLocaleString()}` : "No price set"}
+        </p>
+      </div>
+      <div className="text-right">
+        {item.isFulfilled ? (
+          <span className="text-sm font-semibold text-green-600">
+            Fulfilled
+          </span>
+        ) : item.contributions.length > 0 ? (
+          <span className="text-sm font-semibold text-blue-600">
+            Contributed by {item.contributions.length}{" "}
+            {item.contributions.length > 1 ? "people" : "person"}
+          </span>
+        ) : (
+          <span className="text-sm text-gray-400">Not contributed</span>
+        )}
+      </div>
+      <div className="flex">
+        <Button variant="ghost" size="icon" onClick={onEdit}>
+          <Pencil className="h-4 w-4 text-gray-500" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => deleteItem.mutate({ itemId: item.id })}
+          disabled={deleteItem.isPending}
+        >
+          {deleteItem.isPending && deleteItem.variables?.itemId === item.id ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Trash2 className="h-4 w-4 text-red-500" />
+          )}
+        </Button>
+      </div>
+    </li>
+  );
+};

@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { api } from "@/trpc/react";
-import { Loader2, X, Search, ShieldCheck } from "lucide-react";
+import { Loader2, Search, ShieldCheck } from "lucide-react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { Button } from "@/components/ui/button";

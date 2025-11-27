@@ -12,11 +12,11 @@ type Wishlist = EventDetails["wishlist"];
 
 interface WishlistCardProps {
   wishlist: Wishlist;
-  eventId: string;
+  _eventId: string;
   onManage: () => void;
 }
 
-export const WishlistCard = ({ wishlist, eventId, onManage }: WishlistCardProps) => {
+export const WishlistCard = ({ wishlist, _eventId, onManage }: WishlistCardProps) => {
   const totalItems = wishlist?.items.length ?? 0;
   const fulfilledItems =
     wishlist?.items.filter((item) => item.isFulfilled).length ?? 0;

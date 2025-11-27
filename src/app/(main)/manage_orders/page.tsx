@@ -42,6 +42,12 @@ const OrdersPage = () => {
   // Conditionally set the initial active tab
   const [activeTab, setActiveTab] = useState(isVendor ? "newLeads" : "pending");
 
+  const { data: cart } = api.cart.get.useQuery();
+
+  useEffect(() => {
+    console.log("Current cart data:", cart);
+  }, [cart]);
+
   // Fetch quotes (for new leads)
   const { data: quotes, isLoading: quotesLoading } =
     api.order.getMyQuotes.useQuery();
@@ -399,9 +405,7 @@ const QuoteCard = ({
               text={isVendor ? "Send Quote" : "View Quote"}
               icon={FileText}
               primary
-              onClick={() =>
-                router.push(`/inbox?conversation=${quote.conversationId}`)
-              }
+              onClick={() => router.push(`/quote/${quote.id}`)}
             />
           </div>
         </div>

@@ -14,13 +14,13 @@ type HiredVendor = EventDetails["hiredVendors"][number];
 
 interface BookedVendorsCardProps {
   vendors: HiredVendor[];
-  eventId: string;
+  _eventId: string;
   onAdd: () => void;
 }
 
 export const BookedVendorsCard = ({
   vendors,
-  eventId,
+  _eventId,
   onAdd,
 }: BookedVendorsCardProps) => {
   return (

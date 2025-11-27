@@ -31,7 +31,7 @@ export const eventRouter = createTRPCRouter({
           include: {
             items: {
               include: {
-                promises: true,
+                contributions: true,
               },
             },
           },
@@ -68,7 +68,7 @@ export const eventRouter = createTRPCRouter({
             include: {
               items: {
                 include: {
-                  promises: true,
+                  contributions: true,
                 },
               },
             },
@@ -366,57 +366,60 @@ export const eventRouter = createTRPCRouter({
           message: "You do not have permission to edit this event",
         });
       }
-            return ctx.db.eventBudgetItem.update({ where: { id: itemId }, data });
-          }),
-      
-          addBudgetItem: protectedProcedure
-          .input(
-            z.object({
-              budgetId: z.string(),
-              description: z.string(),
-              estimatedCost: z.number(),
-            }),
-          )
-          .mutation(async ({ ctx, input }) => {
-              const budget = await ctx.db.eventBudget.findUnique({
-                  where: { id: input.budgetId },
-                  include: { event: { include: { client: true } } },
-              });
-              if (!budget || budget.event.client.userId !== ctx.user.id) {
-                  throw new TRPCError({
-                      code: "FORBIDDEN",
-                      message: "You do not have permission to add to this budget",
-                  });
-              }
-              return ctx.db.eventBudgetItem.create({
-                  data: {
-                      budgetId: input.budgetId,
-                      description: input.description,
-                      estimatedCost: input.estimatedCost,
-                  },
-              });
-          }),
-      
-          deleteBudgetItem: protectedProcedure
-          .input(z.object({ itemId: z.string() }))
-          .mutation(async ({ ctx, input }) => {
-              const item = await ctx.db.eventBudgetItem.findUnique({
-                  where: { id: input.itemId },
-                  include: { budget: { include: { event: { include: { client: true } } } } },
-              });
-              if (!item || item.budget.event.client.userId !== ctx.user.id) {
-                  throw new TRPCError({
-                      code: "FORBIDDEN",
-                      message: "You do not have permission to delete this item",
-                  });
-              }
-              await ctx.db.eventBudgetItem.delete({ where: { id: input.itemId } });
-              return { success: true };
-          }),
-        
-        addGuest: protectedProcedure
-          .input(
-            z.object({        guestListId: z.string(),
+      return ctx.db.eventBudgetItem.update({ where: { id: itemId }, data });
+    }),
+
+  addBudgetItem: protectedProcedure
+    .input(
+      z.object({
+        budgetId: z.string(),
+        description: z.string(),
+        estimatedCost: z.number(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const budget = await ctx.db.eventBudget.findUnique({
+        where: { id: input.budgetId },
+        include: { event: { include: { client: true } } },
+      });
+      if (!budget || budget.event.client.userId !== ctx.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to add to this budget",
+        });
+      }
+      return ctx.db.eventBudgetItem.create({
+        data: {
+          budgetId: input.budgetId,
+          description: input.description,
+          estimatedCost: input.estimatedCost,
+        },
+      });
+    }),
+
+  deleteBudgetItem: protectedProcedure
+    .input(z.object({ itemId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const item = await ctx.db.eventBudgetItem.findUnique({
+        where: { id: input.itemId },
+        include: {
+          budget: { include: { event: { include: { client: true } } } },
+        },
+      });
+      if (!item || item.budget.event.client.userId !== ctx.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to delete this item",
+        });
+      }
+      await ctx.db.eventBudgetItem.delete({ where: { id: input.itemId } });
+      return { success: true };
+    }),
+
+  addGuest: protectedProcedure
+    .input(
+      z.object({
+        guestListId: z.string(),
         name: z.string(),
         email: z.string().optional(),
         status: z.string(),

@@ -12,13 +12,13 @@ type GuestLists = EventDetails["guestLists"];
 
 interface GuestListCardProps {
   guestLists: GuestLists;
-  eventId: string;
+  _eventId: string;
   onManage: () => void;
 }
 
 export const GuestListCard = ({
   guestLists,
-  eventId,
+  _eventId,
   onManage,
 }: GuestListCardProps) => {
   const totalGuests =

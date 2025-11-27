@@ -2,12 +2,10 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
-import { FileText, Clock, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
-import { api } from "@/trpc/react";
+import { FileText, Clock, AlertCircle, RefreshCw } from "lucide-react";
 import type { MessageWithStatus } from "@/hooks/useChatRealtime";
 import { normalizeDate } from "@/lib/dateUtils";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
@@ -100,45 +98,15 @@ export const TextMessageBubble = ({
 export const QuoteMessageBubble = ({
   message,
   isMe,
-  onUpdate,
+  _onUpdate,
 }: {
   message: message;
   isMe: boolean;
-  onUpdate: () => void;
+  _onUpdate: () => void;
 }) => {
   const router = useRouter();
   const quote = message.quote;
   if (!quote) return null;
-
-  const updateStatus = api.quote.updateStatus.useMutation({
-    onSuccess: onUpdate,
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const payForQuote = api.payment.payForQuote.useMutation({
-    onSuccess: (data) => {
-      if (data.success) {
-        toast.success("Payment successful! Order created.");
-        onUpdate();
-      } else {
-        if (data.reason === "INSUFFICIENT_FUNDS") {
-          toast.error("Insufficient funds. Redirecting to add funds.");
-          router.push(
-            `/earnings?modal=addFunds&amount=${data.requiredAmount}&quoteId=${quote.id}`,
-          );
-        } else {
-          toast.error("Failed to pay for quote. Please try again.");
-        }
-      }
-    },
-    onError: (error) => {
-      toast.error(
-        error.message ?? "An unexpected error occurred. Please try again.",
-      );
-    },
-  });
 
   const getStatusStyles = (status: string) => {
     switch (status) {
@@ -150,8 +118,6 @@ export const QuoteMessageBubble = ({
         return "border-gray-200 bg-white";
     }
   };
-
-  const isActionPending = updateStatus.isPending || payForQuote.isPending;
 
   return (
     <div className={cn("flex w-full", isMe ? "justify-end" : "justify-start")}>
@@ -181,55 +147,28 @@ export const QuoteMessageBubble = ({
             <span className="font-bold">₦{quote.price.toLocaleString()}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Date:</span>
-            <span>{new Date(quote.eventDate).toLocaleDateString()}</span>
-          </div>
-
-          {/* Actions for Client */}
-          {!isMe && quote.status === "PENDING" && (
-            <div className="flex gap-2 pt-3">
-              <button
-                onClick={() =>
-                  updateStatus.mutate({ id: quote.id, status: "REJECTED" })
-                }
-                disabled={isActionPending}
-                className="flex-1 rounded-lg bg-gray-100 py-2 text-xs font-semibold hover:bg-gray-200 disabled:opacity-50"
-              >
-                {updateStatus.isPending ? (
-                  <Loader2 className="mx-auto h-3 w-3 animate-spin" />
-                ) : (
-                  "Decline"
-                )}
-              </button>
-              <button
-                onClick={() => payForQuote.mutate({ quoteId: quote.id })}
-                disabled={isActionPending}
-                className="flex-1 rounded-lg bg-pink-600 py-2 text-xs font-semibold text-white hover:bg-pink-700 disabled:opacity-50"
-              >
-                {payForQuote.isPending ? (
-                  <Loader2 className="mx-auto h-3 w-3 animate-spin" />
-                ) : (
-                  "Accept & Pay"
-                )}
-              </button>
-            </div>
-          )}
-
-          {/* Status Badge */}
-          {quote.status !== "PENDING" && (
-            <div className="pt-2 text-center">
-              <span
-                className={cn(
-                  "rounded-full px-2 py-1 text-xs font-bold",
-                  quote.status === "ACCEPTED"
+            <span className="text-gray-500">Status:</span>
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-xs font-bold",
+                quote.status === "PENDING"
+                  ? "bg-yellow-100 text-yellow-800"
+                  : quote.status === "ACCEPTED"
                     ? "bg-green-100 text-green-700"
                     : "bg-red-100 text-red-700",
-                )}
-              >
-                {quote.status === "ACCEPTED" ? "Paid" : quote.status}
-              </span>
-            </div>
-          )}
+              )}
+            >
+              {quote.status}
+            </span>
+          </div>
+          <div className="pt-3">
+            <button
+              onClick={() => router.push(`/quote/${quote.id}`)}
+              className="w-full rounded-lg bg-gray-100 py-2 text-xs font-semibold hover:bg-gray-200 disabled:opacity-50"
+            >
+              View Details
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -3,14 +3,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { api } from "@/trpc/react";
 import { Loader2, Send, X } from "lucide-react";
-import type { inferRouterOutputs } from "@trpc/server";
-import type { AppRouter } from "@/server/api/root";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatRealtime } from "@/hooks/useChatRealtime";
 import { TextMessageBubble } from "../chat/MessageBubbles";
-
-type RouterOutput = inferRouterOutputs<AppRouter>;
-type Conversation = RouterOutput["chat"]["getConversations"][number];
 
 interface EventChatModalProps {
   conversationId: string;
@@ -31,18 +26,21 @@ export const EventChatModal = ({
   });
 
   // Realtime updates
-  const { messages, addOptimisticMessage, removeOptimisticMessage, updateOptimisticStatus } =
-    useChatRealtime(conversationId, messagesData?.messages ?? []);
+  const {
+    messages,
+    addOptimisticMessage,
+    removeOptimisticMessage,
+    updateOptimisticStatus,
+  } = useChatRealtime(conversationId, messagesData?.messages ?? []);
 
   // Send message mutation
   const sendMessage = api.chat.sendMessage.useMutation({
     onSuccess: (sentMessage) => {
-        if(sentMessage)
-            removeOptimisticMessage(sentMessage.id);
+      if (sentMessage) removeOptimisticMessage(sentMessage.id);
     },
     onError: (error, variables) => {
-        if(variables.optimisticId)
-            updateOptimisticStatus(variables.optimisticId, "error");
+      if (variables.optimisticId)
+        updateOptimisticStatus(variables.optimisticId, "error");
     },
   });
 
@@ -51,37 +49,36 @@ export const EventChatModal = ({
   const handleSend = () => {
     if (!text.trim() || !user) return;
     const optimisticId = `temp-${Date.now()}`;
-    
+
     addOptimisticMessage({
-        id: optimisticId,
-        tempId: optimisticId,
-        text,
-        senderId: user.id,
-        conversationId,
-        createdAt: new Date(),
-        status: "sending",
-        quote: null,
-        sender: {
-            id: user.id,
-            username: user.username,
-            clientProfile: null,
-            vendorProfile: null,
-        }
-    })
+      id: optimisticId,
+      tempId: optimisticId,
+      text,
+      senderId: user.id,
+      conversationId,
+      createdAt: new Date(),
+      status: "sending",
+      quote: null,
+      sender: {
+        id: user.id,
+        username: user.username,
+        clientProfile: null,
+        vendorProfile: null,
+      },
+    });
 
     sendMessage.mutate({ conversationId, text, optimisticId });
     setText("");
   };
-  
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
 
-
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex h-[500px] w-96 flex-col rounded-lg bg-white shadow-2xl">
+    <div className="fixed right-6 bottom-6 z-50 flex h-[500px] w-96 flex-col rounded-lg bg-white shadow-2xl">
       <div className="flex items-center justify-between rounded-t-lg border-b bg-gray-50 p-3">
         <h3 className="font-bold text-gray-800">Event Chat</h3>
         <button
@@ -99,17 +96,16 @@ export const EventChatModal = ({
           </div>
         ) : (
           <div className="space-y-4">
-             {messages.map((msg) => (
-                <TextMessageBubble
-                    key={msg.id}
-                    message={msg}
-                    isMe={msg.senderId === user?.id}
-                    onRetry={() => {
-                        if(msg.tempId)
-                            handleSend()
-                    }}
-                />
-             ))}
+            {messages.map((msg) => (
+              <TextMessageBubble
+                key={msg.id}
+                message={msg}
+                isMe={msg.senderId === user?.id}
+                onRetry={() => {
+                  if (msg.tempId) handleSend();
+                }}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -141,4 +137,3 @@ export const EventChatModal = ({
     </div>
   );
 };
-

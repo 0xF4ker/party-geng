@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/accordion";
 import { Accessibility, Globe } from "lucide-react";
 import Image from "next/image";
+import ClientOnly from "@/components/ui/ClientOnly";
 
 const footerSections = [
   {
@@ -91,29 +92,31 @@ const Footer = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Mobile and Tablet Accordion View */}
         <div className="py-8 lg:hidden">
-          <Accordion type="single" collapsible className="w-full">
-            {footerSections.map((section) => (
-              <AccordionItem value={section.title} key={section.title}>
-                <AccordionTrigger className="text-lg font-bold">
-                  {section.title}
-                </AccordionTrigger>
-                <AccordionContent>
-                  <ul className="space-y-4 pt-2">
-                    {section.links.map((link) => (
-                      <li key={link.href}>
-                        <Link
-                          href={link.href}
-                          className="hover:text-primary transition-colors"
-                        >
-                          {link.label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          <ClientOnly>
+            <Accordion type="single" collapsible className="w-full">
+              {footerSections.map((section) => (
+                <AccordionItem value={section.title} key={section.title}>
+                  <AccordionTrigger className="text-lg font-bold">
+                    {section.title}
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <ul className="space-y-4 pt-2">
+                      {section.links.map((link) => (
+                        <li key={link.href}>
+                          <Link
+                            href={link.href}
+                            className="hover:text-primary transition-colors"
+                          >
+                            {link.label}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </ClientOnly>
         </div>
 
         {/* Desktop Grid View */}

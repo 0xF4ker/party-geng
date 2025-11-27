@@ -12,7 +12,9 @@ import { wishlistRouter } from "@/server/api/routers/wishlist";
 import { notificationRouter } from "@/server/api/routers/notification";
 import { postRouter } from "@/server/api/routers/post";
 import { reviewRouter } from "@/server/api/routers/review";
+import { cartRouter } from "@/server/api/routers/cart";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
+import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
 
 /**
  * This is the primary router for your server.
@@ -34,10 +36,26 @@ export const appRouter = createTRPCRouter({
   notification: notificationRouter,
   post: postRouter,
   review: reviewRouter,
+  cart: cartRouter,
 });
 
 // export type definition of API
 export type AppRouter = typeof appRouter;
+
+/**
+ * Inference helper for inputs.
+ *
+ * @example type HelloInput = RouterInputs['example']['hello']
+ */
+export type RouterInputs = inferRouterInputs<AppRouter>;
+
+/**
+ * Inference helper for outputs.
+ *
+ * @example type HelloOutput = RouterOutputs['example']['hello']
+ */
+export type RouterOutputs = inferRouterOutputs<AppRouter>;
+
 
 /**
  * Create a server-side caller for the tRPC API.

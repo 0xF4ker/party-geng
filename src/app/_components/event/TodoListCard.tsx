@@ -4,7 +4,7 @@ import React from "react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { Button } from "@/components/ui/button";
-import { CheckSquare, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 type RouterOutput = inferRouterOutputs<AppRouter>;

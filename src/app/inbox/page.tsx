@@ -277,7 +277,7 @@ const InboxPageContent = () => {
                             <QuoteMessageBubble
                               message={msg}
                               isMe={msg.senderId === user.id}
-                              onUpdate={() => refetchMessages()}
+                              _onUpdate={() => refetchMessages()}
                             />
                           ) : (
                             <TextMessageBubble

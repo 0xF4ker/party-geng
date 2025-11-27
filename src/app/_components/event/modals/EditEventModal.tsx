@@ -2,7 +2,7 @@
 
 import React from "react";
 import { api } from "@/trpc/react";
-import { Loader2, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { Button } from "@/components/ui/button";

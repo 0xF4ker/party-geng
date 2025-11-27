@@ -4,12 +4,6 @@ import React, { useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/trpc/react";
 import { Loader2 } from "lucide-react";
-import type { inferRouterOutputs } from "@trpc/server";
-import type { AppRouter } from "@/server/api/root";
-
-// Define types
-type RouterOutput = inferRouterOutputs<AppRouter>;
-type EventDetails = RouterOutput["event"]["getById"];
 
 import { EventHeader } from "@/app/_components/event/EventHeader";
 import { WishlistCard } from "@/app/_components/event/WishlistCard";
@@ -31,16 +25,19 @@ const EventDetailPage = () => {
   const [isGuestListModalOpen, setIsGuestListModalOpen] = useState(false);
   const [isAddVendorModalOpen, setIsAddVendorModalOpen] = useState(false);
 
-  const { data: event, isLoading: isEventLoading } = api.event.getById.useQuery({
-    id: eventId,
-  });
-
-  const { data: orders, isLoading: isOrdersLoading } = api.order.getMyOrders.useQuery(
-    { status: "ACTIVE" },
+  const { data: event, isLoading: isEventLoading } = api.event.getById.useQuery(
     {
-      enabled: !!event,
+      id: eventId,
     },
   );
+
+  const { data: orders, isLoading: isOrdersLoading } =
+    api.order.getMyOrders.useQuery(
+      { status: "ACTIVE" },
+      {
+        enabled: !!event,
+      },
+    );
 
   const activeVendors =
     orders?.map((order) => ({
@@ -55,7 +52,6 @@ const EventDetailPage = () => {
         "https://placehold.co/40x40/ec4899/ffffff?text=V",
       isAdded: false, // This will be set within the modal
     })) ?? [];
-
 
   if (isEventLoading || isOrdersLoading) {
     return (
@@ -85,28 +81,28 @@ const EventDetailPage = () => {
           <div className="flex flex-col gap-8 lg:col-span-1">
             <BookedVendorsCard
               vendors={event.hiredVendors}
-              eventId={event.id}
+              _eventId={event.id}
               onAdd={() => setIsAddVendorModalOpen(true)}
             />
             <WishlistCard
               wishlist={event.wishlist}
-              eventId={event.id}
+              _eventId={event.id}
               onManage={() => setIsWishlistModalOpen(true)}
             />
             <BudgetManagerCard
               budget={event.budget}
-              eventId={event.id}
+              _eventId={event.id}
               onManage={() => setIsBudgetModalOpen(true)}
             />
             <GuestListCard
               guestLists={event.guestLists}
-              eventId={event.id}
+              _eventId={event.id}
               onManage={() => setIsGuestListModalOpen(true)}
             />
           </div>
         </div>
       </div>
-      
+
       <EditEventModal
         event={event}
         isOpen={isEditModalOpen}

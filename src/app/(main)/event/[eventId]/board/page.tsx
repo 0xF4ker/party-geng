@@ -1,6 +1,5 @@
 "use client";
 
-import { createId } from "@paralleldrive/cuid2";
 import {
   MoreHorizontalIcon,
   PenIcon,
@@ -13,11 +12,9 @@ import { flushSync } from "react-dom";
 
 import { useJsLoaded } from "@/hooks/use-js-loaded";
 import type {
-  KanbanBoardCircleColor,
   KanbanBoardDropDirection,
 } from "@/components/kanban";
 import {
-  KANBAN_BOARD_CIRCLE_COLORS,
   KanbanBoard,
   KanbanBoardCard,
   KanbanBoardCardButton,
@@ -37,7 +34,6 @@ import {
   KanbanBoardColumnTitle,
   KanbanBoardExtraMargin,
   KanbanBoardProvider,
-  KanbanColorCircle,
   useDndEvents,
 } from "@/components/kanban";
 import { Button } from "@/components/ui/button";
@@ -57,11 +53,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useUiStore } from "@/stores/ui";
-import { api } from "@/trpc/react";
+import { createTRPCReact } from "@trpc/react-query";
 import { useParams } from "next/navigation";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { Loader2 } from "lucide-react";
+
+const api = createTRPCReact<AppRouter>();
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type EventDetails = RouterOutput["event"]["getById"];
@@ -112,22 +110,22 @@ function MyKanbanBoard({ event }: { event: EventDetails }) {
   }, [event.todos]);
 
   const addColumnMutation = api.event.addEmptyTodoList.useMutation({
-    onSuccess: () => utils.event.getById.invalidate({ id: eventId }),
+    onSuccess: () => void utils.event.getById.invalidate({ id: eventId }),
   });
   const updateColumnMutation = api.event.updateTodoItem.useMutation({
-    onSuccess: () => utils.event.getById.invalidate({ id: eventId }),
+    onSuccess: () => void utils.event.getById.invalidate({ id: eventId }),
   });
   const addTodoItemMutation = api.event.addTodoItem.useMutation({
-    onSuccess: () => utils.event.getById.invalidate({ id: eventId }),
+    onSuccess: () => void utils.event.getById.invalidate({ id: eventId }),
   });
   const deleteColumnMutation = api.event.deleteTodoList.useMutation({
-    onSuccess: () => utils.event.getById.invalidate({ id: eventId }),
+    onSuccess: () => void utils.event.getById.invalidate({ id: eventId }),
   });
   const updateColumnTitleMutation = api.event.updateTodoList.useMutation({
-    onSuccess: () => utils.event.getById.invalidate({ id: eventId }),
+    onSuccess: () => void utils.event.getById.invalidate({ id: eventId }),
   });
   const deleteTodoItemMutation = api.event.deleteTodoItem.useMutation({
-    onSuccess: () => utils.event.getById.invalidate({ id: eventId }),
+    onSuccess: () => void utils.event.getById.invalidate({ id: eventId }),
   });
 
   const scrollContainerReference = useRef<HTMLDivElement>(null);

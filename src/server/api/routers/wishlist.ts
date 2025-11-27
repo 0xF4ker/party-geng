@@ -5,6 +5,7 @@ import {
 } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { ContributionType } from "@prisma/client";
 
 export const wishlistRouter = createTRPCRouter({
   // Get wishlist by event ID (public - for guests)
@@ -15,19 +16,19 @@ export const wishlistRouter = createTRPCRouter({
         where: { id: input.eventId },
         include: {
           client: {
-            select: {
-              name: true,
-              avatarUrl: true,
-            },
             include: {
-              user: true,
+              user: {
+                select: {
+                  username: true,
+                },
+              },
             },
           },
           wishlist: {
             include: {
               items: {
                 include: {
-                  promises: {
+                  contributions: {
                     include: {
                       guestUser: {
                         include: {
@@ -71,6 +72,10 @@ export const wishlistRouter = createTRPCRouter({
         eventId: z.string(),
         name: z.string(),
         price: z.number().optional(),
+        imageUrl: z.string().optional(),
+        storeUrl: z.string().optional(),
+        storeName: z.string().optional(),
+        cashContribution: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -89,16 +94,20 @@ export const wishlistRouter = createTRPCRouter({
       // Create wishlist if it doesn't exist
       let wishlist = event.wishlist;
       wishlist ??= await ctx.db.wishlist.create({
-          data: {
-            clientEventId: input.eventId,
-          },
-        });
+        data: {
+          clientEventId: input.eventId,
+        },
+      });
 
       return ctx.db.wishlistItem.create({
         data: {
           wishlistId: wishlist.id,
           name: input.name,
           price: input.price,
+          imageUrl: input.imageUrl,
+          storeUrl: input.storeUrl,
+          storeName: input.storeName,
+          cashContribution: input.cashContribution,
         },
       });
     }),
@@ -111,6 +120,10 @@ export const wishlistRouter = createTRPCRouter({
         name: z.string().optional(),
         price: z.number().optional(),
         isFulfilled: z.boolean().optional(),
+        imageUrl: z.string().optional(),
+        storeUrl: z.string().optional(),
+        storeName: z.string().optional(),
+        cashContribution: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -142,6 +155,10 @@ export const wishlistRouter = createTRPCRouter({
           name: input.name,
           price: input.price,
           isFulfilled: input.isFulfilled,
+          imageUrl: input.imageUrl,
+          storeUrl: input.storeUrl,
+          storeName: input.storeName,
+          cashContribution: input.cashContribution,
         },
       });
     }),
@@ -179,19 +196,21 @@ export const wishlistRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  // Promise item (by guest or logged-in user)
-  promiseItem: protectedProcedure
+  // Contribute to item (replaces promiseItem)
+  contributeToItem: publicProcedure // public for guests
     .input(
       z.object({
         itemId: z.string(),
         guestName: z.string(),
+        type: z.nativeEnum(ContributionType),
+        amount: z.number().optional(), // For cash contributions
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const item = await ctx.db.wishlistItem.findUnique({
         where: { id: input.itemId },
         include: {
-          promises: true,
+          contributions: true,
         },
       });
 
@@ -202,44 +221,68 @@ export const wishlistRouter = createTRPCRouter({
         });
       }
 
-      // Check if user already promised this item
-      const existingPromise = item.promises.find(
-        (p) => p.guestUserId === ctx.user.id,
-      );
-
-      if (existingPromise) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "You have already promised this item",
-        });
+      // Check if user already promised this item (if it's a promise)
+      if (input.type === ContributionType.PROMISE && ctx.user) {
+        if (
+          item.contributions.some(
+            (c) => c.guestUserId === ctx.user?.id && c.type === ContributionType.PROMISE,
+          )
+        ) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "You have already promised this item",
+          });
+        }
       }
 
-      return ctx.db.wishlistPromise.create({
+      return ctx.db.wishlistContribution.create({
         data: {
           wishlistItemId: input.itemId,
-          guestUserId: ctx.user.id,
+          guestUserId: ctx.user?.id, // Can be null for anonymous guests
           guestName: input.guestName,
+          type: input.type,
+          amount: input.amount,
         },
       });
     }),
 
-  // Remove promise
-  removePromise: protectedProcedure
-    .input(z.object({ promiseId: z.string() }))
+  // Remove contribution (replaces removePromise)
+  removeContribution: protectedProcedure
+    .input(z.object({ contributionId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const promise = await ctx.db.wishlistPromise.findUnique({
-        where: { id: input.promiseId },
+      const contribution = await ctx.db.wishlistContribution.findUnique({
+        where: { id: input.contributionId },
+        include: {
+          item: {
+            include: {
+              wishlist: {
+                include: {
+                  event: {
+                    include: {
+                      client: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
-      if (!promise || promise.guestUserId !== ctx.user.id) {
+      // Only owner of wishlist or guest who made contribution can remove
+      if (
+        !contribution ||
+        (contribution.guestUserId !== ctx.user.id &&
+          contribution.item.wishlist.event.client.userId !== ctx.user.id)
+      ) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "You do not have permission to remove this promise",
+          message: "You do not have permission to remove this contribution",
         });
       }
 
-      await ctx.db.wishlistPromise.delete({
-        where: { id: input.promiseId },
+      await ctx.db.wishlistContribution.delete({
+        where: { id: input.contributionId },
       });
 
       return { success: true };

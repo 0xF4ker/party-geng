@@ -5,7 +5,6 @@ import { usePathname, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, X } from "lucide-react";
 import { api } from "@/trpc/react";
-import { cn } from "@/lib/utils";
 import { EventChatModal } from "./EventChatModal";
 
 export const EventChatButton = () => {
@@ -22,7 +21,7 @@ export const EventChatButton = () => {
     { enabled: !!eventId && isEventBoardPage },
   );
 
-  if (!isEventBoardPage || !event || !event.conversation) {
+  if (!isEventBoardPage || !event?.conversation) {
     return null;
   }
 
@@ -30,9 +29,7 @@ export const EventChatButton = () => {
     <>
       <Button
         onClick={() => setIsChatOpen(!isChatOpen)}
-        className={cn(
-          "fixed bottom-8 right-6 z-50 h-16 w-16 rounded-full shadow-lg",
-        )}
+        className="fixed right-6 bottom-8 z-50 h-16 w-16 rounded-full shadow-lg"
       >
         {isChatOpen ? <X /> : <MessageCircle className="h-8 w-8" />}
       </Button>

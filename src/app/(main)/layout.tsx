@@ -13,7 +13,7 @@ export default function MainLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
   const isProfilePage =
-    pathname.startsWith("/c/") || pathname.startsWith("/v/");
+    pathname.startsWith("/c/") || pathname.startsWith("/v/") || pathname.startsWith("/wishlist/");
 
   return (
     <>

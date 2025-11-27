@@ -33,6 +33,7 @@ import MobileMenu from "../home/MobileMenu";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { CartIcon } from "../cart/CartIcon";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type user = routerOutput["user"]["getByUsername"];
@@ -305,31 +306,48 @@ const ProfileHeader = ({
                 </button>
               </div>
             ) : (
-              <nav className="flex items-center space-x-2">
-                <Button asChild size="sm" className={cn(
-                    "font-semibold hidden sm:inline-flex",
+              <nav className="flex items-center space-x-1">
+                <Button
+                  asChild
+                  size="sm"
+                  className={cn(
+                    "hidden font-semibold sm:inline-flex",
                     isHeaderSticky
-                      ? "bg-gradient-to-r from-orange-400 to-pink-500 text-white hover:from-orange-500 hover:to-pink-600"
-                      : "bg-white/10 text-white hover:bg-white/20"
-                  )}>
-                    <Link href="/trending">
-                      <Flame className="mr-2 h-5 w-5" />
-                      Trending
-                    </Link>
-                  </Button>
-                <Button asChild variant="ghost" size="icon" className={cn("relative hidden sm:flex", headerIconColor)}>
-                  <Link href="/inbox">
-                    <Mail className="h-6 w-6" />
-                    {(unreadConvoCount ?? 0) > 0 && (
-                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
-                        {unreadConvoCount}
-                      </span>
-                    )}
+                      ? "bg-linear-to-r from-orange-400 to-pink-500 text-white hover:from-orange-500 hover:to-pink-600"
+                      : "bg-white/10 text-white hover:bg-white/20",
+                  )}
+                >
+                  <Link href="/trending">
+                    <Flame className="mr-2 h-5 w-5" />
+                    Trending
                   </Link>
                 </Button>
-                <NotificationDropdown className={headerIconColor} />
+                <Link
+                  href="/inbox"
+                  className={cn(
+                    "relative hidden h-10 w-10 items-center justify-center rounded-full transition-colors md:flex",
+                    headerIconColor,
+                  )}
+                >
+                  <Mail className="h-6 w-6" />
+                  {(unreadConvoCount ?? 0) > 0 && (
+                    <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-pink-600 ring-1 ring-white" />
+                  )}
+                </Link>
+                <NotificationDropdown
+                  className={cn("hidden md:flex", headerIconColor)}
+                />
+                <Link
+                  href="/cart"
+                  className={cn(
+                    "relative flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+                    headerIconColor,
+                  )}
+                >
+                  <CartIcon />
+                </Link>
                 {/* Profile Dropdown */}
-                <div className="relative" ref={profileDropdownRef}>
+                <div className="relative ml-2" ref={profileDropdownRef}>
                   <Link
                     href={
                       isVendor ? `/v/${user?.username}` : `/c/${user?.username}`

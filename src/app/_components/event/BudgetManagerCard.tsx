@@ -12,13 +12,13 @@ type Budget = EventDetails["budget"];
 
 interface BudgetManagerCardProps {
   budget: Budget;
-  eventId: string;
+  _eventId: string;
   onManage: () => void;
 }
 
 export const BudgetManagerCard = ({
   budget,
-  eventId,
+  _eventId,
   onManage,
 }: BudgetManagerCardProps) => {
   const totalEstimated =

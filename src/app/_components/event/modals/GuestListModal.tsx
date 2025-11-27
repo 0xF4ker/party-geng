@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { api } from "@/trpc/react";
-import { Loader2, Trash2, X } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { Button } from "@/components/ui/button";
@@ -34,16 +34,16 @@ export const GuestListModal = ({
   );
 
   const addGuest = api.event.addGuest.useMutation({
-    onSuccess: () => utils.event.getById.invalidate({ id: event.id }),
+    onSuccess: () => void utils.event.getById.invalidate({ id: event.id }),
   });
   const updateGuest = api.event.updateGuest.useMutation({
-    onSuccess: () => utils.event.getById.invalidate({ id: event.id }),
+    onSuccess: () => void utils.event.getById.invalidate({ id: event.id }),
   });
   const deleteGuest = api.event.deleteGuest.useMutation({
-    onSuccess: () => utils.event.getById.invalidate({ id: event.id }),
+    onSuccess: () => void utils.event.getById.invalidate({ id: event.id }),
   });
   const addGuestList = api.event.addEmptyGuestList.useMutation({
-      onSuccess: () => utils.event.getById.invalidate({id: event.id})
+      onSuccess: () => void utils.event.getById.invalidate({id: event.id})
   });
 
   const handleAddGuest = (e: React.FormEvent<HTMLFormElement>) => {
@@ -84,7 +84,7 @@ export const GuestListModal = ({
                     const form = e.target as HTMLFormElement;
                     const title = (form.elements.namedItem("newListTitle") as HTMLInputElement)?.value;
                     if(!title) return;
-                    addGuestList.mutate({eventId: event.id, title});
+                    void addGuestList.mutate({eventId: event.id, title});
                     form.reset();
                 }} className="flex gap-2 mt-2">
                     <Input name="newListTitle" placeholder="New List" />
@@ -98,10 +98,10 @@ export const GuestListModal = ({
                 <div className="space-y-2">
                     {selectedList.guests.map(guest => (
                         <div key={guest.id} className="flex items-center gap-2">
-                            <Input defaultValue={guest.name} onBlur={e => updateGuest.mutate({guestId: guest.id, name: e.target.value})} />
-                            <Input defaultValue={guest.email ?? ""} onBlur={e => updateGuest.mutate({guestId: guest.id, email: e.target.value})} />
-                            <Input defaultValue={guest.status} onBlur={e => updateGuest.mutate({guestId: guest.id, status: e.target.value})} />
-                            <Button variant="ghost" size="icon" onClick={() => deleteGuest.mutate({guestId: guest.id})}>
+                            <Input defaultValue={guest.name} onBlur={e => void updateGuest.mutate({guestId: guest.id, name: e.target.value})} />
+                            <Input defaultValue={guest.email ?? ""} onBlur={e => void updateGuest.mutate({guestId: guest.id, email: e.target.value})} />
+                            <Input defaultValue={guest.status} onBlur={e => void updateGuest.mutate({guestId: guest.id, status: e.target.value})} />
+                            <Button variant="ghost" size="icon" onClick={() => void deleteGuest.mutate({guestId: guest.id})}>
                                 <Trash2 className="h-4 w-4" />
                             </Button>
                         </div>

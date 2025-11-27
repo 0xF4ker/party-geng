@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -54,119 +54,88 @@ enum NotificationType {
   // Future types can be added here
 }
 
+enum ContributionType {
+  PROMISE
+  CASH
+}
 
 // --- 2. AUTH & USER MODELS ---
 
-// Central model linked to Supabase Auth.
-// A new row is added here automatically on sign-up via a DB trigger.
 model User {
-  id    String   @id @default(uuid()) // Links to auth.users.id
-  email String   @unique
-  // FIX: Added username field
-  username String @unique
+  id       String   @id @default(uuid()) // Links to auth.users.id
+  email    String   @unique
+  username String   @unique
   role     UserRole // Set at sign-up (CLIENT or VENDOR)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // --- Relations ---
-  clientProfile ClientProfile? // One-to-one
-  vendorProfile VendorProfile? // One-to-one
-  wallet        Wallet?        // One-to-one
-
-  conversations Conversation[] @relation("Participants")
-  messages      Message[]      @relation("Sender")
-
-  // As a Client
-  // FIX: Pointed to Quote model and used "ClientQuotes" relation
-  clientQuotes Quote[] @relation("ClientQuotes")
-  clientOrders Order[] @relation("ClientOrders")
-
-  // As a Vendor
-  // FIX: Pointed to Quote model and used "VendorQuotes" relation
-  vendorQuotes Quote[] @relation("VendorQuotes")
-  vendorOrders Order[] @relation("VendorOrders")
-
-  // FIX: This is the correction.
-  // The 'events' field was wrong. It should link to the 'EventVendor' join table.
-  // This field (`hiredGigs`) is the missing opposite relation for `EventVendor.vendor`.
-  hiredGigs EventVendor[] @relation("HiredVendor")
-  assignedTodos   EventTodoItem[] @relation("AssignedTodos")
-  
-  // Reviews
-  authoredReviews Review[] @relation("AuthoredReviews")
-  receivedReviews Review[] @relation("ReceivedReviews")
-
-  // Wishlist
-  wishlistPromises WishlistPromise[] @relation("GuestPromises")
-
-  notifications Notification[]
-
-  // --- Gallery/Post Relations ---
-  posts         Post[]          @relation("Author")
-  postLikes     PostLike[]
-  postComments  PostComment[]
-  postBookmarks PostBookmark[]
+  clientProfile      ClientProfile?      // One-to-one
+  vendorProfile      VendorProfile?      // One-to-one
+  wallet             Wallet?             // One-to-one
+  cart               Cart?               // One-to-one
+  conversations      Conversation[]      @relation("Participants")
+  messages           Message[]           @relation("Sender")
+  clientQuotes       Quote[]             @relation("ClientQuotes")
+  clientOrders       Order[]             @relation("ClientOrders")
+  vendorQuotes       Quote[]             @relation("VendorQuotes")
+  vendorOrders       Order[]             @relation("VendorOrders")
+  hiredGigs          EventVendor[]       @relation("HiredVendor")
+  assignedTodos      EventTodoItem[]     @relation("AssignedTodos")
+  authoredReviews    Review[]            @relation("AuthoredReviews")
+  receivedReviews    Review[]            @relation("ReceivedReviews")
+  guestContributions WishlistContribution[] @relation("GuestContributions")
+  notifications      Notification[]
+  posts              Post[]              @relation("Author")
+  postLikes          PostLike[]
+  postComments       PostComment[]
+  postBookmarks      PostBookmark[]
 }
 
 model ClientProfile {
-  id     String @id @default(uuid())
-  user   User   @relation(fields: [userId], references: [id])
-  userId String @unique // One-to-one
-
+  id        String @id @default(uuid())
+  user      User   @relation(fields: [userId], references: [id])
+  userId    String @unique // One-to-one
   name      String?
   avatarUrl String?
-  bannerUrl  String?
-  bio       String?  @db.Text
+  bannerUrl String?
+  bio       String? @db.Text
   location  String?
-
-  events ClientEvent[] @relation("EventOwner")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  events    ClientEvent[] @relation("EventOwner")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 }
 
-// Contains public info AND private KYC info
 model VendorProfile {
-  id     String @id @default(uuid())
-  user   User   @relation(fields: [userId], references: [id])
-  userId String @unique // One-to-one
-
-  // Public Profile Info
-  companyName String? // The public-facing name (e.g., "DJ SpinMaster Entertainment")
-  title       String? // e.g., "Professional Wedding & Event DJ"
-  avatarUrl   String?
-  bannerUrl    String?
-  about       String?  @db.Text
-  skills      String[]
-  location    String?  // Public location (e.g., "Lagos, Nigeria")
-  languages   String[]
-  
-  // Platform Stats (Calculated)
-  level           String?  @default("Level 0")
-  rating          Float    @default(0)
-  avgResponseTime String?  @default("N/A")
-
-  // KYC Verification Fields (from SettingsPage)
-  kycStatus      KycStatus @default(PENDING)
-  fullName       String?   // Private legal name
-  meansOfId      String?   // e.g., "NIN"
-  idNumber       String?
-  idCardUrl      String?   // Link to uploaded file
-  cacNumber      String?   // Corporate Affairs Commission number
-  cacDocumentUrl String?   // Link to uploaded file
-  businessAddress String?  // For emergency services
-  state          String?   // e.g., "Lagos"
-  lga            String?   // e.g., "Ikeja"
-
-  // Subscription Status
-  subscriptionStatus String @default("INACTIVE") // e.g., "ACTIVE", "INACTIVE"
-
-  // Relations
-  services ServicesOnVendors[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String              @id @default(uuid())
+  user               User                @relation(fields: [userId], references: [id])
+  userId             String              @unique // One-to-one
+  companyName        String?
+  title              String?
+  avatarUrl          String?
+  bannerUrl          String?
+  about              String?             @db.Text
+  skills             String[]
+  location           String?
+  languages          String[]
+  level              String?             @default("Level 0")
+  rating             Float               @default(0)
+  avgResponseTime    String?             @default("N/A")
+  kycStatus          KycStatus           @default(PENDING)
+  fullName           String?
+  meansOfId          String?
+  idNumber           String?
+  idCardUrl          String?
+  cacNumber          String?
+  cacDocumentUrl     String?
+  businessAddress    String?
+  state              String?
+  lga                String?
+  subscriptionStatus String              @default("INACTIVE")
+  services           ServicesOnVendors[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
 
 
@@ -174,20 +143,18 @@ model VendorProfile {
 
 model Category {
   id       Int       @id @default(autoincrement())
-  name     String    @unique // e.g., "Music & DJs"
-  slug     String?    @unique // e.g., "music-&-djs"
+  name     String    @unique
+  slug     String?   @unique
   services Service[]
 }
 
 model Service {
-  id   Int    @id @default(autoincrement())
-  name String @unique // e.g., "Wedding DJ"
-  slug String @unique // e.g., "wedding-dj"
-  
-  category   Category @relation(fields: [categoryId], references: [id])
+  id         Int                 @id @default(autoincrement())
+  name       String              @unique
+  slug       String              @unique
+  category   Category            @relation(fields: [categoryId], references: [id])
   categoryId Int
-
-  vendors ServicesOnVendors[]
+  vendors    ServicesOnVendors[]
 }
 
 model ServicesOnVendors {
@@ -204,195 +171,149 @@ model ServicesOnVendors {
 // --- 4. EVENT & WISHLIST MODELS (Client-side) ---
 
 model ClientEvent {
-  id    String   @id @default(uuid())
-  title String
-  date  DateTime
-  
-  coverImage String?
-  isPublic   Boolean  @default(false) // Client can toggle this
-  location   String?
-
-  client   ClientProfile @relation("EventOwner", fields: [clientProfileId], references: [id])
+  id              String           @id @default(uuid())
+  title           String
+  date            DateTime
+  coverImage      String?
+  isPublic        Boolean          @default(false)
+  location        String?
+  client          ClientProfile    @relation("EventOwner", fields: [clientProfileId], references: [id])
   clientProfileId String
-
-  // FIX: Changed implicit m-to-m to an explicit one via EventVendor
-  hiredVendors EventVendor[] @relation("Event")
-
-  wishlist Wishlist? // One-to-one
-
-  // For group chat
-  conversation   Conversation? @relation("EventConversation")
-
-  // New relations for event management
-  todos      EventTodoList[]
-  budget     EventBudget?
-  guestLists EventGuestList[]
+  hiredVendors    EventVendor[]    @relation("Event")
+  wishlist        Wishlist?
+  conversation    Conversation?    @relation("EventConversation")
+  todos           EventTodoList[]
+  budget          EventBudget?
+  guestLists      EventGuestList[]
 }
 
-// NEW: Explicit join table for Hired Vendors
 model EventVendor {
-  id String @id @default(uuid())
+  id        String      @id @default(uuid())
+  event     ClientEvent @relation("Event", fields: [eventId], references: [id], onDelete: Cascade)
+  eventId   String
+  vendor    User        @relation("HiredVendor", fields: [vendorId], references: [id], onDelete: Cascade)
+  vendorId  String
+  createdAt DateTime    @default(now())
 
-  event   ClientEvent @relation("Event", fields: [eventId], references: [id], onDelete: Cascade)
-  eventId String
-
-  vendor   User   @relation("HiredVendor", fields: [vendorId], references: [id], onDelete: Cascade)
-  vendorId String // This is the User ID of the vendor
-
-  createdAt DateTime @default(now())
-
-  @@unique([eventId, vendorId]) // Ensures a vendor can only be added once per event
+  @@unique([eventId, vendorId])
 }
 
 model Wishlist {
-  id    String   @id @default(uuid())
-  event ClientEvent @relation(fields: [clientEventId], references: [id], onDelete: Cascade)
-  clientEventId String @unique // One-to-one
-
-  items WishlistItem[]
+  id            String       @id @default(uuid())
+  event         ClientEvent  @relation(fields: [clientEventId], references: [id], onDelete: Cascade)
+  clientEventId String       @unique
+  items         WishlistItem[]
 }
 
 model WishlistItem {
-  id    String   @id @default(uuid())
-  name  String
-  price Float? // Estimated price
-  
-  isFulfilled Boolean @default(false) // Owner can "tick this off"
-
-  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
-  wishlistId String
-
-  promises WishlistPromise[] // List of people who promised
+  id               String                 @id @default(uuid())
+  name             String
+  price            Float?
+  imageUrl         String?
+  storeUrl         String?
+  storeName        String?
+  cashContribution Boolean                @default(false)
+  isFulfilled      Boolean                @default(false)
+  wishlist         Wishlist               @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  wishlistId       String
+  contributions    WishlistContribution[]
+  cartItems        CartItem[]
 }
 
-// Tracks *who* promised to get an item
-model WishlistPromise {
-  id   String @id @default(uuid())
-  item WishlistItem @relation(fields: [wishlistItemId], references: [id], onDelete: Cascade)
+model WishlistContribution {
+  id             String         @id @default(uuid())
+  item           WishlistItem   @relation(fields: [wishlistItemId], references: [id], onDelete: Cascade)
   wishlistItemId String
-  
-  // Can be a platform user or just a guest name
-  guestUser   User?    @relation("GuestPromises", fields: [guestUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
-  guestUserId String?
-  guestName   String // e.g., "Chioma E."
-
-  createdAt DateTime @default(now())
+  type           ContributionType
+  amount         Float?
+  guestUser      User?          @relation("GuestContributions", fields: [guestUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  guestUserId    String?
+  guestName      String
+  createdAt      DateTime       @default(now())
 }
 
 
 // --- 5. CHAT, QUOTE & ORDER FLOW ---
 
 model Conversation {
-  id    String @id @default(uuid())
-  
-  participants User[]      @relation("Participants")
-  messages     Message[]
-  quotes       Quote[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id            String         @id @default(uuid())
+  participants  User[]         @relation("Participants")
+  messages      Message[]
+  quotes        Quote[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   notifications Notification[]
-
-  // For Event Group Chats
-  isGroup       Boolean     @default(false)
-  groupAdminId  String? // Links to User ID of admin
-  clientEvent   ClientEvent? @relation("EventConversation", fields: [clientEventId], references: [id], onDelete: Cascade)
-  clientEventId String?     @unique
+  isGroup       Boolean        @default(false)
+  groupAdminId  String?
+  clientEvent   ClientEvent?   @relation("EventConversation", fields: [clientEventId], references: [id], onDelete: Cascade)
+  clientEventId String?        @unique
 }
 
 model Message {
-  id   String @id @default(uuid())
-  text String @db.Text
-  
+  id             String       @id @default(uuid())
+  text           String       @db.Text
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   conversationId String
-
-  sender   User   @relation("Sender", fields: [senderId], references: [id])
-  senderId String
-  
-  // A message can also BE a quote
-  quote Quote?
-
-  createdAt DateTime @default(now())
+  sender         User         @relation("Sender", fields: [senderId], references: [id])
+  senderId       String
+  quote          Quote?
+  createdAt      DateTime     @default(now())
 }
 
 model Quote {
-  id      String   @id @default(uuid())
-  
-  vendor   User   @relation("VendorQuotes", fields: [vendorId], references: [id])
-  vendorId String
-  client   User   @relation("ClientQuotes", fields: [clientId], references: [id])
-  clientId String
-  
+  id             String       @id @default(uuid())
+  vendor         User         @relation("VendorQuotes", fields: [vendorId], references: [id])
+  vendorId       String
+  client         User         @relation("ClientQuotes", fields: [clientId], references: [id])
+  clientId       String
   conversation   Conversation @relation(fields: [conversationId], references: [id])
   conversationId String
-
-  // Quote details
-  title     String
-  price     Float
-  eventDate DateTime
-  includes  String[] // e.g. ["6 hours of DJ service", "Dance floor lighting"]
-  services  Json // Store services included in the quote
-  
-  status QuoteStatus @default(PENDING)
-  
-  // Link to the message that contains this quote
-  message Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
-  messageId String? @unique
-
-  order Order? // Link to the order created from this quote
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  title          String
+  price          Float
+  eventDate      DateTime
+  includes       String[]
+  services       Json
+  status         QuoteStatus  @default(PENDING)
+  message        Message?     @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  messageId      String?      @unique
+  order          Order?
+  cartItems      CartItem[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
 model Order {
-  id     String @id @default(uuid())
-  
-  vendor   User   @relation("VendorOrders", fields: [vendorId], references: [id])
-  vendorId String
-  client   User   @relation("ClientOrders", fields: [clientId], references: [id])
-  clientId String
-  
-  quote  Quote  @relation(fields: [quoteId], references: [id])
-  quoteId String @unique // An order is created from ONE quote
-
-  amount    Float
-  status    OrderStatus @default(ACTIVE)
-  eventDate DateTime
-  
-  review Review? // One-to-one
-
-  transactions Transaction[] // An order can have multiple transactions (payment, fee, refund)
+  id            String          @id @default(uuid())
+  vendor        User            @relation("VendorOrders", fields: [vendorId], references: [id])
+  vendorId      String
+  client        User            @relation("ClientOrders", fields: [clientId], references: [id])
+  clientId      String
+  quote         Quote           @relation(fields: [quoteId], references: [id])
+  quoteId       String          @unique
+  amount        Float
+  status        OrderStatus     @default(ACTIVE)
+  eventDate     DateTime
+  review        Review?
+  transactions  Transaction[]
   notifications Notification[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 }
 
 
 // --- 6. PAYMENTS & REVIEWS ---
 
 model Wallet {
-  id   String @id @default(uuid())
-  user User   @relation(fields: [userId], references: [id])
-  userId String @unique // One-to-one
-
-  // Common
-  availableBalance Float @default(0) // Funds that can be withdrawn or spent
-  
-  // Vendor-specific balances
-  clearingBalance    Float @default(0) // Funds from completed orders, not yet available
-  activeOrderBalance Float @default(0) // Funds in escrow for active gigs
-
-  // Client-specific balances
-  totalExpenses Float @default(0) // Total spent on platform
-  totalEarnings Float @default(0) // Total received from refunds/gifts
-
-  transactions Transaction[]
-  
-  updatedAt DateTime @updatedAt
+  id                 String        @id @default(uuid())
+  user               User          @relation(fields: [userId], references: [id])
+  userId             String        @unique
+  availableBalance   Float         @default(0)
+  clearingBalance    Float         @default(0)
+  activeOrderBalance Float         @default(0)
+  totalExpenses      Float         @default(0)
+  totalEarnings      Float         @default(0)
+  transactions       Transaction[]
+  updatedAt          DateTime      @updatedAt
 }
 
 enum TransactionStatus {
@@ -403,57 +324,42 @@ enum TransactionStatus {
 }
 
 model Transaction {
-  id     String @id @default(uuid())
-  
-  wallet   Wallet @relation(fields: [walletId], references: [id])
-  walletId String
-  
-  type   TransactionType
-  amount Float // Can be positive (deposit) or negative (withdrawal)
-  
-  status TransactionStatus
-  
-  order   Order?   @relation(fields: [orderId], references: [id])
-  orderId String?
-
+  id          String            @id @default(uuid())
+  wallet      Wallet            @relation(fields: [walletId], references: [id])
+  walletId    String
+  type        TransactionType
+  amount      Float
+  status      TransactionStatus
+  order       Order?            @relation(fields: [orderId], references: [id])
+  orderId     String?
   description String
-  
-  createdAt DateTime @default(now())
+  createdAt   DateTime          @default(now())
 }
 
 model Review {
-  id      String @id @default(uuid())
-  
-  order   Order  @relation(fields: [orderId], references: [id])
-  orderId String @unique // One review per order
-  
-  rating  Int
-  comment String @db.Text
-  
-  // Who wrote the review (e.g., Client reviews Vendor)
-  author   User @relation("AuthoredReviews", fields: [authorId], references: [id])
-  authorId String
-  
-  // Who was reviewed
-  subject   User @relation("ReceivedReviews", fields: [subjectId], references: [id])
+  id        String   @id @default(uuid())
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   String   @unique
+  rating    Int
+  comment   String   @db.Text
+  author    User     @relation("AuthoredReviews", fields: [authorId], references: [id])
+  authorId  String
+  subject   User     @relation("ReceivedReviews", fields: [subjectId], references: [id])
   subjectId String
-
   createdAt DateTime @default(now())
 }
 
 // --- 7. NOTIFICATIONS ---
 
 model Notification {
-  id        String   @id @default(uuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-  type      NotificationType
-  message   String
-  link      String?  // e.g., /inbox?conversationId=...
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  // For linking to specific entities
+  id             String        @id @default(uuid())
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  type           NotificationType
+  message        String
+  link           String?
+  read           Boolean       @default(false)
+  createdAt      DateTime      @default(now())
   conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   conversationId String?
   order          Order?        @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -489,7 +395,7 @@ model PostAsset {
   postId String
   url    String
   type   AssetType
-  order  Int // To maintain order of images/videos
+  order  Int
 
   @@index([postId])
 }
@@ -509,18 +415,16 @@ model PostLike {
 }
 
 model PostComment {
-  id        String   @id @default(uuid())
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  id        String        @id @default(uuid())
+  post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
   postId    String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
   authorId  String
-  text      String   @db.Text
-  createdAt DateTime @default(now())
-
-  // For replies
-  parent   PostComment?  @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  parentId String?
-  replies  PostComment[] @relation("Replies")
+  text      String        @db.Text
+  createdAt DateTime      @default(now())
+  parent    PostComment?  @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  parentId  String?
+  replies   PostComment[] @relation("Replies")
 
   @@index([postId])
   @@index([authorId])
@@ -543,81 +447,99 @@ model PostBookmark {
 
 // --- 9. EVENT MANAGEMENT MODELS ---
 
-// To-Do List / Kanban Board for an Event
 model EventTodoList {
-  id      String    @id @default(uuid())
-  title   String // e.g., "To Do", "In Progress", "Done"
-  order   Int // To maintain column order
-  event   ClientEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id      String          @id @default(uuid())
+  title   String
+  order   Int
+  event   ClientEvent     @relation(fields: [eventId], references: [id], onDelete: Cascade)
   eventId String
-
-  items EventTodoItem[]
+  items   EventTodoItem[]
 
   @@index([eventId])
 }
 
 model EventTodoItem {
-  id      String   @id @default(uuid())
-  content String   @db.Text
-  order   Int // To maintain card order within a list
-
-  list   EventTodoList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  listId String
-
-  assignedTo   User?    @relation("AssignedTodos", fields: [assignedToId], references: [id], onUpdate: NoAction, onDelete: SetNull)
+  id           String        @id @default(uuid())
+  content      String        @db.Text
+  order        Int
+  list         EventTodoList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  listId       String
+  assignedTo   User?         @relation("AssignedTodos", fields: [assignedToId], references: [id], onUpdate: NoAction, onDelete: SetNull)
   assignedToId String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@index([listId])
 }
 
-// Budget Manager for an Event
 model EventBudget {
-  id          String   @id @default(uuid())
-  event       ClientEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  eventId     String   @unique
-
-  items EventBudgetItem[]
+  id      String            @id @default(uuid())
+  event   ClientEvent       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String            @unique
+  items   EventBudgetItem[]
 }
 
 model EventBudgetItem {
-  id            String    @id @default(uuid())
+  id            String      @id @default(uuid())
   description   String
   estimatedCost Float
   actualCost    Float?
-
-  budget   EventBudget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  budgetId String
-
-  createdAt DateTime @default(now())
+  budget        EventBudget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  budgetId      String
+  createdAt     DateTime    @default(now())
 
   @@index([budgetId])
 }
 
-// Guest List for an Event
 model EventGuestList {
-  id      String    @id @default(uuid())
-  title   String // e.g., "Family", "Friends", "Colleagues"
-  event   ClientEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id      String       @id @default(uuid())
+  title   String
+  event   ClientEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   eventId String
-
-  guests EventGuest[]
+  guests  EventGuest[]
 
   @@index([eventId])
 }
 
 model EventGuest {
-  id     String   @id @default(uuid())
+  id     String         @id @default(uuid())
   name   String
   email  String?
-  status String // e.g., "Invited", "Attending", "Declined"
-
+  status String
   list   EventGuestList @relation(fields: [listId], references: [id], onDelete: Cascade)
   listId String
-
   createdAt DateTime @default(now())
 
   @@index([listId])
+}
+
+// --- 10. CART MODELS ---
+
+model Cart {
+  id        String     @id @default(uuid())
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String     @unique
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String       @id @default(uuid())
+  cart      Cart         @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartId    String
+
+  quoteId        String?
+  quote          Quote?         @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  wishlistItemId String?
+  wishlistItem   WishlistItem?  @relation(fields: [wishlistItemId], references: [id], onDelete: Cascade)
+  
+  contributionType ContributionType?
+  amount             Float?
+
+  createdAt DateTime @default(now())
+
+  @@unique([cartId, quoteId])
+  @@unique([cartId, wishlistItemId])
 }
