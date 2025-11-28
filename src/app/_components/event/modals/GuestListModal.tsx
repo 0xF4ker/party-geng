@@ -12,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -29,7 +28,7 @@ import { GuestRow } from "./GuestRow";
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type event = RouterOutput["event"]["getById"];
-type Guest = NonNullable<event["guestLists"][0]>["guests"][number];
+// type Guest = NonNullable<event["guestLists"][0]>["guests"][number];
 
 interface GuestListModalProps {
   event: event;
@@ -81,7 +80,7 @@ const AddGuestRow = ({
                     email: newGuest.email ?? null,
                     tableNumber: newGuest.tableNumber ?? null,
                     listId: newGuest.guestListId,
-                    invitationToken: null, // Add this line
+                    invitationToken: null,
                   },
                 ],
               },

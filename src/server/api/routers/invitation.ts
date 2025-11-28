@@ -19,23 +19,36 @@ export const invitationRouter = createTRPCRouter({
       });
 
       if (!guest) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Invitation not found." });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Invitation not found.",
+        });
       }
       return guest;
     }),
-  
+
   respondToInvitation: publicProcedure
-    .input(z.object({
-      token: z.string(),
-      status: z.enum([GuestStatus.ATTENDING, GuestStatus.DECLINED, GuestStatus.MAYBE]),
-    }))
+    .input(
+      z.object({
+        token: z.string(),
+        status: z.enum([
+          GuestStatus.ATTENDING,
+          GuestStatus.DECLINED,
+          GuestStatus.MAYBE,
+          GuestStatus.PENDING,
+        ]),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const guest = await ctx.db.eventGuest.findUnique({
         where: { invitationToken: input.token },
       });
 
       if (!guest) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Invitation not found." });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Invitation not found.",
+        });
       }
 
       const updatedGuest = await ctx.db.eventGuest.update({
