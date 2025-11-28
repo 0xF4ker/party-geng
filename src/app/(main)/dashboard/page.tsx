@@ -11,6 +11,7 @@ import {
   ToggleLeft,
   ToggleRight,
   Eye,
+  Loader2,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,6 +20,8 @@ import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
+import { useUserType } from "@/hooks/useUserType";
+import { useRouter } from "next/navigation";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type quote = routerOutput["quote"]["getMyQuotesAsVendor"][0];
@@ -26,6 +29,8 @@ type order = routerOutput["order"]["getMyActiveOrders"][0];
 
 // --- Main Page Component ---
 const VendorDashboardPage = () => {
+  const { isVendor, loading } = useUserType();
+  const router = useRouter();
   const [isSidebarSticky, setIsSidebarSticky] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(0);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -39,6 +44,12 @@ const VendorDashboardPage = () => {
     });
   const { data: activeOrders, isLoading: ordersLoading } =
     api.order.getMyActiveOrders.useQuery();
+
+  useEffect(() => {
+    if (!loading && !isVendor) {
+      router.push("/");
+    }
+  }, [loading, isVendor, router]);
 
   // Effect to capture sidebar width
   useLayoutEffect(() => {
@@ -97,6 +108,14 @@ const VendorDashboardPage = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [isSidebarSticky]);
+
+  if (loading || !isVendor) {
+    return (
+        <div className="flex h-screen items-center justify-center">
+            <Loader2 className="animate-spin text-pink-600" />
+        </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">

@@ -21,6 +21,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
+import { useUserType } from "@/hooks/useUserType";
+import { useRouter } from "next/navigation";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 // getMyEvents returns { upcoming: EventType[]; past: EventType[] }, derive the event item type from the upcoming array
@@ -37,6 +39,8 @@ type ActiveVendor = {
 // --- Main Page Component ---
 const ClientEventPlannerPage = () => {
   const { user } = useAuth();
+  const { isClient, loading } = useUserType();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("upcoming");
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
@@ -55,6 +59,12 @@ const ClientEventPlannerPage = () => {
       enabled: !!user,
     },
   );
+
+  useEffect(() => {
+    if (!loading && !isClient) {
+      router.push("/");
+    }
+  }, [loading, isClient, router]);
 
   const openAddVendor = (event: event) => {
     setSelectedEvent(event);
@@ -75,6 +85,14 @@ const ClientEventPlannerPage = () => {
         "https://placehold.co/40x40/ec4899/ffffff?text=V",
       isAdded: false, // Will be set dynamically per event
     })) ?? [];
+
+    if (loading || !isClient) {
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <Loader2 className="animate-spin text-pink-600" />
+            </div>
+        );
+    }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">

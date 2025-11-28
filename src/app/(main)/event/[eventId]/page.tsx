@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useParams } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
 import { Loader2 } from "lucide-react";
 
@@ -17,9 +17,13 @@ import { BudgetManagerModal } from "@/app/_components/event/modals/BudgetManager
 import { GuestListModal } from "@/app/_components/event/modals/GuestListModal";
 import { AddVendorModal } from "@/app/_components/event/modals/AddVendorModal";
 import Breadcrumb from "@/components/ui/breadcrumb";
+import { useUserType } from "@/hooks/useUserType";
 
 const EventDetailPage = () => {
   const { eventId } = useParams<{ eventId: string }>();
+  const router = useRouter();
+  const { isVendor, loading: userTypeLoading } = useUserType();
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isWishlistModalOpen, setIsWishlistModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
@@ -39,6 +43,12 @@ const EventDetailPage = () => {
         enabled: !!event,
       },
     );
+  
+  useEffect(() => {
+    if (!userTypeLoading && isVendor) {
+      router.replace(`/event/${eventId}/board`);
+    }
+  }, [userTypeLoading, isVendor, router, eventId]);
 
   const activeVendors =
     orders?.map((order) => ({
@@ -54,7 +64,7 @@ const EventDetailPage = () => {
       isAdded: false, // This will be set within the modal
     })) ?? [];
 
-  if (isEventLoading || isOrdersLoading) {
+  if (isEventLoading || isOrdersLoading || userTypeLoading || isVendor) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <Loader2 className="h-16 w-16 animate-spin text-pink-600" />

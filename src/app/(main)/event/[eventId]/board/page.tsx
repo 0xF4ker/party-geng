@@ -60,6 +60,8 @@ import type { AppRouter } from "@/server/api/root";
 import { Loader2 } from "lucide-react";
 import Breadcrumb from "@/components/ui/breadcrumb";
 
+import { useUserType } from "@/hooks/useUserType";
+
 const api = createTRPCReact<AppRouter>();
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
@@ -70,6 +72,7 @@ type Column = EventDetails["todos"][number];
 export default function EventKanbanBoardPage() {
   const { headerHeight } = useUiStore();
   const { eventId } = useParams<{ eventId: string }>();
+  const { isVendor } = useUserType();
 
   const { data: event, isLoading } = api.event.getById.useQuery({
     id: eventId,
@@ -83,11 +86,17 @@ export default function EventKanbanBoardPage() {
     );
   }
 
-  const breadcrumbItems = [
-    { label: "My Events", href: "/manage_events" },
-    { label: event.title, href: `/event/${event.id}` },
-    { label: "To-Do Board", href: `/event/${event.id}/board` },
-  ];
+  const breadcrumbItems = isVendor
+    ? [
+        { label: "Inbox", href: "/inbox" },
+        { label: event.title, href: `/event/${event.id}/board` },
+        { label: "To-Do Board", href: `/event/${event.id}/board` },
+      ]
+    : [
+        { label: "My Events", href: "/manage_events" },
+        { label: event.title, href: `/event/${event.id}` },
+        { label: "To-Do Board", href: `/event/${event.id}/board` },
+      ];
 
   return (
     <div
