@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, ArrowLeft, MoreVertical, Info } from "lucide-react";
+import { Loader2, ArrowLeft, MoreVertical, Info, KanbanSquare } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -23,6 +23,8 @@ import {
 import { useUiStore } from "@/stores/ui";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type conversationOutput = routerOutput["chat"]["getConversations"][number];
@@ -229,6 +231,13 @@ const InboxPageContent = () => {
                   </h3>
                 </div>
                 <div className="flex items-center gap-2">
+                  {selectedConvo.clientEventId && (
+                    <Link href={`/event/${selectedConvo.clientEventId}/board`}>
+                      <Button variant="ghost" size="icon">
+                        <KanbanSquare className="h-5 w-5 text-gray-500" />
+                      </Button>
+                    </Link>
+                  )}
                   <button
                     onClick={() => setShowInfoSidebar(true)}
                     className="lg:hidden"

@@ -15,13 +15,23 @@ export default function MainLayout({
   const isProfilePage =
     pathname.startsWith("/c/") || pathname.startsWith("/v/") || pathname.startsWith("/wishlist/");
 
+  const showCreatePostButton =
+    pathname.startsWith("/c/") ||
+    pathname.startsWith("/v/") ||
+    pathname === "/trending" ||
+    pathname.startsWith("/post/");
+
+  const showEventChatButton = pathname.includes("/board");
+
   return (
     <>
       {!isProfilePage && <Header />}
       <main>{children}</main>
       {!isProfilePage && <Footer />}
-      <EventChatButton />
-      <CreatePostButton />
+      
+      {showCreatePostButton && <CreatePostButton />}
+      {showEventChatButton && <EventChatButton />}
+
       <CreatePostModal />
     </>
   );

@@ -78,7 +78,9 @@ export const EventChatModal = ({
   }, [messages]);
 
   return (
-    <div className="fixed right-6 bottom-6 z-50 flex h-[500px] w-96 flex-col rounded-lg bg-white shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex flex-col bg-white sm:inset-auto sm:right-6 sm:bottom-6 sm:h-[500px] sm:w-96 sm:rounded-lg sm:border sm:shadow-2xl"
+    >
       <div className="flex items-center justify-between rounded-t-lg border-b bg-gray-50 p-3">
         <h3 className="font-bold text-gray-800">Event Chat</h3>
         <button

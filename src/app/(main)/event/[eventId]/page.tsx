@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 import { EventHeader } from "@/app/_components/event/EventHeader";
 import { WishlistCard } from "@/app/_components/event/WishlistCard";
 import { NewBudgetManagerCard } from "@/app/_components/event/NewBudgetManagerCard";
-import { GuestListCard } from "@/app/_components/event/GuestListCard";
+import { NewGuestListCard } from "@/app/_components/event/NewGuestListCard";
 import { BookedVendorsCard } from "@/app/_components/event/BookedVendorsCard";
 import { TodoListCard } from "@/app/_components/event/TodoListCard";
 import { EditEventModal } from "@/app/_components/event/modals/EditEventModal";
@@ -82,6 +82,11 @@ const EventDetailPage = () => {
         <EventHeader event={event} onEdit={() => setIsEditModalOpen(true)} />
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="flex flex-col gap-8 lg:col-span-2">
+            <NewGuestListCard
+              guestLists={event.guestLists}
+              _eventId={event.id}
+              onManage={() => setIsGuestListModalOpen(true)}
+            />
             <TodoListCard todos={event.todos} eventId={event.id} />
             <NewBudgetManagerCard
               budget={event.budget}
@@ -100,11 +105,6 @@ const EventDetailPage = () => {
               wishlist={event.wishlist}
               _eventId={event.id}
               onManage={() => setIsWishlistModalOpen(true)}
-            />
-            <GuestListCard
-              guestLists={event.guestLists}
-              _eventId={event.id}
-              onManage={() => setIsGuestListModalOpen(true)}
             />
           </div>
         </div>

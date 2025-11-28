@@ -59,6 +59,13 @@ enum ContributionType {
   CASH
 }
 
+enum GuestStatus {
+  PENDING
+  ATTENDING
+  MAYBE
+  DECLINED
+}
+
 // --- 2. AUTH & USER MODELS ---
 
 model User {
@@ -505,10 +512,13 @@ model EventGuest {
   id     String         @id @default(uuid())
   name   String
   email  String?
-  status String
+  status GuestStatus    @default(PENDING)
+  tableNumber Int?
+  invitationToken String? @unique
   list   EventGuestList @relation(fields: [listId], references: [id], onDelete: Cascade)
   listId String
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([listId])
 }
