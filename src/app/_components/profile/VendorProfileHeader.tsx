@@ -28,7 +28,6 @@ import MobileMenu from "../home/MobileMenu";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { CartIcon } from "../cart/CartIcon";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type vendorProfileWithUser = routerOutput["vendor"]["getByUsername"];
@@ -332,15 +331,7 @@ const VendorProfileHeader = ({
                 <NotificationDropdown
                   className={cn("hidden md:flex", headerIconColor)}
                 />
-                <Link
-                  href="/cart"
-                  className={cn(
-                    "relative flex h-10 w-10 items-center justify-center rounded-full transition-colors",
-                    headerIconColor,
-                  )}
-                >
-                  <CartIcon />
-                </Link>
+                
                 {/* Profile Dropdown */}
                 <div className="relative ml-2" ref={profileDropdownRef}>
                   <Link
@@ -391,7 +382,7 @@ const VendorProfileHeader = ({
 
         <div className="relative container mx-auto max-w-4xl px-4">
           {/* Avatar & Actions */}
-          <div className="-mt-24 flex flex-col items-center sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col items-center sm:flex-row sm:items-end sm:justify-between -mt-24">
             <div className="flex flex-col items-center sm:flex-row sm:items-end">
               <Image
                 src={

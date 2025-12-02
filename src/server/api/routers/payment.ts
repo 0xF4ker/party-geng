@@ -3,7 +3,7 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { OrderStatus, TransactionType } from "@prisma/client";
+import { OrderStatus, TransactionType, WishlistItemType } from "@prisma/client";
 
 // const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY ?? undefined;
 
@@ -52,10 +52,10 @@ export const paymentRouter = createTRPCRouter({
 
       if (!clientWallet || clientWallet.availableBalance < quote.price) {
         return {
-            success: false,
-            reason: "INSUFFICIENT_FUNDS",
-            requiredAmount: quote.price,
-        }
+          success: false,
+          reason: "INSUFFICIENT_FUNDS",
+          requiredAmount: quote.price,
+        };
       }
 
       const vendorWallet = await ctx.db.wallet.findUnique({
@@ -126,8 +126,123 @@ export const paymentRouter = createTRPCRouter({
 
         return newOrder;
       });
-      
+
       return { success: true, order };
+    }),
+
+  contributeToWishlist: protectedProcedure
+    .input(
+      z.object({
+        wishlistItemId: z.string(),
+        amount: z.number().min(1),
+        guestName: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { wishlistItemId, amount, guestName } = input;
+      const contributorId = ctx.user.id;
+
+      const wishlistItem = await ctx.db.wishlistItem.findUnique({
+        where: { id: wishlistItemId },
+        include: {
+          wishlist: {
+            include: {
+              event: {
+                include: {
+                  client: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!wishlistItem) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Wishlist item not found.",
+        });
+      }
+
+      if (wishlistItem.itemType !== WishlistItemType.CASH_REQUEST) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This item does not accept cash contributions.",
+        });
+      }
+
+      const recipientId = wishlistItem.wishlist.event.client.userId;
+
+      const contributorWallet = await ctx.db.wallet.findUnique({
+        where: { userId: contributorId },
+      });
+
+      if (!contributorWallet || contributorWallet.availableBalance < amount) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Insufficient funds.",
+        });
+      }
+
+      const recipientWallet = await ctx.db.wallet.findUnique({
+        where: { userId: recipientId },
+      });
+
+      if (!recipientWallet) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Recipient wallet not found.",
+        });
+      }
+
+      const contribution = await ctx.db.$transaction(async (prisma) => {
+        // 1. Debit contributor
+        await prisma.wallet.update({
+          where: { userId: contributorId },
+          data: { availableBalance: { decrement: amount } },
+        });
+
+        // 2. Credit recipient
+        await prisma.wallet.update({
+          where: { userId: recipientId },
+          data: { availableBalance: { increment: amount } },
+        });
+
+        // 3. Create transactions
+        await prisma.transaction.createMany({
+          data: [
+            {
+              walletId: contributorWallet.id,
+              type: TransactionType.GIFT,
+              amount: -amount,
+              status: "COMPLETED",
+              description: `Gift for: ${wishlistItem.name}`,
+            },
+            {
+              walletId: recipientWallet.id,
+              type: TransactionType.GIFT,
+              amount: amount,
+              status: "COMPLETED",
+              description: `Gift from ${guestName} for ${wishlistItem.name}`,
+            },
+          ],
+        });
+
+        // 4. Create WishlistContribution
+        const newContribution = await prisma.wishlistContribution.create({
+            data: {
+                wishlistItemId: wishlistItemId,
+                guestUserId: contributorId,
+                guestName: guestName,
+                type: "CASH",
+                amount: amount,
+            },
+        });
+
+        return newContribution;
+      });
+
+      return { success: true, contribution };
     }),
 
   // Initialize Paystack payment
@@ -232,7 +347,10 @@ export const paymentRouter = createTRPCRouter({
         }
 
         const amount = data.data.amount / 100; // Convert from kobo to naira
-        const metadata = data.data.metadata as { user_id: string; quote_id?: string };
+        const metadata = data.data.metadata as {
+          user_id: string;
+          quote_id?: string;
+        };
         const userId = metadata.user_id;
 
         // Ensure the payment is for this user

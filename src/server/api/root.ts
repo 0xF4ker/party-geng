@@ -12,7 +12,6 @@ import { wishlistRouter } from "@/server/api/routers/wishlist";
 import { notificationRouter } from "@/server/api/routers/notification";
 import { postRouter } from "@/server/api/routers/post";
 import { reviewRouter } from "@/server/api/routers/review";
-import { cartRouter } from "@/server/api/routers/cart";
 import { invitationRouter } from "@/server/api/routers/invitation";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
@@ -37,7 +36,6 @@ export const appRouter = createTRPCRouter({
   notification: notificationRouter,
   post: postRouter,
   review: reviewRouter,
-  cart: cartRouter,
   invitation: invitationRouter,
 });
 

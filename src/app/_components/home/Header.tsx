@@ -15,7 +15,6 @@ import Image from "next/image";
 import { api } from "@/trpc/react";
 import { useUiStore } from "@/stores/ui";
 import { Button } from "@/components/ui/button";
-import { CartIcon } from "../cart/CartIcon";
 
 const Modal = ({
   children,
@@ -250,12 +249,7 @@ const Header = () => {
                     )}
                   </Link>
                   <NotificationDropdown className="hidden text-gray-600 hover:bg-gray-100 hover:text-pink-600 md:flex" />
-                  <Link
-                    href="/cart"
-                    className="relative flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 hover:text-pink-600"
-                  >
-                    <CartIcon />
-                  </Link>
+
                 </div>
 
                 {!isVendor && (

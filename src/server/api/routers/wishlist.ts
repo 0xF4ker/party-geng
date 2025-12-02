@@ -5,7 +5,7 @@ import {
 } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { ContributionType } from "@prisma/client";
+import { ContributionType, WishlistItemType } from "@prisma/client";
 
 export const wishlistRouter = createTRPCRouter({
   // Get wishlist by event ID (public - for guests)
@@ -71,11 +71,9 @@ export const wishlistRouter = createTRPCRouter({
       z.object({
         eventId: z.string(),
         name: z.string(),
-        price: z.number().optional(),
+        itemType: z.nativeEnum(WishlistItemType),
+        requestedAmount: z.number().optional(),
         imageUrl: z.string().optional(),
-        storeUrl: z.string().optional(),
-        storeName: z.string().optional(),
-        cashContribution: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -103,11 +101,9 @@ export const wishlistRouter = createTRPCRouter({
         data: {
           wishlistId: wishlist.id,
           name: input.name,
-          price: input.price,
+          itemType: input.itemType,
+          requestedAmount: input.requestedAmount,
           imageUrl: input.imageUrl,
-          storeUrl: input.storeUrl,
-          storeName: input.storeName,
-          cashContribution: input.cashContribution,
         },
       });
     }),
@@ -118,12 +114,10 @@ export const wishlistRouter = createTRPCRouter({
       z.object({
         itemId: z.string(),
         name: z.string().optional(),
-        price: z.number().optional(),
+        itemType: z.nativeEnum(WishlistItemType).optional(),
+        requestedAmount: z.number().optional(),
         isFulfilled: z.boolean().optional(),
         imageUrl: z.string().optional(),
-        storeUrl: z.string().optional(),
-        storeName: z.string().optional(),
-        cashContribution: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -149,17 +143,11 @@ export const wishlistRouter = createTRPCRouter({
         });
       }
 
+      const { itemId, ...data } = input;
+
       return ctx.db.wishlistItem.update({
         where: { id: input.itemId },
-        data: {
-          name: input.name,
-          price: input.price,
-          isFulfilled: input.isFulfilled,
-          imageUrl: input.imageUrl,
-          storeUrl: input.storeUrl,
-          storeName: input.storeName,
-          cashContribution: input.cashContribution,
-        },
+        data: data,
       });
     }),
 
@@ -218,6 +206,16 @@ export const wishlistRouter = createTRPCRouter({
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Item not found",
+        });
+      }
+
+      if (
+        input.type === ContributionType.PROMISE &&
+        item.itemType !== WishlistItemType.ITEM_REQUEST
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You can only make promises on item requests.",
         });
       }
 

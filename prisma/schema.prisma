@@ -66,6 +66,11 @@ enum GuestStatus {
   DECLINED
 }
 
+enum WishlistItemType {
+  CASH_REQUEST
+  ITEM_REQUEST
+}
+
 // --- 2. AUTH & USER MODELS ---
 
 model User {
@@ -81,7 +86,6 @@ model User {
   clientProfile      ClientProfile?      // One-to-one
   vendorProfile      VendorProfile?      // One-to-one
   wallet             Wallet?             // One-to-one
-  cart               Cart?               // One-to-one
   conversations      Conversation[]      @relation("Participants")
   messages           Message[]           @relation("Sender")
   clientQuotes       Quote[]             @relation("ClientQuotes")
@@ -213,18 +217,15 @@ model Wishlist {
 }
 
 model WishlistItem {
-  id               String                 @id @default(uuid())
-  name             String
-  price            Float?
-  imageUrl         String?
-  storeUrl         String?
-  storeName        String?
-  cashContribution Boolean                @default(false)
-  isFulfilled      Boolean                @default(false)
-  wishlist         Wishlist               @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
-  wishlistId       String
-  contributions    WishlistContribution[]
-  cartItems        CartItem[]
+  id              String             @id @default(uuid())
+  name            String
+  itemType        WishlistItemType   @default(ITEM_REQUEST)
+  requestedAmount Float?
+  imageUrl        String?
+  isFulfilled     Boolean            @default(false)
+  wishlist        Wishlist           @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  wishlistId      String
+  contributions   WishlistContribution[]
 }
 
 model WishlistContribution {
@@ -284,7 +285,6 @@ model Quote {
   message        Message?     @relation(fields: [messageId], references: [id], onDelete: SetNull)
   messageId      String?      @unique
   order          Order?
-  cartItems      CartItem[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 }
@@ -521,35 +521,4 @@ model EventGuest {
   updatedAt DateTime @updatedAt
 
   @@index([listId])
-}
-
-// --- 10. CART MODELS ---
-
-model Cart {
-  id        String     @id @default(uuid())
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String     @unique
-  items     CartItem[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-}
-
-model CartItem {
-  id        String       @id @default(uuid())
-  cart      Cart         @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  cartId    String
-
-  quoteId        String?
-  quote          Quote?         @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-
-  wishlistItemId String?
-  wishlistItem   WishlistItem?  @relation(fields: [wishlistItemId], references: [id], onDelete: Cascade)
-  
-  contributionType ContributionType?
-  amount             Float?
-
-  createdAt DateTime @default(now())
-
-  @@unique([cartId, quoteId])
-  @@unique([cartId, wishlistItemId])
 }

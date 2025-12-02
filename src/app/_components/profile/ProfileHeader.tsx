@@ -33,7 +33,6 @@ import MobileMenu from "../home/MobileMenu";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { CartIcon } from "../cart/CartIcon";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type user = routerOutput["user"]["getByUsername"];
@@ -337,15 +336,7 @@ const ProfileHeader = ({
                 <NotificationDropdown
                   className={cn("hidden md:flex", headerIconColor)}
                 />
-                <Link
-                  href="/cart"
-                  className={cn(
-                    "relative flex h-10 w-10 items-center justify-center rounded-full transition-colors",
-                    headerIconColor,
-                  )}
-                >
-                  <CartIcon />
-                </Link>
+                
                 {/* Profile Dropdown */}
                 <div className="relative ml-2" ref={profileDropdownRef}>
                   <Link

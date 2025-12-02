@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Loader2, PartyPopper, Wallet, ShoppingCart } from "lucide-react";
+import { Loader2, PartyPopper, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ContributionType } from "@prisma/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useCartStore } from "@/stores/cart";
 import { toast } from "sonner";
 
 interface ContributeModalProps {
@@ -43,40 +42,12 @@ export const ContributeModal = ({
   );
   const [amount, setAmount] = useState<number | undefined>(undefined);
   const { user } = useAuth();
-  const { addItem, isLoading } = useCartStore();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      toast.error("Please log in to add items to your cart.");
-      return;
-    }
-
-    if (
-      contributionType === ContributionType.CASH &&
-      (amount === undefined || amount <= 0)
-    ) {
-      toast.error("Please enter a valid contribution amount.");
-      return;
-    }
-
-    const promise = addItem({
-      type: "WISHLIST_ITEM",
-      wishlistItemId: itemId,
-      contributionType,
-      amount,
-    });
-
-    toast.promise(promise, {
-      loading: "Adding to cart...",
-      success: () => {
-        onSuccess();
-        onClose();
-        return "Item added to cart!";
-      },
-      error: (err) =>
-        err instanceof Error ? err.message : "Failed to add item.",
-    });
+    toast.info("Contribution flow not implemented yet.");
+    onClose();
   };
 
   React.useEffect(() => {
@@ -198,9 +169,7 @@ export const ContributeModal = ({
               {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <>
-                  <ShoppingCart className="mr-2 h-4 w-4" /> Add to Cart
-                </>
+                "Contribute"
               )}
             </Button>
           </div>
