@@ -1,16 +1,18 @@
 import React from "react";
 import { db } from "@/server/db";
 import { ImageResponse } from "next/og";
+import type { NextRequest } from "next/server";
 
 // Define runtime for Edge
 export const runtime = "edge";
 
 // Next.js Route Handler for requests
+// Using NextRequest for 'req' and the defined RouteContext for 'context'
 export async function GET(
-  req: Request,
-  context: { params: { eventId: string } },
+  req: NextRequest,
+  params: Promise<{ eventId: string }>,
 ) {
-  const eventId = context.params.eventId;
+  const { eventId } = await params;
 
   if (!eventId) {
     return new Response("Event ID is required", { status: 400 });
@@ -87,6 +89,8 @@ export async function GET(
     {
       width: 1200,
       height: 630,
+      // You can also pass the status code here:
+      // status: event ? 200 : 404,
     },
   );
 }
