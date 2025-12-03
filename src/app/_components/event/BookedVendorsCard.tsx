@@ -24,23 +24,15 @@ export const BookedVendorsCard = ({
   onAdd,
 }: BookedVendorsCardProps) => {
   return (
-    <div className="rounded-lg bg-white p-6 shadow-md">
+    <div className="rounded-lg bg-white p-6 shadow-md flex flex-col h-full">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-bold text-gray-900">Booked Vendors</h3>
-        <div className="flex gap-2">
-          <Link href={`/event/${_eventId}/board`} passHref>
-            <Button variant="secondary" size="sm">
-              <CalendarDays className="mr-2 h-4 w-4" />
-              Join Moonboard
-            </Button>
-          </Link>
-          <Button variant="outline" size="sm" onClick={onAdd}>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Add Vendor
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={onAdd}>
+          <UserPlus className="mr-2 h-4 w-4" />
+          Add Vendor
+        </Button>
       </div>
-      <div className="mt-4 space-y-4">
+      <div className="mt-4 space-y-4 flex-grow">
         {vendors.length > 0 ? (
           vendors.map(({ vendor }) => (
             <div key={vendor.id} className="flex items-center gap-4">
@@ -72,6 +64,14 @@ export const BookedVendorsCard = ({
         ) : (
           <p className="text-center text-gray-500">No vendors booked yet.</p>
         )}
+      </div>
+      <div className="mt-4">
+        <Link href={`/event/${_eventId}/board`} passHref>
+          <Button variant="secondary" size="lg" className="w-full">
+            <CalendarDays className="mr-2 h-4 w-4" />
+            Join Moonboard
+          </Button>
+        </Link>
       </div>
     </div>
   );
