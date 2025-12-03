@@ -1,7 +1,6 @@
 import React from "react";
 import { db } from "@/server/db";
 import { ImageResponse } from "next/og";
-import type { NextRequest } from "next/server";
 
 // Define runtime for Edge
 export const runtime = "edge";
@@ -9,8 +8,8 @@ export const runtime = "edge";
 // Next.js Route Handler for requests
 // Using NextRequest for 'req' and the defined RouteContext for 'context'
 export async function GET(
-  req: NextRequest,
-  params: Promise<{ eventId: string }>,
+  request: Request,
+  { params }: { params: Promise<{ eventId: string }> },
 ) {
   const { eventId } = await params;
 
