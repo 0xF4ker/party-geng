@@ -24,7 +24,7 @@ export const BookedVendorsCard = ({
   onAdd,
 }: BookedVendorsCardProps) => {
   return (
-    <div className="rounded-lg bg-white p-6 shadow-md flex flex-col h-full">
+    <div className="flex flex-col rounded-lg bg-white p-6 shadow-md">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-bold text-gray-900">Booked Vendors</h3>
         <Button variant="outline" size="sm" onClick={onAdd}>
@@ -32,7 +32,7 @@ export const BookedVendorsCard = ({
           Add Vendor
         </Button>
       </div>
-      <div className="mt-4 space-y-4 flex-grow">
+      <div className="mt-4 flex-grow space-y-4">
         {vendors.length > 0 ? (
           vendors.map(({ vendor }) => (
             <div key={vendor.id} className="flex items-center gap-4">
@@ -42,7 +42,9 @@ export const BookedVendorsCard = ({
                   "https://placehold.co/40x40"
                 }
                 alt={
-                  vendor.vendorProfile?.companyName ?? vendor.username ?? "Vendor"
+                  vendor.vendorProfile?.companyName ??
+                  vendor.username ??
+                  "Vendor"
                 }
                 width={40}
                 height={40}
