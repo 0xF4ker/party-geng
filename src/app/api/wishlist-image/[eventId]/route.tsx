@@ -8,8 +8,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ eventId: string }> },
 ) {
-  console.log("Generating image for eventId:", params.eventId);
   const { eventId } = await params;
+  console.log("Generating image for eventId:", eventId);
 
   if (!eventId) {
     console.error("Event ID is missing.");
@@ -34,7 +34,7 @@ export async function GET(
       },
     },
   });
-  
+
   console.log("Fetched event data:", JSON.stringify(event, null, 2));
 
   if (!event) {
@@ -44,8 +44,13 @@ export async function GET(
 
   const wishlistItems = event.wishlist?.items.map((item) => item.name) ?? [];
   const clientName = event.client.name ?? "A Client"; // Fallback name
-  
-  console.log("Generating image with items:", wishlistItems, "and client:", clientName);
+
+  console.log(
+    "Generating image with items:",
+    wishlistItems,
+    "and client:",
+    clientName,
+  );
 
   return new ImageResponse(
     (
