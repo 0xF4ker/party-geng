@@ -23,6 +23,10 @@ export async function GET(
         include: {
           items: {
             take: 5,
+            select: {
+                name: true,
+                itemType: true,
+            }
           },
         },
       },
@@ -37,6 +41,6 @@ export async function GET(
   return NextResponse.json({
     title: event.title,
     clientName: event.client.name,
-    wishlistItems: event.wishlist?.items.map((item) => item.name) ?? [],
+    wishlistItems: event.wishlist?.items ?? [],
   });
 }
