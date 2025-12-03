@@ -1,6 +1,7 @@
 import { type Metadata } from "next";
 import { api } from "@/trpc/server";
 import WishlistClientPage from "./WishlistClientPage";
+import type { ReactElement } from "react";
 
 export async function generateMetadata(
   props: PageProps<"/wishlist/[eventId]">,
@@ -40,12 +41,11 @@ export async function generateMetadata(
   };
 }
 
-export default async function PublicWishlistPage({
-  params,
-}: {
-  params: { eventId: string };
-}) {
-  const event = await api.wishlist.getByEventId({ eventId: params.eventId });
+export default async function PublicWishlistPage(
+  props: PageProps<"/wishlist/[eventId]">,
+): Promise<ReactElement> {
+  const { eventId } = await props.params;
+  const event = await api.wishlist.getByEventId({ eventId: eventId });
 
   return <WishlistClientPage initialEvent={event} />;
 }
