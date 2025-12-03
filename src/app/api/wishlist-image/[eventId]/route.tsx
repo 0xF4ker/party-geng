@@ -60,7 +60,7 @@ export async function GET(
         style={{
           height: "100%",
           width: "100%",
-          display: "flex",
+          display: "flex", // REQUIRED
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
@@ -71,7 +71,16 @@ export async function GET(
           padding: 50,
         }}
       >
-        <div style={{ fontSize: 48, marginBottom: 20 }}>
+        <div
+          style={{
+            fontSize: 48,
+            marginBottom: 20,
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
           🎉 Come celebrate
           <span style={{ fontWeight: 800 }}>
             {clientName}&apos;s {title}
