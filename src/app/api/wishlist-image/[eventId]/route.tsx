@@ -8,9 +8,11 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ eventId: string }> },
 ) {
+  console.log("Generating image for eventId:", params.eventId);
   const { eventId } = await params;
 
   if (!eventId) {
+    console.error("Event ID is missing.");
     return new Response("Event ID is required", { status: 400 });
   }
 
@@ -32,13 +34,18 @@ export async function GET(
       },
     },
   });
+  
+  console.log("Fetched event data:", JSON.stringify(event, null, 2));
 
   if (!event) {
+    console.error("Event not found for eventId:", eventId);
     return new Response("Event not found", { status: 404 });
   }
 
   const wishlistItems = event.wishlist?.items.map((item) => item.name) ?? [];
   const clientName = event.client.name ?? "A Client"; // Fallback name
+  
+  console.log("Generating image with items:", wishlistItems, "and client:", clientName);
 
   return new ImageResponse(
     (
