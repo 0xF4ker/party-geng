@@ -2,6 +2,8 @@ import React from "react";
 import { db } from "@/server/db";
 import { ImageResponse } from "next/og";
 
+export const runtime = "edge";
+
 // Next.js Route Handler for requests
 // Using NextRequest for 'req' and the defined RouteContext for 'context'
 export async function GET(
@@ -99,8 +101,8 @@ export async function GET(
     ),
     // ARGUMENT 2: The options object
     {
-      width: 1200,
-      height: 630,
+      width: 800,
+      height: 420,
       // You can also pass the status code here:
       // status: event ? 200 : 404,
     },
