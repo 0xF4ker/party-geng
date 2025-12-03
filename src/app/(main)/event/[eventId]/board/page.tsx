@@ -15,7 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { useUiStore } from "@/stores/ui";
 import { BoardPostType } from "@prisma/client";
-import {createId} from "@paralleldrive/cuid2";
+import { createId } from "@paralleldrive/cuid2";
 const api = createTRPCReact<AppRouter>();
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
@@ -194,7 +194,7 @@ const NoteCard = ({
 
   return (
     <div
-      className={`group relative w-64 ${color.bg} ${color.text} min-h-[160px] rounded-lg border p-5 pt-7 shadow-sm hover:shadow-2xl ${color.border} transition-shadow duration-300`}
+      className={`group relative w-64 ${color?.bg} ${color?.text} min-h-40 rounded-lg border p-5 pt-7 shadow-sm hover:shadow-2xl ${color?.border} transition-shadow duration-300`}
       style={{
         transform: `rotate(${rotation}deg)`,
         transformOrigin: "top center",
@@ -203,7 +203,7 @@ const NoteCard = ({
       <ModernPin />
       {isCurrentUser && <DeleteButton onClick={() => deletePost(post.id)} />}
 
-      <div className="font-handwriting pointer-events-none mb-4 text-lg font-medium leading-relaxed">
+      <div className="font-handwriting pointer-events-none mb-4 text-lg leading-relaxed font-medium">
         {post.content}
       </div>
 
@@ -214,7 +214,7 @@ const NoteCard = ({
               isCurrentUser ? "bg-indigo-500" : "bg-slate-400"
             }`}
           ></div>
-          <span className="text-xs font-bold uppercase tracking-wider opacity-60">
+          <span className="text-xs font-bold tracking-wider uppercase opacity-60">
             {post.authorName}
           </span>
         </div>
@@ -256,7 +256,7 @@ const ImageCard = ({
       </div>
 
       <div className="pointer-events-none mt-3 flex items-center justify-between px-1">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <span className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
           {post.authorName}
         </span>
         {isCurrentUser && (
@@ -423,7 +423,7 @@ export default function EventCollaborativeBoard() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isPosting, setIsPosting] = useState(false);
   const [focusMap, setFocusMap] = useState<Record<string, number>>({});
-  
+
   useEffect(() => {
     if (event) {
       setPosts(event.boardPosts);
@@ -435,18 +435,22 @@ export default function EventCollaborativeBoard() {
       .channel(`board-posts:${eventId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "BoardPost", filter: `eventId=eq.${eventId}` },
-        (payload) => {
-           utils.event.getById.invalidate({ id: eventId });
+        {
+          event: "*",
+          schema: "public",
+          table: "BoardPost",
+          filter: `eventId=eq.${eventId}`,
+        },
+        (_payload) => {
+          void utils.event.getById.invalidate({ id: eventId });
         },
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [eventId, utils]);
-
 
   const addPostMutation = api.event.addBoardPost.useMutation({
     onMutate: async (newPost) => {
@@ -463,10 +467,13 @@ export default function EventCollaborativeBoard() {
           author: user,
           ...newPost,
         };
-        utils.event.getById.setData({ id: eventId }, {
-          ...previousEvent,
-          boardPosts: [...previousEvent.boardPosts, optimisticPost],
-        });
+        utils.event.getById.setData(
+          { id: eventId },
+          {
+            ...previousEvent,
+            boardPosts: [...previousEvent.boardPosts, optimisticPost],
+          },
+        );
       }
       return { previousEvent };
     },
@@ -484,10 +491,15 @@ export default function EventCollaborativeBoard() {
       await utils.event.getById.cancel({ id: eventId });
       const previousEvent = utils.event.getById.getData({ id: eventId });
       if (previousEvent) {
-        utils.event.getById.setData({ id: eventId }, {
-          ...previousEvent,
-          boardPosts: previousEvent.boardPosts.map(p => p.id === updatedPost.id ? {...p, ...updatedPost} : p),
-        });
+        utils.event.getById.setData(
+          { id: eventId },
+          {
+            ...previousEvent,
+            boardPosts: previousEvent.boardPosts.map((p) =>
+              p.id === updatedPost.id ? { ...p, ...updatedPost } : p,
+            ),
+          },
+        );
       }
       return { previousEvent };
     },
@@ -497,8 +509,8 @@ export default function EventCollaborativeBoard() {
       }
     },
     onSettled: () => {
-      utils.event.getById.invalidate({ id: eventId });
-    }
+      void utils.event.getById.invalidate({ id: eventId });
+    },
   });
 
   const deletePostMutation = api.event.deleteBoardPost.useMutation({
@@ -506,10 +518,15 @@ export default function EventCollaborativeBoard() {
       await utils.event.getById.cancel({ id: eventId });
       const previousEvent = utils.event.getById.getData({ id: eventId });
       if (previousEvent) {
-        utils.event.getById.setData({ id: eventId }, {
-          ...previousEvent,
-          boardPosts: previousEvent.boardPosts.filter(p => p.id !== deletedPost.id),
-        });
+        utils.event.getById.setData(
+          { id: eventId },
+          {
+            ...previousEvent,
+            boardPosts: previousEvent.boardPosts.filter(
+              (p) => p.id !== deletedPost.id,
+            ),
+          },
+        );
       }
       return { previousEvent };
     },
@@ -519,8 +536,8 @@ export default function EventCollaborativeBoard() {
       }
     },
     onSettled: () => {
-      utils.event.getById.invalidate({ id: eventId });
-    }
+      void utils.event.getById.invalidate({ id: eventId });
+    },
   });
 
   const handlePost = async ({
@@ -585,7 +602,6 @@ export default function EventCollaborativeBoard() {
     };
   }, [posts]);
 
-
   if (isLoading || !event) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -596,7 +612,7 @@ export default function EventCollaborativeBoard() {
 
   return (
     <div
-      className="relative flex flex-col h-screen w-full overflow-hidden bg-slate-50 font-sans text-slate-900"
+      className="relative flex h-screen w-full flex-col overflow-hidden bg-slate-50 font-sans text-slate-900"
       style={{ paddingTop: headerHeight }}
     >
       <div
@@ -620,7 +636,7 @@ export default function EventCollaborativeBoard() {
         </div>
       </div>
 
-      <div className="relative flex-grow overflow-auto">
+      <div className="relative grow overflow-auto">
         {posts.length > 0 ? (
           <div className="relative" style={boardSize}>
             {posts.map((post) => (
@@ -628,7 +644,7 @@ export default function EventCollaborativeBoard() {
                 key={post.id}
                 post={post}
                 onUpdatePosition={handleUpdatePosition}
-                zIndex={focusMap[post.id] || post.zIndex || 1}
+                zIndex={(focusMap[post.id] ?? post.zIndex) || 1}
                 onFocus={() => handleFocus(post.id)}
               >
                 {post.type === "NOTE" ? (
