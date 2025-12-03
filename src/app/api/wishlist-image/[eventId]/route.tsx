@@ -2,9 +2,6 @@ import React from "react";
 import { db } from "@/server/db";
 import { ImageResponse } from "next/og";
 
-// Define runtime for Edge
-export const runtime = "edge";
-
 // Next.js Route Handler for requests
 // Using NextRequest for 'req' and the defined RouteContext for 'context'
 export async function GET(
