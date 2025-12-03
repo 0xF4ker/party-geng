@@ -17,11 +17,11 @@ interface TodoListCardProps {
   eventId: string;
 }
 
-const statusColors: { [key: string]: string } = {
-    "To Do": "bg-red-100 text-red-800",
-    "In Progress": "bg-yellow-100 text-yellow-800",
-    "Done": "bg-green-100 text-green-800",
-}
+const statusColors: Record<string, string> = {
+  "To Do": "bg-red-100 text-red-800",
+  "In Progress": "bg-yellow-100 text-yellow-800",
+  Done: "bg-green-100 text-green-800",
+};
 
 export const TodoListCard = ({ todos, eventId }: TodoListCardProps) => {
   return (
@@ -39,11 +39,15 @@ export const TodoListCard = ({ todos, eventId }: TodoListCardProps) => {
         {todos
           .sort((a, b) => a.order - b.order)
           .map((list) => (
-            <div key={list.id} className={cn("rounded-lg p-4", statusColors[list.title] ?? 'bg-gray-50')}>
+            <div
+              key={list.id}
+              className={cn(
+                "rounded-lg p-4",
+                statusColors[list.title] ?? "bg-gray-50",
+              )}
+            >
               <h4 className="font-semibold">{list.title}</h4>
-              <p className="mt-2 text-2xl font-bold">
-                {list.items.length}
-              </p>
+              <p className="mt-2 text-2xl font-bold">{list.items.length}</p>
               <p className="text-sm">tasks</p>
             </div>
           ))}
