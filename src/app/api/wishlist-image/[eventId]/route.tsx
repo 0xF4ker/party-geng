@@ -85,11 +85,11 @@ export async function GET(
             textAlign: "center",
           }}
         >
-          <div style={{ marginBottom: 20 }}>
-            🎉 You&apos;re invited to celebrate
+          <div style={{ marginBottom: 20, display: 'flex' }}>
+            <span>🎉 You&apos;re invited to celebrate</span>
           </div>
-          <div style={{ color: '#c026d3' }}>
-            {clientName}&apos;s {title}!
+          <div style={{ color: '#c026d3', display: 'flex' }}>
+            <b>{clientName}&apos;s {title}!</b>
           </div>
         </div>
 
@@ -113,8 +113,8 @@ export async function GET(
           </div>
         )}
 
-        <div style={{ alignSelf: 'flex-end', fontSize: 18, color: '#6b7280'}}>
-            Powered by PartyGeng
+        <div style={{ alignSelf: 'flex-end', fontSize: 18, color: '#6b7280', display: 'flex'}}>
+            <span>Powered by PartyGeng</span>
         </div>
       </div>
     ),
