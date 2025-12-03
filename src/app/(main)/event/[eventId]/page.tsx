@@ -18,6 +18,7 @@ import { GuestListModal } from "@/app/_components/event/modals/GuestListModal";
 import { AddVendorModal } from "@/app/_components/event/modals/AddVendorModal";
 import Breadcrumb from "@/components/ui/breadcrumb";
 import { useUserType } from "@/hooks/useUserType";
+import { PersonalTodoListCard } from "@/app/_components/event/PersonalTodoListCard";
 
 const EventDetailPage = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -92,12 +93,12 @@ const EventDetailPage = () => {
         <EventHeader event={event} onEdit={() => setIsEditModalOpen(true)} />
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="flex flex-col gap-8 lg:col-span-2">
+            <PersonalTodoListCard eventId={event.id} />
             <NewGuestListCard
               guestLists={event.guestLists}
               _eventId={event.id}
               onManage={() => setIsGuestListModalOpen(true)}
             />
-            <TodoListCard todos={event.todos} eventId={event.id} />
             <NewBudgetManagerCard
               budget={event.budget}
               _eventId={event.id}
@@ -106,6 +107,7 @@ const EventDetailPage = () => {
             {/* Other main content can go here */}
           </div>
           <div className="flex flex-col gap-8 lg:col-span-1">
+            <TodoListCard todos={event.todos} eventId={event.id} />
             <BookedVendorsCard
               vendors={event.hiredVendors}
               _eventId={event.id}

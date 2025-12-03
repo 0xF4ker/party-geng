@@ -27,7 +27,7 @@
   --sys-color-secondary-default: #7c3aed;  /* purple.500 */
   --sys-color-secondary-foreground: #ffffff;
   --sys-color-destructive-default: #ef4444; /* red.500 */
-  --sys-color-interactive-ring: #ec4899;    /* pink.500 */
+  --sys-color-interactive-ring: transparent; /* No focus ring color */
 
   /* Typography (Quicksand scale) */
   --sys-font-family: "Quicksand", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
@@ -116,7 +116,7 @@
   --sys-color-secondary-default: #7c3aed;
   --sys-color-secondary-foreground: #ffffff;
   --sys-color-destructive-default: #b91c1c; /* red.700 */
-  --sys-color-interactive-ring: #ec4899;
+  --sys-color-interactive-ring: transparent;
 
   /* Map Tailwind base in dark */
   --background: var(--sys-color-background-default);
