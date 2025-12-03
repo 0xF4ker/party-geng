@@ -71,7 +71,11 @@ export async function GET(
         }}
       >
         <div style={{ fontSize: 48, marginBottom: 20 }}>
-          🎉 Come celebrate **{clientName}&apos;s {event.title}**!
+          🎉 Come celebrate{" "}
+          <span style={{ fontWeight: 800 }}>
+            {clientName}&apos;s {event.title}
+          </span>
+          !
         </div>
 
         {wishlistItems.length > 0 && (
