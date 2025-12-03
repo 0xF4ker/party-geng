@@ -3,11 +3,11 @@ import { api } from "@/trpc/server";
 import WishlistClientPage from "./WishlistClientPage";
 
 export async function generateMetadata({
-  params,
+  props,
 }: {
-  params: Promise<{ eventId: string }>;
+  props: { params: Promise<{ eventId: string }> };
 }): Promise<Metadata> {
-  const { eventId } = await params;
+  const { eventId } = await props.params;
   const event = await api.wishlist.getByEventId({ eventId });
 
   if (!event) {
@@ -24,16 +24,12 @@ export async function generateMetadata({
     (event.wishlist?.items.map((i) => i.name).join(", ") ?? "No items yet") +
     ".";
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
-
   return {
-    metadataBase: new URL(baseUrl),
     title: `${event.title} Wishlist`,
     description: description,
     openGraph: {
       title: `${event.title} Wishlist`,
       description: description,
-      url: new URL(`/wishlist/${event.id}`, baseUrl),
       images: [
         {
           url: `/api/wishlist-image/${event.id}`,
