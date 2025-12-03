@@ -114,6 +114,7 @@ const EventDetailPage = () => {
             <WishlistCard
               wishlist={event.wishlist}
               _eventId={event.id}
+              eventName={event.title}
               onManage={() => setIsWishlistModalOpen(true)}
             />
           </div>

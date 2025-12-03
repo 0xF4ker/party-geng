@@ -1,45 +1,102 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { Button } from "@/components/ui/button";
-import { GiftIcon } from "lucide-react";
+import { Plus, Share2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { WishlistItemType, ContributionType } from "@prisma/client";
+import { ShareWishlistModal } from "./modals/ShareWishlistModal";
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type EventDetails = RouterOutput["event"]["getById"];
 type Wishlist = EventDetails["wishlist"];
+type WishlistItem = NonNullable<Wishlist>["items"][number];
 
 interface WishlistCardProps {
   wishlist: Wishlist;
   _eventId: string;
+  eventName: string;
   onManage: () => void;
 }
 
-export const WishlistCard = ({ wishlist, _eventId, onManage }: WishlistCardProps) => {
-  const totalItems = wishlist?.items.length ?? 0;
-  const fulfilledItems =
-    wishlist?.items.filter((item) => item.isFulfilled).length ?? 0;
+const isItemFulfilled = (item: WishlistItem) => {
+    if (item.isFulfilled) return true;
+    if (item.itemType === WishlistItemType.ITEM_REQUEST) {
+        return item.contributions.some(c => c.type === ContributionType.PROMISE);
+    }
+    if (item.itemType === WishlistItemType.CASH_REQUEST) {
+        const totalContributed = item.contributions
+            .filter(c => c.type === ContributionType.CASH)
+            .reduce((sum, c) => sum + (c.amount ?? 0), 0);
+        return item.requestedAmount && totalContributed >= item.requestedAmount;
+    }
+    return false;
+}
+
+export const WishlistCard = ({ wishlist, _eventId, eventName, onManage }: WishlistCardProps) => {
+  const items = wishlist?.items ?? [];
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
+  const handleShare = () => {
+    setIsShareModalOpen(true);
+  }
 
   return (
-    <div className="rounded-lg bg-white p-6 shadow-md">
-      <h3 className="text-xl font-bold text-gray-900">Wishlist</h3>
-      <div className="mt-4 flex items-center justify-around text-center">
-        <div>
-          <p className="text-3xl font-bold text-gray-800">{totalItems}</p>
-          <p className="text-sm text-gray-500">Total Items</p>
+    <>
+        <div className="rounded-xl bg-white p-4 shadow-lg sm:p-6">
+        <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-gray-900">Event Wishlist</h3>
+            <div className="flex items-center gap-2">
+                <Button size="icon" variant="ghost" onClick={onManage} className="h-8 w-8 rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200">
+                    <Plus className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={handleShare} className="h-8 w-8 rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200">
+                    <Share2 className="h-4 w-4" />
+                </Button>
+            </div>
         </div>
-        <div>
-          <p className="text-3xl font-bold text-green-600">{fulfilledItems}</p>
-          <p className="text-sm text-gray-500">Fulfilled</p>
+
+        <div className="mt-4 space-y-2">
+            {items.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+                <p className="text-sm">Your wishlist is empty.</p>
+            </div>
+            ) : (
+            items.map((item) => {
+                const isFulfilled = isItemFulfilled(item);
+                const fulfiller = item.contributions.find(c => c.guestName);
+
+                return (
+                    <div key={item.id} className={cn("flex items-center justify-between rounded-lg p-3", isFulfilled && "bg-green-50 border border-green-200")}>
+                        <div>
+                            <p className="font-semibold text-gray-800">{item.name}</p>
+                            {isFulfilled ? (
+                                <p className="text-xs text-green-700">Fulfilled by @{fulfiller?.guestName ?? 'a guest'}</p>
+                            ) : (
+                                <p className="text-xs text-gray-500">
+                                    {item.itemType === 'CASH_REQUEST' ? `₦${(item.requestedAmount ?? 0).toLocaleString()}` : 'Contribution'}
+                                </p>
+                            )}
+                        </div>
+                        {isFulfilled ? (
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" disabled>Fulfilled</Button>
+                        ): (
+                            <Button size="sm" onClick={onManage} className="bg-pink-600 hover:bg-pink-700 text-white">Fulfill Wish</Button>
+                        )}
+                    </div>
+                )
+            })
+            )}
         </div>
-      </div>
-      <div className="mt-6">
-        <Button variant="outline" className="w-full" onClick={onManage}>
-          <GiftIcon className="mr-2 h-4 w-4" />
-          Manage Wishlist
-        </Button>
-      </div>
-    </div>
+        </div>
+        <ShareWishlistModal 
+            isOpen={isShareModalOpen}
+            onClose={() => setIsShareModalOpen(false)}
+            wishlistUrl={`${window.location.origin}/wishlist/${_eventId}`}
+            eventName={eventName}
+        />
+    </>
   );
 };
