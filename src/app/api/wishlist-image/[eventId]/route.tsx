@@ -1,62 +1,61 @@
 import React from "react";
-import { db } from "@/server/db";
 import { ImageResponse } from "next/og";
+import type { NextRequest } from "next/server";
 
+// Define the expected type for the dynamic parameters with Promise wrapping
+type RouteContext = { params: Promise<{ eventId: string }> };
+
+// Define the structure of the data fetched from the internal API
+type EventData = {
+  title: string;
+  clientName: string;
+  wishlistItems: string[];
+};
+
+// Define runtime for Edge
 export const runtime = "edge";
 
-// Next.js Route Handler for requests
-// Using NextRequest for 'req' and the defined RouteContext for 'context'
 export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ eventId: string }> },
+  request: NextRequest,
+  { params }: RouteContext, // Using the required Promise type
 ) {
+  // Accessing params using await, as requested
   const { eventId } = await params;
-  console.log("Generating image for eventId:", eventId);
 
   if (!eventId) {
-    console.error("Event ID is missing.");
     return new Response("Event ID is required", { status: 400 });
   }
 
-  // Fetch event data with necessary relations
-  const event = await db.clientEvent.findUnique({
-    where: { id: eventId },
-    include: {
-      client: {
-        include: {
-          user: true,
-        },
-      },
-      wishlist: {
-        include: {
-          items: {
-            take: 5, // Get first 5 items
-          },
-        },
-      },
-    },
-  });
+  // 1. FETCH DATA from the separate, Node.js API Route
+  const dataApiUrl = `${request.nextUrl.origin}/api/event-data/${eventId}`;
+  const response = await fetch(dataApiUrl);
 
-  console.log("Fetched event data:", JSON.stringify(event, null, 2));
-
-  if (!event) {
-    console.error("Event not found for eventId:", eventId);
-    return new Response("Event not found", { status: 404 });
+  if (!response.ok) {
+    console.error(
+      "Failed to fetch data from internal API:",
+      response.status,
+      response.statusText,
+    );
+    return new Response(
+      `Failed to fetch event data. Status: ${response.status}`,
+      { status: 500 },
+    );
   }
 
-  const wishlistItems = event.wishlist?.items.map((item) => item.name) ?? [];
-  const clientName = event.client.name ?? "A Client"; // Fallback name
+  const eventData = (await response.json()) as EventData;
 
-  console.log(
-    "Generating image with items:",
-    wishlistItems,
-    "and client:",
+  const { title, clientName, wishlistItems } = eventData;
+
+  // Logging successful data before ImageResponse call
+  console.log("Generating image with data:", {
+    title,
     clientName,
-  );
+    wishlistItems,
+  });
 
+  // 2. Render the image
   return new ImageResponse(
     (
-      // ARGUMENT 1: The JSX element
       <div
         style={{
           height: "100%",
@@ -73,9 +72,9 @@ export async function GET(
         }}
       >
         <div style={{ fontSize: 48, marginBottom: 20 }}>
-          🎉 Come celebrate{" "}
+          🎉 Come celebrate
           <span style={{ fontWeight: 800 }}>
-            {clientName}&apos;s {event.title}
+            {clientName}&apos;s {title}
           </span>
           !
         </div>
@@ -89,8 +88,7 @@ export async function GET(
             >
               Wishlist Sneak Peek:
             </span>
-            {/* Using item name + index for key */}
-            {wishlistItems.map((item, i) => (
+            {wishlistItems.map((item: string, i: number) => (
               <span key={item + i} style={{ margin: "5px 0" }}>
                 • {item}
               </span>
@@ -99,12 +97,9 @@ export async function GET(
         )}
       </div>
     ),
-    // ARGUMENT 2: The options object
     {
-      width: 800,
-      height: 420,
-      // You can also pass the status code here:
-      // status: event ? 200 : 404,
+      width: 1200,
+      height: 630,
     },
   );
 }
