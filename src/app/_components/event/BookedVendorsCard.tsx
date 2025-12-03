@@ -6,7 +6,7 @@ import type { AppRouter } from "@/server/api/root";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { UserPlus } from "lucide-react";
+import { CalendarDays, UserPlus } from "lucide-react";
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type EventDetails = RouterOutput["event"]["getById"];
@@ -27,10 +27,18 @@ export const BookedVendorsCard = ({
     <div className="rounded-lg bg-white p-6 shadow-md">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-bold text-gray-900">Booked Vendors</h3>
-        <Button variant="outline" size="sm" onClick={onAdd}>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Add Vendor
-        </Button>
+        <div className="flex gap-2">
+          <Link href={`/event/${_eventId}/board`} passHref>
+            <Button variant="secondary" size="sm">
+              <CalendarDays className="mr-2 h-4 w-4" />
+              Join Moonboard
+            </Button>
+          </Link>
+          <Button variant="outline" size="sm" onClick={onAdd}>
+            <UserPlus className="mr-2 h-4 w-4" />
+            Add Vendor
+          </Button>
+        </div>
       </div>
       <div className="mt-4 space-y-4">
         {vendors.length > 0 ? (
