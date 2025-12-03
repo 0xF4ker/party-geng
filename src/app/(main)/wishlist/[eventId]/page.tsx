@@ -2,11 +2,9 @@ import { type Metadata } from "next";
 import { api } from "@/trpc/server";
 import WishlistClientPage from "./WishlistClientPage";
 
-export async function generateMetadata({
-  props,
-}: {
-  props: { params: Promise<{ eventId: string }> };
-}): Promise<Metadata> {
+export async function generateMetadata(
+  props: PageProps<"/wishlist/[eventId]">,
+): Promise<Metadata> {
   const { eventId } = await props.params;
   const event = await api.wishlist.getByEventId({ eventId });
 
