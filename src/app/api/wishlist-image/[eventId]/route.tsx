@@ -5,12 +5,12 @@ import { ImageResponse } from "next/og";
 // Define runtime for Edge
 export const runtime = "edge";
 
-// Next.js Route Handler for GET requests
+// Next.js Route Handler for requests
 export async function GET(
   req: Request,
-  { params }: { params: { eventId: string } },
+  context: { params: { eventId: string } },
 ) {
-  const eventId = params.eventId;
+  const eventId = context.params.eventId;
 
   if (!eventId) {
     return new Response("Event ID is required", { status: 400 });
