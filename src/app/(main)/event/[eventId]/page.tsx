@@ -10,7 +10,7 @@ import { WishlistCard } from "@/app/_components/event/WishlistCard";
 import { NewBudgetManagerCard } from "@/app/_components/event/NewBudgetManagerCard";
 import { NewGuestListCard } from "@/app/_components/event/NewGuestListCard";
 import { BookedVendorsCard } from "@/app/_components/event/BookedVendorsCard";
-import { TodoListCard } from "@/app/_components/event/TodoListCard";
+// import { TodoListCard } from "@/app/_components/event/TodoListCard";
 import { EditEventModal } from "@/app/_components/event/modals/EditEventModal";
 import { WishlistModal } from "@/app/_components/event/modals/WishlistModal";
 import { BudgetManagerModal } from "@/app/_components/event/modals/BudgetManagerModal";
@@ -44,7 +44,7 @@ const EventDetailPage = () => {
         enabled: !!event,
       },
     );
-  
+
   useEffect(() => {
     if (!userTypeLoading && isVendor) {
       router.replace(`/event/${eventId}/board`);
@@ -107,7 +107,7 @@ const EventDetailPage = () => {
             {/* Other main content can go here */}
           </div>
           <div className="flex flex-col gap-8 lg:col-span-1">
-            <TodoListCard todos={event.todos} eventId={event.id} />
+            {/* <TodoListCard todos={event.todos} eventId={event.id} /> */}
             <BookedVendorsCard
               vendors={event.hiredVendors}
               _eventId={event.id}

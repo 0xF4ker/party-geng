@@ -71,6 +71,11 @@ enum WishlistItemType {
   ITEM_REQUEST
 }
 
+enum BoardPostType {
+  NOTE
+  IMAGE
+}
+
 // --- 2. AUTH & USER MODELS ---
 
 model User {
@@ -93,7 +98,6 @@ model User {
   vendorQuotes       Quote[]             @relation("VendorQuotes")
   vendorOrders       Order[]             @relation("VendorOrders")
   hiredGigs          EventVendor[]       @relation("HiredVendor")
-  assignedTodos      EventTodoItem[]     @relation("AssignedTodos")
   authoredReviews    Review[]            @relation("AuthoredReviews")
   receivedReviews    Review[]            @relation("ReceivedReviews")
   guestContributions WishlistContribution[] @relation("GuestContributions")
@@ -102,6 +106,7 @@ model User {
   postLikes          PostLike[]
   postComments       PostComment[]
   postBookmarks      PostBookmark[]
+  boardPosts         BoardPost[]
 }
 
 model ClientProfile {
@@ -193,10 +198,10 @@ model ClientEvent {
   hiredVendors    EventVendor[]    @relation("Event")
   wishlist        Wishlist?
   conversation    Conversation?    @relation("EventConversation")
-  todos           EventTodoList[]
   personalTodos   EventPersonalTodo[]
   budget          EventBudget?
   guestLists      EventGuestList[]
+  boardPosts      BoardPost[]
 }
 
 model EventPersonalTodo {
@@ -468,29 +473,23 @@ model PostBookmark {
 
 // --- 9. EVENT MANAGEMENT MODELS ---
 
-model EventTodoList {
-  id      String          @id @default(uuid())
-  title   String
-  order   Int
-  event   ClientEvent     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  eventId String
-  items   EventTodoItem[]
+model BoardPost {
+  id          String        @id @default(uuid())
+  type        BoardPostType
+  content     String        @db.Text
+  author      User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId    String
+  authorName  String
+  rotation    Float
+  colorIndex  Int
+  x           Float
+  y           Float
+  zIndex      Int
+  event       ClientEvent   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId     String
+  createdAt   DateTime      @default(now())
 
   @@index([eventId])
-}
-
-model EventTodoItem {
-  id           String        @id @default(uuid())
-  content      String        @db.Text
-  order        Int
-  list         EventTodoList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  listId       String
-  assignedTo   User?         @relation("AssignedTodos", fields: [assignedToId], references: [id], onUpdate: NoAction, onDelete: SetNull)
-  assignedToId String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-
-  @@index([listId])
 }
 
 model EventBudget {

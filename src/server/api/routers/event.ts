@@ -2,7 +2,7 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { appRouter } from "@/server/api/root";
-import { GuestStatus } from "@prisma/client";
+import { BoardPostType, GuestStatus } from "@prisma/client";
 import { createId } from "@paralleldrive/cuid2";
 
 export const eventRouter = createTRPCRouter({
@@ -76,11 +76,6 @@ export const eventRouter = createTRPCRouter({
               },
             },
           },
-          todos: {
-            include: {
-              items: true,
-            },
-          },
           budget: {
             include: {
               items: true,
@@ -95,6 +90,11 @@ export const eventRouter = createTRPCRouter({
             include: {
               participants: true,
             },
+          },
+          boardPosts: {
+            include: {
+              author: true,
+            }
           },
         },
       });
@@ -152,13 +152,6 @@ export const eventRouter = createTRPCRouter({
           clientProfileId: clientProfile.id,
           budget: {
             create: {},
-          },
-          todos: {
-            create: [
-              { title: "To Do", order: 0 },
-              { title: "In Progress", order: 1 },
-              { title: "Done", order: 2 },
-            ],
           },
           guestLists: {
             create: {
@@ -327,70 +320,6 @@ export const eventRouter = createTRPCRouter({
       });
 
       return { success: true };
-    }),
-
-  addEmptyTodoList: protectedProcedure
-    .input(
-      z.object({
-        eventId: z.string(),
-        title: z.string(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const event = await ctx.db.clientEvent.findUnique({
-        where: { id: input.eventId },
-        include: { client: true, todos: true, conversation: { include: { participants: true } } },
-      });
-      if (!event) throw new TRPCError({ code: "NOT_FOUND" });
-
-      const isOwner = event.client.userId === ctx.user.id;
-      const isParticipant = event.conversation?.participants.some(p => p.id === ctx.user.id) ?? false;
-
-      if (!isOwner && !isParticipant) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "You do not have permission to edit this event",
-        });
-      }
-      return ctx.db.eventTodoList.create({
-        data: {
-          eventId: input.eventId,
-          title: input.title,
-          order: event.todos.length,
-        },
-      });
-    }),
-
-  updateTodoItem: protectedProcedure
-    .input(
-      z.object({
-        itemId: z.string(),
-        content: z.string().optional(),
-        order: z.number().optional(),
-        listId: z.string().optional(),
-        assignedToId: z.string().optional(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const { itemId, ...data } = input;
-      const item = await ctx.db.eventTodoItem.findUnique({
-        where: { id: itemId },
-        include: {
-          list: { include: { event: { include: { client: true, conversation: { include: { participants: true }} } } } },
-        },
-      });
-      if (!item) throw new TRPCError({ code: "NOT_FOUND" });
-      const event = item.list.event;
-      const isOwner = event.client.userId === ctx.user.id;
-      const isParticipant = event.conversation?.participants.some(p => p.id === ctx.user.id) ?? false;
-
-      if (!isOwner && !isParticipant) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "You do not have permission to edit this event",
-        });
-      }
-      return ctx.db.eventTodoItem.update({ where: { id: itemId }, data });
     }),
 
   updateBudgetItem: protectedProcedure
@@ -589,107 +518,74 @@ export const eventRouter = createTRPCRouter({
       }
       return ctx.db.eventGuestList.create({ data: input });
     }),
-
-  deleteTodoList: protectedProcedure
-    .input(z.object({ listId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const list = await ctx.db.eventTodoList.findUnique({
-        where: { id: input.listId },
-        include: { event: { include: { client: true, conversation: { include: { participants: true } } } } },
-      });
-      if (!list) throw new TRPCError({ code: "NOT_FOUND" });
-      const event = list.event;
-      const isOwner = event.client.userId === ctx.user.id;
-      const isParticipant = event.conversation?.participants.some(p => p.id === ctx.user.id) ?? false;
-
-      if (!isOwner && !isParticipant) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "You do not have permission to delete this list",
-        });
-      }
-      await ctx.db.eventTodoList.delete({ where: { id: input.listId } });
-      return { success: true };
-    }),
-
-  updateTodoList: protectedProcedure
-    .input(z.object({ listId: z.string(), title: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const list = await ctx.db.eventTodoList.findUnique({
-        where: { id: input.listId },
-        include: { event: { include: { client: true, conversation: { include: { participants: true } } } } },
-      });
-      if (!list) throw new TRPCError({ code: "NOT_FOUND" });
-      const event = list.event;
-      const isOwner = event.client.userId === ctx.user.id;
-      const isParticipant = event.conversation?.participants.some(p => p.id === ctx.user.id) ?? false;
-      
-      if (!isOwner && !isParticipant) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "You do not have permission to edit this list",
-        });
-      }
-      return ctx.db.eventTodoList.update({
-        where: { id: input.listId },
-        data: { title: input.title },
+    
+    getBoardPosts: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.boardPost.findMany({
+        where: { eventId: input.eventId },
+        orderBy: { createdAt: "desc" },
+        include: { author: true },
       });
     }),
 
-  addTodoItem: protectedProcedure
+  addBoardPost: protectedProcedure
     .input(
       z.object({
-        listId: z.string(),
+        eventId: z.string(),
+        type: z.nativeEnum(BoardPostType),
         content: z.string(),
-        order: z.number(),
+        colorIndex: z.number(),
+        x: z.number(),
+        y: z.number(),
+        zIndex: z.number(),
+        rotation: z.number(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const list = await ctx.db.eventTodoList.findUnique({
-        where: { id: input.listId },
-        include: { event: { include: { client: true, conversation: { include: { participants: true } } } } },
-      });
-      if (!list) throw new TRPCError({ code: "NOT_FOUND" });
-      const event = list.event;
-      const isOwner = event.client.userId === ctx.user.id;
-      const isParticipant = event.conversation?.participants.some(p => p.id === ctx.user.id) ?? false;
-
-      if (!isOwner && !isParticipant) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "You do not have permission to add to this list",
-        });
-      }
-      return ctx.db.eventTodoItem.create({
+      const { eventId, ...data } = input;
+      return ctx.db.boardPost.create({
         data: {
-          listId: input.listId,
-          content: input.content,
-          order: input.order,
+          ...data,
+          event: { connect: { id: eventId } },
+          author: { connect: { id: ctx.user.id } },
+          authorName: ctx.user.username,
         },
       });
     }),
 
-  deleteTodoItem: protectedProcedure
-    .input(z.object({ itemId: z.string() }))
+  updateBoardPostPosition: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        x: z.number(),
+        y: z.number(),
+        zIndex: z.number(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
-      const item = await ctx.db.eventTodoItem.findUnique({
-        where: { id: input.itemId },
-        include: {
-          list: { include: { event: { include: { client: true, conversation: { include: { participants: true } } } } } },
-        },
-      });
-      if (!item) throw new TRPCError({ code: "NOT_FOUND" });
-      const event = item.list.event;
-      const isOwner = event.client.userId === ctx.user.id;
-      const isParticipant = event.conversation?.participants.some(p => p.id === ctx.user.id) ?? false;
+      const { id, ...data } = input;
+      return ctx.db.boardPost.update({ where: { id }, data });
+    }),
 
-      if (!isOwner && !isParticipant) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "You do not have permission to delete this item",
-        });
-      }
-      await ctx.db.eventTodoItem.delete({ where: { id: input.itemId } });
-      return { success: true };
+  updateBoardPost: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        content: z.string().optional(),
+        colorIndex: z.number().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...data } = input;
+      // TODO: check for author
+      return ctx.db.boardPost.update({ where: { id }, data });
+    }),
+
+  deleteBoardPost: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // TODO: check for author
+      return ctx.db.boardPost.delete({ where: { id: input.id } });
     }),
 });

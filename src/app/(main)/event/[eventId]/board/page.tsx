@@ -1,82 +1,590 @@
 "use client";
-
-import {
-  MoreHorizontalIcon,
-  PenIcon,
-  PlusIcon,
-  Trash2Icon,
-} from "lucide-react";
-import type { ChangeEvent, FormEvent, KeyboardEvent } from "react";
-import { useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
-
-import { useJsLoaded } from "@/hooks/use-js-loaded";
-import type {
-  KanbanBoardDropDirection,
-} from "@/components/kanban";
-import {
-  KanbanBoard,
-  KanbanBoardCard,
-  KanbanBoardCardButton,
-  KanbanBoardCardButtonGroup,
-  KanbanBoardCardDescription,
-  KanbanBoardCardTextarea,
-  KanbanBoardColumn,
-  KanbanBoardColumnButton,
-  kanbanBoardColumnClassNames,
-  KanbanBoardColumnFooter,
-  KanbanBoardColumnHeader,
-  KanbanBoardColumnIconButton,
-  KanbanBoardColumnList,
-  KanbanBoardColumnListItem,
-  kanbanBoardColumnListItemClassNames,
-  KanbanBoardColumnSkeleton,
-  KanbanBoardColumnTitle,
-  KanbanBoardExtraMargin,
-  KanbanBoardProvider,
-  useDndEvents,
-} from "@/components/kanban";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { useUiStore } from "@/stores/ui";
-import { createTRPCReact } from "@trpc/react-query";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { useParams } from "next/navigation";
-import type { inferRouterOutputs } from "@trpc/server";
-import type { AppRouter } from "@/server/api/root";
 import { Loader2 } from "lucide-react";
-import Breadcrumb from "@/components/ui/breadcrumb";
-
-import { useUserType } from "@/hooks/useUserType";
-
+import type { AppRouter } from "@/server/api/root";
+import { createTRPCReact } from "@trpc/react-query";
+import type { inferRouterOutputs } from "@trpc/server";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
+import { useUiStore } from "@/stores/ui";
+import { BoardPostType } from "@prisma/client";
+import {createId} from "@paralleldrive/cuid2";
 const api = createTRPCReact<AppRouter>();
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type EventDetails = RouterOutput["event"]["getById"];
-type Card = EventDetails["todos"][number]["items"][number];
-type Column = EventDetails["todos"][number];
+type Post = EventDetails["boardPosts"][number];
 
-export default function EventKanbanBoardPage() {
-  const { headerHeight } = useUiStore();
+// --- Constants ---
+
+const NOTE_COLORS = [
+  { bg: "bg-yellow-100", text: "text-yellow-900", border: "border-yellow-200" },
+  { bg: "bg-rose-100", text: "text-rose-900", border: "border-rose-200" },
+  {
+    bg: "bg-emerald-100",
+    text: "text-emerald-900",
+    border: "border-emerald-200",
+  },
+  { bg: "bg-sky-100", text: "text-sky-900", border: "border-sky-200" },
+  { bg: "bg-violet-100", text: "text-violet-900", border: "border-violet-200" },
+];
+
+// --- Sub-Components ---
+
+const ModernPin = () => (
+  <div className="pointer-events-none absolute -top-3 left-1/2 z-20 -translate-x-1/2 transform">
+    <div className="h-3 w-3 rounded-full border border-slate-600 bg-slate-800 shadow-sm"></div>
+  </div>
+);
+
+const DeleteButton = ({ onClick }: { onClick: () => void }) => (
+  <button
+    onMouseDown={(e) => e.stopPropagation()} // Prevent drag start
+    onClick={(e) => {
+      e.stopPropagation();
+      onClick();
+    }}
+    className="absolute top-2 right-2 z-30 cursor-pointer rounded-full bg-white/80 p-1.5 text-slate-400 opacity-0 shadow-sm backdrop-blur-sm transition-all duration-200 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500"
+    title="Delete"
+  >
+    <svg
+      className="h-3 w-3"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2.5}
+        d="M6 18L18 6M6 6l12 12"
+      />
+    </svg>
+  </button>
+);
+
+// Draggable Wrapper
+const DraggableItem = ({
+  post,
+  onUpdatePosition,
+  children,
+  zIndex,
+  onFocus,
+}: {
+  post: Post;
+  onUpdatePosition: (id: string, x: number, y: number, zIndex: number) => void;
+  children: React.ReactNode;
+  zIndex: number;
+  onFocus: () => void;
+}) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const [pos, setPos] = useState({
+    x: post.x,
+    y: post.y,
+  });
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const nodeRef = useRef<HTMLDivElement>(null);
+
+  // Sync with remote updates if we aren't dragging
+  useEffect(() => {
+    if (!isDragging) {
+      setPos({ x: post.x, y: post.y });
+    }
+  }, [post.x, post.y, isDragging]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Only left click
+    if (e.button !== 0) return;
+
+    onFocus(); // Bring to front
+    setIsDragging(true);
+
+    const rect = nodeRef.current!.getBoundingClientRect();
+
+    // Calculate offset relative to the item
+    dragOffset.current = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+  };
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isDragging || !nodeRef.current) return;
+
+      const parentRect =
+        nodeRef.current.offsetParent?.getBoundingClientRect() ?? {
+          left: 0,
+          top: 0,
+        };
+
+      // Calculate new position relative to parent
+      let newX = e.clientX - parentRect.left - dragOffset.current.x;
+      let newY = e.clientY - parentRect.top - dragOffset.current.y;
+
+      // Basic bounds checking (optional, keeping it loose for now)
+      newX = Math.max(0, newX);
+      newY = Math.max(0, newY);
+
+      setPos({ x: newX, y: newY });
+    },
+    [isDragging],
+  );
+
+  const handleMouseUp = useCallback(() => {
+    if (isDragging) {
+      setIsDragging(false);
+      onUpdatePosition(post.id, pos.x, pos.y, zIndex);
+    }
+  }, [isDragging, onUpdatePosition, post.id, pos.x, pos.y, zIndex]);
+
+  // Global listeners for drag interactions
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    } else {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  return (
+    <div
+      ref={nodeRef}
+      onMouseDown={handleMouseDown}
+      style={{
+        left: pos.x,
+        top: pos.y,
+        zIndex: isDragging ? 9999 : zIndex, // Pop to top on drag
+        position: "absolute",
+      }}
+      className={`cursor-move touch-none select-none ${
+        isDragging ? "scale-105 opacity-90" : ""
+      } transition-transform duration-75`}
+    >
+      {children}
+    </div>
+  );
+};
+
+const NoteCard = ({
+  post,
+  userId,
+  deletePost,
+}: {
+  post: Post;
+  userId: string;
+  deletePost: (id: string) => void;
+}) => {
+  const color = NOTE_COLORS[post.colorIndex % NOTE_COLORS.length];
+  const isCurrentUser = post.authorId === userId;
+  const rotation = post.rotation;
+
+  return (
+    <div
+      className={`group relative w-64 ${color.bg} ${color.text} min-h-[160px] rounded-lg border p-5 pt-7 shadow-sm hover:shadow-2xl ${color.border} transition-shadow duration-300`}
+      style={{
+        transform: `rotate(${rotation}deg)`,
+        transformOrigin: "top center",
+      }}
+    >
+      <ModernPin />
+      {isCurrentUser && <DeleteButton onClick={() => deletePost(post.id)} />}
+
+      <div className="font-handwriting pointer-events-none mb-4 text-lg font-medium leading-relaxed">
+        {post.content}
+      </div>
+
+      <div className="pointer-events-none mt-auto flex items-center justify-between border-t border-black/5 pt-3">
+        <div className="flex items-center gap-1.5">
+          <div
+            className={`h-2 w-2 rounded-full ${
+              isCurrentUser ? "bg-indigo-500" : "bg-slate-400"
+            }`}
+          ></div>
+          <span className="text-xs font-bold uppercase tracking-wider opacity-60">
+            {post.authorName}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ImageCard = ({
+  post,
+  userId,
+  deletePost,
+}: {
+  post: Post;
+  userId: string;
+  deletePost: (id: string) => void;
+}) => {
+  const isCurrentUser = post.authorId === userId;
+  const rotation = post.rotation;
+
+  return (
+    <div
+      className="group relative w-64 rounded-lg border border-slate-200 bg-white p-2 pb-4 shadow-sm transition-shadow duration-300 hover:shadow-2xl"
+      style={{ transform: `rotate(${rotation}deg)` }}
+    >
+      <ModernPin />
+      {isCurrentUser && <DeleteButton onClick={() => deletePost(post.id)} />}
+
+      <div className="pointer-events-none aspect-auto overflow-hidden rounded bg-slate-100">
+        <img
+          src={post.content}
+          alt="Shared content"
+          className="h-auto w-full object-cover"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = `https://placehold.co/400x300/f1f5f9/94a3b8?text=Image+Error`;
+          }}
+        />
+      </div>
+
+      <div className="pointer-events-none mt-3 flex items-center justify-between px-1">
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          {post.authorName}
+        </span>
+        {isCurrentUser && (
+          <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const InputStation = ({
+  onPost,
+  isPosting,
+  user,
+}: {
+  onPost: (post: {
+    type: "note" | "image";
+    content: string;
+    colorIdx: number;
+  }) => void;
+  isPosting: boolean;
+  user: string;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [type, setType] = useState<"note" | "image">("note");
+  const [content, setContent] = useState("");
+  const [colorIdx, setColorIdx] = useState(0);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onPost({ type, content, colorIdx });
+    setContent("");
+    if (type === "note") setColorIdx((prev) => (prev + 1) % NOTE_COLORS.length);
+    setIsOpen(false);
+  };
+
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="pointer-events-auto mb-8 flex transform items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 font-semibold text-slate-700 shadow-lg backdrop-blur-sm transition-all hover:scale-105 hover:bg-slate-50 hover:shadow-xl active:scale-95"
+      >
+        <span className="text-xl leading-none">＋</span>
+        <span>Add Pin</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="animate-in fade-in slide-in-from-top-4 pointer-events-auto relative mx-auto mb-8 w-full max-w-xl rounded-2xl border border-white/40 bg-white/90 p-1 shadow-xl ring-1 ring-black/5 backdrop-blur-xl duration-300">
+      {/* Close Button */}
+      <button
+        onClick={() => setIsOpen(false)}
+        className="absolute top-3 right-3 z-20 rounded-full p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+        aria-label="Close input"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-5 w-5"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fillRule="evenodd"
+            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
+
+      <div className="mb-3 flex gap-1 rounded-xl bg-slate-100/50 p-1 pr-10">
+        <button
+          onClick={() => setType("note")}
+          className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-all ${
+            type === "note"
+              ? "bg-white text-slate-800 shadow-sm"
+              : "text-slate-500 hover:bg-white/50"
+          }`}
+        >
+          Note
+        </button>
+        <button
+          onClick={() => setType("image")}
+          className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-all ${
+            type === "image"
+              ? "bg-white text-slate-800 shadow-sm"
+              : "text-slate-500 hover:bg-white/50"
+          }`}
+        >
+          Image
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="px-4 pb-4">
+        <div className="group relative">
+          {type === "note" ? (
+            <textarea
+              autoFocus
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Type your thought here..."
+              className="h-20 w-full resize-none border-none bg-transparent text-lg font-medium text-slate-700 placeholder:text-slate-400 focus:ring-0"
+            />
+          ) : (
+            <input
+              autoFocus
+              type="url"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Paste image URL..."
+              className="h-12 w-full border-none bg-transparent text-slate-700 placeholder:text-slate-400 focus:ring-0"
+            />
+          )}
+
+          {type === "note" && (
+            <div className="mt-2 flex gap-1.5">
+              {NOTE_COLORS.map((c, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setColorIdx(i)}
+                  className={`h-4 w-4 rounded-full border transition-transform ${c.bg} ${c.border} ${
+                    colorIdx === i
+                      ? "scale-125 ring-2 ring-slate-200 ring-offset-1"
+                      : "hover:scale-110"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-green-400"></span>
+            {user ? `Posting as ${user}` : "Connecting..."}
+          </div>
+          <button
+            type="submit"
+            disabled={!content.trim() || isPosting}
+            className="flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white shadow-md transition-all hover:bg-slate-800 hover:shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isPosting ? "Saving..." : "Pin to Board"}
+            {!isPosting && <span className="text-slate-400">↵</span>}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+// --- Main Component ---
+
+export default function EventCollaborativeBoard() {
   const { eventId } = useParams<{ eventId: string }>();
-  const { isVendor } = useUserType();
+  const { user } = useAuth();
+  const utils = api.useUtils();
+  const { headerHeight } = useUiStore();
 
   const { data: event, isLoading } = api.event.getById.useQuery({
     id: eventId,
   });
+
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isPosting, setIsPosting] = useState(false);
+  const [focusMap, setFocusMap] = useState<Record<string, number>>({});
+  
+  useEffect(() => {
+    if (event) {
+      setPosts(event.boardPosts);
+    }
+  }, [event]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`board-posts:${eventId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "BoardPost", filter: `eventId=eq.${eventId}` },
+        (payload) => {
+           utils.event.getById.invalidate({ id: eventId });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [eventId, utils]);
+
+
+  const addPostMutation = api.event.addBoardPost.useMutation({
+    onMutate: async (newPost) => {
+      setIsPosting(true);
+      await utils.event.getById.cancel({ id: eventId });
+      const previousEvent = utils.event.getById.getData({ id: eventId });
+      if (previousEvent && user) {
+        const tempId = createId();
+        const optimisticPost: Post = {
+          id: tempId,
+          authorId: user.id,
+          authorName: user.username,
+          createdAt: new Date(),
+          author: user,
+          ...newPost,
+        };
+        utils.event.getById.setData({ id: eventId }, {
+          ...previousEvent,
+          boardPosts: [...previousEvent.boardPosts, optimisticPost],
+        });
+      }
+      return { previousEvent };
+    },
+    onSuccess: () => utils.event.getById.invalidate({ id: eventId }),
+    onError: (err, newPost, context) => {
+      if (context?.previousEvent) {
+        utils.event.getById.setData({ id: eventId }, context.previousEvent);
+      }
+    },
+    onSettled: () => setIsPosting(false),
+  });
+
+  const updatePositionMutation = api.event.updateBoardPostPosition.useMutation({
+    onMutate: async (updatedPost) => {
+      await utils.event.getById.cancel({ id: eventId });
+      const previousEvent = utils.event.getById.getData({ id: eventId });
+      if (previousEvent) {
+        utils.event.getById.setData({ id: eventId }, {
+          ...previousEvent,
+          boardPosts: previousEvent.boardPosts.map(p => p.id === updatedPost.id ? {...p, ...updatedPost} : p),
+        });
+      }
+      return { previousEvent };
+    },
+    onError: (err, newPost, context) => {
+      if (context?.previousEvent) {
+        utils.event.getById.setData({ id: eventId }, context.previousEvent);
+      }
+    },
+    onSettled: () => {
+      utils.event.getById.invalidate({ id: eventId });
+    }
+  });
+
+  const deletePostMutation = api.event.deleteBoardPost.useMutation({
+    onMutate: async (deletedPost) => {
+      await utils.event.getById.cancel({ id: eventId });
+      const previousEvent = utils.event.getById.getData({ id: eventId });
+      if (previousEvent) {
+        utils.event.getById.setData({ id: eventId }, {
+          ...previousEvent,
+          boardPosts: previousEvent.boardPosts.filter(p => p.id !== deletedPost.id),
+        });
+      }
+      return { previousEvent };
+    },
+    onError: (err, newPost, context) => {
+      if (context?.previousEvent) {
+        utils.event.getById.setData({ id: eventId }, context.previousEvent);
+      }
+    },
+    onSettled: () => {
+      utils.event.getById.invalidate({ id: eventId });
+    }
+  });
+
+  const handlePost = async ({
+    type,
+    content,
+    colorIdx,
+  }: {
+    type: "note" | "image";
+    content: string;
+    colorIdx: number;
+  }) => {
+    if (!user) return;
+    const randomX = Math.random() * 400 + 100;
+    const randomY = Math.random() * 300 + 200;
+
+    addPostMutation.mutate({
+      eventId,
+      type: type === "note" ? BoardPostType.NOTE : BoardPostType.IMAGE,
+      content,
+      colorIndex: colorIdx,
+      x: randomX,
+      y: randomY,
+      zIndex: 1,
+      rotation: Math.random() * 6 - 3,
+    });
+  };
+
+  const handleUpdatePosition = useCallback(
+    async (id: string, x: number, y: number, zIndex: number) => {
+      updatePositionMutation.mutate({ id, x, y, zIndex });
+    },
+    [updatePositionMutation],
+  );
+
+  const deletePost = useCallback(
+    async (id: string) => {
+      deletePostMutation.mutate({ id });
+    },
+    [deletePostMutation],
+  );
+
+  const handleFocus = (id: string) => {
+    setFocusMap((prev) => ({
+      ...prev,
+      [id]: (Math.max(...Object.values(prev), 0) || 10) + 1,
+    }));
+  };
+
+  const boardSize = useMemo(() => {
+    if (posts.length === 0) {
+      return { width: "100%", height: "100%" };
+    }
+    const maxX = Math.max(0, ...posts.map((p) => p.x));
+    const maxY = Math.max(0, ...posts.map((p) => p.y));
+
+    const width = maxX + 400;
+    const height = maxY + 400;
+
+    return {
+      width: `${width}px`,
+      height: `${height}px`,
+    };
+  }, [posts]);
+
 
   if (isLoading || !event) {
     return (
@@ -86,941 +594,68 @@ export default function EventKanbanBoardPage() {
     );
   }
 
-  const breadcrumbItems = isVendor
-    ? [
-        { label: "Inbox", href: "/inbox" },
-        { label: event.title, href: `/event/${event.id}/board` },
-        { label: "To-Do Board", href: `/event/${event.id}/board` },
-      ]
-    : [
-        { label: "My Events", href: "/manage_events" },
-        { label: event.title, href: `/event/${event.id}` },
-        { label: "To-Do Board", href: `/event/${event.id}/board` },
-      ];
-
   return (
     <div
-      className="grid h-screen grid-rows-[var(--header-height)_1fr_6rem] overflow-x-hidden sm:grid-rows-[var(--header-height)_1fr_var(--header-height)]"
+      className="relative flex flex-col h-screen w-full overflow-hidden bg-slate-50 font-sans text-slate-900"
       style={{ paddingTop: headerHeight }}
     >
-      <main className="relative">
-        <div className="absolute inset-0 h-full overflow-x-hidden px-4 py-4 md:px-6">
-          <Breadcrumb items={breadcrumbItems} className="mb-4" />
-          <KanbanBoardProvider>
-            <MyKanbanBoard event={event} />
-          </KanbanBoardProvider>
-        </div>
-      </main>
-    </div>
-  );
-}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage: "radial-gradient(#000 1px, transparent 1px)",
+          backgroundSize: "20px 20px",
+        }}
+      />
 
-function MyKanbanBoard({ event }: { event: EventDetails }) {
-  const [columns, setColumns] = useState<Column[]>(
-    [...event.todos].sort((a, b) => a.order - b.order),
-  );
-  const utils = api.useUtils();
-  const { eventId } = useParams<{ eventId: string }>();
-
-  useEffect(() => {
-    setColumns([...event.todos].sort((a, b) => a.order - b.order));
-  }, [event.todos]);
-
-  const addColumnMutation = api.event.addEmptyTodoList.useMutation({
-    onMutate: async ({ title }) => {
-      await utils.event.getById.cancel({ id: eventId });
-      const previousEvent = utils.event.getById.getData({ id: eventId });
-      if (previousEvent) {
-        utils.event.getById.setData({ id: eventId }, {
-          ...previousEvent,
-          todos: [
-            ...previousEvent.todos,
-            {
-              id: `temp-col-${Date.now()}`,
-              title,
-              eventId,
-              order: previousEvent.todos.length,
-              items: [],
-            },
-          ],
-        });
-      }
-      return { previousEvent };
-    },
-    onError: (err, newColumn, context) => {
-      if (context?.previousEvent) {
-        utils.event.getById.setData({ id: eventId }, context.previousEvent);
-      }
-    },
-    onSettled: () => {
-      void utils.event.getById.invalidate({ id: eventId });
-    },
-  });
-  const updateColumnMutation = api.event.updateTodoItem.useMutation({
-    onSettled: () => void utils.event.getById.invalidate({ id: eventId }),
-  });
-  const addTodoItemMutation = api.event.addTodoItem.useMutation({
-    onMutate: async ({ listId, content, order }) => {
-        await utils.event.getById.cancel({ id: eventId });
-        const previousEvent = utils.event.getById.getData({ id: eventId });
-        if (previousEvent) {
-            utils.event.getById.setData({ id: eventId }, (oldEvent) => {
-              if (!oldEvent) return previousEvent;
-              return {
-                ...oldEvent,
-                todos: oldEvent.todos.map((todo) => {
-                    if (todo.id === listId) {
-                        return {
-                            ...todo,
-                            items: [
-                                ...todo.items,
-                                {
-                                    id: `temp-item-${Date.now()}`,
-                                    content,
-                                    listId,
-                                    order,
-                                    createdAt: new Date(),
-                                    updatedAt: new Date(),
-                                    isFulfilled: false,
-                                    assignedToId: null,
-                                },
-                            ],
-                        };
-                    }
-                    return todo;
-                }),
-              }
-            });
-        }
-        return { previousEvent };
-    },
-
-    onError: (err, newItem, context) => {
-        if (context?.previousEvent) {
-            utils.event.getById.setData({ id: eventId }, context.previousEvent);
-        }
-    },
-    onSettled: () => {
-        void utils.event.getById.invalidate({ id: eventId });
-    },
-  });
-  const deleteColumnMutation = api.event.deleteTodoList.useMutation({
-    onMutate: async ({ listId }) => {
-      await utils.event.getById.cancel({ id: eventId });
-      const previousEvent = utils.event.getById.getData({ id: eventId });
-      if (previousEvent) {
-        utils.event.getById.setData({ id: eventId }, {
-          ...previousEvent,
-          todos: previousEvent.todos.filter((todo) => todo.id !== listId),
-        });
-      }
-      return { previousEvent };
-    },
-    onError: (err, deletedColumn, context) => {
-      if (context?.previousEvent) {
-        utils.event.getById.setData({ id: eventId }, context.previousEvent);
-      }
-    },
-    onSettled: () => {
-      void utils.event.getById.invalidate({ id: eventId });
-    },
-  });
-  const updateColumnTitleMutation = api.event.updateTodoList.useMutation({
-    onSettled: () => void utils.event.getById.invalidate({ id: eventId }),
-  });
-  const deleteTodoItemMutation = api.event.deleteTodoItem.useMutation({
-    onMutate: async ({ itemId }) => {
-        await utils.event.getById.cancel({ id: eventId });
-        const previousEvent = utils.event.getById.getData({ id: eventId });
-        if (previousEvent) {
-            utils.event.getById.setData({ id: eventId }, {
-                ...previousEvent,
-                todos: previousEvent.todos.map((todo) => ({
-                    ...todo,
-                    items: todo.items.filter((item) => item.id !== itemId),
-                })),
-            });
-        }
-        return { previousEvent };
-    },
-    onError: (err, deletedItem, context) => {
-        if (context?.previousEvent) {
-            utils.event.getById.setData({ id: eventId }, context.previousEvent);
-        }
-    },
-    onSettled: () => {
-        void utils.event.getById.invalidate({ id: eventId });
-    },
-  });
-
-  const scrollContainerReference = useRef<HTMLDivElement>(null);
-
-  function scrollRight() {
-    if (scrollContainerReference.current) {
-      scrollContainerReference.current.scrollLeft =
-        scrollContainerReference.current.scrollWidth;
-    }
-  }
-
-  const handleAddColumn = (title?: string) => {
-    if (title) {
-      addColumnMutation.mutate({
-        eventId: event.id,
-        title,
-      });
-    }
-    scrollRight();
-  };
-
-  function handleDeleteColumn(columnId: string) {
-    deleteColumnMutation.mutate({ listId: columnId });
-  }
-
-  function handleUpdateColumnTitle(columnId: string, title: string) {
-    updateColumnTitleMutation.mutate({ listId: columnId, title });
-  }
-
-  function handleAddCard(columnId: string, cardContent: string) {
-    const column = columns.find((c) => c.id === columnId);
-    if (!column) return;
-
-    addTodoItemMutation.mutate({
-      listId: columnId,
-      content: cardContent,
-      order: column.items.length,
-    });
-  }
-
-  function handleDeleteCard(cardId: string) {
-    deleteTodoItemMutation.mutate({ itemId: cardId });
-  }
-
-  function handleMoveCardToColumn(columnId: string, index: number, card: Card) {
-    const newColumns = columns.map((col) => {
-      const newItems = col.items.filter((item) => item.id !== card.id);
-      if (col.id === columnId) {
-        newItems.splice(index, 0, card);
-      }
-      return { ...col, items: newItems };
-    });
-    setColumns(newColumns);
-
-    updateColumnMutation.mutate({
-      itemId: card.id,
-      listId: columnId,
-      order: index,
-    });
-  }
-
-  function handleUpdateCardTitle(cardId: string, cardTitle: string) {
-    updateColumnMutation.mutate({
-      itemId: cardId,
-      content: cardTitle,
-    });
-  }
-
-  const [activeCardId, setActiveCardId] = useState<string>("");
-  const originalCardPositionReference = useRef<{
-    columnId: string;
-    cardIndex: number;
-  } | null>(null);
-  const { onDragStart, onDragEnd, onDragCancel, onDragOver } = useDndEvents();
-
-  function getOverId(column: Column, cardIndex: number): string {
-    const item = column.items[cardIndex + 1];
-    if (item) {
-      return item.id;
-    }
-
-    return column.id;
-  }
-
-  function findCardPosition(cardId: string): {
-    columnIndex: number;
-    cardIndex: number;
-  } {
-    for (const [columnIndex, column] of columns.entries()) {
-      const cardIndex = column.items.findIndex((c) => c.id === cardId);
-
-      if (cardIndex !== -1) {
-        return { columnIndex, cardIndex };
-      }
-    }
-
-    return { columnIndex: -1, cardIndex: -1 };
-  }
-
-  function moveActiveCard(
-    cardId: string,
-    direction: "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown",
-  ) {
-    const { columnIndex, cardIndex } = findCardPosition(cardId);
-    if (columnIndex === -1 || cardIndex === -1) return;
-
-    const column = columns[columnIndex];
-    if (!column) return;
-
-    const card = column.items[cardIndex];
-    if (!card) return;
-
-    let newColumnIndex = columnIndex;
-    let newCardIndex = cardIndex;
-
-    switch (direction) {
-      case "ArrowUp": {
-        newCardIndex = Math.max(cardIndex - 1, 0);
-        break;
-      }
-      case "ArrowDown": {
-        newCardIndex = Math.min(cardIndex + 1, column.items.length - 1);
-        break;
-      }
-      case "ArrowLeft": {
-        newColumnIndex = Math.max(columnIndex - 1, 0);
-        const newColumn = columns[newColumnIndex];
-        if (!newColumn) return;
-        newCardIndex = Math.min(newCardIndex, newColumn.items.length);
-        break;
-      }
-      case "ArrowRight": {
-        newColumnIndex = Math.min(columnIndex + 1, columns.length - 1);
-        const newColumn = columns[newColumnIndex];
-        if (!newColumn) return;
-        newCardIndex = Math.min(newCardIndex, newColumn.items.length);
-        break;
-      }
-    }
-
-    const newColumn = columns[newColumnIndex];
-    if (!newColumn) return;
-
-    flushSync(() => {
-      handleMoveCardToColumn(newColumn.id, newCardIndex, card);
-    });
-
-    const { columnIndex: updatedColumnIndex, cardIndex: updatedCardIndex } =
-      findCardPosition(cardId);
-    const updatedColumn = columns[updatedColumnIndex];
-    if (!updatedColumn) return;
-    const overId = getOverId(updatedColumn, updatedCardIndex);
-
-    onDragOver(cardId, overId);
-  }
-
-  function handleCardKeyDown(
-    event: KeyboardEvent<HTMLButtonElement>,
-    cardId: string,
-  ) {
-    const { key } = event;
-
-    if (activeCardId === "" && key === " ") {
-      event.preventDefault();
-      setActiveCardId(cardId);
-      onDragStart(cardId);
-
-      const { columnIndex, cardIndex } = findCardPosition(cardId);
-      const column = columns[columnIndex];
-      if (!column) return;
-      originalCardPositionReference.current =
-        columnIndex !== -1 && cardIndex !== -1
-          ? { columnId: column.id, cardIndex }
-          : null;
-    } else if (activeCardId === cardId) {
-      if (key === " " || key === "Enter") {
-        event.preventDefault();
-        flushSync(() => {
-          setActiveCardId("");
-        });
-
-        const { columnIndex, cardIndex } = findCardPosition(cardId);
-        if (columnIndex !== -1 && cardIndex !== -1) {
-          const column = columns[columnIndex];
-          if (!column) return;
-          const overId = getOverId(column, cardIndex);
-          onDragEnd(cardId, overId);
-        } else {
-          onDragEnd(cardId);
-        }
-
-        originalCardPositionReference.current = null;
-      } else if (key === "Escape") {
-        event.preventDefault();
-        onDragCancel(cardId);
-        originalCardPositionReference.current = null;
-        setActiveCardId("");
-      } else if (
-        key === "ArrowLeft" ||
-        key === "ArrowRight" ||
-        key === "ArrowUp" ||
-        key === "ArrowDown"
-      ) {
-        event.preventDefault();
-        moveActiveCard(cardId, key);
-      }
-    }
-  }
-
-  function handleCardBlur() {
-    setActiveCardId("");
-  }
-
-  const jsLoaded = useJsLoaded();
-
-  return (
-    <KanbanBoard ref={scrollContainerReference}>
-      {columns.map((column) =>
-        jsLoaded ? (
-          <MyKanbanBoardColumn
-            activeCardId={activeCardId}
-            column={column}
-            key={column.id}
-            onAddCard={handleAddCard}
-            onCardBlur={handleCardBlur}
-            onCardKeyDown={handleCardKeyDown}
-            onDeleteCard={handleDeleteCard}
-            onDeleteColumn={handleDeleteColumn}
-            onMoveCardToColumn={handleMoveCardToColumn}
-            onUpdateCardTitle={handleUpdateCardTitle}
-            onUpdateColumnTitle={handleUpdateColumnTitle}
+      <div className="p-6">
+        <div className="pointer-events-auto flex flex-col items-center">
+          <h2 className="mb-2 text-2xl font-bold tracking-tight text-slate-800 drop-shadow-sm">
+            {event.title} - Collaborative Board
+          </h2>
+          <InputStation
+            onPost={handlePost}
+            isPosting={isPosting}
+            user={user?.username ?? "Anonymous"}
           />
+        </div>
+      </div>
+
+      <div className="relative flex-grow overflow-auto">
+        {posts.length > 0 ? (
+          <div className="relative" style={boardSize}>
+            {posts.map((post) => (
+              <DraggableItem
+                key={post.id}
+                post={post}
+                onUpdatePosition={handleUpdatePosition}
+                zIndex={focusMap[post.id] || post.zIndex || 1}
+                onFocus={() => handleFocus(post.id)}
+              >
+                {post.type === "NOTE" ? (
+                  <NoteCard
+                    post={post}
+                    userId={user?.id ?? ""}
+                    deletePost={deletePost}
+                  />
+                ) : (
+                  <ImageCard
+                    post={post}
+                    userId={user?.id ?? ""}
+                    deletePost={deletePost}
+                  />
+                )}
+              </DraggableItem>
+            ))}
+          </div>
         ) : (
-          <KanbanBoardColumnSkeleton key={column.id} />
-        ),
-      )}
-      {jsLoaded ? (
-        <MyNewKanbanBoardColumn onAddColumn={handleAddColumn} />
-      ) : (
-        <Skeleton className="h-9 w-10.5 flex-shrink-0" />
-      )}
-      <KanbanBoardExtraMargin />
-    </KanbanBoard>
-  );
-}
-
-function MyKanbanBoardColumn({
-  activeCardId,
-  column,
-  onAddCard,
-  onCardBlur,
-  onCardKeyDown,
-  onDeleteCard,
-  onDeleteColumn,
-  onMoveCardToColumn,
-  onUpdateCardTitle,
-  onUpdateColumnTitle,
-}: {
-  activeCardId: string;
-  column: Column;
-  onAddCard: (columnId: string, cardContent: string) => void;
-  onCardBlur: () => void;
-  onCardKeyDown: (
-    event: KeyboardEvent<HTMLButtonElement>,
-    cardId: string,
-  ) => void;
-  onDeleteCard: (cardId: string) => void;
-  onDeleteColumn: (columnId: string) => void;
-  onMoveCardToColumn: (columnId: string, index: number, card: Card) => void;
-  onUpdateCardTitle: (cardId: string, cardTitle: string) => void;
-  onUpdateColumnTitle: (columnId: string, columnTitle: string) => void;
-}) {
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const listReference = useRef<HTMLUListElement>(null);
-  const moreOptionsButtonReference = useRef<HTMLButtonElement>(null);
-  const { onDragCancel, onDragEnd } = useDndEvents();
-
-  function scrollList() {
-    if (listReference.current) {
-      listReference.current.scrollTop = listReference.current.scrollHeight;
-    }
-  }
-
-  function closeDropdownMenu() {
-    flushSync(() => {
-      setIsEditingTitle(false);
-    });
-
-    moreOptionsButtonReference.current?.focus();
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const columnTitle = formData.get("columnTitle") as string;
-    onUpdateColumnTitle(column.id, columnTitle);
-    closeDropdownMenu();
-  }
-
-  function handleDropOverColumn(dataTransferData: string) {
-    const card = JSON.parse(dataTransferData) as Card;
-    onMoveCardToColumn(column.id, 0, card);
-  }
-
-  function handleDropOverListItem(cardId: string) {
-    return (
-      dataTransferData: string,
-      dropDirection: KanbanBoardDropDirection,
-    ) => {
-      const card = JSON.parse(dataTransferData) as Card;
-      const cardIndex = column.items.findIndex(({ id }) => id === cardId);
-      const currentCardIndex = column.items.findIndex(
-        ({ id }) => id === card.id,
-      );
-
-      const baseIndex = dropDirection === "top" ? cardIndex : cardIndex + 1;
-      const targetIndex =
-        currentCardIndex !== -1 && currentCardIndex < baseIndex
-          ? baseIndex - 1
-          : baseIndex;
-
-      const safeTargetIndex = Math.max(
-        0,
-        Math.min(targetIndex, column.items.length),
-      );
-      const overCard = column.items[safeTargetIndex];
-
-      if (card.id === overCard?.id) {
-        onDragCancel(card.id);
-      } else {
-        onMoveCardToColumn(column.id, safeTargetIndex, card);
-        onDragEnd(card.id, overCard?.id ?? column.id);
-      }
-    };
-  }
-
-  return (
-    <KanbanBoardColumn
-      columnId={column.id}
-      key={column.id}
-      onDropOverColumn={handleDropOverColumn}
-    >
-      <KanbanBoardColumnHeader>
-        {isEditingTitle ? (
-          <form
-            className="w-full"
-            onSubmit={handleSubmit}
-            onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget)) {
-                closeDropdownMenu();
-              }
-            }}
-          >
-            <Input
-              aria-label="Column title"
-              autoFocus
-              defaultValue={column.title}
-              name="columnTitle"
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  closeDropdownMenu();
-                }
-              }}
-              required
-            />
-          </form>
-        ) : (
-          <>
-            <KanbanBoardColumnTitle columnId={column.id}>
-              {column.title}
-            </KanbanBoardColumnTitle>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <KanbanBoardColumnIconButton ref={moreOptionsButtonReference}>
-                  <MoreHorizontalIcon />
-
-                  <span className="sr-only">
-                    More options for {column.title}
-                  </span>
-                </KanbanBoardColumnIconButton>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Column</DropdownMenuLabel>
-
-                <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => setIsEditingTitle(true)}>
-                    <PenIcon />
-                    Edit Details
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={() => onDeleteColumn(column.id)}
-                  >
-                    <Trash2Icon />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
+          <div className="flex h-full w-full items-center justify-center">
+            <div className="text-center opacity-30">
+              <span className="mb-4 block text-6xl">📌</span>
+              <p className="font-handwriting text-2xl">Pin something here!</p>
+            </div>
+          </div>
         )}
-      </KanbanBoardColumnHeader>
-
-      <KanbanBoardColumnList ref={listReference}>
-        {column.items
-          .sort((a, b) => a.order - b.order)
-          .map((card) => (
-            <KanbanBoardColumnListItem
-              cardId={card.id}
-              key={card.id}
-              onDropOverListItem={handleDropOverListItem(card.id)}
-            >
-              <MyKanbanBoardCard
-                card={card}
-                isActive={activeCardId === card.id}
-                onCardBlur={onCardBlur}
-                onCardKeyDown={onCardKeyDown}
-                onDeleteCard={onDeleteCard}
-                onUpdateCardTitle={onUpdateCardTitle}
-              />
-            </KanbanBoardColumnListItem>
-          ))}
-      </KanbanBoardColumnList>
-
-      <MyNewKanbanBoardCard
-        column={column}
-        onAddCard={onAddCard}
-        scrollList={scrollList}
-      />
-    </KanbanBoardColumn>
-  );
-}
-
-function MyKanbanBoardCard({
-  card,
-  isActive,
-  onCardBlur,
-  onCardKeyDown,
-  onDeleteCard,
-  onUpdateCardTitle,
-}: {
-  card: Card;
-  isActive: boolean;
-  onCardBlur: () => void;
-  onCardKeyDown: (
-    event: KeyboardEvent<HTMLButtonElement>,
-    cardId: string,
-  ) => void;
-  onDeleteCard: (cardId: string) => void;
-  onUpdateCardTitle: (cardId: string, cardTitle: string) => void;
-}) {
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const kanbanBoardCardReference = useRef<HTMLButtonElement>(null);
-  const previousIsActiveReference = useRef(isActive);
-  const wasCancelledReference = useRef(false);
-
-  useEffect(() => {
-    if (isActive && !isEditingTitle) {
-      kanbanBoardCardReference.current?.focus();
-    }
-
-    if (
-      !isActive &&
-      previousIsActiveReference.current &&
-      wasCancelledReference.current
-    ) {
-      kanbanBoardCardReference.current?.focus();
-      wasCancelledReference.current = false;
-    }
-
-    previousIsActiveReference.current = isActive;
-  }, [isActive, isEditingTitle]);
-
-  function handleBlur() {
-    flushSync(() => {
-      setIsEditingTitle(false);
-    });
-
-    kanbanBoardCardReference.current?.focus();
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const cardTitle = formData.get("cardTitle") as string;
-    onUpdateCardTitle(card.id, cardTitle);
-    handleBlur();
-  }
-
-  return isEditingTitle ? (
-    <form onBlur={handleBlur} onSubmit={handleSubmit}>
-      <KanbanBoardCardTextarea
-        aria-label="Edit card title"
-        autoFocus
-        defaultValue={card.content}
-        name="cardTitle"
-        onFocus={(event) => event.target.select()}
-        onInput={(event) => {
-          const input = event.currentTarget as HTMLTextAreaElement;
-          if (/\S/.test(input.value)) {
-            input.setCustomValidity("");
-          } else {
-            input.setCustomValidity(
-              "Card content cannot be empty or just whitespace.",
-            );
-          }
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" && !event.shiftKey) {
-            event.preventDefault();
-            event.currentTarget.form?.requestSubmit();
-          }
-
-          if (event.key === "Escape") {
-            handleBlur();
-          }
-        }}
-        placeholder="Edit card title ..."
-        required
-      />
-    </form>
-  ) : (
-    <KanbanBoardCard
-      data={card}
-      isActive={isActive}
-      onBlur={onCardBlur}
-      onClick={() => setIsEditingTitle(true)}
-      onKeyDown={(event) => {
-        if (event.key === " ") {
-          event.preventDefault();
-        }
-
-        if (event.key === "Escape") {
-          wasCancelledReference.current = true;
-        }
-
-        onCardKeyDown(event, card.id);
-      }}
-      ref={kanbanBoardCardReference}
-    >
-      <KanbanBoardCardDescription>{card.content}</KanbanBoardCardDescription>
-      <KanbanBoardCardButtonGroup disabled={isActive}>
-        <KanbanBoardCardButton
-          className="text-destructive"
-          onClick={() => onDeleteCard(card.id)}
-          tooltip="Delete card"
-        >
-          <Trash2Icon />
-
-          <span className="sr-only">Delete card</span>
-        </KanbanBoardCardButton>
-      </KanbanBoardCardButtonGroup>
-    </KanbanBoardCard>
-  );
-}
-
-function MyNewKanbanBoardCard({
-  column,
-  onAddCard,
-  scrollList,
-}: {
-  column: Column;
-  onAddCard: (columnId: string, cardContent: string) => void;
-  scrollList: () => void;
-}) {
-  const [cardContent, setCardContent] = useState("");
-  const newCardButtonReference = useRef<HTMLButtonElement>(null);
-  const submitButtonReference = useRef<HTMLButtonElement>(null);
-  const [showNewCardForm, setShowNewCardForm] = useState(false);
-
-  function handleAddCardClick() {
-    flushSync(() => {
-      setShowNewCardForm(true);
-    });
-
-    scrollList();
-  }
-
-  function handleCancelClick() {
-    flushSync(() => {
-      setShowNewCardForm(false);
-      setCardContent("");
-    });
-
-    newCardButtonReference.current?.focus();
-  }
-
-  function handleInputChange(event: ChangeEvent<HTMLTextAreaElement>) {
-    setCardContent(event.currentTarget.value);
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    flushSync(() => {
-      onAddCard(column.id, cardContent.trim());
-      setCardContent("");
-    });
-
-    scrollList();
-  }
-
-  return showNewCardForm ? (
-    <>
-      <form
-        onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) {
-            handleCancelClick();
-          }
-        }}
-        onSubmit={handleSubmit}
-      >
-        <div className={kanbanBoardColumnListItemClassNames}>
-          <KanbanBoardCardTextarea
-            aria-label="New card content"
-            autoFocus
-            name="cardContent"
-            onChange={handleInputChange}
-            onInput={(event) => {
-              const input = event.currentTarget as HTMLTextAreaElement;
-              if (/\S/.test(input.value)) {
-                input.setCustomValidity("");
-              } else {
-                input.setCustomValidity(
-                  "Card content cannot be empty or just whitespace.",
-                );
-              }
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                submitButtonReference.current?.click();
-              }
-
-              if (event.key === "Escape") {
-                handleCancelClick();
-              }
-            }}
-            placeholder="New task..."
-            required
-            value={cardContent}
-          />
-        </div>
-
-        <KanbanBoardColumnFooter>
-          <Button ref={submitButtonReference} size="sm" type="submit">
-            Add
-          </Button>
-
-          <Button
-            onClick={handleCancelClick}
-            size="sm"
-            variant="outline"
-            type="button"
-          >
-            Cancel
-          </Button>
-        </KanbanBoardColumnFooter>
-      </form>
-    </>
-  ) : (
-    <KanbanBoardColumnFooter>
-      <KanbanBoardColumnButton
-        onClick={handleAddCardClick}
-        ref={newCardButtonReference}
-      >
-        <PlusIcon />
-
-        <span aria-hidden>New card</span>
-
-        <span className="sr-only">Add new card to {column.title}</span>
-      </KanbanBoardColumnButton>
-    </KanbanBoardColumnFooter>
-  );
-}
-
-function MyNewKanbanBoardColumn({
-  onAddColumn,
-}: {
-  onAddColumn: (columnTitle?: string) => void;
-}) {
-  const [showEditor, setShowEditor] = useState(false);
-  const newColumnButtonReference = useRef<HTMLButtonElement>(null);
-  const inputReference = useRef<HTMLInputElement>(null);
-
-  function handleAddColumnClick() {
-    flushSync(() => {
-      setShowEditor(true);
-    });
-
-    onAddColumn();
-  }
-
-  function handleCancelClick() {
-    flushSync(() => {
-      setShowEditor(false);
-    });
-
-    newColumnButtonReference.current?.focus();
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const columnTitle = formData.get("columnTitle") as string;
-    onAddColumn(columnTitle);
-    if (inputReference.current) {
-      inputReference.current.value = "";
-    }
-  }
-
-  return showEditor ? (
-    <form
-      className={kanbanBoardColumnClassNames}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) {
-          handleCancelClick();
-        }
-      }}
-      onSubmit={handleSubmit}
-    >
-      <KanbanBoardColumnHeader>
-        <Input
-          aria-label="Column title"
-          autoFocus
-          name="columnTitle"
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              handleCancelClick();
-            }
-          }}
-          placeholder="New column title ..."
-          ref={inputReference}
-          required
-        />
-      </KanbanBoardColumnHeader>
-
-      <KanbanBoardColumnFooter>
-        <Button size="sm" type="submit">
-          Add
-        </Button>
-
-        <Button
-          onClick={handleCancelClick}
-          size="sm"
-          type="button"
-          variant="outline"
-        >
-          Cancel
-        </Button>
-      </KanbanBoardColumnFooter>
-    </form>
-  ) : (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          onClick={handleAddColumnClick}
-          ref={newColumnButtonReference}
-          variant="outline"
-        >
-          <PlusIcon />
-
-          <span className="sr-only">Add column</span>
-        </Button>
-      </TooltipTrigger>
-
-      <TooltipContent>Add a new column to the board</TooltipContent>
-    </Tooltip>
+      </div>
+    </div>
   );
 }
