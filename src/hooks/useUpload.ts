@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { compressImage } from "@/lib/image-compression";
+import { checkFileSize } from "@/lib/file-size-check";
 
 type UploadResult = {
   publicUrl: string | null;
@@ -30,15 +32,27 @@ export const useUpload = (): UploadResult => {
       setIsLoading(false);
       return null;
     }
+    
+    if (!checkFileSize(file)) {
+        const sizeError = "File exceeds the 10MB size limit.";
+        setError(sizeError);
+        setIsLoading(false);
+        return null;
+    }
 
     try {
-      const fileExt = file.name.split(".").pop();
+      let fileToUpload = file;
+      if (file.type.startsWith("image/")) {
+        fileToUpload = await compressImage(file);
+      }
+      
+      const fileExt = fileToUpload.name.split(".").pop();
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from(bucket)
-        .upload(filePath, file);
+        .upload(filePath, fileToUpload);
 
       if (uploadError) {
         throw uploadError;

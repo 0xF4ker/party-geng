@@ -16,6 +16,7 @@ import { supabase } from "@/lib/supabase";
 import { useUiStore } from "@/stores/ui";
 import { BoardPostType } from "@prisma/client";
 import { createId } from "@paralleldrive/cuid2";
+import { useUpload } from "@/hooks/useUpload";
 const api = createTRPCReact<AppRouter>();
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
@@ -274,7 +275,7 @@ const InputStation = ({
 }: {
   onPost: (post: {
     type: "note" | "image";
-    content: string;
+    content: string | File;
     colorIdx: number;
   }) => void;
   isPosting: boolean;
@@ -283,12 +284,15 @@ const InputStation = ({
   const [isOpen, setIsOpen] = useState(false);
   const [type, setType] = useState<"note" | "image">("note");
   const [content, setContent] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [colorIdx, setColorIdx] = useState(0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onPost({ type, content, colorIdx });
+    const postContent = type === 'image' ? imageFile! : content;
+    onPost({ type, content: postContent, colorIdx });
     setContent("");
+    setImageFile(null);
     if (type === "note") setColorIdx((prev) => (prev + 1) % NOTE_COLORS.length);
     setIsOpen(false);
   };
@@ -361,12 +365,11 @@ const InputStation = ({
               className="h-20 w-full resize-none border-none bg-transparent text-lg font-medium text-slate-700 placeholder:text-slate-400 focus:ring-0"
             />
           ) : (
-            <input
+             <input
               autoFocus
-              type="url"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Paste image URL..."
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
               className="h-12 w-full border-none bg-transparent text-slate-700 placeholder:text-slate-400 focus:ring-0"
             />
           )}
@@ -415,6 +418,7 @@ export default function EventCollaborativeBoard() {
   const { user } = useAuth();
   const utils = api.useUtils();
   const { headerHeight } = useUiStore();
+  const {upload: uploadImage, isLoading: isUploading} = useUpload();
 
   const { data: event, isLoading } = api.event.getById.useQuery({
     id: eventId,
@@ -546,17 +550,25 @@ export default function EventCollaborativeBoard() {
     colorIdx,
   }: {
     type: "note" | "image";
-    content: string;
+    content: string | File;
     colorIdx: number;
   }) => {
     if (!user) return;
+    
+    let postContent = content as string;
+    if (content instanceof File) {
+        const url = await uploadImage(content, 'board-images');
+        if (!url) return;
+        postContent = url;
+    }
+
     const randomX = Math.random() * 400 + 100;
     const randomY = Math.random() * 300 + 200;
 
     addPostMutation.mutate({
       eventId,
       type: type === "note" ? BoardPostType.NOTE : BoardPostType.IMAGE,
-      content,
+      content: postContent,
       colorIndex: colorIdx,
       x: randomX,
       y: randomY,
@@ -630,7 +642,7 @@ export default function EventCollaborativeBoard() {
           </h2>
           <InputStation
             onPost={handlePost}
-            isPosting={isPosting}
+            isPosting={isPosting || isUploading}
             user={user?.username ?? "Anonymous"}
           />
         </div>
