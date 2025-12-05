@@ -7,7 +7,7 @@ import React, {
   useRef,
 } from "react";
 import { useParams } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Image as ImageIcon } from "lucide-react";
 import type { AppRouter } from "@/server/api/root";
 import { createTRPCReact } from "@trpc/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -286,10 +286,32 @@ const InputStation = ({
   const [content, setContent] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [colorIdx, setColorIdx] = useState(0);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (type === 'note') {
+      setImageFile(null);
+    }
+  }, [type]);
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreview(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(imageFile);
+    setImagePreview(objectUrl);
+
+    // free memory when the component is unmounted
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [imageFile]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const postContent = type === 'image' ? imageFile! : content;
+    const postContent = type === "image" ? imageFile! : content;
+    if (!postContent) return;
+
     onPost({ type, content: postContent, colorIdx });
     setContent("");
     setImageFile(null);
@@ -365,13 +387,58 @@ const InputStation = ({
               className="h-20 w-full resize-none border-none bg-transparent text-lg font-medium text-slate-700 placeholder:text-slate-400 focus:ring-0"
             />
           ) : (
-             <input
-              autoFocus
-              type="file"
-              accept="image/*"
-              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-              className="h-12 w-full border-none bg-transparent text-slate-700 placeholder:text-slate-400 focus:ring-0"
-            />
+            <div className="flex h-28 w-full items-center justify-center rounded-lg bg-slate-50">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                className="hidden"
+              />
+              {imagePreview ? (
+                <div className="group relative h-full w-full">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="h-full w-full rounded-md object-contain"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => setImageFile(null)}
+                      className="rounded-full bg-black/50 p-1 text-white hover:bg-black/70"
+                      title="Remove image"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex h-full w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 p-6 text-slate-500 transition-colors hover:border-slate-400 hover:bg-slate-100"
+                >
+                  <ImageIcon className="h-8 w-8 text-slate-400" />
+                  <span className="mt-2 text-xs font-semibold">
+                    Click to upload an Image
+                  </span>
+                </button>
+              )}
+            </div>
           )}
 
           {type === "note" && (
@@ -381,7 +448,9 @@ const InputStation = ({
                   key={i}
                   type="button"
                   onClick={() => setColorIdx(i)}
-                  className={`h-4 w-4 rounded-full border transition-transform ${c.bg} ${c.border} ${
+                  className={`h-4 w-4 rounded-full border transition-transform ${
+                    c.bg
+                  } ${c.border} ${
                     colorIdx === i
                       ? "scale-125 ring-2 ring-slate-200 ring-offset-1"
                       : "hover:scale-110"
@@ -399,7 +468,9 @@ const InputStation = ({
           </div>
           <button
             type="submit"
-            disabled={!content.trim() || isPosting}
+            disabled={
+              isPosting || (type === "note" ? !content.trim() : !imageFile)
+            }
             className="flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2 text-sm font-semibold text-white shadow-md transition-all hover:bg-slate-800 hover:shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPosting ? "Saving..." : "Pin to Board"}
