@@ -743,7 +743,9 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
           />
           {errors.location && (
             <p className="mt-1 text-sm text-red-600">
-              {String(errors.location?.message ?? '')}
+              {typeof errors.location.message === 'string'
+                ? errors.location.message
+                : 'Invalid Location Data'}
             </p>
           )}
         </div>
