@@ -57,7 +57,7 @@ export const EventHeader = ({ event, onEdit }: EventHeaderProps) => {
               {event.location && (
                 <div className="flex items-center gap-2">
                   <MapPinIcon className="h-5 w-5" />
-                  <span className="font-medium">{event.location}</span>
+                  <span className="font-medium">{(event.location as unknown as {display_name: string})?.display_name}</span>
                 </div>
               )}
             </div>
