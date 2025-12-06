@@ -341,8 +341,8 @@ const PostModal = ({
                 {authorDisplayName}
               </p>
               <p className="truncate text-xs text-gray-500">
-                {author.vendorProfile?.location ??
-                  author.clientProfile?.location}
+                {(author.vendorProfile?.location as unknown as {display_name: string})?.display_name ??
+                  (author.clientProfile?.location as unknown as {display_name: string})?.display_name}
               </p>
             </div>
           </Link>
