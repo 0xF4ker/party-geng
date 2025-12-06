@@ -462,7 +462,7 @@ const ProfileHeader = ({
             {clientProfile?.location && (
               <div className="flex items-center gap-1">
                 <MapPin className="h-4 w-4" />
-                <span>{clientProfile.location}</span>
+                <span>{(clientProfile.location as unknown as {display_name: string})?.display_name}</span>
               </div>
             )}
             <div className="flex items-center gap-1">

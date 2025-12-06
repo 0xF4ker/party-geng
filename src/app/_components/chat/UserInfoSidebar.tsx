@@ -110,8 +110,8 @@ export const UserInfoSidebar = ({
     "Unknown";
 
   const avatarUrl = vendorProfile?.avatarUrl ?? clientProfile?.avatarUrl;
-  const location =
-    vendorProfile?.location ?? clientProfile?.location ?? "Nigeria";
+  const locationData = vendorProfile?.location ?? clientProfile?.location;
+  const location = (locationData as unknown as { display_name: string } | null)?.display_name ?? "Nigeria";
 
   const joinedDate = otherUser.createdAt
     ? new Date(otherUser.createdAt)

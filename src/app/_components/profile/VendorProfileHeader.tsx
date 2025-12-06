@@ -444,7 +444,7 @@ const VendorProfileHeader = ({
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-500">
               <div className="flex items-center gap-1.5">
                 <MapPin className="h-4 w-4" />
-                <span>{vendorProfile?.location}</span>
+                <span>{(vendorProfile?.location as unknown as {display_name: string})?.display_name}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Star className="h-4 w-4" />
