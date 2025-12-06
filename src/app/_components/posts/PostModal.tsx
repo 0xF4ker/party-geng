@@ -53,7 +53,7 @@ const PostModal = ({ postId, onClose }: { postId: string, onClose: () => void })
                     <Image src={authorProfile?.avatarUrl ?? ""} className="w-10 h-10 rounded-full mr-3" alt="User avatar" width={40} height={40}/>
                     <div>
                         <p className="font-bold text-gray-800">{post.author.username}</p>
-                        <p className="text-xs text-gray-500">{authorProfile?.location}</p>
+                        <p className="text-xs text-gray-500">{(authorProfile?.location as unknown as {display_name: string})?.display_name}</p>
                     </div>
                 </div>
                 <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-3xl leading-none">&times;</button>
