@@ -93,17 +93,20 @@ export const vendorRouter = createTRPCRouter({
       if (filters.location) {
         const { lat, lon, radius } = filters.location;
         
-        // This is a raw query. It assumes PostGIS is enabled.
+        // Convert radius from meters to approximate degrees for ST_DWithin on geometry.
+        // This is a simplification and is less accurate than using geography, but more resilient.
+        // 1 degree of latitude is approx. 111.1km.
+        const radiusInDegrees = radius / 111111.0;
+
         const vendorsInRadius = await ctx.db.$queryRaw<Array<{id: string}>>`
             SELECT id FROM "VendorProfile"
-            WHERE "location" IS NOT NULL AND
-            ST_DWithin(
-                ST_SetSRID(ST_MakePoint(
-                    CAST("location"->>'lon' AS DOUBLE PRECISION),
-                    CAST("location"->>'lat' AS DOUBLE PRECISION)
-                ), 4326)::geography,
-                ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography,
-                ${radius}
+            WHERE "location" IS NOT NULL
+              AND "location"->>'lat' IS NOT NULL
+              AND "location"->>'lon' IS NOT NULL
+              AND ST_DWithin(
+                ST_MakePoint(CAST("location"->>'lon' AS DOUBLE PRECISION), CAST("location"->>'lat' AS DOUBLE PRECISION)),
+                ST_MakePoint(CAST(${lon} AS NUMERIC), CAST(${lat} AS NUMERIC)),
+                ${radiusInDegrees}
             )
         `;
         

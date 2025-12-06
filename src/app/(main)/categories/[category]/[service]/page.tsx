@@ -10,6 +10,10 @@ import {
   SlidersHorizontal,
   Loader2,
   ChevronDown,
+  X,
+  MapPin,
+  CircleDashed,
+  Navigation,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -18,7 +22,9 @@ import { api } from "@/trpc/react";
 import { cn } from "@/lib/utils";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
-import LocationSearchInput, { type LocationSearchResult } from "@/components/ui/LocationSearchInput";
+import LocationSearchInput, {
+  type LocationSearchResult,
+} from "@/components/ui/LocationSearchInput";
 
 // --- Types ---
 type RouterOutput = inferRouterOutputs<AppRouter>;
@@ -141,17 +147,33 @@ const ServiceListingPage = () => {
           <div className="container mx-auto px-4 sm:px-8">
             <div className="flex flex-wrap items-center gap-2 py-4">
               <FilterDropdown title="Rating">
-                <RatingFilter
-                  selectedRating={filters.minRating}
-                  onApply={(rating) => handleApplyFilters({ minRating: rating })}
-                  onClear={() => handleApplyFilters({ minRating: undefined })}
-                />
+                {({ close }) => (
+                  <RatingFilter
+                    selectedRating={filters.minRating}
+                    onApply={(rating) => {
+                      handleApplyFilters({ minRating: rating });
+                      close();
+                    }}
+                    onClear={() => {
+                      handleApplyFilters({ minRating: undefined });
+                      close();
+                    }}
+                  />
+                )}
               </FilterDropdown>
               <FilterDropdown title="Location">
-                <LocationFilter
-                  onApply={(location) => handleApplyFilters({ location })}
-                  onClear={() => handleApplyFilters({ location: undefined })}
-                />
+                {({ close }) => (
+                  <LocationFilter
+                    onApply={(location) => {
+                      handleApplyFilters({ location });
+                      close();
+                    }}
+                    onClear={() => {
+                      handleApplyFilters({ location: undefined });
+                      close();
+                    }}
+                  />
+                )}
               </FilterDropdown>
 
               {filters.minRating || filters.location ? (
@@ -226,13 +248,18 @@ const ServiceListingPage = () => {
 
 // --- Sub-Components ---
 
+interface FilterDropdownProps {
+  title: string;
+  align?: "left" | "right"; // New: Control alignment
+  // Key Change: children is now a function that accepts a close callback
+  children: (props: { close: () => void }) => React.ReactNode;
+}
+
 const FilterDropdown = ({
   title,
+  align = "left",
   children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) => {
+}: FilterDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -246,33 +273,56 @@ const FilterDropdown = ({
         setIsOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [dropdownRef]);
+  }, [isOpen]);
+
+  // Helper to close the dropdown cleanly
+  const close = () => setIsOpen(false);
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative inline-block text-left" ref={dropdownRef}>
       <button
+        type="button" // Important: prevents form submission if inside a form
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors hover:border-gray-400",
+          "group flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-all duration-200",
           isOpen
-            ? "border-pink-600 bg-pink-50 text-pink-700"
-            : "border-gray-300 text-gray-700 hover:bg-gray-50",
+            ? "border-pink-600 bg-pink-50/80 text-pink-700 ring-4 ring-pink-100"
+            : "border-gray-200 bg-white text-gray-700 hover:border-pink-300 hover:bg-gray-50",
         )}
       >
         {title}
         <ChevronDown
-          className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")}
+          className={cn(
+            "h-4 w-4 text-gray-400 transition-transform duration-200 group-hover:text-pink-600",
+            isOpen && "rotate-180 text-pink-600",
+          )}
         />
       </button>
 
-      {/* Dropdown Menu */}
-      {isOpen && (
-        <div className="absolute top-full left-0 z-20 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-xl">
-          <div className="max-h-64 overflow-y-auto p-4">{children}</div>
+      {/* Dropdown Menu 
+         - Increased width (w-80 md:w-96)
+         - Added origin-top animation classes
+         - Added z-50 to ensure it sits on top of maps/lists
+      */}
+      <div
+        className={cn(
+          "absolute top-full z-50 mt-2 w-full min-w-[320px] origin-top-left rounded-xl border border-gray-100 bg-white p-1 shadow-xl ring-1 shadow-gray-200/50 ring-black/5 transition-all duration-200 ease-out sm:w-[380px]",
+          align === "right" ? "right-0 origin-top-right" : "left-0",
+          isOpen
+            ? "translate-y-0 scale-100 opacity-100"
+            : "pointer-events-none -translate-y-2 scale-95 opacity-0",
+        )}
+      >
+        <div className="p-1">
+          {/* We invoke the children function and pass the close method */}
+          {children({ close })}
         </div>
-      )}
+      </div>
     </div>
   );
 };
@@ -337,7 +387,7 @@ const LocationFilter = ({
   onClear: () => void;
 }) => {
   const [location, setLocation] = useState<LocationSearchResult | null>(null);
-  const [radius, setRadius] = useState(5000); // Default 5km
+  const [radius, setRadius] = useState(5000); // Default 5km in meters
 
   const handleApply = () => {
     if (location) {
@@ -351,42 +401,93 @@ const LocationFilter = ({
 
   const handleClear = () => {
     setLocation(null);
+    setRadius(5000); // Reset radius
     onClear();
   };
 
   return (
-    <div className="space-y-4">
-      <LocationSearchInput onLocationSelect={setLocation} initialValue={location?.display_name} />
-      {location && (
-        <div>
-          <label htmlFor="radius" className="block text-sm font-medium text-gray-700">
-            Radius: {(radius / 1000).toFixed(1)} km
+    <div className="w-full max-w-sm rounded-xl border border-gray-100 bg-white shadow-sm">
+      {/* Header Section */}
+      <div className="border-b border-gray-100 px-5 py-4">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+          <MapPin className="h-4 w-4 text-pink-600" />
+          Location & Distance
+        </h3>
+      </div>
+
+      <div className="space-y-6 px-5 py-5">
+        {/* Search Input Section */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium tracking-wide text-gray-500 uppercase">
+            Center Point
           </label>
-          <input
-            id="radius"
-            type="range"
-            min="1000"
-            max="50000"
-            step="1000"
-            value={radius}
-            onChange={(e) => setRadius(Number(e.target.value))}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-          />
+          <div className="relative">
+            <LocationSearchInput
+              onLocationSelect={setLocation}
+              initialValue={location?.display_name}
+              // You might need to pass styling props to your input to make it match
+              // className="w-full rounded-lg border-gray-200 pl-10 focus:border-pink-500 focus:ring-pink-500"
+            />
+          </div>
         </div>
-      )}
-      <div className="mt-4 flex items-center justify-between border-t border-gray-200 bg-gray-50 pt-3">
+
+        {/* Radius Slider Section - Only shows when location is selected */}
+        <div
+          className={`transition-all duration-300 ease-in-out ${
+            location
+              ? "translate-y-0 opacity-100"
+              : "pointer-events-none opacity-50 grayscale"
+          }`}
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <CircleDashed className="h-4 w-4 text-gray-400" />
+              Search Radius
+            </label>
+            <span className="rounded-full bg-pink-50 px-2.5 py-0.5 text-xs font-bold text-pink-700">
+              {(radius / 1000).toFixed(1)} km
+            </span>
+          </div>
+
+          <div className="relative flex h-6 w-full items-center">
+            {/* Custom Range Slider */}
+            <input
+              type="range"
+              min="1000"
+              max="50000"
+              step="1000"
+              value={radius}
+              onChange={(e) => setRadius(Number(e.target.value))}
+              disabled={!location}
+              className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 accent-pink-600 focus:ring-2 focus:ring-pink-500/20 focus:outline-none disabled:cursor-not-allowed"
+            />
+          </div>
+          <div className="mt-1 flex justify-between text-[10px] font-medium text-gray-400">
+            <span>1 km</span>
+            <span>25 km</span>
+            <span>50 km</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer / Actions */}
+      <div className="flex items-center justify-between rounded-b-xl border-t border-gray-50 bg-gray-50/50 px-5 py-4">
         <button
           onClick={handleClear}
-          className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+          disabled={!location}
+          className="group flex items-center gap-1.5 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Clear
+          <X className="h-3.5 w-3.5 transition-transform group-hover:scale-110" />
+          Reset
         </button>
+
         <button
           onClick={handleApply}
-          className="rounded-md bg-pink-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-pink-700"
           disabled={!location}
+          className="flex items-center gap-2 rounded-lg bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-pink-200 transition-all hover:bg-pink-700 hover:shadow-md active:scale-95 active:transform disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
         >
-          Apply
+          <Navigation className="h-3.5 w-3.5 fill-current" />
+          Apply Filter
         </button>
       </div>
     </div>
