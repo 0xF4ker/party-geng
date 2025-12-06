@@ -117,7 +117,7 @@ model ClientProfile {
   avatarUrl String?
   bannerUrl String?
   bio       String? @db.Text
-  location  String?
+  location  Json?
   events    ClientEvent[] @relation("EventOwner")
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
@@ -133,7 +133,7 @@ model VendorProfile {
   bannerUrl          String?
   about              String?             @db.Text
   skills             String[]
-  location           String?
+  location           Json?
   languages          String[]
   level              String?             @default("Level 0")
   rating             Float               @default(0)
@@ -192,7 +192,7 @@ model ClientEvent {
   date            DateTime
   coverImage      String?
   isPublic        Boolean          @default(false)
-  location        String?
+  location        Json?
   client          ClientProfile    @relation("EventOwner", fields: [clientProfileId], references: [id])
   clientProfileId String
   hiredVendors    EventVendor[]    @relation("Event")

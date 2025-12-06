@@ -62,7 +62,11 @@ export const vendorRouter = createTRPCRouter({
         serviceId: z.number(),
         filters: z.object({
           minRating: z.number().optional(),
-          location: z.string().optional(),
+          location: z.object({
+            lat: z.number(),
+            lon: z.number(),
+            radius: z.number(),
+          }).optional(),
         }),
         limit: z.number().min(1).max(100).default(20),
         offset: z.number().min(0).default(0),
@@ -85,11 +89,32 @@ export const vendorRouter = createTRPCRouter({
           gte: filters.minRating,
         };
       }
-
+      
       if (filters.location) {
-        whereClause.location = {
-          contains: filters.location,
-          mode: "insensitive",
+        const { lat, lon, radius } = filters.location;
+        
+        // This is a raw query. It assumes PostGIS is enabled.
+        const vendorsInRadius = await ctx.db.$queryRaw<Array<{id: string}>>`
+            SELECT id FROM "VendorProfile"
+            WHERE "location" IS NOT NULL AND
+            ST_DWithin(
+                ST_SetSRID(ST_MakePoint(
+                    CAST("location"->>'lon' AS DOUBLE PRECISION),
+                    CAST("location"->>'lat' AS DOUBLE PRECISION)
+                ), 4326)::geography,
+                ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography,
+                ${radius}
+            )
+        `;
+        
+        const vendorIds = vendorsInRadius.map(v => v.id);
+
+        if (vendorIds.length === 0) {
+            return { vendors: [], totalCount: 0 };
+        }
+
+        whereClause.id = {
+            in: vendorIds
         };
       }
 

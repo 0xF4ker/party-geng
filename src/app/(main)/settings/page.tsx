@@ -15,30 +15,15 @@ import {
   AlertTriangle,
   ToggleLeft, // Added missing import
   ToggleRight, // Added missing import
-  ChevronsUpDown,
-  Check,
 } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { toast } from "sonner";
 import { NIGERIA_STATES_LGAS } from "@/lib/geo/nigeria";
-import { getLocations } from "@/lib/geo/locations";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+
 import {
   profileUpdateSchema,
   passwordUpdateSchema,
@@ -46,6 +31,9 @@ import {
 } from "@/lib/validations/settings";
 import { type z } from "zod";
 import AccountActions from "./_components/AccountActions";
+import LocationSearchInput, {
+  type LocationSearchResult,
+} from "@/components/ui/LocationSearchInput";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -585,72 +573,6 @@ const SkillsInput: React.FC<{
   );
 };
 
-const LocationComboBox = ({
-  value,
-  onChange,
-  locations,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  locations: { name: string; value: string }[];
-}) => {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div>
-      <label
-        htmlFor="location"
-        className="mb-1.5 block text-sm font-semibold text-gray-700"
-      >
-        Location
-      </label>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="w-full justify-between"
-          >
-            {value
-              ? locations.find((location) => location.value === value)?.name
-              : "Select location..."}
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-          <Command>
-            <CommandInput placeholder="Search location..." />
-            <CommandEmpty>No location found.</CommandEmpty>
-            <CommandList>
-              <CommandGroup>
-                {locations.map((location) => (
-                  <CommandItem
-                    key={location.value}
-                    value={location.value}
-                    onSelect={(currentValue) => {
-                      onChange(currentValue === value ? "" : currentValue);
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        value === location.value ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                    {location.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-};
-
 const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   const { profile } = useAuthStore();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(
@@ -662,45 +584,44 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
     profile?.vendorProfile?.skills ?? ["Wedding DJ", "MC"],
   );
 
-  const [locations, setLocations] = useState<{ name: string; value: string }[]>(
-    [],
-  );
-
-  useEffect(() => {
-    const fetchLocations = async () => {
-      const fetchedLocations = await getLocations();
-      setLocations(fetchedLocations);
-    };
-    void fetchLocations();
-  }, []);
+  const [selectedLocation, setSelectedLocation] =
+    useState<LocationSearchResult | null>(null);
 
   const {
     register,
     handleSubmit,
     setValue,
-    reset, // <-- Add reset
-    watch,
+    reset,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(profileUpdateSchema),
     mode: "onChange",
   });
 
-  const locationValue = watch("location");
-
   useEffect(() => {
     if (profile) {
       const clientProfile = profile.clientProfile;
       const vendorProfile = profile.vendorProfile;
 
-      const commonData = {
+      const userLocation = isVendor
+        ? vendorProfile?.location
+        : clientProfile?.location;
+      if (
+        userLocation &&
+        typeof userLocation === "object" &&
+        userLocation !== null &&
+        "display_name" in userLocation
+      ) {
+        setSelectedLocation(userLocation as unknown as LocationSearchResult);
+      }
+
+      const commonData: Partial<z.infer<typeof profileUpdateSchema>> = {
         username: profile.username ?? "",
         avatarUrl: isVendor
           ? (vendorProfile?.avatarUrl ?? null)
           : (clientProfile?.avatarUrl ?? null),
-        location: isVendor
-          ? (vendorProfile?.location ?? "")
-          : (clientProfile?.location ?? ""),
+        location:
+          (userLocation as unknown as LocationSearchResult)?.display_name ?? "",
       };
 
       const specificData = isVendor
@@ -734,7 +655,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   });
 
   const onSubmit = (data: z.infer<typeof profileUpdateSchema>) => {
-    // Filter data based on user role - only send relevant fields
     const filteredData = isVendor
       ? {
           username: data.username,
@@ -743,17 +663,15 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
           title: data.title,
           about: data.about,
           skills: data.skills,
-          location: data.location,
+          location: selectedLocation,
           languages: data.languages,
         }
       : {
           username: data.username,
           name: data.name,
           avatarUrl: data.avatarUrl,
-          location: data.location,
+          location: selectedLocation,
         };
-
-    console.log("Submitting profile update:", filteredData);
 
     updateProfile.mutate(filteredData);
   };
@@ -770,7 +688,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
         </p>
       </div>
       <div className="space-y-6 p-6">
-        {/* Profile Picture */}
         <ImageUpload
           label="Profile Picture"
           currentImage={avatarUrl ?? null}
@@ -782,7 +699,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
           fileName={`avatar-${profile?.id}`}
         />
 
-        {/* Username */}
         <div>
           <FormInput
             label="Username"
@@ -797,7 +713,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
           )}
         </div>
 
-        {/* Client Fields */}
         {!isVendor && (
           <div>
             <FormInput
@@ -812,16 +727,23 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
           </div>
         )}
 
-        {/* Shared Location */}
         <div>
-          <LocationComboBox
-            locations={locations}
-            value={locationValue ?? ""}
-            onChange={(value) => setValue("location", value)}
+          <label
+            htmlFor="location"
+            className="mb-1.5 block text-sm font-semibold text-gray-700"
+          >
+            Location
+          </label>
+          <LocationSearchInput
+            initialValue={selectedLocation?.display_name}
+            onLocationSelect={(loc) => {
+              setSelectedLocation(loc);
+              setValue("location", loc.display_name, { shouldValidate: true });
+            }}
           />
           {errors.location && (
             <p className="mt-1 text-sm text-red-600">
-              {errors.location.message}
+              {String(errors.location?.message ?? '')}
             </p>
           )}
         </div>
@@ -854,7 +776,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                 </p>
               )}
             </div>
-            {/* About Me */}
             <div>
               <label
                 htmlFor="aboutMe"
@@ -875,10 +796,8 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                 </p>
               )}
             </div>
-            {/* Skills */}
             <SkillsInput skills={skills} setSkills={setSkills} />
 
-            {/* Languages */}
             <div>
               <label className="mb-2 block text-sm font-semibold text-gray-700">
                 Languages

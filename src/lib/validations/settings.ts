@@ -16,7 +16,7 @@ export const profileUpdateSchema = z.object({
   companyName: z.string().min(2, "Company name must be at least 2 characters").max(100).optional(),
   title: z.string().max(200, "Title must be less than 200 characters").optional(),
   about: z.string().max(5000, "About must be less than 5000 characters").optional(),
-  location: z.string().max(100, "Location must be less than 100 characters").optional(),
+  location: z.any().optional(),
   skills: z.array(z.string()).optional(),
   languages: z.array(z.string()).optional(),
   avatarUrl: z.union([z.string().url("Invalid image URL"), z.literal(""), z.null(), z.undefined()]).optional(),

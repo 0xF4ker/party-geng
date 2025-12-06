@@ -435,9 +435,14 @@ const EventCard = ({
 
 // --- MODAL COMPONENTS ---
 
+import LocationSearchInput, { type LocationSearchResult } from "@/components/ui/LocationSearchInput";
+
+// ...
+
 // NEW: Create Event Modal
 const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
   const utils = api.useUtils();
+  const [location, setLocation] = useState<LocationSearchResult | null>(null);
   const createEvent = api.event.create.useMutation({
     onSuccess: () => {
       void utils.event.getMyEvents.invalidate();
@@ -453,8 +458,6 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
     const dateString = (
       form.elements.namedItem("eventDate") as HTMLInputElement
     )?.value;
-    const location = (form.elements.namedItem("eventLocation") as HTMLInputElement)
-      ?.value;
 
     if (!title || !dateString) {
       alert("Please fill in all fields");
@@ -464,7 +467,7 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
     createEvent.mutate({
       title,
       date: new Date(dateString),
-      location,
+      location: location,
     });
   };
 
@@ -523,13 +526,7 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
             >
               Location (Optional)
             </label>
-            <input
-              type="text"
-              id="eventLocation"
-              name="eventLocation"
-              placeholder="e.g. Lagos, Nigeria"
-              className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
-            />
+            <LocationSearchInput onLocationSelect={setLocation} />
           </div>
 
           {/* Footer */}

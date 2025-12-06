@@ -2,8 +2,23 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { appRouter } from "@/server/api/root";
-import { BoardPostType, GuestStatus } from "@prisma/client";
+import { BoardPostType, GuestStatus, Prisma } from "@prisma/client";
 import { createId } from "@paralleldrive/cuid2";
+
+const locationSchema = z.object({
+  place_id: z.number(),
+  licence: z.string(),
+  osm_type: z.string(),
+  osm_id: z.number(),
+  boundingbox: z.array(z.string()),
+  lat: z.string(),
+  lon: z.string(),
+  display_name: z.string(),
+  class: z.string(),
+  type: z.string(),
+  importance: z.number(),
+  icon: z.string().optional(),
+}).nullable().optional();
 
 export const eventRouter = createTRPCRouter({
   // Get all events for the current user
@@ -127,7 +142,7 @@ export const eventRouter = createTRPCRouter({
       z.object({
         title: z.string(),
         date: z.date(),
-        location: z.string().optional(),
+        location: locationSchema,
         coverImage: z.string().optional(),
       }),
     )
@@ -142,12 +157,13 @@ export const eventRouter = createTRPCRouter({
           message: "Client profile not found",
         });
       }
+      const locationData = input.location ? input.location as Prisma.JsonObject : Prisma.JsonNull;
 
       return ctx.db.clientEvent.create({
         data: {
           title: input.title,
           date: input.date,
-          location: input.location,
+          location: locationData,
           coverImage: input.coverImage,
           clientProfileId: clientProfile.id,
           budget: {
@@ -178,7 +194,7 @@ export const eventRouter = createTRPCRouter({
         id: z.string(),
         title: z.string().optional(),
         date: z.date().optional(),
-        location: z.string().optional(),
+        location: locationSchema,
         coverImage: z.string().optional(),
         isPublic: z.boolean().optional(),
       }),
@@ -207,13 +223,14 @@ export const eventRouter = createTRPCRouter({
           message: "You do not have permission to edit this event",
         });
       }
+      const locationData = input.location ? input.location as Prisma.JsonObject : Prisma.JsonNull;
 
       return ctx.db.clientEvent.update({
         where: { id: input.id },
         data: {
           title: input.title,
           date: input.date,
-          location: input.location,
+          location: locationData,
           coverImage: input.coverImage,
           isPublic: input.isPublic,
         },

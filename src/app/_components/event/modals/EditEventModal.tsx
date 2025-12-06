@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { api } from "@/trpc/react";
 import { Loader2 } from "lucide-react";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -12,6 +12,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import LocationSearchInput, {
+  type LocationSearchResult,
+} from "@/components/ui/LocationSearchInput";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type event = routerOutput["event"]["getById"];
@@ -28,6 +31,10 @@ export const EditEventModal = ({
   onClose,
 }: EditEventModalProps) => {
   const utils = api.useUtils();
+  const [location, setLocation] = useState<LocationSearchResult | null>(
+    (event.location as unknown as LocationSearchResult) ?? null,
+  );
+
   const updateEvent = api.event.update.useMutation({
     onSuccess: () => {
       void utils.event.getById.invalidate({ id: event.id });
@@ -42,9 +49,6 @@ export const EditEventModal = ({
       ?.value;
     const dateString = (
       form.elements.namedItem("eventDate") as HTMLInputElement
-    )?.value;
-    const location = (
-      form.elements.namedItem("eventLocation") as HTMLInputElement
     )?.value;
 
     updateEvent.mutate({
@@ -102,13 +106,9 @@ export const EditEventModal = ({
             >
               Location (Optional)
             </label>
-            <input
-              type="text"
-              id="eventLocation"
-              name="eventLocation"
-              defaultValue={event.location ?? ""}
-              placeholder="e.g. Lagos, Nigeria"
-              className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
+            <LocationSearchInput
+              initialValue={location?.display_name}
+              onLocationSelect={setLocation}
             />
           </div>
 

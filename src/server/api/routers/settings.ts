@@ -1,6 +1,22 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { Prisma } from "@prisma/client";
+
+const locationSchema = z.object({
+  place_id: z.number(),
+  licence: z.string(),
+  osm_type: z.string(),
+  osm_id: z.number(),
+  boundingbox: z.array(z.string()),
+  lat: z.string(),
+  lon: z.string(),
+  display_name: z.string(),
+  class: z.string(),
+  type: z.string(),
+  importance: z.number(),
+  icon: z.string().optional(),
+}).nullable().optional();
 
 export const settingsRouter = createTRPCRouter({
   // Update user profile (name, username, avatar)
@@ -15,7 +31,7 @@ export const settingsRouter = createTRPCRouter({
         title: z.string().max(200).optional(),
         about: z.string().max(5000).optional(),
         skills: z.array(z.string()).optional(),
-        location: z.string().max(100).optional(),
+        location: locationSchema,
         languages: z.array(z.string()).optional(),
       }),
     )
@@ -58,6 +74,8 @@ export const settingsRouter = createTRPCRouter({
         });
       }
 
+      const locationData = input.location ? input.location as Prisma.JsonObject : Prisma.JsonNull;
+
       // Update profile based on role
       if (user.role === "VENDOR") {
         return await ctx.db.vendorProfile.update({
@@ -68,7 +86,7 @@ export const settingsRouter = createTRPCRouter({
             avatarUrl: input.avatarUrl,
             about: input.about,
             skills: input.skills,
-            location: input.location,
+            location: locationData,
             languages: input.languages,
           },
         });
@@ -78,7 +96,7 @@ export const settingsRouter = createTRPCRouter({
           data: {
             name: input.name,
             avatarUrl: input.avatarUrl,
-            location: input.location,
+            location: locationData,
           },
         });
       }

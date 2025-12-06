@@ -10,7 +10,6 @@ import {
   SlidersHorizontal,
   Loader2,
   ChevronDown,
-  Check,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -19,22 +18,20 @@ import { api } from "@/trpc/react";
 import { cn } from "@/lib/utils";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
-import { getLocations } from "@/lib/geo/locations";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
+import LocationSearchInput, { type LocationSearchResult } from "@/components/ui/LocationSearchInput";
 
 // --- Types ---
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type VendorListOutput = RouterOutput["vendor"]["getVendorsByService"];
 type vendorProfileWithUser = VendorListOutput["vendors"][number];
+type LocationFilterType = {
+  lat: number;
+  lon: number;
+  radius: number;
+};
 type FilterState = {
   minRating?: number;
-  location?: string;
+  location?: LocationFilterType;
 };
 
 // --- Main Page Component ---
@@ -152,7 +149,6 @@ const ServiceListingPage = () => {
               </FilterDropdown>
               <FilterDropdown title="Location">
                 <LocationFilter
-                  selectedLocation={filters.location}
                   onApply={(location) => handleApplyFilters({ location })}
                   onClear={() => handleApplyFilters({ location: undefined })}
                 />
@@ -334,72 +330,61 @@ const RatingFilter = ({
 };
 
 const LocationFilter = ({
-  selectedLocation,
   onApply,
   onClear,
 }: {
-  selectedLocation?: string;
-  onApply: (location?: string) => void;
+  onApply: (location?: LocationFilterType) => void;
   onClear: () => void;
 }) => {
-  const [locations, setLocations] = useState<{ name: string; value: string }[]>(
-    [],
-  );
-  const [localLocation, setLocalLocation] = useState<string>(
-    selectedLocation ?? "",
-  );
+  const [location, setLocation] = useState<LocationSearchResult | null>(null);
+  const [radius, setRadius] = useState(5000); // Default 5km
 
-  useEffect(() => {
-    const fetchLocations = async () => {
-      const fetchedLocations = await getLocations();
-      setLocations(fetchedLocations);
-    };
-    void fetchLocations();
-  }, []);
+  const handleApply = () => {
+    if (location) {
+      onApply({
+        lat: parseFloat(location.lat),
+        lon: parseFloat(location.lon),
+        radius: radius,
+      });
+    }
+  };
+
+  const handleClear = () => {
+    setLocation(null);
+    onClear();
+  };
 
   return (
-    <div>
-      <Command>
-        <CommandInput placeholder="Search location..." />
-        <CommandEmpty>No location found.</CommandEmpty>
-        <CommandGroup>
-          {locations.map((location) => (
-            <CommandItem
-              key={location.value}
-              value={location.value}
-              onSelect={(currentValue) => {
-                const newLocation =
-                  currentValue === localLocation ? "" : currentValue;
-                setLocalLocation(newLocation);
-                onApply(newLocation);
-              }}
-            >
-              <Check
-                className={cn(
-                  "mr-2 h-4 w-4",
-                  localLocation === location.value
-                    ? "opacity-100"
-                    : "opacity-0",
-                )}
-              />
-              {location.name}
-            </CommandItem>
-          ))}
-        </CommandGroup>
-      </Command>
+    <div className="space-y-4">
+      <LocationSearchInput onLocationSelect={setLocation} initialValue={location?.display_name} />
+      {location && (
+        <div>
+          <label htmlFor="radius" className="block text-sm font-medium text-gray-700">
+            Radius: {(radius / 1000).toFixed(1)} km
+          </label>
+          <input
+            id="radius"
+            type="range"
+            min="1000"
+            max="50000"
+            step="1000"
+            value={radius}
+            onChange={(e) => setRadius(Number(e.target.value))}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          />
+        </div>
+      )}
       <div className="mt-4 flex items-center justify-between border-t border-gray-200 bg-gray-50 pt-3">
         <button
-          onClick={() => {
-            setLocalLocation("");
-            onClear();
-          }}
+          onClick={handleClear}
           className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
         >
           Clear
         </button>
         <button
-          onClick={() => onApply(localLocation)}
+          onClick={handleApply}
           className="rounded-md bg-pink-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-pink-700"
+          disabled={!location}
         >
           Apply
         </button>
