@@ -163,7 +163,7 @@ const ServiceListingPage = () => {
                   />
                 )}
               </FilterDropdown>
-              <FilterDropdown title="Location" align="right">
+              <FilterDropdown title="Location" align="left">
                 {({ close }) => (
                   <LocationFilter
                     onApply={(location) => {
@@ -267,18 +267,27 @@ const FilterDropdown = ({
   // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
+      // Only run this logic on desktop (when it's not a modal)
+      if (window.innerWidth >= 640) {
+        if (
+          dropdownRef.current &&
+          !dropdownRef.current.contains(event.target as Node)
+        ) {
+          setIsOpen(false);
+        }
       }
     };
 
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
+      // Lock body scroll on mobile when open
+      if (window.innerWidth < 640) document.body.style.overflow = "hidden";
     }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "unset";
+    };
   }, [isOpen]);
 
   const close = () => setIsOpen(false);
@@ -304,31 +313,56 @@ const FilterDropdown = ({
         />
       </button>
 
-      {/* Dropdown Menu */}
-      <div
-        className={cn(
-          "absolute top-full z-50 mt-2 rounded-xl border border-gray-100 bg-white p-1 shadow-xl ring-1 shadow-gray-200/50 ring-black/5 transition-all duration-200 ease-out",
+      {/* This is the "Out of the Box" Magic:
+        We render an overlay AND the menu. 
+        On mobile, the menu breaks free from the button and centers itself on screen.
+      */}
+      {isOpen && (
+        <>
+          {/* MOBILE BACKDROP: Only visible on small screens */}
+          <div
+            className="animate-in fade-in fixed inset-0 z-40 bg-black/30 backdrop-blur-sm duration-200 sm:hidden"
+            onClick={close}
+          />
 
-          // WIDTH:
-          // Mobile: Fixed 300px (fits on iPhone SE which is 320px wide)
-          // Desktop: 380px for more room
-          "w-[300px] sm:w-[380px]",
+          <div
+            className={cn(
+              // --- BASE STYLES ---
+              "z-50 border border-gray-100 bg-white p-1 shadow-xl transition-all duration-200 ease-out",
 
-          // POSITIONING:
-          // We removed the 'left-1/2 -translate-x-1/2' logic.
-          // Now it strictly respects the 'align' prop on ALL screen sizes.
-          align === "right"
-            ? "right-0 origin-top-right"
-            : "left-0 origin-top-left",
+              // --- MOBILE STYLES (The Modal) ---
+              // Fixed to viewport, centered, 90% width.
+              "fixed top-1/2 left-1/2 w-[90vw] max-w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-2xl",
 
-          // ANIMATION STATE
-          isOpen
-            ? "translate-y-0 scale-100 opacity-100"
-            : "pointer-events-none -translate-y-2 scale-95 opacity-0",
-        )}
-      >
-        <div className="p-1">{children({ close })}</div>
-      </div>
+              // --- DESKTOP STYLES (The Dropdown) ---
+              // Reset fixed positioning, go back to absolute relative to button
+              "sm:absolute sm:top-full sm:left-auto sm:mt-2 sm:w-[380px] sm:translate-x-0 sm:translate-y-0 sm:rounded-xl",
+
+              // Desktop Alignment
+              align === "right"
+                ? "sm:right-0 sm:origin-top-right"
+                : "sm:left-0 sm:origin-top-left",
+
+              // Animation
+              isOpen
+                ? "scale-100 opacity-100"
+                : "pointer-events-none scale-95 opacity-0",
+            )}
+          >
+            {/* Mobile Close Button (Optional UX improvement) */}
+            <div className="mb-2 flex justify-end border-b border-gray-50 p-2 sm:hidden">
+              <button
+                onClick={close}
+                className="rounded-full bg-gray-100 p-1 text-gray-500"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-1">{children({ close })}</div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
