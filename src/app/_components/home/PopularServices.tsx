@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import useEmblaCarousel from "embla-carousel-react";
@@ -9,36 +9,37 @@ import type { EmblaPluginType } from "embla-carousel";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const PopularServices = () => {
-  // Set up autoplay plugin
-  const AutoplayPlugin = Autoplay as unknown as (opts?: {
-    delay?: number;
-    stopOnInteraction?: boolean;
-    stopOnMouseEnter?: boolean;
-  }) => EmblaPluginType;
+  // FIX: Use useState with lazy initialization instead of useRef.
+  // This ensures the plugin is created once and is safe to read during render.
+  const [autoplayPlugin] = useState(() => {
+    const AutoplayPlugin = Autoplay as unknown as (opts?: {
+      delay?: number;
+      stopOnInteraction?: boolean;
+      stopOnMouseEnter?: boolean;
+    }) => EmblaPluginType;
 
-  const autoplay = useRef(
-    AutoplayPlugin({
+    return AutoplayPlugin({
       delay: 4000,
       stopOnInteraction: false, // Continue autoplay after user interaction
       stopOnMouseEnter: true, // Pause autoplay on hover
-    }),
-  );
+    });
+  });
 
   const [emblaRef, emblaApi] = useEmblaCarousel(
     {
       loop: true,
       align: "start",
     },
-    [autoplay.current], // Add autoplay plugin
+    [autoplayPlugin], // Pass the plugin instance directly from state
   );
 
-  const scrollPrev = () => {
+  const scrollPrev = useCallback(() => {
     if (emblaApi) emblaApi.scrollPrev();
-  };
+  }, [emblaApi]);
 
-  const scrollNext = () => {
+  const scrollNext = useCallback(() => {
     if (emblaApi) emblaApi.scrollNext();
-  };
+  }, [emblaApi]);
 
   const services = [
     {
@@ -139,15 +140,13 @@ const PopularServices = () => {
               {/* Negative margin to offset slide padding */}
               {services.map((service) => (
                 <div
-                  className="flex-shrink-0 flex-grow-0 basis-full pl-4 sm:basis-1/2 md:basis-1/3 lg:basis-1/5 xl:basis-1/6" // Responsive slide widths with padding
+                  className="shrink-0 grow-0 basis-full pl-4 sm:basis-1/2 md:basis-1/3 lg:basis-1/5 xl:basis-1/6" // Responsive slide widths with padding
                   key={service.name}
                 >
-                  {/* FIX: Replaced <Link> with <a> */}
                   <Link
                     href={service.url}
                     className="group relative block h-[350px] overflow-hidden rounded-lg shadow-sm"
                   >
-                    {/* FIX: Replaced <Image> with <img> */}
                     <Image
                       src={service.image}
                       alt={service.name}
@@ -156,7 +155,7 @@ const PopularServices = () => {
                       height={350}
                     />
                     {/* Gradient Overlay */}
-                    <div className="absolute inset-0 rounded-lg bg-gradient-to-t from-black/60 via-black/10 to-transparent transition-all"></div>
+                    <div className="absolute inset-0 rounded-lg bg-linear-to-t from-black/60 via-black/10 to-transparent transition-all"></div>
 
                     {/* Text content moved to bottom */}
                     <div className="absolute bottom-4 left-4 text-white">

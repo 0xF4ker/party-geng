@@ -17,6 +17,7 @@ import { useUiStore } from "@/stores/ui";
 import { BoardPostType } from "@prisma/client";
 import { createId } from "@paralleldrive/cuid2";
 import { useUpload } from "@/hooks/useUpload";
+import Image from "next/image";
 const api = createTRPCReact<AppRouter>();
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
@@ -86,30 +87,20 @@ const DraggableItem = ({
   onFocus: () => void;
 }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [pos, setPos] = useState({
-    x: post.x,
-    y: post.y,
-  });
+  const [pos, setPos] = useState({ x: post.x, y: post.y });
   const dragOffset = useRef({ x: 0, y: 0 });
   const nodeRef = useRef<HTMLDivElement>(null);
 
-  // Sync with remote updates if we aren't dragging
-  useEffect(() => {
-    if (!isDragging) {
-      setPos({ x: post.x, y: post.y });
-    }
-  }, [post.x, post.y, isDragging]);
-
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only left click
     if (e.button !== 0) return;
 
     onFocus(); // Bring to front
+
+    // Sync to current props before starting drag
+    setPos({ x: post.x, y: post.y });
     setIsDragging(true);
 
     const rect = nodeRef.current!.getBoundingClientRect();
-
-    // Calculate offset relative to the item
     dragOffset.current = {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
@@ -126,11 +117,9 @@ const DraggableItem = ({
           top: 0,
         };
 
-      // Calculate new position relative to parent
       let newX = e.clientX - parentRect.left - dragOffset.current.x;
       let newY = e.clientY - parentRect.top - dragOffset.current.y;
 
-      // Basic bounds checking (optional, keeping it loose for now)
       newX = Math.max(0, newX);
       newY = Math.max(0, newY);
 
@@ -146,7 +135,6 @@ const DraggableItem = ({
     }
   }, [isDragging, onUpdatePosition, post.id, pos.x, pos.y, zIndex]);
 
-  // Global listeners for drag interactions
   useEffect(() => {
     if (isDragging) {
       window.addEventListener("mousemove", handleMouseMove);
@@ -166,9 +154,9 @@ const DraggableItem = ({
       ref={nodeRef}
       onMouseDown={handleMouseDown}
       style={{
-        left: pos.x,
-        top: pos.y,
-        zIndex: isDragging ? 9999 : zIndex, // Pop to top on drag
+        left: isDragging ? pos.x : post.x,
+        top: isDragging ? pos.y : post.y,
+        zIndex: isDragging ? 9999 : zIndex,
         position: "absolute",
       }}
       className={`cursor-move touch-none select-none ${
@@ -245,9 +233,11 @@ const ImageCard = ({
       {isCurrentUser && <DeleteButton onClick={() => deletePost(post.id)} />}
 
       <div className="pointer-events-none aspect-auto overflow-hidden rounded bg-slate-100">
-        <img
+        <Image
           src={post.content}
           alt="Shared content"
+          width={400}
+          height={300}
           className="h-auto w-full object-cover"
           onError={(e) => {
             e.currentTarget.onerror = null;
@@ -261,7 +251,7 @@ const ImageCard = ({
           {post.authorName}
         </span>
         {isCurrentUser && (
-          <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+          <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
         )}
       </div>
     </div>
@@ -289,23 +279,33 @@ const InputStation = ({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // FIX: This useEffect now ONLY handles cleanup of old URLs.
+  // It does NOT set state, avoiding the cascading render error.
   useEffect(() => {
-    if (type === 'note') {
-      setImageFile(null);
-    }
-  }, [type]);
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
 
-  useEffect(() => {
-    if (!imageFile) {
+  // Helper to handle file selection and preview generation in one go
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setImageFile(file);
+
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setImagePreview(url);
+    } else {
       setImagePreview(null);
-      return;
     }
-    const objectUrl = URL.createObjectURL(imageFile);
-    setImagePreview(objectUrl);
+  };
 
-    // free memory when the component is unmounted
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [imageFile]);
+  const clearImageSelection = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -314,7 +314,7 @@ const InputStation = ({
 
     onPost({ type, content: postContent, colorIdx });
     setContent("");
-    setImageFile(null);
+    clearImageSelection();
     if (type === "note") setColorIdx((prev) => (prev + 1) % NOTE_COLORS.length);
     setIsOpen(false);
   };
@@ -333,7 +333,6 @@ const InputStation = ({
 
   return (
     <div className="animate-in fade-in slide-in-from-top-4 pointer-events-auto relative mx-auto mb-8 w-full max-w-xl rounded-2xl border border-white/40 bg-white/90 p-1 shadow-xl ring-1 ring-black/5 backdrop-blur-xl duration-300">
-      {/* Close Button */}
       <button
         onClick={() => setIsOpen(false)}
         className="absolute top-3 right-3 z-20 rounded-full p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
@@ -355,7 +354,11 @@ const InputStation = ({
 
       <div className="mb-3 flex gap-1 rounded-xl bg-slate-100/50 p-1 pr-10">
         <button
-          onClick={() => setType("note")}
+          type="button"
+          onClick={() => {
+            setType("note");
+            clearImageSelection();
+          }}
           className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-all ${
             type === "note"
               ? "bg-white text-slate-800 shadow-sm"
@@ -365,7 +368,11 @@ const InputStation = ({
           Note
         </button>
         <button
-          onClick={() => setType("image")}
+          type="button"
+          onClick={() => {
+            setType("image");
+            setContent("");
+          }}
           className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-all ${
             type === "image"
               ? "bg-white text-slate-800 shadow-sm"
@@ -392,20 +399,23 @@ const InputStation = ({
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                // FIX: Use the handler here instead of inline setState
+                onChange={handleFileSelect}
                 className="hidden"
               />
               {imagePreview ? (
                 <div className="group relative h-full w-full">
-                  <img
+                  <Image
                     src={imagePreview}
                     alt="Preview"
+                    width={400}
+                    height={300}
                     className="h-full w-full rounded-md object-contain"
                   />
                   <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
                     <button
                       type="button"
-                      onClick={() => setImageFile(null)}
+                      onClick={clearImageSelection}
                       className="rounded-full bg-black/50 p-1 text-white hover:bg-black/70"
                       title="Remove image"
                     >
@@ -489,21 +499,20 @@ export default function EventCollaborativeBoard() {
   const { user } = useAuth();
   const utils = api.useUtils();
   const { headerHeight } = useUiStore();
-  const {upload: uploadImage, isLoading: isUploading} = useUpload();
+  const { upload: uploadImage, isLoading: isUploading } = useUpload();
 
   const { data: event, isLoading } = api.event.getById.useQuery({
     id: eventId,
   });
 
-  const [posts, setPosts] = useState<Post[]>([]);
+  const initialPosts = useMemo(() => event?.boardPosts ?? [], [event]);
+  const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [isPosting, setIsPosting] = useState(false);
   const [focusMap, setFocusMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    if (event) {
-      setPosts(event.boardPosts);
-    }
-  }, [event]);
+    setPosts(initialPosts);
+  }, [initialPosts]);
 
   useEffect(() => {
     const channel = supabase
@@ -625,12 +634,12 @@ export default function EventCollaborativeBoard() {
     colorIdx: number;
   }) => {
     if (!user) return;
-    
+
     let postContent = content as string;
     if (content instanceof File) {
-        const url = await uploadImage(content, 'board-images');
-        if (!url) return;
-        postContent = url;
+      const url = await uploadImage(content, "board-images");
+      if (!url) return;
+      postContent = url;
     }
 
     const randomX = Math.random() * 400 + 100;

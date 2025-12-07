@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /**
  * Hook to check if the JavaScript is loaded.
@@ -8,21 +7,29 @@ import { useEffect } from 'react';
  */
 export function useJsLoaded() {
   const [loaded, setLoaded] = useState(false);
+  const isMounted = useRef(false);
 
   useEffect(() => {
+    isMounted.current = true;
+    const onReady = () => {
+      if (isMounted.current) {
+        setLoaded(true);
+      }
+    };
+
     if (
       document.readyState === 'complete' ||
       document.readyState === 'interactive'
     ) {
-      setLoaded(true);
+      onReady();
       return;
     }
 
-    const onReady = () => setLoaded(true);
     document.addEventListener('DOMContentLoaded', onReady);
     window.addEventListener('load', onReady);
 
     return () => {
+      isMounted.current = false;
       document.removeEventListener('DOMContentLoaded', onReady);
       window.removeEventListener('load', onReady);
     };

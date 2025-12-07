@@ -14,6 +14,8 @@ import {
   MapPin,
   CircleDashed,
   Navigation,
+  Check,
+  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -339,39 +341,94 @@ const RatingFilter = ({
   const [localRating, setLocalRating] = useState<number | undefined>(
     selectedRating,
   );
+  const [hoverRating, setHoverRating] = useState<number>(0);
+
+  const handleApply = () => {
+    onApply(localRating);
+  };
+
+  const handleClear = () => {
+    setLocalRating(undefined);
+    onClear();
+  };
+
+  // Helper to determine star styling
+  const getStarState = (index: number) => {
+    // If hovering, use hover state. Otherwise use selected state.
+    const activeValue = hoverRating ?? localRating ?? 0;
+    return index <= activeValue;
+  };
 
   return (
-    <div>
-      <div className="flex items-center space-x-3">
-        <input
-          type="number"
-          placeholder="Minimum Rating"
-          value={localRating ?? ""}
-          onChange={(e) =>
-            setLocalRating(
-              e.target.value ? parseFloat(e.target.value) : undefined,
-            )
-          }
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-pink-500"
-          min="1"
-          max="5"
-          step="0.1"
-        />
+    <div className="w-full max-w-sm rounded-xl bg-white">
+      {/* Header */}
+      <div className="border-b border-gray-100 px-5 py-4">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+          <TrendingUp className="h-4 w-4 text-pink-600" />
+          Minimum Rating
+        </h3>
       </div>
-      <div className="mt-4 flex items-center justify-between border-t border-gray-200 bg-gray-50 pt-3">
-        <button
-          onClick={() => {
-            setLocalRating(undefined);
-            onClear();
-          }}
-          className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+
+      {/* Interactive Star Section */}
+      <div className="px-5 py-6">
+        <div
+          className="flex justify-between gap-1"
+          onMouseLeave={() => setHoverRating(0)} // Reset hover on leave
         >
-          Clear
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              type="button"
+              onClick={() => setLocalRating(star)}
+              onMouseEnter={() => setHoverRating(star)}
+              className="group relative focus:outline-none"
+            >
+              <Star
+                className={cn(
+                  "h-8 w-8 transition-all duration-200 ease-out",
+                  getStarState(star)
+                    ? "scale-110 fill-yellow-400 text-yellow-400"
+                    : "fill-gray-100 text-gray-300 group-hover:text-yellow-200",
+                )}
+              />
+              {/* Tooltip for specific star value */}
+              <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-gray-400 opacity-0 transition-opacity group-hover:opacity-100">
+                {star}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Text Feedback */}
+        <div className="mt-4 text-center">
+          <p className="text-sm font-medium text-gray-600">
+            {localRating ? (
+              <span className="font-bold text-pink-600">
+                {localRating} Stars & Up
+              </span>
+            ) : (
+              <span className="text-gray-400">Any Rating</span>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {/* Footer / Actions */}
+      <div className="flex items-center justify-between rounded-b-xl border-t border-gray-50 bg-gray-50/50 px-5 py-4">
+        <button
+          onClick={handleClear}
+          disabled={!localRating}
+          className="group flex items-center gap-1.5 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <X className="h-3.5 w-3.5 transition-transform group-hover:scale-110" />
+          Reset
         </button>
+
         <button
-          onClick={() => onApply(localRating)}
-          className="rounded-md bg-pink-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-pink-700"
+          onClick={handleApply}
+          className="flex items-center gap-2 rounded-lg bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-pink-200 transition-all hover:bg-pink-700 hover:shadow-md active:scale-95 active:transform"
         >
+          <Check className="h-3.5 w-3.5" />
           Apply
         </button>
       </div>

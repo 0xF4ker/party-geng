@@ -1,14 +1,8 @@
 import { create } from "zustand";
-import {
-  type User,
-  type VendorProfile,
-  type ClientProfile,
-} from "@prisma/client";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "@/server/api/root";
 
-export type Profile = User & {
-  vendorProfile: VendorProfile | null;
-  clientProfile: ClientProfile | null;
-};
+export type Profile = inferRouterOutputs<AppRouter>["user"]["getProfile"];
 
 interface AuthState {
   profile: Profile | null;

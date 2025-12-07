@@ -143,7 +143,7 @@ export const wishlistRouter = createTRPCRouter({
         });
       }
 
-      const { itemId, ...data } = input;
+      const { ...data } = input;
 
       return ctx.db.wishlistItem.update({
         where: { id: input.itemId },

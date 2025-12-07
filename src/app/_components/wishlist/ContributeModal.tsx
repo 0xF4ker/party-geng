@@ -18,22 +18,18 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 interface ContributeModalProps {
-  itemId: string;
   eventName: string;
   itemName: string;
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
   allowCashContribution: boolean;
 }
 
 export const ContributeModal = ({
-  itemId,
   eventName,
   itemName,
   isOpen,
   onClose,
-  onSuccess,
   allowCashContribution,
 }: ContributeModalProps) => {
   const [guestName, setGuestName] = useState("");
@@ -46,6 +42,7 @@ export const ContributeModal = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     toast.info("Contribution flow not implemented yet.");
     onClose();
   };

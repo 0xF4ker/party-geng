@@ -36,6 +36,7 @@ const VendorDashboardPage = () => {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState("leads");
+  const [sidebarTransform, setSidebarTransform] = useState("translateY(0px)");
 
   // Fetch real data from API
   const { data: pendingQuotes, isLoading: quotesLoading } =
@@ -85,7 +86,6 @@ const VendorDashboardPage = () => {
       if (!sidebarEl || !contentEl) return;
 
       const contentRect = contentEl.getBoundingClientRect();
-      // const sidebarRect = sidebarEl.getBoundingClientRect();
       const contentBottom = contentRect.bottom + window.scrollY - topOffset;
       const sidebarHeight = sidebarEl.offsetHeight;
       const stickyTop = document.documentElement.scrollTop + topOffset;
@@ -99,9 +99,11 @@ const VendorDashboardPage = () => {
       }
 
       if (isSidebarSticky && stickyTop + sidebarHeight > contentBottom) {
-        sidebarEl.style.transform = `translateY(${contentBottom - (stickyTop + sidebarHeight)}px)`;
+        setSidebarTransform(
+          `translateY(${contentBottom - (stickyTop + sidebarHeight)}px)`,
+        );
       } else {
-        sidebarEl.style.transform = "translateY(0px)";
+        setSidebarTransform("translateY(0px)");
       }
     };
 
@@ -111,9 +113,9 @@ const VendorDashboardPage = () => {
 
   if (loading || !isVendor) {
     return (
-        <div className="flex h-screen items-center justify-center">
-            <Loader2 className="animate-spin text-pink-600" />
-        </div>
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="animate-spin text-pink-600" />
+      </div>
     );
   }
 
@@ -141,9 +143,7 @@ const VendorDashboardPage = () => {
                   ? {
                       top: "127px",
                       width: `${sidebarWidth}px`, // Apply the saved width
-                      transform: sidebarRef.current
-                        ? sidebarRef.current.style.transform
-                        : "translateY(0px)",
+                      transform: sidebarTransform,
                     }
                   : {
                       width: "auto",
@@ -192,13 +192,13 @@ const VendorDashboardPage = () => {
               />
               <StatCard
                 title="Pending Quotes"
-                value={quotesLoading ? "..." : (pendingQuotes?.length ?? 0)}
+                value={quotesLoading ? "..." : pendingQuotes?.length ?? 0}
                 icon={MessageSquare}
                 color="text-pink-600 bg-pink-100"
               />
               <StatCard
                 title="Active Orders"
-                value={ordersLoading ? "..." : (activeOrders?.length ?? 0)}
+                value={ordersLoading ? "..." : activeOrders?.length ?? 0}
                 icon={TrendingUp}
                 color="text-purple-600 bg-purple-100"
               />

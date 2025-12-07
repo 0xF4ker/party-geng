@@ -7,13 +7,13 @@ type Post = inferRouterOutputs<AppRouter>["post"]["getById"];
 type CreatePostModalStore = {
   isOpen: boolean;
   postToEdit: Post | null;
-  onOpen: (post?: Post) => void;
+  onOpen: (postToEdit?: Post) => void;
   onClose: () => void;
 };
 
 export const useCreatePostModal = create<CreatePostModalStore>((set) => ({
   isOpen: false,
   postToEdit: null,
-  onOpen: (post) => set({ isOpen: true, postToEdit: post ?? null }),
+  onOpen: (postToEdit) => set({ isOpen: true, postToEdit: postToEdit ?? null }),
   onClose: () => set({ isOpen: false, postToEdit: null }),
 }));

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
@@ -11,10 +11,21 @@ import { toast } from "sonner";
 function PaymentCallback() {
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  const initialStatus = useMemo(() => {
+    return searchParams.has("reference") ? "verifying" : "failed";
+  }, [searchParams]);
+
+  const initialMessage = useMemo(() => {
+    return searchParams.has("reference")
+      ? "Verifying your payment..."
+      : "Invalid payment reference";
+  }, [searchParams]);
+
   const [status, setStatus] = useState<"verifying" | "success" | "failed">(
-    "verifying",
+    initialStatus,
   );
-  const [message, setMessage] = useState("Verifying your payment...");
+  const [message, setMessage] = useState(initialMessage);
 
   const { mutate: verifyPayment } = api.payment.verifyPayment.useMutation({
     onSuccess: (data) => {
@@ -76,15 +87,11 @@ function PaymentCallback() {
   useEffect(() => {
     const reference = searchParams.get("reference");
 
-    if (!reference) {
-      setStatus("failed");
-      setMessage("Invalid payment reference");
-      return;
+    if (reference && status === "verifying") {
+      // Verify the payment
+      verifyPayment({ reference });
     }
-
-    // Verify the payment
-    verifyPayment({ reference });
-  }, [searchParams, verifyPayment]);
+  }, [searchParams, verifyPayment, status]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">

@@ -2,7 +2,15 @@
 
 import React, { useState } from "react";
 import { api } from "@/trpc/react";
-import { Loader2, Check, Copy, Pencil, Trash2, DollarSign, Gift } from "lucide-react";
+import {
+  Loader2,
+  Check,
+  Copy,
+  Pencil,
+  Trash2,
+  DollarSign,
+  Gift,
+} from "lucide-react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { cn } from "@/lib/utils";
@@ -18,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ImageUpload } from "@/components/ImageUpload";
 import { WishlistItemType } from "@prisma/client";
+import { createId } from "@paralleldrive/cuid2";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type event = routerOutput["event"]["getById"];
@@ -36,14 +45,18 @@ export const WishlistModal = ({
 }: WishlistModalProps) => {
   const [copied, setCopied] = useState(false);
   const [editingItem, setEditingItem] = useState<wishlistItem | null>(null);
-  const [newItemImageUrl, setNewItemImageUrl] = useState<string | undefined>(undefined);
-  const [newItemType, setNewItemType] = useState<WishlistItemType>(WishlistItemType.ITEM_REQUEST);
+  const [newItemImageUrl, setNewItemImageUrl] = useState<string | undefined>(
+    undefined,
+  );
+  const [newItemType, setNewItemType] = useState<WishlistItemType>(
+    WishlistItemType.ITEM_REQUEST,
+  );
   const utils = api.useUtils();
 
   const addItem = api.wishlist.addItem.useMutation({
     onSuccess: () => {
-        void utils.event.getById.invalidate({ id: event.id });
-        setNewItemImageUrl(undefined);
+      void utils.event.getById.invalidate({ id: event.id });
+      setNewItemImageUrl(undefined);
     },
   });
 
@@ -61,8 +74,12 @@ export const WishlistModal = ({
   const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
-    const newItemName = (form.elements.namedItem("newItemName") as HTMLInputElement)?.value;
-    const requestedAmount = (form.elements.namedItem("requestedAmount") as HTMLInputElement)?.value;
+    const newItemName = (
+      form.elements.namedItem("newItemName") as HTMLInputElement
+    )?.value;
+    const requestedAmount = (
+      form.elements.namedItem("requestedAmount") as HTMLInputElement
+    )?.value;
 
     if (!newItemName) return;
 
@@ -71,19 +88,25 @@ export const WishlistModal = ({
       name: newItemName,
       itemType: newItemType,
       requestedAmount: requestedAmount ? Number(requestedAmount) : undefined,
-      imageUrl: newItemType === WishlistItemType.ITEM_REQUEST ? newItemImageUrl : undefined,
+      imageUrl:
+        newItemType === WishlistItemType.ITEM_REQUEST
+          ? newItemImageUrl
+          : undefined,
     });
     form.reset();
     setNewItemImageUrl(undefined);
   };
 
+  const uniqueId = createId();
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[100vh] max-w-3xl overflow-y-auto sm:max-h-[85vh]">
+      <DialogContent className="max-h-screen max-w-3xl overflow-y-auto sm:max-h-[85vh]">
         <DialogHeader>
           <DialogTitle>{event.title}&apos;s Wishlist</DialogTitle>
           <DialogDescription>
-            Manage your event&apos;s wishlist. Add, edit, or remove items as you wish.
+            Manage your event&apos;s wishlist. Add, edit, or remove items as you
+            wish.
           </DialogDescription>
         </DialogHeader>
 
@@ -96,7 +119,11 @@ export const WishlistModal = ({
               className="bg-gray-100"
             />
             <Button onClick={copyLink} disabled={copied} variant="outline">
-              {copied ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+              {copied ? (
+                <Check className="mr-2 h-4 w-4 text-green-500" />
+              ) : (
+                <Copy className="mr-2 h-4 w-4" />
+              )}
               {copied ? "Copied!" : "Copy"}
             </Button>
           </div>
@@ -107,13 +134,23 @@ export const WishlistModal = ({
           <div className="mb-4 flex justify-center rounded-md bg-gray-100 p-1">
             <Button
               onClick={() => setNewItemType(WishlistItemType.ITEM_REQUEST)}
-              className={cn("flex-1", newItemType === WishlistItemType.ITEM_REQUEST ? "bg-white shadow-sm text-pink-600" : "bg-transparent text-gray-500 hover:text-white")}
+              className={cn(
+                "flex-1",
+                newItemType === WishlistItemType.ITEM_REQUEST
+                  ? "bg-white text-pink-600 shadow-sm"
+                  : "bg-transparent text-gray-500 hover:text-white",
+              )}
             >
               <Gift className="mr-2 h-4 w-4" /> Item Request
             </Button>
             <Button
               onClick={() => setNewItemType(WishlistItemType.CASH_REQUEST)}
-              className={cn("flex-1", newItemType === WishlistItemType.CASH_REQUEST ? "bg-white shadow-sm text-pink-600" : "bg-transparent text-gray-500 hover:text-white")}
+              className={cn(
+                "flex-1",
+                newItemType === WishlistItemType.CASH_REQUEST
+                  ? "bg-white text-pink-600 shadow-sm"
+                  : "bg-transparent text-gray-500 hover:text-white",
+              )}
             >
               <DollarSign className="mr-2 h-4 w-4" /> Cash Request
             </Button>
@@ -124,7 +161,11 @@ export const WishlistModal = ({
               <Label htmlFor="newItemName">Name</Label>
               <Input
                 name="newItemName"
-                placeholder={newItemType === WishlistItemType.ITEM_REQUEST ? "e.g., Custom Birthday Cake" : "e.g., Honeymoon Fund"}
+                placeholder={
+                  newItemType === WishlistItemType.ITEM_REQUEST
+                    ? "e.g., Custom Birthday Cake"
+                    : "e.g., Honeymoon Fund"
+                }
                 required
               />
             </div>
@@ -145,17 +186,23 @@ export const WishlistModal = ({
               <div>
                 <ImageUpload
                   bucket="wishlist-images"
-                  fileName={`wishlist-item-new-${Date.now()}`}
+                  fileName={`wishlist-item-${uniqueId}`}
                   onUploadComplete={(url) => setNewItemImageUrl(url)}
                   label="Item Image"
                   currentImage={newItemImageUrl}
                 />
               </div>
             )}
-            
+
             <div>
-              <Button type="submit" disabled={addItem.isPending} className="w-full">
-                {addItem.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button
+                type="submit"
+                disabled={addItem.isPending}
+                className="w-full"
+              >
+                {addItem.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Add Item
               </Button>
             </div>
@@ -182,10 +229,24 @@ export const WishlistModal = ({
   );
 };
 
-const WishlistItemRow = ({ item, onEdit, isEditing, onCancelEdit, eventId }: { item: wishlistItem; onEdit: () => void; isEditing: boolean; onCancelEdit: () => void; eventId: string; }) => {
+const WishlistItemRow = ({
+  item,
+  onEdit,
+  isEditing,
+  onCancelEdit,
+  eventId,
+}: {
+  item: wishlistItem;
+  onEdit: () => void;
+  isEditing: boolean;
+  onCancelEdit: () => void;
+  eventId: string;
+}) => {
   const utils = api.useUtils();
   const [name, setName] = useState(item.name);
-  const [requestedAmount, setRequestedAmount] = useState(item.requestedAmount ?? "");
+  const [requestedAmount, setRequestedAmount] = useState(
+    item.requestedAmount ?? "",
+  );
   const [imageUrl, setImageUrl] = useState(item.imageUrl ?? "");
 
   const updateItem = api.wishlist.updateItem.useMutation({
@@ -218,12 +279,22 @@ const WishlistItemRow = ({ item, onEdit, isEditing, onCancelEdit, eventId }: { i
       <li className="space-y-2 rounded-lg bg-gray-50 p-2">
         <div>
           <Label htmlFor="editItemName">Item Name</Label>
-          <Input id="editItemName" value={name} onChange={(e) => setName(e.target.value)} />
+          <Input
+            id="editItemName"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </div>
-        {item.itemType === 'CASH_REQUEST' ? (
+        {item.itemType === "CASH_REQUEST" ? (
           <div>
             <Label htmlFor="editRequestedAmount">Requested Amount (₦)</Label>
-            <Input id="editRequestedAmount" value={requestedAmount} onChange={(e) => setRequestedAmount(e.target.value)} type="number" placeholder="Amount" />
+            <Input
+              id="editRequestedAmount"
+              value={requestedAmount}
+              onChange={(e) => setRequestedAmount(e.target.value)}
+              type="number"
+              placeholder="Amount"
+            />
           </div>
         ) : (
           <div>
@@ -237,8 +308,16 @@ const WishlistItemRow = ({ item, onEdit, isEditing, onCancelEdit, eventId }: { i
           </div>
         )}
         <div className="mt-2 flex justify-end gap-2">
-          <Button onClick={handleUpdate} size="sm" disabled={updateItem.isPending}>
-            {updateItem.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+          <Button
+            onClick={handleUpdate}
+            size="sm"
+            disabled={updateItem.isPending}
+          >
+            {updateItem.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Save"
+            )}
           </Button>
           <Button onClick={onCancelEdit} size="sm" variant="ghost">
             Cancel
@@ -257,22 +336,30 @@ const WishlistItemRow = ({ item, onEdit, isEditing, onCancelEdit, eventId }: { i
         disabled={updateItem.isPending}
         className="h-5 w-5 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
       />
-      <div className="flex-grow">
-        <p className={cn("font-medium", item.isFulfilled && "text-gray-400 line-through")}>
+      <div className="grow">
+        <p
+          className={cn(
+            "font-medium",
+            item.isFulfilled && "text-gray-400 line-through",
+          )}
+        >
           {item.name}
         </p>
         <p className="text-sm text-gray-500">
-          {item.itemType === 'CASH_REQUEST' 
+          {item.itemType === "CASH_REQUEST"
             ? `Cash Request: ₦${(item.requestedAmount ?? 0).toLocaleString()}`
-            : 'Item Request'}
+            : "Item Request"}
         </p>
       </div>
       <div className="text-right">
         {item.isFulfilled ? (
-          <span className="text-sm font-semibold text-green-600">Fulfilled</span>
+          <span className="text-sm font-semibold text-green-600">
+            Fulfilled
+          </span>
         ) : item.contributions.length > 0 ? (
           <span className="text-sm font-semibold text-blue-600">
-            Contributed by {item.contributions.length} {item.contributions.length > 1 ? "people" : "person"}
+            Contributed by {item.contributions.length}{" "}
+            {item.contributions.length > 1 ? "people" : "person"}
           </span>
         ) : (
           <span className="text-sm text-gray-400">Not contributed</span>
@@ -298,4 +385,3 @@ const WishlistItemRow = ({ item, onEdit, isEditing, onCancelEdit, eventId }: { i
     </li>
   );
 };
-

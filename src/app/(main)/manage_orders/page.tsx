@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Briefcase,
   CalendarDays,
@@ -39,8 +39,8 @@ const OrdersPage = () => {
   const router = useRouter();
   const isVendor = profile?.role === "VENDOR";
 
-  // Conditionally set the initial active tab
-  const [activeTab, setActiveTab] = useState(isVendor ? "newLeads" : "pending");
+  const initialTab = useMemo(() => isVendor ? "newLeads" : "pending", [isVendor]);
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   // Fetch quotes (for new leads)
   const { data: quotes, isLoading: quotesLoading } =
@@ -56,11 +56,6 @@ const OrdersPage = () => {
   const activeOrders = orders?.filter((o) => o.status === "ACTIVE") ?? [];
   const completedOrders = orders?.filter((o) => o.status === "COMPLETED") ?? [];
   const cancelledOrders = orders?.filter((o) => o.status === "CANCELLED") ?? [];
-
-  // Update activeTab when userType changes
-  useEffect(() => {
-    setActiveTab(isVendor ? "newLeads" : "pending");
-  }, [isVendor]);
 
   const vendorTabs: Tab[] = [
     {

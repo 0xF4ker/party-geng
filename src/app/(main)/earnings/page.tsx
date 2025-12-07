@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ChevronDown,
@@ -26,18 +26,18 @@ const EarningsPageContent = () => {
   const { profile } = useAuthStore();
   const userType = profile?.role === "VENDOR" ? "vendor" : "client";
   const [activeTab, setActiveTab] = useState("overview");
-  const [showAddFundsModal, setShowAddFundsModal] = useState(false);
+  const searchParams = useSearchParams();
+
+  // FIX: Derive initial state from searchParams to avoid useEffect
+  const initialShowAddFunds = useMemo(() => {
+    return searchParams.get('modal') === 'addFunds';
+  }, [searchParams]);
+
+  const [showAddFundsModal, setShowAddFundsModal] = useState(initialShowAddFunds);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
-  const searchParams = useSearchParams();
   const initialAmount = searchParams.get('amount');
   const quoteId = searchParams.get('quoteId');
-
-  useEffect(() => {
-    if (searchParams.get('modal') === 'addFunds') {
-      setShowAddFundsModal(true);
-    }
-  }, [searchParams]);
 
   // Fetch wallet data
   const { data: wallet, isLoading: walletLoading, refetch: refetchWallet } = api.payment.getWallet.useQuery();

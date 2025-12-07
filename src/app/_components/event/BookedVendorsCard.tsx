@@ -32,7 +32,7 @@ export const BookedVendorsCard = ({
           Add Vendor
         </Button>
       </div>
-      <div className="mt-4 flex-grow space-y-4">
+      <div className="mt-4 grow space-y-4">
         {vendors.length > 0 ? (
           vendors.map(({ vendor }) => (
             <div key={vendor.id} className="flex items-center gap-4">

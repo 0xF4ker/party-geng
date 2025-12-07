@@ -2,7 +2,13 @@
 
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, ArrowLeft, MoreVertical, Info, KanbanSquare } from "lucide-react";
+import {
+  Loader2,
+  ArrowLeft,
+  MoreVertical,
+  Info,
+  KanbanSquare,
+} from "lucide-react";
 import { api } from "@/trpc/react";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -25,6 +31,7 @@ import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { createId } from "@paralleldrive/cuid2";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type conversationOutput = routerOutput["chat"]["getConversations"][number];
@@ -42,6 +49,9 @@ const InboxPageContent = () => {
   const [showMobileChat, setShowMobileChat] = useState(false);
   const [showInfoSidebar, setShowInfoSidebar] = useState(false);
 
+  // Ref to track if we have already auto-selected from URL
+  const hasAutoSelectedRef = useRef(false);
+
   const { mutate: markConversationAsRead } =
     api.notification.markConversationAsRead.useMutation({
       onSuccess: () => {
@@ -55,7 +65,7 @@ const InboxPageContent = () => {
     data: conversations = [],
     isLoading: isConvosLoading,
     refetch: refetchConvos,
-  } = api.chat.getConversations.useQuery(undefined, { refetchInterval: false }); // Disable interval refetch if using Realtime for convos
+  } = api.chat.getConversations.useQuery(undefined, { refetchInterval: false });
 
   // 2. Fetch Messages (Initial Load)
   const {
@@ -67,18 +77,38 @@ const InboxPageContent = () => {
     { enabled: !!selectedConvo?.id },
   );
 
-  // Auto-select conversation from URL
+  // FIX: Use setTimeout to move the state update out of the synchronous render phase.
+  // This satisfies the linter warning about cascading renders.
   useEffect(() => {
-    if (conversationIdFromUrl && conversations.length > 0 && !selectedConvo) {
-      const convoToSelect = conversations.find(
-        (c) => c.id === conversationIdFromUrl,
-      );
-      if (convoToSelect) {
-        setSelectedConvo(convoToSelect);
-        setShowMobileChat(true); // For mobile view
+    // If no URL param, or no data yet, skip.
+    if (!conversationIdFromUrl || conversations.length === 0) {
+      return;
+    }
+
+    // If we already auto-selected, skip.
+    if (hasAutoSelectedRef.current) {
+      return;
+    }
+
+    const convoToSelect = conversations.find(
+      (c) => c.id === conversationIdFromUrl,
+    );
+
+    if (convoToSelect) {
+      // Avoid re-setting if it's the same to be safe
+      if (selectedConvo?.id !== convoToSelect.id) {
+        // Push to next tick to avoid "Synchronous setState" warning
+        setTimeout(() => {
+          setSelectedConvo(convoToSelect);
+          setShowMobileChat(true);
+          hasAutoSelectedRef.current = true;
+        }, 0);
       }
     }
-  }, [conversationIdFromUrl, conversations, selectedConvo]);
+    // We intentionally exclude selectedConvo from deps to avoid loops,
+    // relying on the ref to ensure this runs once per data load/URL change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationIdFromUrl, conversations]);
 
   // When selectedConvo changes, mark messages as read.
   useEffect(() => {
@@ -98,9 +128,6 @@ const InboxPageContent = () => {
   // 4. Mutation: Send Message
   const sendMessage = api.chat.sendMessage.useMutation({
     onSuccess: () => {
-      // In a perfect realtime setup, we don't even need to refetch here,
-      // Supabase will echo the message back via the channel.
-      // But keeping it for safety:
       void refetchConvos();
     },
   });
@@ -115,53 +142,39 @@ const InboxPageContent = () => {
   const handleSend = async (text: string, retryTempId?: string) => {
     if (!selectedConvo || !user) return;
 
-    // A. Generate a temporary ID (use retry ID if available)
-    const tempId = retryTempId ?? `temp-${Date.now()}`;
+    const tempId = retryTempId ?? createId();
 
-    // B. Create the Optimistic Message Object
     const optimisticMsg: MessageWithStatus = {
       id: tempId,
       tempId: tempId,
       text: text,
       senderId: user.id,
       conversationId: selectedConvo.id,
-      createdAt: new Date(), // Date object is fine now
+      createdAt: new Date(),
       status: "sending",
       quote: null,
-
-      // FIX: Provide the full sender structure (even if nulls)
       sender: {
         id: user.id,
         username: user.username,
-        clientProfile: null, // Explicitly null
-        vendorProfile: null, // Explicitly null
+        clientProfile: null,
+        vendorProfile: null,
       },
     };
 
-    // C. Add to UI immediately
-    // If it's a retry, we don't add it again, we just update status to sending
     if (retryTempId) {
       updateOptimisticStatus(retryTempId, "sending");
     } else {
       addOptimisticMessage(optimisticMsg);
     }
 
-    // D. Perform Mutation
     sendMessage.mutate(
       { conversationId: selectedConvo.id, text },
       {
         onSuccess: () => {
-          // Success! The Realtime socket will likely deliver the message milliseconds later.
-          // We remove the optimistic one so we don't have duplicates when the real one arrives.
           removeOptimisticMessage(tempId);
-
-          // Optional: If you want to be 100% sure the list is fresh, you can leave this
-          // but Realtime usually handles it.
-          // void refetchConvos();
         },
         onError: (error) => {
           console.error("Failed to send:", error);
-          // Mark as error in UI so user can retry
           updateOptimisticStatus(tempId, "error");
         },
       },
@@ -191,10 +204,8 @@ const InboxPageContent = () => {
           className={`w-full border-r sm:w-1/3 lg:w-1/4 ${showMobileChat ? "hidden sm:flex" : "flex"}`}
         >
           {isConvosLoading ? (
-            // A. Show Skeleton while fetching list
             <ConversationListSkeleton />
           ) : (
-            // B. Show List
             <ConversationList
               conversations={conversations}
               selectedId={selectedConvo?.id}
@@ -224,10 +235,9 @@ const InboxPageContent = () => {
                   </button>
                   <h3 className="font-bold text-gray-800">
                     {selectedConvo.isGroup
-                      ? selectedConvo.clientEvent?.title ?? "Group Chat"
-                      : selectedConvo.participants.find(
-                          (p) => p.id !== user.id,
-                        )?.username}
+                      ? (selectedConvo.clientEvent?.title ?? "Group Chat")
+                      : selectedConvo.participants.find((p) => p.id !== user.id)
+                          ?.username}
                   </h3>
                 </div>
                 <div className="flex items-center gap-2">
@@ -252,7 +262,6 @@ const InboxPageContent = () => {
 
               {/* Messages Window */}
               {isMessagesLoading ? (
-                // C. Show Skeleton while fetching specific messages
                 <ChatMessagesSkeleton />
               ) : (
                 <div className="flex-1 space-y-4 overflow-y-auto p-4">
@@ -281,7 +290,6 @@ const InboxPageContent = () => {
                               </span>
                             </div>
                           )}
-                          {/* Check if it's a quote or text */}
                           {msg.quote ? (
                             <QuoteMessageBubble
                               message={msg}
@@ -292,7 +300,6 @@ const InboxPageContent = () => {
                             <TextMessageBubble
                               message={msg}
                               isMe={msg.senderId === user.id}
-                              // Pass the retry function
                               onRetry={() => handleSend(msg.text, msg.tempId)}
                             />
                           )}

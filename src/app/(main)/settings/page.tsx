@@ -2,7 +2,7 @@
 
 import { api } from "@/trpc/react";
 import { useAuthStore } from "@/stores/auth";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import React from "react";
 import {
   User,
@@ -13,14 +13,14 @@ import {
   ChevronDown,
   X,
   AlertTriangle,
-  ToggleLeft, // Added missing import
-  ToggleRight, // Added missing import
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import { ImageUpload } from "@/components/ImageUpload";
 import { toast } from "sonner";
 import { NIGERIA_STATES_LGAS } from "@/lib/geo/nigeria";
 
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -39,6 +39,23 @@ import LocationSearchInput, {
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
   return inputs.filter(Boolean).join(" ");
 };
+
+// --- TYPES ---
+// Explicit interfaces to satisfy "no-unsafe-*" rules
+interface ServiceItem {
+  serviceId: number;
+  name?: string;
+}
+
+interface VendorProfileData {
+  id: string;
+  services: ServiceItem[];
+}
+
+interface UserProfileData {
+  id: string;
+  vendorProfile?: VendorProfileData | null;
+}
 
 // --- SKELETON COMPONENTS ---
 
@@ -62,7 +79,6 @@ const PublicProfileFormSkeleton = () => (
       <Skeleton className="mt-2 h-4 w-2/3" />
     </div>
     <div className="space-y-6 p-6">
-      {/* Avatar Skeleton */}
       <div className="flex items-center gap-4">
         <Skeleton className="h-24 w-24 rounded-full" />
         <div className="space-y-2">
@@ -70,7 +86,6 @@ const PublicProfileFormSkeleton = () => (
           <Skeleton className="h-4 w-64" />
         </div>
       </div>
-      {/* Form Field Skeleton */}
       {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="space-y-2">
           <Skeleton className="h-4 w-24" />
@@ -99,18 +114,15 @@ const SettingsPageSkeleton = () => (
   </div>
 );
 
-// Use real Nigeria States/LGAs data
-
 // --- Main Page Component ---
 const SettingsPage = () => {
   const { profile, isLoading } = useAuthStore();
-  const [activeSection, setActiveSection] = useState("profile");
 
-  useEffect(() => {
-    if (profile?.role === "CLIENT") {
-      setActiveSection("profile");
-    }
-  }, [profile]);
+  const initialSection = useMemo(() => {
+    return profile?.role === "VENDOR" ? "profile" : "profile";
+  }, [profile?.role]);
+
+  const [activeSection, setActiveSection] = useState(initialSection);
 
   if (isLoading) {
     return <SettingsPageSkeleton />;
@@ -137,10 +149,8 @@ const SettingsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
-      {/* Container */}
       <div className="container mx-auto px-4 py-8 sm:px-8">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
-          {/* Left Column (Settings Sidebar) */}
           <div className="lg:col-span-1">
             <SettingsSidebar
               activeSection={activeSection}
@@ -149,12 +159,10 @@ const SettingsPage = () => {
             />
           </div>
 
-          {/* Right Column (Main Content) */}
           <div className="space-y-8 lg:col-span-3">
-            {/* 1. Activation Status (Vendor only) */}
             {profile?.role === "VENDOR" &&
               profile.vendorProfile?.kycStatus !== "APPROVED" &&
-              activeSection === "verification" && ( // Show only on verification tab
+              activeSection === "verification" && (
                 <div className="rounded-md border-l-4 border-red-500 bg-red-50 p-4 shadow-sm">
                   <div className="flex">
                     <div className="shrink-0">
@@ -173,10 +181,7 @@ const SettingsPage = () => {
                 </div>
               )}
 
-            {/* 2. Render active section */}
             {renderSection()}
-
-            {/* 3. Account Actions */}
             <AccountActions />
           </div>
         </div>
@@ -208,11 +213,11 @@ const SettingsSidebar = ({
       name: "Verification (KYC)",
       icon: ShieldCheck,
       for: ["vendor"],
-    }, // Vendor only
+    },
     {
       id: "services",
       name: "My Services",
-      icon: User, // Using User icon for now, can change later
+      icon: User,
       for: ["vendor"],
     },
     {
@@ -235,7 +240,6 @@ const SettingsSidebar = ({
     },
   ];
 
-  // Filter links based on userType
   const visibleLinks = allLinks.filter(
     (link) => userType && link.for.includes(userType.toLowerCase()),
   );
@@ -263,28 +267,26 @@ const SettingsSidebar = ({
   );
 };
 
-// --- CLIENT-ONLY SETTINGS ---
-// No longer needed as a separate component
-
 // --- VENDOR-ONLY SETTINGS ---
 const KycForm = () => {
   const { profile } = useAuthStore();
-  const [, setIdCardUrl] = useState<string | undefined>(undefined);
-  const [, setCacDocumentUrl] = useState<string | undefined>(undefined);
 
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
-    reset, // <-- Add reset
+    reset,
     formState: { errors, isValid },
   } = useForm({
     resolver: zodResolver(kycSchema),
     mode: "onChange",
   });
 
-  // Pre-fill form with existing KYC data
+  const idCardUrl = useWatch({ control, name: "idCardUrl" });
+  const cacDocumentUrl = useWatch({ control, name: "cacDocumentUrl" });
+  const state = useWatch({ control, name: "state" });
+
   useEffect(() => {
     const kyc = profile?.vendorProfile;
     if (kyc) {
@@ -299,12 +301,8 @@ const KycForm = () => {
         idCardUrl: kyc.idCardUrl ?? undefined,
         cacDocumentUrl: kyc.cacDocumentUrl ?? undefined,
       });
-      setIdCardUrl(kyc.idCardUrl ?? undefined);
-      setCacDocumentUrl(kyc.cacDocumentUrl ?? undefined);
     }
   }, [profile, reset]);
-
-  const state = watch("state");
 
   const { mutate, isPending } = api.settings.submitKyc.useMutation({
     onSuccess: () => {
@@ -339,7 +337,7 @@ const KycForm = () => {
             />
             {errors.fullName && (
               <p className="mt-1 text-sm text-red-600">
-                {errors.fullName.message}
+                {errors.fullName.message!}
               </p>
             )}
           </div>
@@ -352,7 +350,7 @@ const KycForm = () => {
             />
             {errors.businessAddress && (
               <p className="mt-1 text-sm text-red-600">
-                {errors.businessAddress.message}
+                {errors.businessAddress.message!}
               </p>
             )}
           </div>
@@ -374,7 +372,7 @@ const KycForm = () => {
             />
             {errors.meansOfId && (
               <p className="mt-1 text-sm text-red-600">
-                {errors.meansOfId.message}
+                {errors.meansOfId.message!}
               </p>
             )}
           </div>
@@ -387,7 +385,7 @@ const KycForm = () => {
             />
             {errors.idNumber && (
               <p className="mt-1 text-sm text-red-600">
-                {errors.idNumber.message}
+                {errors.idNumber.message!}
               </p>
             )}
           </div>
@@ -400,7 +398,7 @@ const KycForm = () => {
             />
             {errors.cacNumber && (
               <p className="mt-1 text-sm text-red-600">
-                {errors.cacNumber.message}
+                {errors.cacNumber.message!}
               </p>
             )}
           </div>
@@ -420,7 +418,7 @@ const KycForm = () => {
             />
             {errors.state && (
               <p className="mt-1 text-sm text-red-600">
-                {errors.state.message}
+                {errors.state.message!}
               </p>
             )}
           </div>
@@ -432,7 +430,7 @@ const KycForm = () => {
               {...register("lga")}
             />
             {errors.lga && (
-              <p className="mt-1 text-sm text-red-600">{errors.lga.message}</p>
+              <p className="mt-1 text-sm text-red-600">{errors.lga.message!}</p>
             )}
           </div>
         </div>
@@ -443,16 +441,16 @@ const KycForm = () => {
               label="Upload ID Card"
               description="PNG, JPG, PDF up to 10MB"
               bucket="kyc-documents"
+              currentImage={idCardUrl as string | null}
               accept="image/*,application/pdf"
               onUploadComplete={(url) => {
-                setIdCardUrl(url);
-                setValue("idCardUrl", url);
+                setValue("idCardUrl", url, { shouldValidate: true });
               }}
               fileName={`id_card-${profile?.id}`}
             />
             {errors.idCardUrl && (
               <p className="mt-1 text-sm text-red-600">
-                {errors.idCardUrl.message}
+                {errors.idCardUrl.message!}
               </p>
             )}
           </div>
@@ -461,16 +459,16 @@ const KycForm = () => {
               label="Upload CAC Document"
               description="PNG, JPG, PDF up to 10MB"
               bucket="kyc-documents"
+              currentImage={cacDocumentUrl as string | null}
               accept="image/*,application/pdf"
               onUploadComplete={(url) => {
-                setCacDocumentUrl(url);
-                setValue("cacDocumentUrl", url);
+                setValue("cacDocumentUrl", url, { shouldValidate: true });
               }}
               fileName={`cac_document-${profile?.id}`}
             />
             {errors.cacDocumentUrl && (
               <p className="mt-1 text-sm text-red-600">
-                {errors.cacDocumentUrl.message}
+                {errors.cacDocumentUrl.message!}
               </p>
             )}
           </div>
@@ -530,7 +528,7 @@ const SkillsInput: React.FC<{
       </label>
       <div
         className="flex flex-wrap items-center gap-2 rounded-md border border-gray-300 p-2 focus-within:ring-1 focus-within:ring-pink-500 focus-within:outline-pink-500"
-        onClick={() => inputRef.current?.focus()} // Focus input when clicking container
+        onClick={() => inputRef.current?.focus()}
       >
         {skills.map((skill) => (
           <span
@@ -541,7 +539,7 @@ const SkillsInput: React.FC<{
             <button
               type="button"
               onClick={(e) => {
-                e.stopPropagation(); // Prevent container click
+                e.stopPropagation();
                 removeSkill(skill);
               }}
               className="text-pink-500 hover:text-pink-700"
@@ -550,7 +548,6 @@ const SkillsInput: React.FC<{
             </button>
           </span>
         ))}
-        {/* The input is now *inside* the wrapper */}
         <input
           ref={inputRef}
           type="text"
@@ -575,21 +572,30 @@ const SkillsInput: React.FC<{
 
 const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   const { profile } = useAuthStore();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(
-    isVendor
-      ? (profile?.vendorProfile?.avatarUrl ?? null)
-      : (profile?.clientProfile?.avatarUrl ?? null),
-  );
   const [skills, setSkills] = useState<string[]>(
     profile?.vendorProfile?.skills ?? ["Wedding DJ", "MC"],
   );
 
   const [selectedLocation, setSelectedLocation] =
-    useState<LocationSearchResult | null>(null);
+    useState<LocationSearchResult | null>(() => {
+      const loc = isVendor
+        ? profile?.vendorProfile?.location
+        : profile?.clientProfile?.location;
+      if (
+        loc &&
+        typeof loc === "object" &&
+        loc !== null &&
+        "display_name" in loc
+      ) {
+        return loc as unknown as LocationSearchResult;
+      }
+      return null;
+    });
 
   const {
     register,
     handleSubmit,
+    control,
     setValue,
     reset,
     formState: { errors },
@@ -597,6 +603,8 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
     resolver: zodResolver(profileUpdateSchema),
     mode: "onChange",
   });
+
+  const avatarUrl = useWatch({ control, name: "avatarUrl" });
 
   useEffect(() => {
     if (profile) {
@@ -606,14 +614,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
       const userLocation = isVendor
         ? vendorProfile?.location
         : clientProfile?.location;
-      if (
-        userLocation &&
-        typeof userLocation === "object" &&
-        userLocation !== null &&
-        "display_name" in userLocation
-      ) {
-        setSelectedLocation(userLocation as unknown as LocationSearchResult);
-      }
 
       const commonData: Partial<z.infer<typeof profileUpdateSchema>> = {
         username: profile.username ?? "",
@@ -690,10 +690,9 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
       <div className="space-y-6 p-6">
         <ImageUpload
           label="Profile Picture"
-          currentImage={avatarUrl ?? null}
+          currentImage={avatarUrl as string | null}
           onUploadComplete={(url) => {
-            setAvatarUrl(url);
-            setValue("avatarUrl", url);
+            setValue("avatarUrl", url, { shouldValidate: true });
           }}
           bucket="profile-images"
           fileName={`avatar-${profile?.id}`}
@@ -708,7 +707,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
           />
           {errors.username && (
             <p className="mt-1 text-sm text-red-600">
-              {errors.username.message}
+              {errors.username.message!}
             </p>
           )}
         </div>
@@ -722,7 +721,9 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
               {...register("name")}
             />
             {errors.name && (
-              <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+              <p className="mt-1 text-sm text-red-600">
+                {errors.name.message!}
+              </p>
             )}
           </div>
         )}
@@ -743,9 +744,9 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
           />
           {errors.location && (
             <p className="mt-1 text-sm text-red-600">
-              {typeof errors.location.message === 'string'
+              {typeof errors.location.message === "string"
                 ? errors.location.message
-                : 'Invalid Location Data'}
+                : "Invalid Location Data"}
             </p>
           )}
         </div>
@@ -761,7 +762,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
               />
               {errors.companyName && (
                 <p className="mt-1 text-sm text-red-600">
-                  {errors.companyName.message}
+                  {errors.companyName.message!}
                 </p>
               )}
             </div>
@@ -774,7 +775,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
               />
               {errors.title && (
                 <p className="mt-1 text-sm text-red-600">
-                  {errors.title.message}
+                  {errors.title.message!}
                 </p>
               )}
             </div>
@@ -794,7 +795,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
               ></textarea>
               {errors.about && (
                 <p className="mt-1 text-sm text-red-600">
-                  {errors.about.message}
+                  {errors.about.message!}
                 </p>
               )}
             </div>
@@ -841,7 +842,6 @@ const PaymentSettings = () => (
       <p className="text-gray-600">
         Manage your payment methods and payout accounts here.
       </p>
-      {/* ...Payment form would go here... */}
     </div>
   </div>
 );
@@ -849,26 +849,43 @@ const PaymentSettings = () => (
 // --- VENDOR-ONLY SETTINGS ---
 const VendorServicesForm = () => {
   const { profile } = useAuthStore();
-  const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
+  const { data: rawUserProfile, isLoading: isLoadingUserProfile } =
+    api.user.getProfile.useQuery();
+
+  // FIX: Cast TRPC result to specific type for linter
+  const userProfile = rawUserProfile as unknown as UserProfileData | undefined;
+
+  // Helper to safely extract IDs
+  const getIdsFromData = (data: unknown): number[] => {
+    const typedData = data as UserProfileData | undefined;
+    if (
+      typedData?.vendorProfile?.services &&
+      Array.isArray(typedData.vendorProfile.services)
+    ) {
+      return typedData.vendorProfile.services.map((s) => s.serviceId);
+    }
+    return [];
+  };
+
+  // 1. Initialize state lazily.
+  // This grabs data if it exists in cache (isLoading might be false, but data exists).
+  const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>(() => {
+    const fromUser = getIdsFromData(userProfile);
+    if (fromUser.length > 0) return fromUser;
+
+    // Fallback to store profile if query result is empty/loading
+    const fromStore = getIdsFromData(profile);
+    return fromStore;
+  });
 
   const { data: allServices, isLoading: isLoadingAllServices } =
     api.category.getAll.useQuery();
-  const { data: userProfile, isLoading: isLoadingUserProfile } =
-    api.user.getProfile.useQuery();
-
-  useEffect(() => {
-    if (userProfile?.vendorProfile?.services) {
-      setSelectedServiceIds(
-        userProfile.vendorProfile.services.map((s) => s.serviceId),
-      );
-    }
-  }, [userProfile]);
 
   const utils = api.useUtils();
   const updateServices = api.settings.updateVendorServices.useMutation({
     onSuccess: async () => {
       toast.success("Services updated successfully!");
-      await utils.user.getProfile.invalidate(); // Invalidate to refetch vendor's services
+      await utils.user.getProfile.invalidate();
     },
     onError: (err) => toast.error(err.message),
   });
@@ -911,8 +928,11 @@ const VendorServicesForm = () => {
     );
   }
 
+  // FIX: Using `key` to reset form state when userProfile loads.
+  // This eliminates the need for useEffect to sync state.
   return (
     <form
+      key={userProfile?.id ?? "loading"}
       onSubmit={handleSubmit}
       className="rounded-lg border border-gray-200 bg-white shadow-sm"
     >
@@ -1014,7 +1034,7 @@ const SecuritySettings = () => {
           />
           {errors.currentPassword && (
             <p className="mt-1 text-sm text-red-600">
-              {errors.currentPassword.message}
+              {errors.currentPassword.message!}
             </p>
           )}
         </div>
@@ -1027,7 +1047,7 @@ const SecuritySettings = () => {
           />
           {errors.newPassword && (
             <p className="mt-1 text-sm text-red-600">
-              {errors.newPassword.message}
+              {errors.newPassword.message!}
             </p>
           )}
         </div>
@@ -1040,7 +1060,7 @@ const SecuritySettings = () => {
           />
           {errors.confirmPassword && (
             <p className="mt-1 text-sm text-red-600">
-              {errors.confirmPassword.message}
+              {errors.confirmPassword.message!}
             </p>
           )}
         </div>
