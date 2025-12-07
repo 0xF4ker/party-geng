@@ -252,8 +252,7 @@ const ServiceListingPage = () => {
 
 interface FilterDropdownProps {
   title: string;
-  align?: "left" | "right"; // New: Control alignment
-  // Key Change: children is now a function that accepts a close callback
+  align?: "left" | "right";
   children: (props: { close: () => void }) => React.ReactNode;
 }
 
@@ -282,13 +281,12 @@ const FilterDropdown = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
-  // Helper to close the dropdown cleanly
   const close = () => setIsOpen(false);
 
   return (
     <div className="relative inline-block text-left" ref={dropdownRef}>
       <button
-        type="button" // Important: prevents form submission if inside a form
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "group flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-all duration-200",
@@ -306,24 +304,32 @@ const FilterDropdown = ({
         />
       </button>
 
-      {/* Dropdown Menu 
-         - Increased width (w-80 md:w-96)
-         - Added origin-top animation classes
-         - Added z-50 to ensure it sits on top of maps/lists
-      */}
+      {/* Dropdown Menu */}
       <div
         className={cn(
-          "absolute top-full z-50 mt-2 w-full min-w-[320px] origin-top-left rounded-xl border border-gray-100 bg-white p-1 shadow-xl ring-1 shadow-gray-200/50 ring-black/5 transition-all duration-200 ease-out sm:w-[380px]",
-          align === "right" ? "right-0 origin-top-right" : "left-0",
+          "absolute top-full z-50 mt-2 rounded-xl border border-gray-100 bg-white p-1 shadow-xl ring-1 shadow-gray-200/50 ring-black/5 transition-all duration-200 ease-out",
+
+          // --- RESPONSIVE WIDTH ---
+          // Mobile: 90% of screen width, max 360px
+          // Desktop (sm): Fixed 380px width
+          "w-[90vw] max-w-[360px] sm:w-[380px]",
+
+          // --- RESPONSIVE POSITIONING ---
+          // Mobile: Center the dropdown relative to the button
+          "left-1/2 origin-top -translate-x-1/2",
+
+          // Desktop (sm): Reset translation and use specific alignment
+          align === "right"
+            ? "sm:right-0 sm:left-auto sm:origin-top-right sm:translate-x-0"
+            : "sm:right-auto sm:left-0 sm:origin-top-left sm:translate-x-0",
+
+          // --- ANIMATION STATE ---
           isOpen
             ? "translate-y-0 scale-100 opacity-100"
             : "pointer-events-none -translate-y-2 scale-95 opacity-0",
         )}
       >
-        <div className="p-1">
-          {/* We invoke the children function and pass the close method */}
-          {children({ close })}
-        </div>
+        <div className="p-1">{children({ close })}</div>
       </div>
     </div>
   );
