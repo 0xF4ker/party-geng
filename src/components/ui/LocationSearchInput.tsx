@@ -66,15 +66,12 @@ const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
       return;
     }
 
-    // FIX: Define an async function to handle fetching.
-    // This moves state updates into the promise chain or async execution flow,
-    // avoiding the "synchronous setState" linter error.
     const fetchLocations = async () => {
       if (debouncedQuery.length > 2) {
         setIsLoading(true);
         try {
           const res = await fetch(
-            `https://nominatim.openstreetmap.org/search?q=${debouncedQuery}&format=json`,
+            `https://nominatim.openstreetmap.org/search?q=${debouncedQuery}&format=json&countrycodes=ng`,
           );
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           const data: LocationSearchResult[] = await res.json();
