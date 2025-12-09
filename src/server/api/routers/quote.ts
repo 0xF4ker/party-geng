@@ -2,6 +2,7 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
+import { NotificationType } from "@prisma/client";
 
 export const quoteRouter = createTRPCRouter({
   // Create a new quote (vendor sends to client)
@@ -33,7 +34,7 @@ export const quoteRouter = createTRPCRouter({
       const conversation = await ctx.db.conversation.findFirst({
         where: {
           id: conversationId,
-          participants: { some: { id: vendorId } },
+          participants: { some: { userId: vendorId } },
         },
       });
 
@@ -97,12 +98,17 @@ export const quoteRouter = createTRPCRouter({
             },
         });
 
+        await prisma.notification.create({
+            data: {
+                userId: clientId,
+                type: NotificationType.QUOTE_RECEIVED,
+                message: `You have received a new quote from ${ctx.user.username}`,
+                link: `/inbox?conversation=${conversationId}`,
+            },
+        });
+
         return { quote: updatedQuote, message };
       });
-
-      // TODO: Here you would ideally trigger a real-time event (e.g., via Supabase Realtime or Pusher)
-      // to notify the client's chat interface instantly.
-      // For now, the client will see the message on the next poll/refetch.
 
       return result.quote;
     }),
@@ -157,10 +163,27 @@ export const quoteRouter = createTRPCRouter({
         throw new Error("Unauthorized");
       }
 
-      return ctx.db.quote.update({
+      const updatedQuote = await ctx.db.quote.update({
         where: { id: input.id },
         data: { status: input.status },
       });
+
+      const isClientAction = quote.clientId === ctx.user.id;
+      const notificationRecipientId = isClientAction ? quote.vendorId : quote.clientId;
+      const message = isClientAction
+          ? `Your quote has been ${input.status.toLowerCase()} by the client.`
+          : `The vendor has updated the quote status to ${input.status.toLowerCase()}.`;
+
+      await ctx.db.notification.create({
+          data: {
+              userId: notificationRecipientId,
+              type: NotificationType.ORDER_UPDATE, // This should be a more generic type
+              message: message,
+              link: `/inbox?conversation=${quote.conversationId}`,
+          },
+      });
+
+      return updatedQuote;
     }),
 
   // Get all quotes for vendor

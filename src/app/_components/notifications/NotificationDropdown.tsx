@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { Bell, Loader2 } from "lucide-react";
+import React, { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { BellIcon } from "@heroicons/react/24/solid";
 import {
   Popover,
   PopoverContent,
@@ -9,13 +10,7 @@ import {
 } from "@/components/ui/popover";
 import { api } from "@/trpc/react";
 import { NotificationItem } from "./NotificationItem";
-import { GroupedNotificationItem } from "./GroupedNotificationItem";
 import { cn } from "@/lib/utils";
-import type { inferRouterOutputs } from "@trpc/server";
-import type { AppRouter } from "@/server/api/root";
-
-type Notification =
-  inferRouterOutputs<AppRouter>["notification"]["getAll"][number];
 
 export const NotificationDropdown = ({ className }: { className?: string }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -35,27 +30,36 @@ export const NotificationDropdown = ({ className }: { className?: string }) => {
   const utils = api.useUtils();
 
   const markAllAsRead = api.notification.markAllAsRead.useMutation({
-    onSuccess: () => {
-      void utils.notification.invalidate();
+    onMutate: async () => {
+      await utils.notification.getAll.cancel();
+      await utils.notification.getUnreadCount.cancel();
+
+      const previousNotifications = utils.notification.getAll.getData();
+      const previousUnreadCount = utils.notification.getUnreadCount.getData();
+
+      utils.notification.getAll.setData(
+        undefined,
+        (old) => old?.map((n) => ({ ...n, read: true })) ?? [],
+      );
+      utils.notification.getUnreadCount.setData(undefined, 0);
+
+      return { previousNotifications, previousUnreadCount };
+    },
+    onError: (err, newTodo, context) => {
+      utils.notification.getAll.setData(
+        undefined,
+        context?.previousNotifications,
+      );
+      utils.notification.getUnreadCount.setData(
+        undefined,
+        context?.previousUnreadCount,
+      );
+    },
+    onSettled: () => {
+      void utils.notification.getAll.invalidate();
+      void utils.notification.getUnreadCount.invalidate();
     },
   });
-
-  const groupedNotifications = useMemo(() => {
-    if (!notifications) return {};
-    return notifications.reduce(
-      (acc, notif) => {
-        if (notif.type === "NEW_MESSAGE" && notif.conversationId) {
-          acc[notif.conversationId] ??= [];
-          acc[notif.conversationId]!.push(notif);
-        } else {
-          // Other notifications get their own group by ID
-          acc[notif.id] = [notif];
-        }
-        return acc;
-      },
-      {} as Record<string, Notification[]>,
-    );
-  }, [notifications]);
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -66,7 +70,7 @@ export const NotificationDropdown = ({ className }: { className?: string }) => {
             className,
           )}
         >
-          <Bell className="h-6 w-6" />
+          <BellIcon className="h-6 w-6" />
           {unreadCount !== undefined && unreadCount > 0 && (
             <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
               {unreadCount}
@@ -90,26 +94,14 @@ export const NotificationDropdown = ({ className }: { className?: string }) => {
             <div className="flex items-center justify-center p-8">
               <Loader2 className="animate-spin text-pink-500" />
             </div>
-          ) : Object.keys(groupedNotifications).length > 0 ? (
-            Object.values(groupedNotifications).map((group) => {
-              if (group.length > 1) {
-                return (
-                  <GroupedNotificationItem
-                    key={group[0]!.conversationId}
-                    notifications={group}
-                    onClose={() => setIsOpen(false)}
-                  />
-                );
-              }
-              const notif = group[0]!;
-              return (
-                <NotificationItem
-                  key={notif.id}
-                  notification={notif}
-                  onClose={() => setIsOpen(false)}
-                />
-              );
-            })
+          ) : notifications && notifications.length > 0 ? (
+            notifications.map((notif) => (
+              <NotificationItem
+                key={notif.id}
+                notification={notif}
+                onClose={() => setIsOpen(false)}
+              />
+            ))
           ) : (
             <p className="p-8 text-center text-sm text-gray-500">
               You have no notifications.

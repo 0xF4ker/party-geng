@@ -37,35 +37,13 @@ const EventDetailPage = () => {
     },
   );
 
-  const { data: orders, isLoading: isOrdersLoading } =
-    api.order.getMyOrders.useQuery(
-      { status: "ACTIVE" },
-      {
-        enabled: !!event,
-      },
-    );
-
   useEffect(() => {
     if (!userTypeLoading && isVendor) {
       router.replace(`/event/${eventId}/board`);
     }
   }, [userTypeLoading, isVendor, router, eventId]);
 
-  const activeVendors =
-    orders?.map((order) => ({
-      id: order.vendor.id,
-      name:
-        order.vendor.vendorProfile?.companyName ??
-        order.vendor.username ??
-        "Vendor",
-      service: order.quote.title ?? "Service",
-      avatarUrl:
-        order.vendor.vendorProfile?.avatarUrl ??
-        "https://placehold.co/40x40/ec4899/ffffff?text=V",
-      isAdded: false, // This will be set within the modal
-    })) ?? [];
-
-  if (isEventLoading || isOrdersLoading || userTypeLoading || isVendor) {
+  if (isEventLoading || userTypeLoading || isVendor) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <Loader2 className="h-16 w-16 animate-spin text-pink-600" />
@@ -145,7 +123,6 @@ const EventDetailPage = () => {
       />
       <AddVendorModal
         event={event}
-        vendors={activeVendors}
         isOpen={isAddVendorModalOpen}
         onClose={() => setIsAddVendorModalOpen(false)}
       />

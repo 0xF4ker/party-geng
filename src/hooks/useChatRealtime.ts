@@ -1,31 +1,29 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { normalizeDate } from "@/lib/dateUtils";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
-
-// Base type from your DB
 type DBMessage = routerOutput["chat"]["getMessages"]["messages"][number];
 
 export interface OptimisticMessage {
   id: string;
-  tempId: string; // Local temporary ID
+  tempId: string;
   conversationId: string;
   senderId: string;
   text: string;
   createdAt: string;
   status: "sending" | "sent" | "error";
   quote: null;
+  eventInvitation: null;
   sender: {
     username: string;
   };
 }
 
-// Extended type for UI state
 export type MessageWithStatus = DBMessage & {
-  tempId?: string; // To track local messages before they have a DB ID
+  tempId?: string;
   status?: "sending" | "sent" | "error";
 };
 
@@ -33,15 +31,17 @@ export const useChatRealtime = (
   conversationId: string | undefined,
   initialMessages: DBMessage[],
 ) => {
-  const [messages, setMessages] =
-    useState<MessageWithStatus[]>(initialMessages);
+  const [newMessages, setNewMessages] = useState<MessageWithStatus[]>([]);
 
-  // Reset when switching rooms
   useEffect(() => {
-    setMessages(initialMessages);
-  }, [initialMessages]);
+    // This pushes the state reset to the next tick.
+    const timer = setTimeout(() => {
+      setNewMessages([]);
+    }, 0);
 
-  // 1. Handle Realtime "INSERT" from Supabase
+    return () => clearTimeout(timer);
+  }, [conversationId]);
+
   useEffect(() => {
     if (!conversationId) return;
 
@@ -57,25 +57,15 @@ export const useChatRealtime = (
         },
         (payload) => {
           const rawMessage = payload.new as DBMessage;
-
-          // Construct a clean message object with a corrected Date
           const newMessage: MessageWithStatus = {
             ...rawMessage,
-            // Force the raw string through our normalizer immediately
             createdAt: normalizeDate(rawMessage.createdAt),
             status: "sent",
-            // Ensure nested objects exist to prevent crashes if Supabase doesn't send joins
             sender: rawMessage.sender || { username: "..." },
             quote: rawMessage.quote ?? null,
+            eventInvitation: rawMessage.eventInvitation ?? null,
           };
-
-          setMessages((prev) => {
-            // Deduplication: If we already have this ID (unlikely) or if we need to replace an optimistic one
-            // Note: In a simple setup, we usually let the optimistic message stay until the mutation confirms success,
-            // then we remove the optimistic one.
-            if (prev.find((m) => m.id === newMessage.id)) return prev;
-            return [...prev, { ...newMessage, status: "sent" }];
-          });
+          setNewMessages((prev) => [...prev, newMessage]);
         },
       )
       .subscribe();
@@ -85,31 +75,46 @@ export const useChatRealtime = (
     };
   }, [conversationId]);
 
-  // 2. Helper: Add a message immediately (Optimistic)
   const addOptimisticMessage = useCallback((msg: MessageWithStatus) => {
-    setMessages((prev) => [...prev, msg]);
+    setNewMessages((prev) => [...prev, msg]);
   }, []);
 
-  // 3. Helper: Update status (e.g., sending -> error)
   const updateOptimisticStatus = useCallback(
     (tempId: string, status: "sending" | "error" | "sent") => {
-      setMessages((prev) =>
+      setNewMessages((prev) =>
         prev.map((m) => (m.tempId === tempId ? { ...m, status } : m)),
       );
     },
     [],
   );
 
-  // 4. Helper: Remove optimistic message (usually called when real message arrives or mutation succeeds)
   const removeOptimisticMessage = useCallback((tempId: string) => {
-    setMessages((prev) => prev.filter((m) => m.tempId !== tempId));
+    setNewMessages((prev) => prev.filter((m) => m.tempId !== tempId));
   }, []);
+
+  const setMessages = (setter: React.SetStateAction<MessageWithStatus[]>) => {
+    if (typeof setter === "function") {
+      setNewMessages(setter);
+    }
+  };
+
+  const messages = useMemo(() => {
+    const messageMap = new Map<string, MessageWithStatus>();
+
+    initialMessages.forEach((msg) => messageMap.set(msg.id, msg));
+    newMessages.forEach((msg) => messageMap.set(msg.id, msg));
+
+    return Array.from(messageMap.values()).sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+  }, [initialMessages, newMessages]);
 
   return {
     messages,
     addOptimisticMessage,
     updateOptimisticStatus,
     removeOptimisticMessage,
-    setMessages, // Exposed for manual overrides if needed
+    setMessages,
   };
 };

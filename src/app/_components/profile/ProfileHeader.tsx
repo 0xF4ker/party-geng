@@ -14,13 +14,13 @@ import {
   History,
   Award,
   Menu,
-  Mail,
   Calendar,
   Settings,
   Wallet,
   Grid3x3,
   Flame,
 } from "lucide-react";
+import { EnvelopeIcon } from "@heroicons/react/24/solid";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/trpc/react";
@@ -116,20 +116,23 @@ const ProfileHeader = ({
   const { data: searchList } = api.category.getSearchList.useQuery();
 
   // --- Conversation Mutation ---
-  const createConversation = api.chat.createConversationWithMessage.useMutation(
-    {
-      onSuccess: (data) => {
-        router.push(`/inbox?conversation=${data.conversationId}`);
-      },
-      onError: (error) => {
-        console.error("Failed to create conversation:", error);
-        toast.error("Failed to create conversation. Please try again.");
-        if (!user) {
-          openModal("login");
-        }
-      },
+  const sendMessage = api.chat.sendMessage.useMutation();
+  const createConversation = api.chat.getOrCreateConversation.useMutation({
+    onSuccess: (data) => {
+      sendMessage.mutate({
+        conversationId: data.id,
+        text: `Hi, I'd like to connect!`,
+      });
+      router.push(`/inbox?conversation=${data.id}`);
     },
-  );
+    onError: (error) => {
+      console.error("Failed to create conversation:", error);
+      toast.error("Failed to create conversation. Please try again.");
+      if (!user) {
+        openModal("login");
+      }
+    },
+  });
 
   // --- Derived State ---
   const isVendor =
@@ -168,7 +171,6 @@ const ProfileHeader = ({
 
     createConversation.mutate({
       otherUserId: profileUser.id,
-      initialMessage: `Hi, I'd like to connect!`,
     });
   };
 
@@ -328,7 +330,7 @@ const ProfileHeader = ({
                     headerIconColor,
                   )}
                 >
-                  <Mail className="h-6 w-6" />
+                  <EnvelopeIcon className="h-6 w-6" />
                   {(unreadConvoCount ?? 0) > 0 && (
                     <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-pink-600 ring-1 ring-white" />
                   )}
@@ -336,7 +338,7 @@ const ProfileHeader = ({
                 <NotificationDropdown
                   className={cn("hidden md:flex", headerIconColor)}
                 />
-                
+
                 {/* Profile Dropdown */}
                 <div className="relative ml-2" ref={profileDropdownRef}>
                   <Link
@@ -462,7 +464,15 @@ const ProfileHeader = ({
             {clientProfile?.location && (
               <div className="flex items-center gap-1">
                 <MapPin className="h-4 w-4" />
-                <span>{(clientProfile.location as unknown as {display_name: string})?.display_name}</span>
+                <span>
+                  {
+                    (
+                      clientProfile.location as unknown as {
+                        display_name: string;
+                      }
+                    )?.display_name
+                  }
+                </span>
               </div>
             )}
             <div className="flex items-center gap-1">

@@ -3,7 +3,7 @@ import React from "react";
 // --- 1. Sidebar List Skeleton ---
 export const ConversationListSkeleton = () => {
   return (
-    <div className="flex h-full animate-pulse flex-col bg-white">
+    <div className="flex h-full w-full animate-pulse flex-col bg-white">
       {/* Search Header Skeleton */}
       <div className="border-b border-gray-100 p-4">
         <div className="mb-4 h-6 w-24 rounded bg-gray-200"></div>

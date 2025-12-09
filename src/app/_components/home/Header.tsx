@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Menu, Mail, Calendar, Flame } from "lucide-react";
+import { Menu,  Calendar, Flame } from "lucide-react";
+import { EnvelopeIcon } from "@heroicons/react/24/solid";
 import LoginJoinComponent from "../LoginJoinComponent";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
 import CategoryCarousel from "./CategoryCarousel";
@@ -243,13 +244,12 @@ const Header = () => {
                     href="/inbox"
                     className="relative hidden h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 hover:text-pink-600 md:flex"
                   >
-                    <Mail className="h-6 w-6" />
+                    <EnvelopeIcon className="h-6 w-6" />
                     {(unreadConvoCount ?? 0) > 0 && (
                       <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-pink-600 ring-1 ring-white" />
                     )}
                   </Link>
                   <NotificationDropdown className="hidden text-gray-600 hover:bg-gray-100 hover:text-pink-600 md:flex" />
-
                 </div>
 
                 {!isVendor && (

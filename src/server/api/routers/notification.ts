@@ -4,12 +4,16 @@ import {
   createTRPCRouter,
   protectedProcedure,
 } from "@/server/api/trpc";
+import { NotificationType } from "@prisma/client";
 
 export const notificationRouter = createTRPCRouter({
   getAll: protectedProcedure.query(async ({ ctx }) => {
     const notifications = await ctx.db.notification.findMany({
       where: {
         userId: ctx.user.id,
+        type: {
+          not: NotificationType.NEW_MESSAGE,
+        },
       },
       orderBy: {
         createdAt: "desc",
@@ -23,6 +27,9 @@ export const notificationRouter = createTRPCRouter({
       where: {
         userId: ctx.user.id,
         read: false,
+        type: {
+          not: NotificationType.NEW_MESSAGE,
+        },
       },
     });
     return count;
@@ -65,6 +72,9 @@ export const notificationRouter = createTRPCRouter({
       where: {
         userId: ctx.user.id,
         read: false,
+        type: {
+          not: NotificationType.NEW_MESSAGE,
+        },
       },
       data: {
         read: true,
@@ -72,20 +82,4 @@ export const notificationRouter = createTRPCRouter({
     });
     return true;
   }),
-  
-  markConversationAsRead: protectedProcedure
-    .input(z.object({ conversationId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      await ctx.db.notification.updateMany({
-        where: {
-          userId: ctx.user.id,
-          conversationId: input.conversationId,
-          read: false,
-        },
-        data: {
-          read: true,
-        },
-      });
-      return true;
-    }),
 });

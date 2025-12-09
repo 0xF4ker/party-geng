@@ -35,9 +35,10 @@ export const UserInfoSidebar = ({
 }: UserInfoSidebarProps) => {
   const router = useRouter();
   // 1. Find the "Other" user
-  const otherUser = conversation.participants.find(
-    (p) => p.id !== currentUserId,
+  const otherParticipant = conversation.participants.find(
+    (p) => p.userId !== currentUserId,
   );
+  const otherUser = otherParticipant?.user;
   
   if (conversation.isGroup && conversation.clientEvent) {
     return (
@@ -66,17 +67,17 @@ export const UserInfoSidebar = ({
           </h4>
           <ul className="space-y-3">
             {conversation.participants.map(p => (
-              <li key={p.id} className="flex items-center gap-3">
+              <li key={p.userId} className="flex items-center gap-3">
                 <Image
-                  src={p.vendorProfile?.avatarUrl ?? p.clientProfile?.avatarUrl ?? "https://placehold.co/40x40"}
-                  alt={p.username}
+                  src={p.user.vendorProfile?.avatarUrl ?? p.user.clientProfile?.avatarUrl ?? "https://placehold.co/40x40"}
+                  alt={p.user.username}
                   width={40}
                   height={40}
                   className="h-10 w-10 rounded-full"
                 />
                 <div>
-                  <p className="font-semibold text-gray-800">{p.vendorProfile?.companyName ?? p.clientProfile?.name ?? p.username}</p>
-                  <p className="text-sm text-gray-500">{p.id === conversation.groupAdminId ? "Admin" : "Member"}</p>
+                  <p className="font-semibold text-gray-800">{p.user.vendorProfile?.companyName ?? p.user.clientProfile?.name ?? p.user.username}</p>
+                  <p className="text-sm text-gray-500">{p.userId === conversation.groupAdminId ? "Admin" : "Member"}</p>
                 </div>
               </li>
             ))}

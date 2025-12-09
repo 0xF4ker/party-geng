@@ -3,7 +3,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
-import { MessageSquare, ShoppingBag } from "lucide-react";
+import { MessageSquare, ShoppingBag, Heart, CreditCard, Mail, FileText, CheckCircle } from "lucide-react";
 
 import { api } from "@/trpc/react";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -23,8 +23,27 @@ export const NotificationItem = ({
   const utils = api.useUtils();
 
   const markAsRead = api.notification.markAsRead.useMutation({
-    onSuccess: () => {
-      void utils.notification.invalidate();
+    onMutate: async ({ id }) => {
+        await utils.notification.getAll.cancel();
+        await utils.notification.getUnreadCount.cancel();
+
+        const previousNotifications = utils.notification.getAll.getData();
+        const previousUnreadCount = utils.notification.getUnreadCount.getData();
+
+        utils.notification.getAll.setData(undefined, (old) =>
+            old?.map(n => n.id === id ? { ...n, read: true } : n) ?? []
+        );
+        utils.notification.getUnreadCount.setData(undefined, (old) => (old ?? 0) > 0 ? old! - 1 : 0);
+
+        return { previousNotifications, previousUnreadCount };
+    },
+    onError: (err, newTodo, context) => {
+        utils.notification.getAll.setData(undefined, context?.previousNotifications);
+        utils.notification.getUnreadCount.setData(undefined, context?.previousUnreadCount);
+    },
+    onSettled: () => {
+        void utils.notification.getAll.invalidate();
+        void utils.notification.getUnreadCount.invalidate();
     },
   });
 
@@ -44,6 +63,16 @@ export const NotificationItem = ({
         return <MessageSquare className="h-5 w-5 text-pink-500" />;
       case "ORDER_UPDATE":
         return <ShoppingBag className="h-5 w-5 text-blue-500" />;
+      case "WISHLIST_CONTRIBUTION":
+        return <Heart className="h-5 w-5 text-red-500" />;
+      case "QUOTE_PAYMENT_RECEIVED":
+        return <CreditCard className="h-5 w-5 text-green-500" />;
+      case "EVENT_INVITATION":
+        return <Mail className="h-5 w-5 text-purple-500" />;
+      case "QUOTE_RECEIVED":
+        return <FileText className="h-5 w-5 text-yellow-500" />;
+      case "ORDER_COMPLETED":
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
       default:
         return <MessageSquare className="h-5 w-5 text-gray-500" />;
     }

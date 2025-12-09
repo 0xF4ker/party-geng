@@ -13,6 +13,7 @@ import { notificationRouter } from "@/server/api/routers/notification";
 import { postRouter } from "@/server/api/routers/post";
 import { reviewRouter } from "@/server/api/routers/review";
 import { invitationRouter } from "@/server/api/routers/invitation";
+import { eventInvitationRouter } from "@/server/api/routers/eventInvitation";
 import { personalTodoRouter } from "@/server/api/routers/personalTodo";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
@@ -38,6 +39,7 @@ export const appRouter = createTRPCRouter({
   post: postRouter,
   review: reviewRouter,
   invitation: invitationRouter,
+  eventInvitation: eventInvitationRouter,
   personalTodo: personalTodoRouter,
 });
 

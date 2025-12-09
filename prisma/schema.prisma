@@ -51,7 +51,11 @@ enum TransactionType {
 enum NotificationType {
   NEW_MESSAGE
   ORDER_UPDATE
-  // Future types can be added here
+  WISHLIST_CONTRIBUTION
+  QUOTE_PAYMENT_RECEIVED
+  EVENT_INVITATION
+  QUOTE_RECEIVED
+  ORDER_COMPLETED
 }
 
 enum ContributionType {
@@ -91,11 +95,13 @@ model User {
   clientProfile      ClientProfile?      // One-to-one
   vendorProfile      VendorProfile?      // One-to-one
   wallet             Wallet?             // One-to-one
-  conversations      Conversation[]      @relation("Participants")
+  participations     ConversationParticipant[]
   messages           Message[]           @relation("Sender")
   clientQuotes       Quote[]             @relation("ClientQuotes")
-  clientOrders       Order[]             @relation("ClientOrders")
   vendorQuotes       Quote[]             @relation("VendorQuotes")
+  clientEventInvitations EventInvitation[] @relation("ClientEventInvitations")
+  vendorEventInvitations EventInvitation[] @relation("VendorEventInvitations")
+  clientOrders       Order[]             @relation("ClientOrders")
   vendorOrders       Order[]             @relation("VendorOrders")
   hiredGigs          EventVendor[]       @relation("HiredVendor")
   authoredReviews    Review[]            @relation("AuthoredReviews")
@@ -196,6 +202,7 @@ model ClientEvent {
   client          ClientProfile    @relation("EventOwner", fields: [clientProfileId], references: [id])
   clientProfileId String
   hiredVendors    EventVendor[]    @relation("Event")
+  invitations     EventInvitation[]
   wishlist        Wishlist?
   conversation    Conversation?    @relation("EventConversation")
   personalTodos   EventPersonalTodo[]
@@ -263,28 +270,40 @@ model WishlistContribution {
 // --- 5. CHAT, QUOTE & ORDER FLOW ---
 
 model Conversation {
-  id            String         @id @default(uuid())
-  participants  User[]         @relation("Participants")
-  messages      Message[]
-  quotes        Quote[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  notifications Notification[]
-  isGroup       Boolean        @default(false)
-  groupAdminId  String?
-  clientEvent   ClientEvent?   @relation("EventConversation", fields: [clientEventId], references: [id], onDelete: Cascade)
-  clientEventId String?        @unique
+  id                     String              @id @default(uuid())
+  participants           ConversationParticipant[]
+  messages               Message[]
+  quotes                 Quote[]
+  eventInvitations       EventInvitation[]
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  notifications          Notification[]
+  isGroup                Boolean             @default(false)
+  groupAdminId           String?
+  clientEvent            ClientEvent?        @relation("EventConversation", fields: [clientEventId], references: [id], onDelete: Cascade)
+  clientEventId          String?             @unique
+}
+
+model ConversationParticipant {
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime?
+
+  @@id([userId, conversationId])
 }
 
 model Message {
-  id             String       @id @default(uuid())
-  text           String       @db.Text
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  conversationId String
-  sender         User         @relation("Sender", fields: [senderId], references: [id])
-  senderId       String
-  quote          Quote?
-  createdAt      DateTime     @default(now())
+  id                     String              @id @default(uuid())
+  text                   String              @db.Text
+  conversation           Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId         String
+  sender                 User                @relation("Sender", fields: [senderId], references: [id])
+  senderId               String
+  quote                  Quote?
+  eventInvitation        EventInvitation?
+  createdAt              DateTime            @default(now())
 }
 
 model Quote {
@@ -304,6 +323,23 @@ model Quote {
   message        Message?     @relation(fields: [messageId], references: [id], onDelete: SetNull)
   messageId      String?      @unique
   order          Order?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model EventInvitation {
+  id             String       @id @default(uuid())
+  vendor         User         @relation("VendorEventInvitations", fields: [vendorId], references: [id])
+  vendorId       String
+  client         User         @relation("ClientEventInvitations", fields: [clientId], references: [id])
+  clientId       String
+  event          ClientEvent  @relation(fields: [eventId], references: [id])
+  eventId        String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversationId String
+  status         QuoteStatus  @default(PENDING)
+  message        Message?     @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  messageId      String?      @unique
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 }

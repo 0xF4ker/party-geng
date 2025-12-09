@@ -6,6 +6,7 @@ import { Loader2, Send, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useChatRealtime } from "@/hooks/useChatRealtime";
 import { TextMessageBubble } from "../chat/MessageBubbles";
+import { toast } from "sonner";
 
 interface EventChatModalProps {
   conversationId: string;
@@ -18,6 +19,7 @@ export const EventChatModal = ({
 }: EventChatModalProps) => {
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const utils = api.useUtils();
 
   // Fetch initial messages
   const { data: messagesData, isLoading } = api.chat.getMessages.useQuery({
@@ -35,12 +37,56 @@ export const EventChatModal = ({
 
   // Send message mutation
   const sendMessage = api.chat.sendMessage.useMutation({
-    onSuccess: (sentMessage) => {
-      if (sentMessage) removeOptimisticMessage(sentMessage.id);
+    onMutate: async (newMessage) => {
+      if (!newMessage.optimisticId) {
+        return;
+      }
+      await utils.chat.getMessages.cancel({ conversationId });
+      const previousMessages = utils.chat.getMessages.getData({
+        conversationId,
+      });
+
+      const optimisticMessage = {
+        id: newMessage.optimisticId,
+        tempId: newMessage.optimisticId,
+        text: newMessage.text,
+        senderId: user!.id,
+        conversationId,
+        createdAt: new Date(), // Changed to Date object
+        status: "sending" as const,
+        quote: null,
+        eventInvitation: null,
+        sender: {
+          id: user!.id,
+          username: user!.username,
+          clientProfile: null,
+          vendorProfile: null,
+        },
+      };
+
+      addOptimisticMessage(optimisticMessage);
+
+      return { previousMessages, optimisticId: newMessage.optimisticId };
     },
-    onError: (error, variables) => {
-      if (variables.optimisticId)
-        updateOptimisticStatus(variables.optimisticId, "error");
+    onSuccess: (sentMessage, _variables, context) => {
+      if (sentMessage && context?.optimisticId) {
+        removeOptimisticMessage(context.optimisticId);
+        const finalMessage = {
+          ...sentMessage,
+          status: "sent" as const,
+          tempId: sentMessage.id, // Keep the server-generated ID as tempId
+        };
+        addOptimisticMessage(finalMessage);
+      }
+    },
+    onError: (error, variables, context) => {
+      if (context?.optimisticId) {
+        updateOptimisticStatus(context.optimisticId, "error");
+      }
+      toast.error("Failed to send message. Please try again.");
+    },
+    onSettled: () => {
+      void utils.chat.getMessages.invalidate({ conversationId });
     },
   });
 
@@ -49,24 +95,6 @@ export const EventChatModal = ({
   const handleSend = () => {
     if (!text.trim() || !user) return;
     const optimisticId = `temp-${Date.now()}`;
-
-    addOptimisticMessage({
-      id: optimisticId,
-      tempId: optimisticId,
-      text,
-      senderId: user.id,
-      conversationId,
-      createdAt: new Date(),
-      status: "sending",
-      quote: null,
-      sender: {
-        id: user.id,
-        username: user.username,
-        clientProfile: null,
-        vendorProfile: null,
-      },
-    });
-
     sendMessage.mutate({ conversationId, text, optimisticId });
     setText("");
   };

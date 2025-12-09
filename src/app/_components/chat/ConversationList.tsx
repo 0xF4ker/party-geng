@@ -31,11 +31,12 @@ export const ConversationList = ({
           .toLowerCase()
           .includes(search.toLowerCase());
       }
-      const other = c.participants.find((p) => p.id !== currentUserId);
+      const otherParticipant = c.participants.find((p) => p.userId !== currentUserId);
+      const otherUser = otherParticipant?.user;
       const name =
-        other?.vendorProfile?.companyName ??
-        other?.clientProfile?.name ??
-        other?.username ??
+        otherUser?.vendorProfile?.companyName ??
+        otherUser?.clientProfile?.name ??
+        otherUser?.username ??
         "";
       return name.toLowerCase().includes(search.toLowerCase());
     });
@@ -67,11 +68,12 @@ export const ConversationList = ({
             avatar = null; // Or a default group icon
           } else {
             const other = convo.participants.find(
-              (p) => p.id !== currentUserId,
-            );
+              (p) => p.userId !== currentUserId,
+            )?.user;
             name =
               other?.vendorProfile?.companyName ??
               other?.clientProfile?.name ??
+              other?.username ??
               "User";
             avatar =
               other?.vendorProfile?.avatarUrl ?? other?.clientProfile?.avatarUrl;

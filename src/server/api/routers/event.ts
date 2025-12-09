@@ -2,7 +2,7 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { appRouter } from "@/server/api/root";
-import { BoardPostType, GuestStatus, Prisma } from "@prisma/client";
+import { BoardPostType, GuestStatus, Prisma, QuoteStatus } from "@prisma/client";
 import { createId } from "@paralleldrive/cuid2";
 
 const locationSchema = z.object({
@@ -68,7 +68,8 @@ export const eventRouter = createTRPCRouter({
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const event = await ctx.db.clientEvent.findUnique({
+      console.log("--- [event.getById] Starting ---");
+      let event = await ctx.db.clientEvent.findUnique({
         where: { id: input.id },
         include: {
           client: true,
@@ -115,24 +116,66 @@ export const eventRouter = createTRPCRouter({
       });
 
       if (!event) {
+        console.log("--- [event.getById] Event not found ---");
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Event not found",
         });
       }
+      console.log(`--- [event.getById] Found event: ${event.title}`);
 
       const isOwner = event.client.userId === ctx.user.id;
-      const isParticipant =
-        event.conversation?.participants.some((p) => p.id === ctx.user.id) ??
-        false;
+      const isParticipant = event.conversation?.participants.some(p => p.userId === ctx.user.id) ?? false;
+      console.log(`--- [event.getById] Is owner? ${isOwner}`);
+      console.log(`--- [event.getById] Conversation exists? ${!!event.conversation}`);
+      console.log(`--- [event.getById] Is owner a participant? ${isParticipant}`);
 
-      if (!isOwner && !isParticipant && !event.isPublic) {
+      if (isOwner && (!event.conversation || !isParticipant)) {
+        console.log("--- [event.getById] No conversation found or owner is not a participant. Fixing...");
+        const caller = appRouter.createCaller(ctx);
+        const hiredVendorIds = event.hiredVendors.map(v => v.vendorId);
+        console.log(`--- [event.getById] Hired vendor IDs: ${JSON.stringify(hiredVendorIds)}`);
+        
+        await caller.chat.createEventGroupChat({
+            eventId: event.id,
+            memberIds: hiredVendorIds, 
+        });
+        console.log("--- [event.getById] createEventGroupChat called. Refetching event... ---");
+        
+        event = await ctx.db.clientEvent.findUnique({
+            where: { id: input.id },
+            include: {
+              client: true,
+              hiredVendors: { include: { vendor: { include: { vendorProfile: true, clientProfile: true } } } },
+              wishlist: { include: { items: { include: { contributions: true } } } },
+              budget: { include: { items: true } },
+              guestLists: { include: { guests: true } },
+              conversation: { include: { participants: true } },
+              boardPosts: { include: { author: true } },
+            },
+        });
+
+        if (!event) {
+            console.log("--- [event.getById] CRITICAL: Failed to refetch event after creating conversation. ---");
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: "Failed to refetch event after creating conversation." });
+        }
+        console.log("--- [event.getById] Event refetched successfully. ---");
+      }
+
+      const isParticipantAfterFix =
+        event.conversation?.participants.some((p) => p.userId === ctx.user.id) ??
+        false;
+      console.log(`--- [event.getById] Is participant after fix? ${isParticipantAfterFix}`);
+
+      if (!isOwner && !isParticipantAfterFix && !event.isPublic) {
+        console.log("--- [event.getById] Authorization failed. ---");
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You do not have permission to view this event",
         });
       }
 
+      console.log("--- [event.getById] Returning event successfully. ---");
       return event;
     }),
 
@@ -179,7 +222,9 @@ export const eventRouter = createTRPCRouter({
               isGroup: true,
               groupAdminId: ctx.user.id,
               participants: {
-                connect: [{ id: ctx.user.id }],
+                create: {
+                  userId: ctx.user.id,
+                }
               },
             },
           },
@@ -214,7 +259,7 @@ export const eventRouter = createTRPCRouter({
 
       const isOwner = event.client.userId === ctx.user.id;
       const isParticipant =
-        event.conversation?.participants.some((p) => p.id === ctx.user.id) ??
+        event.conversation?.participants.some((p) => p.userId === ctx.user.id) ??
         false;
 
       if (!isOwner && !isParticipant) {
@@ -274,11 +319,29 @@ export const eventRouter = createTRPCRouter({
         include: { client: true },
       });
 
-      if (!event || event.client.userId !== ctx.user.id) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "You do not have permission to edit this event",
+      if (!event) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+      }
+
+      const isOwner = event.client.userId === ctx.user.id;
+
+      if (!isOwner) {
+        const isVendorAccepting = ctx.user.id === input.vendorId;
+        if (!isVendorAccepting) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "You cannot add another vendor to this event." });
+        }
+
+        const acceptedInvitation = await ctx.db.eventInvitation.findFirst({
+            where: {
+                eventId: input.eventId,
+                vendorId: input.vendorId,
+                status: QuoteStatus.ACCEPTED,
+            }
         });
+
+        if (!acceptedInvitation) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "You do not have a valid invitation to join this event." });
+        }
       }
 
       const eventVendor = await ctx.db.eventVendor.create({

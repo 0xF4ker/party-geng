@@ -20,6 +20,10 @@ import {
   TextMessageBubble,
   QuoteMessageBubble,
 } from "@/app/_components/chat/MessageBubbles";
+import {
+  EventInvitationMessageBubble,
+  type MessageWithInvitation,
+} from "@/app/_components/chat/EventInvitationMessageBubble";
 import { ChatInput } from "@/app/_components/chat/ChatInput";
 import { UserInfoSidebar } from "@/app/_components/chat/UserInfoSidebar";
 import {
@@ -53,10 +57,44 @@ const InboxPageContent = () => {
   const hasAutoSelectedRef = useRef(false);
 
   const { mutate: markConversationAsRead } =
-    api.notification.markConversationAsRead.useMutation({
-      onSuccess: () => {
+    api.chat.markConversationAsRead.useMutation({
+      onMutate: async ({ conversationId }) => {
+        // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+        await utils.chat.getConversations.cancel();
+        await utils.chat.getUnreadConversationCount.cancel();
+
+        // Snapshot the previous value
+        const previousConversations = utils.chat.getConversations.getData();
+        const previousUnreadCount =
+          utils.chat.getUnreadConversationCount.getData();
+
+        // Optimistically update to the new value
+        utils.chat.getConversations.setData(undefined, (old) => {
+          if (!old) return old;
+          return old.map((c) =>
+            c.id === conversationId ? { ...c, unreadCount: 0 } : c,
+          );
+        });
+        utils.chat.getUnreadConversationCount.setData(undefined, (old) =>
+          (old ?? 0) > 0 ? old! - 1 : 0,
+        );
+
+        // Return a context object with the snapshotted value
+        return { previousConversations, previousUnreadCount };
+      },
+      onError: (err, newTodo, context) => {
+        utils.chat.getConversations.setData(
+          undefined,
+          context?.previousConversations,
+        );
+        utils.chat.getUnreadConversationCount.setData(
+          undefined,
+          context?.previousUnreadCount,
+        );
+      },
+      onSettled: () => {
         void utils.chat.getConversations.invalidate();
-        void utils.notification.getUnreadCount.invalidate();
+        void utils.chat.getUnreadConversationCount.invalidate();
       },
     });
 
@@ -153,6 +191,7 @@ const InboxPageContent = () => {
       createdAt: new Date(),
       status: "sending",
       quote: null,
+      eventInvitation: null,
       sender: {
         id: user.id,
         username: user.username,
@@ -236,8 +275,9 @@ const InboxPageContent = () => {
                   <h3 className="font-bold text-gray-800">
                     {selectedConvo.isGroup
                       ? (selectedConvo.clientEvent?.title ?? "Group Chat")
-                      : selectedConvo.participants.find((p) => p.id !== user.id)
-                          ?.username}
+                      : selectedConvo.participants.find(
+                          (p) => p.user.id !== user.id,
+                        )?.user.username}
                   </h3>
                 </div>
                 <div className="flex items-center gap-2">
@@ -290,7 +330,13 @@ const InboxPageContent = () => {
                               </span>
                             </div>
                           )}
-                          {msg.quote ? (
+                          {msg.eventInvitation ? (
+                            <EventInvitationMessageBubble
+                              message={msg as MessageWithInvitation}
+                              isMe={msg.senderId === user.id}
+                              onUpdate={() => refetchMessages()}
+                            />
+                          ) : msg.quote ? (
                             <QuoteMessageBubble
                               message={msg}
                               isMe={msg.senderId === user.id}
@@ -318,8 +364,9 @@ const InboxPageContent = () => {
                   isVendor={isVendor}
                   conversationId={selectedConvo.id}
                   otherUserId={
-                    selectedConvo.participants.find((p) => p.id !== user.id)
-                      ?.id ?? ""
+                    selectedConvo.participants.find(
+                      (p) => p.user.id !== user.id,
+                    )?.user.id ?? ""
                   }
                   disabled={sendMessage.isPending}
                   onQuoteSent={() => {

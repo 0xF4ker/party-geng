@@ -62,11 +62,13 @@ export const vendorRouter = createTRPCRouter({
         serviceId: z.number(),
         filters: z.object({
           minRating: z.number().optional(),
-          location: z.object({
-            lat: z.number(),
-            lon: z.number(),
-            radius: z.number(),
-          }).optional(),
+          location: z
+            .object({
+              lat: z.number(),
+              lon: z.number(),
+              radius: z.number(),
+            })
+            .optional(),
         }),
         limit: z.number().min(1).max(100).default(20),
         offset: z.number().min(0).default(0),
@@ -89,16 +91,16 @@ export const vendorRouter = createTRPCRouter({
           gte: filters.minRating,
         };
       }
-      
+
       if (filters.location) {
         const { lat, lon, radius } = filters.location;
-        
+
         // Convert radius from meters to approximate degrees for ST_DWithin on geometry.
         // This is a simplification and is less accurate than using geography, but more resilient.
         // 1 degree of latitude is approx. 111.1km.
         const radiusInDegrees = radius / 111111.0;
 
-        const vendorsInRadius = await ctx.db.$queryRaw<Array<{id: string}>>`
+        const vendorsInRadius = await ctx.db.$queryRaw<Array<{ id: string }>>`
             SELECT id FROM "VendorProfile"
             WHERE "location" IS NOT NULL
               AND "location"->>'lat' IS NOT NULL
@@ -109,15 +111,15 @@ export const vendorRouter = createTRPCRouter({
                 ${radiusInDegrees}
             )
         `;
-        
-        const vendorIds = vendorsInRadius.map(v => v.id);
+
+        const vendorIds = vendorsInRadius.map((v) => v.id);
 
         if (vendorIds.length === 0) {
-            return { vendors: [], totalCount: 0 };
+          return { vendors: [], totalCount: 0 };
         }
 
         whereClause.id = {
-            in: vendorIds
+          in: vendorIds,
         };
       }
 
@@ -210,6 +212,132 @@ export const vendorRouter = createTRPCRouter({
         ...vendor,
         username: vendor.user.username,
       }));
+    }),
+
+  searchVendors: publicProcedure
+    .input(
+      z.object({
+        query: z.string().optional(),
+        serviceIds: z.array(z.number()).optional(),
+        location: z
+          .object({
+            lat: z.number(),
+            lon: z.number(),
+            radius: z.number(),
+          })
+          .optional(),
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { query, serviceIds, location, limit, offset } = input;
+
+      const whereClause: Prisma.VendorProfileWhereInput = {
+        // kycStatus: "APPROVED",
+      };
+
+      if (serviceIds && serviceIds.length > 0) {
+        whereClause.services = {
+          some: {
+            serviceId: {
+              in: serviceIds,
+            },
+          },
+        };
+      }
+
+      if (query) {
+        whereClause.OR = [
+          {
+            user: {
+              username: {
+                contains: query,
+                mode: "insensitive",
+              },
+            },
+          },
+          {
+            companyName: {
+              contains: query,
+              mode: "insensitive",
+            },
+          },
+          {
+            title: {
+              contains: query,
+              mode: "insensitive",
+            },
+          },
+        ];
+      }
+
+      if (location) {
+        const { lat, lon, radius } = location;
+        const radiusInDegrees = radius / 111111.0;
+
+        const vendorsInRadius = await ctx.db.$queryRaw<Array<{ id: string }>>`
+            SELECT id FROM "VendorProfile"
+            WHERE "location" IS NOT NULL
+              AND "location"->>'lat' IS NOT NULL
+              AND "location"->>'lon' IS NOT NULL
+              AND ST_DWithin(
+                ST_MakePoint(CAST("location"->>'lon' AS DOUBLE PRECISION), CAST("location"->>'lat' AS DOUBLE PRECISION)),
+                ST_MakePoint(CAST(${lon} AS NUMERIC), CAST(${lat} AS NUMERIC)),
+                ${radiusInDegrees}
+            )
+        `;
+
+        const vendorIds = vendorsInRadius.map((v) => v.id);
+
+        if (vendorIds.length === 0) {
+          return { vendors: [], totalCount: 0 };
+        }
+
+        whereClause.id = {
+          in: vendorIds,
+        };
+      }
+
+      const totalCount = await ctx.db.vendorProfile.count({
+        where: whereClause,
+      });
+
+      const vendors = await ctx.db.vendorProfile.findMany({
+        where: whereClause,
+        take: limit,
+        skip: offset,
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+            },
+          },
+          services: {
+            include: {
+              service: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          rating: "desc",
+        },
+      });
+
+      return {
+        vendors: vendors.map((vendor) => ({
+          ...vendor,
+          // simplify services for the client
+          username: vendor.user.username,
+          services: vendor.services.map((s) => s.service.name),
+        })),
+        totalCount,
+      };
     }),
 
   submitKyc: protectedProcedure

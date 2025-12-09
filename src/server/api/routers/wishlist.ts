@@ -5,7 +5,7 @@ import {
 } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { ContributionType, WishlistItemType } from "@prisma/client";
+import { ContributionType, WishlistItemType, NotificationType } from "@prisma/client";
 
 export const wishlistRouter = createTRPCRouter({
   // Get wishlist by event ID (public - for guests)
@@ -199,6 +199,19 @@ export const wishlistRouter = createTRPCRouter({
         where: { id: input.itemId },
         include: {
           contributions: true,
+          wishlist: {
+            include: {
+              event: {
+                include: {
+                  client: {
+                    select: {
+                      userId: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       });
 
@@ -233,7 +246,7 @@ export const wishlistRouter = createTRPCRouter({
         }
       }
 
-      return ctx.db.wishlistContribution.create({
+      const contribution = await ctx.db.wishlistContribution.create({
         data: {
           wishlistItemId: input.itemId,
           guestUserId: ctx.user?.id, // Can be null for anonymous guests
@@ -242,6 +255,19 @@ export const wishlistRouter = createTRPCRouter({
           amount: input.amount,
         },
       });
+
+      if (item?.wishlist.event.client.userId) {
+        await ctx.db.notification.create({
+            data: {
+                userId: item.wishlist.event.client.userId,
+                type: NotificationType.WISHLIST_CONTRIBUTION,
+                message: `${input.guestName} has contributed to your wishlist item "${item.name}"`,
+                link: `/event/${item.wishlist.event.id}`, // or maybe a link to the wishlist modal
+            },
+        });
+      }
+
+      return contribution;
     }),
 
   // Remove contribution (replaces removePromise)

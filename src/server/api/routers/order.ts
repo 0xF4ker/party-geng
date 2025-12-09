@@ -1,7 +1,7 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { OrderStatus, TransactionStatus } from "@prisma/client";
+import { OrderStatus, TransactionStatus, NotificationType } from "@prisma/client";
 
 export const orderRouter = createTRPCRouter({
   getOrdersBetweenUsers: protectedProcedure
@@ -78,7 +78,7 @@ export const orderRouter = createTRPCRouter({
         throw new Error("Quote not found");
       }
 
-      return ctx.db.order.create({
+      const order = await ctx.db.order.create({
         data: {
           vendorId: quote.vendorId,
           clientId: quote.clientId,
@@ -87,6 +87,17 @@ export const orderRouter = createTRPCRouter({
           eventDate: quote.eventDate,
         },
       });
+
+      await ctx.db.notification.create({
+        data: {
+            userId: quote.vendorId,
+            type: NotificationType.QUOTE_PAYMENT_RECEIVED,
+            message: `Payment for your quote "${quote.title}" has been received.`,
+            link: `/orders/${order.id}`,
+        },
+      });
+
+      return order;
     }),
 
   // Get active orders for vendor
@@ -226,6 +237,7 @@ export const orderRouter = createTRPCRouter({
 
       const order = await ctx.db.order.findUnique({
         where: { id: orderId },
+        include: { quote: { select: { title: true } } },
       });
 
       if (!order) {
@@ -288,7 +300,14 @@ export const orderRouter = createTRPCRouter({
             }
         });
 
-        // TODO: Later, we can create another transaction for the platform fee.
+        await prisma.notification.create({
+            data: {
+                userId: order.vendorId,
+                type: NotificationType.ORDER_COMPLETED,
+                message: `Your order for "${order.quote.title}" has been marked as complete by the client.`,
+                link: `/earnings`,
+            },
+        });
 
         return updatedOrder;
       });

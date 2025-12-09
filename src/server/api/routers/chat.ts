@@ -1,13 +1,13 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
-import { NotificationType } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
+import { QuoteStatus } from "@prisma/client";
 
 export const chatRouter = createTRPCRouter({
   // Get all conversations for current user
   getConversations: protectedProcedure.query(async ({ ctx }) => {
     const conversations = await ctx.db.conversation.findMany({
-      where: { participants: { some: { id: ctx.user.id } } },
+      where: { participants: { some: { userId: ctx.user.id } } },
       include: {
         clientEvent: {
           select: {
@@ -16,28 +16,32 @@ export const chatRouter = createTRPCRouter({
           },
         },
         participants: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            clientProfile: {
+          include: {
+            user: {
               select: {
-                name: true,
-                avatarUrl: true,
-                location: true,
+                id: true,
+                username: true,
+                email: true,
+                clientProfile: {
+                  select: {
+                    name: true,
+                    avatarUrl: true,
+                    location: true,
+                  },
+                },
+                vendorProfile: {
+                  select: {
+                    companyName: true,
+                    avatarUrl: true,
+                    level: true,
+                    rating: true,
+                    avgResponseTime: true,
+                    location: true,
+                  },
+                },
+                createdAt: true,
               },
             },
-            vendorProfile: {
-              select: {
-                companyName: true,
-                avatarUrl: true,
-                level: true,
-                rating: true,
-                avgResponseTime: true,
-                location: true,
-              },
-            },
-            createdAt: true,
           },
         },
         messages: {
@@ -50,41 +54,35 @@ export const chatRouter = createTRPCRouter({
             senderId: true,
           },
         },
-        quotes: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: {
-            id: true,
-            status: true,
-            createdAt: true,
-          },
-        },
       },
       orderBy: {
         updatedAt: "desc",
       },
     });
 
-    const unreadCounts = await ctx.db.notification.groupBy({
-      by: ["conversationId"],
-      where: {
-        userId: ctx.user.id,
-        read: false,
-        type: "NEW_MESSAGE",
-        conversationId: {
-          in: conversations.map((c) => c.id),
-        },
-      },
-      _count: {
-        _all: true,
-      },
-    });
+    const unreadCounts = await Promise.all(
+      conversations.map(async (c) => {
+        const participant = c.participants.find(p => p.userId === ctx.user.id);
+        if (!participant) return { conversationId: c.id, count: 0 };
+        
+        const count = await ctx.db.message.count({
+          where: {
+            conversationId: c.id,
+            createdAt: {
+              gt: participant.lastReadAt ?? new Date(0),
+            },
+            senderId: {
+              not: ctx.user.id,
+            }
+          },
+        });
+        return { conversationId: c.id, count };
+      })
+    );
 
     const unreadMap = unreadCounts.reduce(
       (acc, curr) => {
-        if (curr.conversationId) {
-          acc[curr.conversationId] = curr._count._all;
-        }
+        acc[curr.conversationId] = curr.count;
         return acc;
       },
       {} as Record<string, number>,
@@ -106,33 +104,19 @@ export const chatRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      // Verify user is part of conversation
       const conversation = await ctx.db.conversation.findUnique({
         where: { id: input.conversationId },
-        include: { participants: { select: { id: true } } },
+        include: { participants: true },
       });
 
       if (
         !conversation ||
-        !conversation.participants.some((p) => p.id === ctx.user.id)
+        !conversation.participants.some((p) => p.userId === ctx.user.id)
       ) {
         throw new Error("Unauthorized");
       }
 
-      const firstUnread = await ctx.db.notification.findFirst({
-        where: {
-          userId: ctx.user.id,
-          conversationId: input.conversationId,
-          read: false,
-          type: "NEW_MESSAGE",
-        },
-        orderBy: {
-          createdAt: "asc",
-        },
-        select: {
-          createdAt: true,
-        },
-      });
+      const participant = conversation.participants.find(p => p.userId === ctx.user.id);
 
       const messages = await ctx.db.message.findMany({
         where: { conversationId: input.conversationId },
@@ -149,6 +133,7 @@ export const chatRouter = createTRPCRouter({
             },
           },
           quote: true,
+          eventInvitation: true,
         },
       });
 
@@ -157,9 +142,11 @@ export const chatRouter = createTRPCRouter({
         const nextItem = messages.pop();
         nextCursor = nextItem!.id;
       }
+      
+      const firstUnread = messages.find(m => m.createdAt > (participant?.lastReadAt ?? new Date(0)) && m.senderId !== ctx.user.id);
 
       return {
-        messages: messages.reverse(), // Return in chronological order
+        messages: messages.reverse(),
         nextCursor,
         firstUnreadTimestamp: firstUnread?.createdAt ?? null,
       };
@@ -175,22 +162,18 @@ export const chatRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Verify user is part of conversation
       const conversation = await ctx.db.conversation.findUnique({
         where: { id: input.conversationId },
-        include: { participants: { select: { id: true, username: true } } },
+        include: { participants: { include: { user: true } } },
       });
 
       if (
         !conversation ||
-        !conversation.participants.some((p) => p.id === ctx.user.id)
+        !conversation.participants.some((p) => p.userId === ctx.user.id)
       ) {
         throw new Error("Unauthorized");
       }
 
-      const sender = conversation.participants.find((p) => p.id === ctx.user.id);
-
-      // Create message and update conversation
       const [message] = await ctx.db.$transaction([
         ctx.db.message.create({
           data: {
@@ -209,6 +192,8 @@ export const chatRouter = createTRPCRouter({
                 },
               },
             },
+            quote: true,
+            eventInvitation: true,
           },
         }),
         ctx.db.conversation.update({
@@ -217,23 +202,23 @@ export const chatRouter = createTRPCRouter({
         }),
       ]);
 
-      // Create notifications for other participants
-      const otherParticipants = conversation.participants.filter(
-        (p) => p.id !== ctx.user.id,
-      );
-      if (otherParticipants.length > 0 && sender) {
-        await ctx.db.notification.createMany({
-          data: otherParticipants.map((participant) => ({
-            userId: participant.id,
-            conversationId: input.conversationId,
-            type: NotificationType.NEW_MESSAGE,
-            message: `You have a new message from ${sender.username}`,
-            link: `/inbox?conversation=${input.conversationId}`,
-          })),
-        });
-      }
-
       return message;
+    }),
+    
+  markConversationAsRead: protectedProcedure
+    .input(z.object({ conversationId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.conversationParticipant.update({
+        where: {
+          userId_conversationId: {
+            userId: ctx.user.id,
+            conversationId: input.conversationId,
+          },
+        },
+        data: {
+          lastReadAt: new Date(),
+        },
+      });
     }),
 
   // Get or create a conversation between two users
@@ -244,121 +229,56 @@ export const chatRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Check if conversation already exists
-      const existingConversation = await ctx.db.conversation.findFirst({
+      const users = [ctx.user.id, input.otherUserId];
+      
+      const existing = await ctx.db.conversation.findFirst({
         where: {
+          isGroup: false,
           AND: [
-            { participants: { some: { id: ctx.user.id } } },
-            { participants: { some: { id: input.otherUserId } } },
-            {
-              participants: {
-                every: { id: { in: [ctx.user.id, input.otherUserId] } },
-              },
-            },
-          ],
-        },
-        include: {
-          participants: {
-            select: {
-              id: true,
-              username: true,
-              clientProfile: { select: { name: true, avatarUrl: true } },
-              vendorProfile: { select: { companyName: true, avatarUrl: true } },
-            },
-          },
+            { participants: { some: { userId: ctx.user.id } } },
+            { participants: { some: { userId: input.otherUserId } } },
+            { participants: { every: { userId: { in: users } } } },
+          ]
         },
       });
 
-      if (existingConversation) {
-        return existingConversation;
-      }
+      if (existing) return existing;
 
-      // Create new conversation
       return ctx.db.conversation.create({
         data: {
           participants: {
-            connect: [{ id: ctx.user.id }, { id: input.otherUserId }],
-          },
-        },
-        include: {
-          participants: {
-            select: {
-              id: true,
-              username: true,
-              clientProfile: { select: { name: true, avatarUrl: true } },
-              vendorProfile: { select: { companyName: true, avatarUrl: true } },
-            },
-          },
+            create: users.map(userId => ({
+              user: { connect: { id: userId } }
+            }))
+          }
         },
       });
     }),
-
-  // Create a conversation with an initial message (for quote requests from service/vendor page)
-  createConversationWithMessage: protectedProcedure
-    .input(
-      z.object({
-        otherUserId: z.string(),
-        initialMessage: z.string(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      // Check if conversation already exists
-      const existingConversation = await ctx.db.conversation.findFirst({
-        where: {
-          AND: [
-            { participants: { some: { id: ctx.user.id } } },
-            { participants: { some: { id: input.otherUserId } } },
-          ],
-        },
-      });
-
-      if (existingConversation) {
-        // Just send the message
-        const message = await ctx.db.message.create({
-          data: {
-            conversationId: existingConversation.id,
-            senderId: ctx.user.id,
-            text: input.initialMessage,
-          },
-        });
-
-        return { conversationId: existingConversation.id, message };
-      }
-
-      // Create conversation with initial message
-      const conversation = await ctx.db.conversation.create({
-        data: {
-          participants: {
-            connect: [{ id: ctx.user.id }, { id: input.otherUserId }],
-          },
-          messages: {
-            create: {
-              senderId: ctx.user.id,
-              text: input.initialMessage,
-            },
-          },
-        },
-        include: {
-          messages: true,
-        },
-      });
-
-      return {
-        conversationId: conversation.id,
-        message: conversation.messages[0],
-      };
-    }),
-
+    
   getUnreadConversationCount: protectedProcedure.query(async ({ ctx }) => {
-    const unreadNotifications = await ctx.db.notification.findMany({
-      where: {
-        userId: ctx.user.id,
-        read: false,
-        type: "NEW_MESSAGE",
-      },
-      distinct: ["conversationId"],
+    const participations = await ctx.db.conversationParticipant.findMany({
+      where: { userId: ctx.user.id },
+      include: {
+        conversation: {
+          include: {
+            messages: {
+              orderBy: {
+                createdAt: 'desc'
+              },
+              take: 1
+            }
+          }
+        }
+      }
     });
-    return unreadNotifications.length;
+
+    let unreadCount = 0;
+    for (const p of participations) {
+      if (p.conversation.messages[0] && p.conversation.messages[0].createdAt > (p.lastReadAt ?? new Date(0)) && p.conversation.messages[0].senderId !== ctx.user.id) {
+        unreadCount++;
+      }
+    }
+    return unreadCount;
   }),
 
   createEventGroupChat: protectedProcedure
@@ -372,61 +292,71 @@ export const chatRouter = createTRPCRouter({
     const { eventId, memberIds } = input;
     const userId = ctx.user.id;
 
-    // 1. Find the event and ensure the current user is the owner
+    // 1. Find the event
     const event = await ctx.db.clientEvent.findUnique({
       where: { id: eventId },
       include: { client: true },
     });
 
-    if (!event || event.client.userId !== userId) {
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: "You don't have permission to create a chat for this event.",
-      });
+    if (!event) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+    }
+    
+    // 2. Authorize action
+    const isOwner = event.client.userId === userId;
+    if (!isOwner) {
+        const invitations = await ctx.db.eventInvitation.findMany({
+            where: {
+                eventId: input.eventId,
+                vendorId: { in: input.memberIds },
+                status: QuoteStatus.ACCEPTED,
+            }
+        });
+
+        if (invitations.length !== input.memberIds.length) {
+            throw new TRPCError({
+                code: "FORBIDDEN",
+                message: "You don't have permission to create a chat for this event.",
+            });
+        }
     }
 
-    // 2. Check if a group chat already exists for this event
+    // 3. Check if a group chat already exists for this event
     let conversation = await ctx.db.conversation.findUnique({
       where: { clientEventId: eventId },
+      include: { participants: true }
     });
 
     if (conversation) {
-      // 3a. If it exists, add new members
-      const existingParticipantIds = await ctx.db.conversation
-        .findUnique({ where: { id: conversation.id } })
-        .participants({ select: { id: true } });
-
-      if (!existingParticipantIds) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Conversation not found",
-        });
-      }
-
-      const existingIdsSet = new Set(existingParticipantIds.map((p) => p.id));
-      const newMemberIds = memberIds.filter((id) => !existingIdsSet.has(id));
+      // 4a. If it exists, add new members
+      const existingParticipantIds = new Set(conversation.participants.map((p) => p.userId));
+      const allPotentialMembers = [...new Set([event.client.userId, ...memberIds])];
+      const newMemberIds = allPotentialMembers.filter((id) => !existingParticipantIds.has(id));
 
       if (newMemberIds.length > 0) {
         await ctx.db.conversation.update({
           where: { id: conversation.id },
           data: {
             participants: {
-              connect: newMemberIds.map((id) => ({ id })),
+              create: newMemberIds.map((id) => ({ userId: id })),
             },
           },
         });
       }
     } else {
-      // 3b. If it doesn't exist, create it
-      const allParticipantIds = [...new Set([userId, ...memberIds])];
+      // 4b. If it doesn't exist, create it
+      const allParticipantIds = [...new Set([event.client.userId, ...memberIds])];
       conversation = await ctx.db.conversation.create({
         data: {
           clientEventId: eventId,
           isGroup: true,
-          groupAdminId: userId,
+          groupAdminId: event.client.userId,
           participants: {
-            connect: allParticipantIds.map((id) => ({ id })),
+            create: allParticipantIds.map((id) => ({ userId: id })),
           },
+        },
+        include: {
+          participants: true,
         },
       });
     }

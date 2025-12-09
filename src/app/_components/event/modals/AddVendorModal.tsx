@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState, useMemo } from "react";
+import Link from "next/link";
 import { api } from "@/trpc/react";
-import { Loader2, Search, ShieldCheck } from "lucide-react";
+import { Loader2, Search, Check, ChevronDown, X } from "lucide-react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { Button } from "@/components/ui/button";
@@ -12,108 +13,195 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import Image from "next/image";
+import { useDebounce } from "@/hooks/use-debounce";
+import { toast } from "sonner";
+import LocationSearchInput, { type LocationSearchResult } from "@/components/ui/LocationSearchInput";
 
-type routerOutput = inferRouterOutputs<AppRouter>;
-type event = routerOutput["event"]["getById"];
-type ActiveVendor = {
-  id: string;
-  name: string;
-  service: string;
-  avatarUrl: string;
-  isAdded: boolean;
-};
+
+type RouterOutput = inferRouterOutputs<AppRouter>;
+type Event = RouterOutput["event"]["getById"];
 
 interface AddVendorModalProps {
-  event: event;
-  vendors: ActiveVendor[];
+  event: Event;
   isOpen: boolean;
   onClose: () => void;
 }
 
 export const AddVendorModal = ({
   event,
-  vendors,
   isOpen,
   onClose,
 }: AddVendorModalProps) => {
   const utils = api.useUtils();
-  const addVendor = api.event.addVendor.useMutation({
-    onSuccess: () => {
-      void utils.event.getById.invalidate({ id: event.id });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedServices, setSelectedServices] = useState<number[]>([]);
+  const [location, setLocation] = useState<LocationSearchResult | null>(null);
+  const [radius, setRadius] = useState(5000); // 5km
+  
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  const { data: categoriesData, isLoading: isLoadingCategories } = api.category.getAll.useQuery();
+
+  const allServices = useMemo(() => {
+    return categoriesData?.flatMap(cat => cat.services.map(s => ({...s, categoryName: cat.name}))) ?? [];
+  }, [categoriesData]);
+
+  const { data: searchResults, isLoading: isSearching } = api.vendor.searchVendors.useQuery({
+    query: debouncedSearchQuery,
+    serviceIds: selectedServices,
+    location: location ? { lat: parseFloat(location.lat), lon: parseFloat(location.lon), radius } : undefined,
+    limit: 20,
+  });
+  
+  const sendInvitation = api.eventInvitation.create.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Invitation sent to ${data.vendor.username}!`);
+      // I could add optimistic updates here
+      void utils.vendor.searchVendors.invalidate();
     },
+    onError: (error) => {
+      toast.error(error.message);
+    }
   });
 
-  const handleAddVendor = (vendorId: string) => {
-    addVendor.mutate({ eventId: event.id, vendorId });
+  const handleInviteVendor = (vendorId: string) => {
+    sendInvitation.mutate({ eventId: event.id, vendorId });
   };
 
-  const eventVendorIds = event.hiredVendors?.map((ev) => ev.vendor.id) ?? [];
-  const vendorsWithStatus = vendors.map((v) => ({
-    ...v,
-    isAdded: eventVendorIds.includes(v.id),
-  }));
+  const hiredVendorIds = useMemo(() => event.hiredVendors?.map((ev) => ev.vendor.id) ?? [], [event.hiredVendors]);
+  // TODO: Also check for pending invitations and disable the button
+  
+  const toggleService = (serviceId: number) => {
+    setSelectedServices(prev => 
+      prev.includes(serviceId) 
+        ? prev.filter(id => id !== serviceId)
+        : [...prev, serviceId]
+    );
+  }
+
+  const selectedServiceNames = useMemo(() => {
+    return allServices.filter(s => selectedServices.includes(s.id)).map(s => s.name);
+  }, [allServices, selectedServices]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[625px]">
+      <DialogContent className="sm:max-w-[625px] h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Add Vendor to Event</DialogTitle>
+          <DialogTitle>Invite a Vendor to Your Event</DialogTitle>
         </DialogHeader>
-        <div className="shrink-0 border-b border-gray-200 p-4">
+        
+        <div className="flex flex-col gap-4 border-b border-gray-200 p-4">
           <div className="relative">
             <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search your active vendors..."
+              placeholder="Search vendors by name, company, or title..."
               className="w-full rounded-lg border border-gray-200 bg-gray-100 py-2 pr-3 pl-10 text-sm focus:outline-pink-500"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    Services <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="max-h-64 w-full overflow-y-auto">
+                  {isLoadingCategories ? <DropdownMenuItem>Loading...</DropdownMenuItem> : allServices.map(service => (
+                    <DropdownMenuItem key={service.id} onSelect={(e) => e.preventDefault()} onClick={() => toggleService(service.id)}>
+                      <div className={`mr-2 h-4 w-4 border border-primary ${selectedServices.includes(service.id) ? 'bg-primary text-primary-foreground' : ''}`}>
+                        {selectedServices.includes(service.id) && <Check className="h-4 w-4" />}
+                      </div>
+                      <span>{service.name} <span className="text-xs text-muted-foreground">({service.categoryName})</span></span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {selectedServiceNames.map(name => (
+                  <div key={name} className="flex items-center gap-1 rounded-full bg-pink-100 px-2 py-0.5 text-xs text-pink-800">
+                    {name}
+                    <button onClick={() => {
+                      const service = allServices.find(s => s.name === name);
+                      if (service) toggleService(service.id);
+                    }}>
+                      <X className="h-3 w-3"/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <LocationSearchInput onLocationSelect={setLocation} initialValue={location?.display_name} />
+              {location && (
+                  <div>
+                      <label className="text-xs font-medium">Radius: {(radius / 1000).toFixed(1)} km</label>
+                      <input
+                          type="range"
+                          min="1000"
+                          max="50000"
+                          step="1000"
+                          value={radius}
+                          onChange={(e) => setRadius(Number(e.target.value))}
+                          className="w-full"
+                      />
+                  </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="overflow-y-auto p-2">
-          <h4 className="mb-2 px-2 font-semibold text-gray-800">
-            Vendors with Active Orders
-          </h4>
-          {vendorsWithStatus.length === 0 ? (
+        <div className="flex-1 overflow-y-auto p-2">
+          {isSearching && <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-pink-500"/></div>}
+          
+          {!isSearching && (!searchResults || searchResults.vendors.length === 0) ? (
             <p className="px-2 py-8 text-center text-gray-500">
-              No active vendors. Place orders first to add vendors to events.
+              No vendors found. Try adjusting your search or filters.
             </p>
           ) : (
             <ul className="divide-y divide-gray-100">
-              {vendorsWithStatus.map((vendor) => (
+              {searchResults?.vendors.map((vendor) => (
                 <li
                   key={vendor.id}
                   className="flex items-center justify-between px-2 py-3"
                 >
-                  <div className="flex items-center gap-3">
+                  <Link href={`/v/${vendor.username}`} target="_blank" className="flex items-center gap-3 group">
                     <Image
-                      src={vendor.avatarUrl}
-                      alt={vendor.name}
+                      src={vendor.avatarUrl ?? "https://placehold.co/40x40/ec4899/ffffff?text=V"}
+                      alt={vendor.username}
                       className="h-10 w-10 rounded-full"
                       width={40}
                       height={40}
                     />
                     <div>
-                      <p className="font-medium text-gray-800">{vendor.name}</p>
-                      <p className="text-sm text-gray-500">{vendor.service}</p>
+                      <p className="font-medium text-gray-800 group-hover:text-pink-600">{vendor.companyName ?? vendor.username}</p>
+                      <p className="text-sm text-gray-500">{vendor.title ?? 'Vendor'}</p>
                     </div>
-                  </div>
-                  {vendor.isAdded ? (
-                    <span className="flex items-center gap-1.5 text-sm font-semibold text-green-600">
-                      <ShieldCheck className="h-5 w-5" />
-                      Added
+                  </Link>
+                  {hiredVendorIds.includes(vendor.user.id) ? (
+                    <span className="text-sm font-semibold text-green-600">
+                      Hired
                     </span>
                   ) : (
                     <Button
-                      onClick={() => handleAddVendor(vendor.id)}
-                      disabled={addVendor.isPending}
+                      onClick={() => handleInviteVendor(vendor.user.id)}
+                      disabled={sendInvitation.isPending && sendInvitation.variables?.vendorId === vendor.user.id}
                       size="sm"
                     >
-                      {addVendor.isPending && (
+                      {sendInvitation.isPending && sendInvitation.variables?.vendorId === vendor.user.id && (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       )}
-                      Add to Event
+                      Invite
                     </Button>
                   )}
                 </li>

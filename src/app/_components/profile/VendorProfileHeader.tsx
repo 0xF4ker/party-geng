@@ -10,12 +10,12 @@ import {
   MessageSquare,
   Loader2,
   Menu,
-  Mail,
   Settings,
   Wallet,
   Award,
   Flame,
 } from "lucide-react";
+import { EnvelopeIcon } from "@heroicons/react/24/solid";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/trpc/react";
@@ -130,19 +130,20 @@ const VendorProfileHeader = ({
   const closeModal = () => setIsModalOpen(false);
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
 
-  const createConversation = api.chat.createConversationWithMessage.useMutation(
-    {
-      onSuccess: (data) => {
-        router.push(`/inbox?conversation=${data.conversationId}`);
-      },
-      onError: (error) => {
-        console.error("Failed to create conversation:", error);
-        // You might want to show a toast notification here
-        // alert("Failed to create conversation. Please try again.");
-        toast.error("Failed to create conversation. Please try again.");
-      },
+  const sendMessage = api.chat.sendMessage.useMutation();
+  const createConversation = api.chat.getOrCreateConversation.useMutation({
+    onSuccess: (data) => {
+      sendMessage.mutate({
+        conversationId: data.id,
+        text: `Hi! I'd like to know more about your services.`,
+      });
+      router.push(`/inbox?conversation=${data.id}`);
     },
-  );
+    onError: (error) => {
+      console.error("Failed to create conversation:", error);
+      toast.error("Failed to create conversation. Please try again.");
+    },
+  });
 
   const handleContactVendor = () => {
     if (!user) {
@@ -161,7 +162,6 @@ const VendorProfileHeader = ({
 
     createConversation.mutate({
       otherUserId: vendorProfile.userId,
-      initialMessage: `Hi! I'd like to know more about your services.`,
     });
   };
 
@@ -323,7 +323,7 @@ const VendorProfileHeader = ({
                     headerIconColor,
                   )}
                 >
-                  <Mail className="h-6 w-6" />
+                  <EnvelopeIcon className="h-6 w-6" />
                   {(unreadConvoCount ?? 0) > 0 && (
                     <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-pink-600 ring-1 ring-white" />
                   )}
@@ -331,7 +331,7 @@ const VendorProfileHeader = ({
                 <NotificationDropdown
                   className={cn("hidden md:flex", headerIconColor)}
                 />
-                
+
                 {/* Profile Dropdown */}
                 <div className="relative ml-2" ref={profileDropdownRef}>
                   <Link
@@ -382,7 +382,7 @@ const VendorProfileHeader = ({
 
         <div className="relative container mx-auto max-w-4xl px-4">
           {/* Avatar & Actions */}
-          <div className="flex flex-col items-center sm:flex-row sm:items-end sm:justify-between -mt-24">
+          <div className="-mt-24 flex flex-col items-center sm:flex-row sm:items-end sm:justify-between">
             <div className="flex flex-col items-center sm:flex-row sm:items-end">
               <Image
                 src={
@@ -444,7 +444,15 @@ const VendorProfileHeader = ({
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-500">
               <div className="flex items-center gap-1.5">
                 <MapPin className="h-4 w-4" />
-                <span>{(vendorProfile?.location as unknown as {display_name: string})?.display_name}</span>
+                <span>
+                  {
+                    (
+                      vendorProfile?.location as unknown as {
+                        display_name: string;
+                      }
+                    )?.display_name
+                  }
+                </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Star className="h-4 w-4" />
