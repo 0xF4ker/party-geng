@@ -131,18 +131,11 @@ export const authRouter = createTRPCRouter({
     return { success: true };
   }),
 
-  healAccount: protectedProcedure.mutation(async ({ ctx }) => {
-    const { db, user } = ctx;
+  healAccount: publicProcedure.mutation(async ({ ctx }) => {
+    const { db } = ctx;
 
-    // 1. Double check: Does the user already exist in the public table?
-    const existingUser = await db.user.findUnique({
-      where: { id: user.id },
-    });
-
-    if (existingUser) return { success: true };
-
+    // 1. Verify user authentication via Supabase
     const supabase = await createClient();
-
     const {
       data: { user: authUser },
       error,
@@ -150,30 +143,86 @@ export const authRouter = createTRPCRouter({
 
     if (error || !authUser?.email) {
       throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Could not fetch auth details for healing.",
+        code: "UNAUTHORIZED",
+        message: "You must be logged in to heal your account.",
       });
     }
 
-    // Explicitly type the metadata object
+    // 2. Check if the user exists AND check for their relations
+    const dbUser = await db.user.findUnique({
+      where: { id: authUser.id },
+      include: {
+        wallet: true,
+        clientProfile: true,
+        vendorProfile: true,
+      },
+    });
+
+    // --- SCENARIO A: User exists, but might be incomplete (The "Previous Heal" fix) ---
+    if (dbUser) {
+      // 1. Fix Missing Wallet
+      if (!dbUser.wallet) {
+        await db.wallet.create({
+          data: {
+            userId: dbUser.id,
+          },
+        });
+      }
+
+      // 2. Fix Missing Profile based on their existing DB role
+      if (dbUser.role === "CLIENT" && !dbUser.clientProfile) {
+        await db.clientProfile.create({
+          data: { userId: dbUser.id },
+        });
+      } else if (dbUser.role === "VENDOR" && !dbUser.vendorProfile) {
+        await db.vendorProfile.create({
+          data: { userId: dbUser.id },
+        });
+      }
+
+      return { success: true, status: "repaired" };
+    }
+
+    // --- SCENARIO B: User does not exist at all (The "Fresh Heal") ---
+
+    // Prepare metadata
     const metadata = (authUser.user_metadata || {}) as {
       username?: string;
       role?: string;
     };
 
-    // FIX: Calculate username safely in a variable
-    // We use '??' (nullish coalescing) to fall back to email, and then a hard string "user"
-    // just in case the split fails (though it shouldn't).
     const fallbackUsername = authUser.email.split("@")[0] ?? "user";
     const finalUsername = metadata.username ?? fallbackUsername;
+    const role = metadata.role === "VENDOR" ? "VENDOR" : "CLIENT";
 
-    return await db.user.create({
+    // Create everything in one go
+    await db.user.create({
       data: {
         id: authUser.id,
         email: authUser.email,
         username: finalUsername,
-        role: metadata.role === "VENDOR" ? "VENDOR" : "CLIENT",
+        role: role,
+
+        wallet: {
+          create: {},
+        },
+
+        vendorProfile:
+          role === "VENDOR"
+            ? {
+                create: {},
+              }
+            : undefined,
+
+        clientProfile:
+          role === "CLIENT"
+            ? {
+                create: {},
+              }
+            : undefined,
       },
     });
+
+    return { success: true, status: "created" };
   }),
 });

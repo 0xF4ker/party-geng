@@ -1,33 +1,38 @@
 "use client";
 import { api } from "@/trpc/react";
 import { useAuthStore } from "@/stores/auth";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setProfile, setIsLoading } = useAuthStore();
+  // FIX: Use selectors to get actions.
+  // This prevents the component from re-rendering when the store state changes.
+  const setProfile = useAuthStore((state) => state.setProfile);
+  const setIsLoading = useAuthStore((state) => state.setIsLoading);
+
+  // Optional: We can read the current ID to prevent redundant updates
+  const storedProfileId = useAuthStore((state) => state.profile?.id);
+
   const [isSessionChecked, setIsSessionChecked] = useState(false);
   const [hasSession, setHasSession] = useState(false);
   const utils = api.useUtils();
 
-  // 1. Fetch Profile (Only if session exists)
+  // 1. Fetch Profile
   const { data: profile, isLoading: isProfileLoading } =
     api.user.getProfile.useQuery(undefined, {
       enabled: hasSession,
-      staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-      retry: 1, // Don't retry endlessly if 404
+      staleTime: 1000 * 60 * 5,
+      retry: 1,
     });
 
-  // 2. THE HEALER: Mutation to fix orphaned accounts
-  // You need to create this tRPC procedure (see note below)
+  // 2. THE HEALER
   const healAccountMutation = api.auth.healAccount.useMutation({
     onSuccess: async () => {
       toast.success("Account profile restored.");
       await utils.user.getProfile.invalidate();
     },
     onError: () => {
-      // If healing fails, force logout so they don't get stuck in a broken state
       const supabase = createClient();
       void supabase.auth.signOut();
       setHasSession(false);
@@ -66,33 +71,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [setProfile]);
 
-  // 4. Update Store & Detect Orphans
+  // 4. Update Store & Detect Orphans (or Incomplete Profiles)
   useEffect(() => {
-    // Standard Case: Profile loaded successfully
-    if (profile) {
+    // Sync store
+    if (profile && profile.id !== storedProfileId) {
       setProfile(profile);
     }
 
-    // EDGE CASE: Orphan Detection
-    // We have a session, profile finished loading, but profile is null/undefined
+    // Define what "Incomplete" means
+    // We check if the user exists, but is missing role-specific data
+    const isProfileIncomplete =
+      profile &&
+      ((profile.role === "VENDOR" && !profile.vendorProfile) ||
+        (profile.role === "CLIENT" && !profile.clientProfile));
+      // Add !profile.wallet here if your getProfile query includes the wallet
+
+    // Trigger Heal if:
+    // 1. Session exists
+    // 2. Loading finished
+    // 3. Profile is MISSING (!profile) ... OR ... Profile is INCOMPLETE (isProfileIncomplete)
     if (
       hasSession &&
       !isProfileLoading &&
-      !profile &&
+      (!profile || isProfileIncomplete) &&
       !healAccountMutation.isPending
     ) {
       console.warn(
-        "Orphaned user detected (Auth exists, DB missing). Attempting to heal...",
+        "User account incomplete or missing. Attempting to repair...",
       );
       healAccountMutation.mutate();
     }
-  }, [profile, setProfile, hasSession, isProfileLoading, healAccountMutation]);
+  }, [
+    profile,
+    storedProfileId,
+    setProfile,
+    hasSession,
+    isProfileLoading,
+    healAccountMutation,
+  ]);
 
   // 5. Global Loading State
   useEffect(() => {
-    // We are loading if:
-    // 1. We haven't checked Supabase yet OR
-    // 2. We have a session, but are waiting for the profile
     const isLoading = !isSessionChecked || (hasSession && isProfileLoading);
     setIsLoading(isLoading);
   }, [isSessionChecked, hasSession, isProfileLoading, setIsLoading]);
