@@ -40,6 +40,7 @@ export const EventInvitationMessageBubble = ({
       void utils.event.getById.invalidate({
         id: message.eventInvitation.eventId,
       });
+      void utils.chat.getConversations.invalidate();
     },
     onError: (error) => {
       toast.error(error.message);
