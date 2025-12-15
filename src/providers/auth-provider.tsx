@@ -1,7 +1,7 @@
 "use client";
 import { api } from "@/trpc/react";
 import { useAuthStore } from "@/stores/auth";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 
@@ -74,7 +74,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // 4. Update Store & Detect Orphans (or Incomplete Profiles)
   useEffect(() => {
     // Sync store
-    if (profile && profile.id !== storedProfileId) {
+    // Only sync if we have a session. This prevents cached/stale profile data
+    // from re-populating the store after logout.
+    if (hasSession && profile && profile.id !== storedProfileId) {
       setProfile(profile);
     }
 
@@ -84,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profile &&
       ((profile.role === "VENDOR" && !profile.vendorProfile) ||
         (profile.role === "CLIENT" && !profile.clientProfile));
-      // Add !profile.wallet here if your getProfile query includes the wallet
+    // Add !profile.wallet here if your getProfile query includes the wallet
 
     // Trigger Heal if:
     // 1. Session exists

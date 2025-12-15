@@ -7,12 +7,14 @@ import { useEffect } from "react";
 
 export function useAuth() {
   const { profile, setProfile, isLoading } = useAuthStore();
+  const router = useRouter();
 
   const signOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
     setProfile(null);
-    redirect("/");
+    router.push("/");
+    router.refresh();
   };
 
   return {

@@ -23,18 +23,11 @@ import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { useUserType } from "@/hooks/useUserType";
 import { useRouter } from "next/navigation";
+import { AddVendorModal } from "@/app/_components/event/modals/AddVendorModal";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 // getMyEvents returns { upcoming: EventType[]; past: EventType[] }, derive the event item type from the upcoming array
 type event = routerOutput["event"]["getMyEvents"]["upcoming"][number];
-
-type ActiveVendor = {
-  id: string;
-  name: string;
-  service: string;
-  avatarUrl: string;
-  isAdded: boolean;
-};
 
 // --- Main Page Component ---
 const ClientEventPlannerPage = () => {
@@ -52,14 +45,6 @@ const ClientEventPlannerPage = () => {
       enabled: !!user,
     });
 
-  // Fetch orders to get vendors with active orders
-  const { data: orders } = api.order.getMyOrders.useQuery(
-    { status: "ACTIVE" },
-    {
-      enabled: !!user,
-    },
-  );
-
   useEffect(() => {
     if (!loading && !isClient) {
       router.push("/");
@@ -70,21 +55,6 @@ const ClientEventPlannerPage = () => {
     setSelectedEvent(event);
     setIsVendorModalOpen(true);
   };
-
-  // Get active vendors from orders
-  const activeVendors =
-    orders?.map((order) => ({
-      id: order.vendor.id,
-      name:
-        order.vendor.vendorProfile?.companyName ??
-        order.vendor.username ??
-        "Vendor",
-      service: order.quote.title ?? "Service",
-      avatarUrl:
-        order.vendor.vendorProfile?.avatarUrl ??
-        "https://placehold.co/40x40/ec4899/ffffff?text=V",
-      isAdded: false, // Will be set dynamically per event
-    })) ?? [];
 
     if (loading || !isClient) {
         return (
@@ -166,7 +136,9 @@ const ClientEventPlannerPage = () => {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {eventsData?.past && eventsData.past.length > 0 ? (
               eventsData.past.map((event) => (
-                <EventCard key={event.id} event={event} isPast={true} />
+                <Link href={`/event/${event.id}`} key={event.id}>
+                  <EventCard event={event} isPast={true} />
+                </Link>
               ))
             ) : (
               <div className="col-span-full rounded-lg border border-gray-200 bg-white p-12 text-center">
@@ -185,8 +157,8 @@ const ClientEventPlannerPage = () => {
       {/* --- Add Vendor Modal --- */}
       {isVendorModalOpen && selectedEvent && (
         <AddVendorModal
-          event={selectedEvent}
-          vendors={activeVendors}
+          event={selectedEvent as any} // Type mismatch fix: getMyEvents vs getById event types
+          isOpen={isVendorModalOpen}
           onClose={() => setIsVendorModalOpen(false)}
         />
       )}
@@ -249,17 +221,27 @@ const EventCard = ({
     },
   });
 
-  const handleTogglePublic = () => {
+  const handleTogglePublic = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     const newIsPublic = !isPublic;
     setIsPublic(newIsPublic);
     updateEvent.mutate({ id: event.id, isPublic: newIsPublic });
   };
 
-  const handleDelete = () => {
+  const handleDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault(); // Prevent Link navigation
+    e.stopPropagation();
     if (confirm(`Are you sure you want to delete "${event.title}"?`)) {
       deleteEvent.mutate({ id: event.id });
       setIsMenuOpen(false);
     }
+  };
+  
+  const handleMenuToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault(); // Prevent Link navigation
+    e.stopPropagation();
+    setIsMenuOpen(!isMenuOpen);
   };
 
   // Transform hired vendors
@@ -285,7 +267,7 @@ const EventCard = ({
   }, [menuRef]);
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div className="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
       <Image
         src={
           event.coverImage ??
@@ -315,13 +297,13 @@ const EventCard = ({
           {!isPast && (
             <div className="relative" ref={menuRef}>
               <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                onClick={handleMenuToggle}
                 className="rounded-full p-1 text-gray-400 hover:text-gray-700"
               >
                 <MoreVertical className="h-5 w-5" />
               </button>
               {isMenuOpen && (
-                <div className="absolute top-full right-0 z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg">
+                <div className="absolute top-full right-0 z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg" onClick={(e) => e.stopPropagation()}>
 <Link href={`/event/${event.id}/wishlist`}>
                     <button
                       className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
@@ -330,10 +312,16 @@ const EventCard = ({
                     </button>
                   </Link>
                   <button
-                    onClick={() => setIsMenuOpen(false)} // Placeholder for Manage Vendors page
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsMenuOpen(false);
+                        // Open add vendor modal if we had a handler here, but onAddVendorClick is on the Plus button
+                        if (onAddVendorClick) onAddVendorClick(e);
+                    }} 
                     className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                   >
-                    <Users className="h-4 w-4" /> Manage Vendors
+                    <Users className="h-4 w-4" /> Add Vendor
                   </button>
                   <button
                     onClick={handleDelete}
@@ -415,7 +403,7 @@ const EventCard = ({
                 Make Public
               </span>
               <button
-                onClick={handleTogglePublic}
+                onClick={(e) => handleTogglePublic(e)}
                 disabled={updateEvent.isPending}
               >
                 {isPublic ? (
@@ -550,118 +538,6 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
             </button>
           </div>
         </form>
-      </div>
-    </div>
-  );
-};
-
-// NEW: Add Vendor Modal
-const AddVendorModal = ({
-  event,
-  vendors,
-  onClose,
-}: {
-  event: event;
-  vendors: ActiveVendor[];
-  onClose: () => void;
-}) => {
-  const utils = api.useUtils();
-  const addVendor = api.event.addVendor.useMutation({
-    onSuccess: () => {
-      void utils.event.getMyEvents.invalidate();
-    },
-  });
-
-  const handleAddVendor = (vendorId: string) => {
-    addVendor.mutate({ eventId: event.id, vendorId });
-  };
-
-  // Check which vendors are already added
-  const eventVendorIds = event.hiredVendors?.map((ev) => ev.vendor.id) ?? [];
-  const vendorsWithStatus = vendors.map((v) => ({
-    ...v,
-    isAdded: eventVendorIds.includes(v.id),
-  }));
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="m-4 flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg bg-white shadow-xl">
-        {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 p-4">
-          <div>
-            <h3 className="text-xl font-semibold">Add Vendor to Event</h3>
-            <p className="text-sm text-gray-500">{event.title}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Search Bar */}
-        <div className="shrink-0 border-b border-gray-200 p-4">
-          <div className="relative">
-            <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search your active vendors..."
-              className="w-full rounded-lg border border-gray-200 bg-gray-100 py-2 pr-3 pl-10 text-sm focus:outline-pink-500"
-            />
-          </div>
-        </div>
-
-        {/* Vendor List */}
-        <div className="overflow-y-auto p-2">
-          <h4 className="mb-2 px-2 font-semibold text-gray-800">
-            Vendors with Active Orders
-          </h4>
-          {vendorsWithStatus.length === 0 ? (
-            <p className="px-2 py-8 text-center text-gray-500">
-              No active vendors. Place orders first to add vendors to events.
-            </p>
-          ) : (
-            <ul className="divide-y divide-gray-100">
-              {vendorsWithStatus.map((vendor) => (
-                <li
-                  key={vendor.id}
-                  className="flex items-center justify-between px-2 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <Image
-                      src={vendor.avatarUrl}
-                      alt={vendor.name}
-                      className="h-10 w-10 rounded-full"
-                      width={40}
-                      height={40}
-                    />
-                    <div>
-                      <p className="font-medium text-gray-800">{vendor.name}</p>
-                      <p className="text-sm text-gray-500">{vendor.service}</p>
-                    </div>
-                  </div>
-                  {vendor.isAdded ? (
-                    <span className="flex items-center gap-1.5 text-sm font-semibold text-green-600">
-                      <ShieldCheck className="h-5 w-5" />
-                      Added
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => handleAddVendor(vendor.id)}
-                      disabled={addVendor.isPending}
-                      className="flex items-center gap-2 rounded-md bg-pink-100 px-3 py-1.5 text-sm font-semibold text-pink-700 hover:bg-pink-200 disabled:opacity-50"
-                    >
-                      {addVendor.isPending && (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      )}
-                      Add to Event
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
       </div>
     </div>
   );

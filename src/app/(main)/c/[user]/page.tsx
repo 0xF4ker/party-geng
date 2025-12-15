@@ -87,8 +87,10 @@ const ClientProfilePage = () => {
   }
 
   const clientProfile = profileUser.clientProfile;
-  const upcomingEvents = eventsData?.upcoming?.filter((e) => e.isPublic) ?? [];
-  const pastEvents = eventsData?.past?.filter((e) => e.isPublic) ?? [];
+  const upcomingEvents =
+    eventsData?.upcoming?.filter((e) => e.isPublic || isOwnProfile) ?? [];
+  const pastEvents =
+    eventsData?.past?.filter((e) => e.isPublic || isOwnProfile) ?? [];
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
@@ -111,7 +113,11 @@ const ClientProfilePage = () => {
             />
           )}
           {activeTab === "past" && (
-            <PastEventsSection events={pastEvents} isLoading={eventsLoading} />
+            <PastEventsSection
+              events={pastEvents}
+              isLoading={eventsLoading}
+              isOwnProfile={isOwnProfile}
+            />
           )}
           {activeTab === "gallery" && <GalleryTab username={username} />}
           {activeTab === "reviews" && <ReviewsFromVendorsSection />}
@@ -148,11 +154,13 @@ const UpcomingEventsSection = ({
         <Calendar className="mx-auto h-12 w-12 text-gray-400" />
         <p className="mt-4 font-semibold text-gray-800">
           {isOwnProfile
-            ? "You have no public upcoming events"
+            ? "You have no upcoming events"
             : "No public upcoming events"}
         </p>
         <p className="mt-2 text-sm text-gray-500">
-          Public events you create will show up here.
+          {isOwnProfile
+            ? "Events you create will show up here."
+            : "Public events will show up here."}
         </p>
         {isOwnProfile && (
           <button
@@ -192,7 +200,16 @@ const EventCard = ({ event }: { event: event }) => {
         height={250}
       />
       <div className="p-5">
-        <p className="text-sm font-semibold text-green-600">Public Event</p>
+        <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-green-600">
+            {event.isPublic ? "Public Event" : "Private Event"}
+            </p>
+            {!event.isPublic && (
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                    Private
+                </span>
+            )}
+        </div>
         <h3 className="mt-1 text-xl font-bold">{event.title}</h3>
         <p className="mt-1 text-sm text-gray-500">
           {new Date(event.date).toLocaleDateString("en-US", {
@@ -211,7 +228,7 @@ const EventCard = ({ event }: { event: event }) => {
               </div>
             </div>
             <button
-              onClick={() => router.push(`/event/${event.id}/wishlist`)}
+              onClick={() => router.push(`/wishlist/${event.id}`)}
               className="rounded-full bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-300"
             >
               View
@@ -226,9 +243,11 @@ const EventCard = ({ event }: { event: event }) => {
 const PastEventsSection = ({
   events,
   isLoading,
+  isOwnProfile,
 }: {
   events: eventPast[];
   isLoading: boolean;
+  isOwnProfile: boolean;
 }) => {
   if (isLoading) {
     return (
@@ -243,7 +262,9 @@ const PastEventsSection = ({
       <div className="rounded-lg border-2 border-dashed border-gray-200 bg-white p-12 text-center">
         <Calendar className="mx-auto h-12 w-12 text-gray-400" />
         <p className="mt-4 font-semibold text-gray-800">
-          No public past events
+           {isOwnProfile
+            ? "You have no past events"
+            : "No public past events"}
         </p>
         <p className="mt-2 text-sm text-gray-500">
           Past events will appear here once they&apos;ve concluded.

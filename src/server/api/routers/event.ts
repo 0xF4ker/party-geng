@@ -167,7 +167,21 @@ export const eventRouter = createTRPCRouter({
         false;
       console.log(`--- [event.getById] Is participant after fix? ${isParticipantAfterFix}`);
 
+      let hasInvitation = false;
       if (!isOwner && !isParticipantAfterFix && !event.isPublic) {
+        const invitation = await ctx.db.eventInvitation.findFirst({
+            where: {
+                eventId: input.id,
+                vendorId: ctx.user.id,
+            }
+        });
+        if (invitation) {
+            hasInvitation = true;
+            console.log("--- [event.getById] User has an invitation. Access granted. ---");
+        }
+      }
+
+      if (!isOwner && !isParticipantAfterFix && !event.isPublic && !hasInvitation) {
         console.log("--- [event.getById] Authorization failed. ---");
         throw new TRPCError({
           code: "FORBIDDEN",
