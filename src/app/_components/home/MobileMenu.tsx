@@ -203,11 +203,11 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                     Orders
                   </Link>
                   <Link
-                    href="/earnings"
+                    href="/wallet"
                     onClick={onClose}
                     className="block text-base font-medium text-gray-700 hover:text-pink-500"
                   >
-                    Earnings
+                    Wallet
                   </Link>
                   <Link
                     href={`/v/${user.username}`}

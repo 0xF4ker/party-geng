@@ -373,6 +373,7 @@ const InboxPageContent = () => {
                     void refetchMessages();
                     void refetchConvos();
                   }}
+                  isGroup={selectedConvo.isGroup}
                 />
               </div>
             </>

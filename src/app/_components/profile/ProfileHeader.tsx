@@ -404,7 +404,7 @@ const ProfileHeader = ({
               {isOwnProfile ? (
                 <>
                   <Link
-                    href="/earnings"
+                    href="/wallet"
                     className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-800 shadow-md transition-colors hover:bg-gray-100"
                   >
                     <Wallet className="h-4 w-4 text-green-600" />

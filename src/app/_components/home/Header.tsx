@@ -223,10 +223,10 @@ const Header = () => {
                         Orders
                       </Link>
                       <Link
-                        href="/earnings"
+                        href="/wallet"
                         className="text-sm font-medium text-gray-700 transition-colors hover:text-pink-500"
                       >
-                        Earnings
+                        Wallet
                       </Link>
                     </>
                   ) : (

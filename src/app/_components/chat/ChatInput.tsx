@@ -10,6 +10,7 @@ interface ChatInputProps {
   conversationId: string;
   otherUserId: string;
   onQuoteSent: () => void;
+  isGroup?: boolean;
 }
 
 export const ChatInput = ({
@@ -19,6 +20,7 @@ export const ChatInput = ({
   conversationId,
   otherUserId,
   onQuoteSent,
+  isGroup = false,
 }: ChatInputProps) => {
   const [text, setText] = useState("");
   const [showQuoteModal, setShowQuoteModal] = useState(false);
@@ -70,8 +72,8 @@ export const ChatInput = ({
         />
 
         <div className="flex gap-2 pb-1">
-          {/* Vendor Quote Button */}
-          {isVendor && (
+          {/* Vendor Quote Button - Disabled in Group Chats */}
+          {isVendor && !isGroup && (
             <button
               onClick={() => setShowQuoteModal(true)}
               className="rounded-lg bg-blue-100 p-2 text-blue-600 transition-colors hover:bg-blue-200"

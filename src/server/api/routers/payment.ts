@@ -3,7 +3,7 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { OrderStatus, TransactionType, WishlistItemType } from "@prisma/client";
+import { TransactionType, WishlistItemType, NotificationType } from "@prisma/client";
 
 // const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY ?? undefined;
 
@@ -26,108 +26,150 @@ export const paymentRouter = createTRPCRouter({
     return wallet;
   }),
 
-  payForQuote: protectedProcedure
-    .input(z.object({ quoteId: z.string() }))
+  // Transfer funds to another user
+  transferFunds: protectedProcedure
+    .input(
+      z.object({
+        recipientUsername: z.string(),
+        amount: z.number().min(100), // Minimum transfer amount
+        description: z.string().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
-      const { quoteId } = input;
-      const clientId = ctx.user.id;
+      const { recipientUsername, amount, description } = input;
+      const senderId = ctx.user.id;
 
-      const quote = await ctx.db.quote.findUnique({
-        where: { id: quoteId },
+      // 1. Check sender's balance
+      const senderWallet = await ctx.db.wallet.findUnique({
+        where: { userId: senderId },
       });
 
-      if (quote?.clientId !== clientId) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Quote not found." });
-      }
-      if (quote.status !== "PENDING") {
+      if (!senderWallet || senderWallet.availableBalance < amount) {
         throw new TRPCError({
-          code: "CONFLICT",
-          message: "Quote is not pending and cannot be paid for.",
+          code: "BAD_REQUEST",
+          message: "Insufficient funds.",
         });
       }
 
-      const clientWallet = await ctx.db.wallet.findUnique({
-        where: { userId: clientId },
+      // 2. Find recipient
+      const recipient = await ctx.db.user.findUnique({
+        where: { username: recipientUsername },
+        include: { wallet: true },
       });
 
-      if (!clientWallet || clientWallet.availableBalance < quote.price) {
-        return {
-          success: false,
-          reason: "INSUFFICIENT_FUNDS",
-          requiredAmount: quote.price,
-        };
-      }
-
-      const vendorWallet = await ctx.db.wallet.findUnique({
-        where: { userId: quote.vendorId },
-      });
-      if (!vendorWallet) {
+      if (!recipient) {
         throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Vendor wallet not found.",
+          code: "NOT_FOUND",
+          message: "Recipient not found.",
+        });
+      }
+      
+      if (recipient.id === senderId) {
+        throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "You cannot transfer funds to yourself.",
         });
       }
 
-      // Everything is good, proceed with transaction
-      const order = await ctx.db.$transaction(async (prisma) => {
-        // 1. Debit client's wallet
+      // Ensure recipient has a wallet
+      let recipientWallet = recipient.wallet;
+      if (!recipientWallet) {
+        recipientWallet = await ctx.db.wallet.create({
+            data: { userId: recipient.id },
+        });
+      }
+
+      // 3. Execute Transfer
+      return ctx.db.$transaction(async (prisma) => {
+        // Debit sender
         await prisma.wallet.update({
-          where: { userId: clientId },
-          data: { availableBalance: { decrement: quote.price } },
+          where: { userId: senderId },
+          data: { availableBalance: { decrement: amount } },
         });
 
-        // 2. Credit vendor's active order balance (escrow)
+        // Credit recipient
         await prisma.wallet.update({
-          where: { userId: quote.vendorId },
-          data: { activeOrderBalance: { increment: quote.price } },
+          where: { userId: recipient.id },
+          data: { availableBalance: { increment: amount } },
         });
 
-        // 3. Create the Order
-        const newOrder = await prisma.order.create({
+        // Create transactions
+        const senderTx = await prisma.transaction.create({
           data: {
-            quoteId: quote.id,
-            clientId: quote.clientId,
-            vendorId: quote.vendorId,
-            amount: quote.price,
-            status: OrderStatus.ACTIVE,
-            eventDate: quote.eventDate,
+            walletId: senderWallet.id,
+            type: TransactionType.TRANSFER,
+            amount: -amount,
+            status: "COMPLETED",
+            description: description || `Transfer to @${recipient.username}`,
           },
         });
 
-        // 4. Create transactions for both client and vendor
-        await prisma.transaction.createMany({
-          data: [
-            // Client's payment transaction
-            {
-              walletId: clientWallet.id,
-              orderId: newOrder.id,
-              type: TransactionType.PAYMENT,
-              amount: -quote.price,
-              status: "COMPLETED",
-              description: `Payment for quote: ${quote.title}`,
-            },
-            // Vendor's escrow transaction
-            {
-              walletId: vendorWallet.id,
-              orderId: newOrder.id,
-              type: TransactionType.SERVICE_FEE, // Representing funds held in escrow
-              amount: quote.price,
-              status: "HELD", // A new status to indicate escrow
-              description: `Funds held in escrow for order: ${newOrder.id}`,
-            },
-          ],
+        const recipientTx = await prisma.transaction.create({
+          data: {
+            walletId: recipientWallet.id,
+            type: TransactionType.TRANSFER, // Or define a specific type like TRANSFER_RECEIVED
+            amount: amount,
+            status: "COMPLETED",
+            description: description || `Transfer from @${ctx.user.username}`,
+          },
         });
 
-        // 5. Update quote status
-        await prisma.quote.update({
-          where: { id: quoteId },
-          data: { status: "ACCEPTED" },
+        // Notify recipient
+        await prisma.notification.create({
+          data: {
+            userId: recipient.id,
+            type: NotificationType.QUOTE_PAYMENT_RECEIVED, // Re-using or should be generic payment received
+            message: `You received ₦${amount.toLocaleString()} from @${ctx.user.username}.`,
+            link: `/wallet`,
+          },
         });
 
-        return newOrder;
+        return { success: true, transactionId: senderTx.id };
       });
+    }),
+    
+  // Request funds from another user
+  requestFunds: protectedProcedure
+    .input(
+      z.object({
+        payerUsername: z.string(),
+        amount: z.number().min(100),
+        description: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+        const { payerUsername, amount, description } = input;
+        
+        const payer = await ctx.db.user.findUnique({
+            where: { username: payerUsername },
+        });
 
-      return { success: true, order };
+        if (!payer) {
+            throw new TRPCError({
+                code: "NOT_FOUND",
+                message: "User not found.",
+            });
+        }
+        
+        if (payer.id === ctx.user.id) {
+            throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: "You cannot request funds from yourself.",
+            });
+        }
+
+        // For now, we just send a notification. 
+        // In a more complex system, we might create a PaymentRequest model.
+        await ctx.db.notification.create({
+            data: {
+                userId: payer.id,
+                type: NotificationType.PAYMENT_REQUEST,
+                message: `@${ctx.user.username} is requesting ₦${amount.toLocaleString()}: ${description || 'No description'}`,
+                link: `/wallet?modal=transfer&recipient=${ctx.user.username}&amount=${amount}`, // hypothetical link to pre-fill transfer
+            },
+        });
+
+        return { success: true, message: "Request sent successfully." };
     }),
 
   contributeToWishlist: protectedProcedure

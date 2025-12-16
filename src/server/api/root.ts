@@ -15,6 +15,7 @@ import { reviewRouter } from "@/server/api/routers/review";
 import { invitationRouter } from "@/server/api/routers/invitation";
 import { eventInvitationRouter } from "@/server/api/routers/eventInvitation";
 import { personalTodoRouter } from "@/server/api/routers/personalTodo";
+import { savePlanRouter } from "@/server/api/routers/savePlan";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
 
@@ -41,6 +42,7 @@ export const appRouter = createTRPCRouter({
   invitation: invitationRouter,
   eventInvitation: eventInvitationRouter,
   personalTodo: personalTodoRouter,
+  savePlan: savePlanRouter,
 });
 
 // export type definition of API

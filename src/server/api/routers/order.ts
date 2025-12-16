@@ -88,15 +88,8 @@ export const orderRouter = createTRPCRouter({
         },
       });
 
-      await ctx.db.notification.create({
-        data: {
-            userId: quote.vendorId,
-            type: NotificationType.QUOTE_PAYMENT_RECEIVED,
-            message: `Payment for your quote "${quote.title}" has been received.`,
-            link: `/orders/${order.id}`,
-        },
-      });
-
+      // No payment received notification here as payment is now separate
+      
       return order;
     }),
 
@@ -258,19 +251,8 @@ export const orderRouter = createTRPCRouter({
         });
       }
 
-      const vendorWallet = await ctx.db.wallet.findUnique({
-        where: { userId: order.vendorId },
-      });
-
-      if (!vendorWallet) {
-        // This should ideally not happen if an order exists
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Vendor wallet not found.",
-        });
-      }
-      
-      const platformFee = 0; // For now, no platform fee.
+      // NO ESCROW RELEASE HERE ANYMORE.
+      // Payment is handled separately via transfers.
 
       return ctx.db.$transaction(async (prisma) => {
         // 1. Update order status
@@ -279,33 +261,13 @@ export const orderRouter = createTRPCRouter({
           data: { status: OrderStatus.COMPLETED },
         });
 
-        // 2. Release funds from escrow to vendor's available balance
-        await prisma.wallet.update({
-          where: { userId: order.vendorId },
-          data: {
-            activeOrderBalance: { decrement: order.amount },
-            availableBalance: { increment: order.amount - platformFee },
-          },
-        });
-        
-        // 3. Find the HELD transaction and mark it as COMPLETED
-        await prisma.transaction.updateMany({
-            where: {
-                orderId: order.id,
-                walletId: vendorWallet.id,
-                status: TransactionStatus.HELD,
-            },
-            data: {
-                status: TransactionStatus.COMPLETED,
-            }
-        });
-
+        // 2. Notify vendor
         await prisma.notification.create({
             data: {
                 userId: order.vendorId,
                 type: NotificationType.ORDER_COMPLETED,
                 message: `Your order for "${order.quote.title}" has been marked as complete by the client.`,
-                link: `/earnings`,
+                link: `/orders/${order.id}`, // Link to order details
             },
         });
 

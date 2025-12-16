@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 // import type { TRPCClientError } from "@trpc/client";
-import { toast } from "sonner";
+// import { toast } from "sonner";
 // import type { AppRouter } from "@/server/api/root";
 
 function PaymentCallback() {
@@ -29,19 +29,19 @@ function PaymentCallback() {
 
   const { mutate: verifyPayment } = api.payment.verifyPayment.useMutation({
     onSuccess: (data) => {
-      // If a quoteId is returned, it means funds were added specifically for a quote
+      setStatus("success");
+      setMessage(
+        `Payment successful! ₦${data.amount.toLocaleString()} has been added to your wallet.`,
+      );
+
+      // If a quoteId is returned, redirect back to the quote
       if (data.quoteId) {
-        // Attempt to pay for the quote immediately
-        payForQuote({ quoteId: data.quoteId });
-        setMessage("Funds added. Attempting to finalize quote payment...");
-      } else {
-        // Standard wallet top-up
-        setStatus("success");
-        setMessage(
-          `Payment successful! ₦${data.amount.toLocaleString()} has been added to your wallet.`,
-        );
         setTimeout(() => {
-          router.push("/earnings");
+          router.push(`/quote/${data.quoteId}`);
+        }, 3000);
+      } else {
+        setTimeout(() => {
+          router.push("/wallet");
         }, 3000);
       }
     },
@@ -50,37 +50,6 @@ function PaymentCallback() {
       setMessage(
         error.message || "Payment verification failed. Please contact support.",
       );
-    },
-  });
-
-  const { mutate: payForQuote } = api.payment.payForQuote.useMutation({
-    onSuccess: () => {
-      setStatus("success");
-      setMessage(
-        "Funds added and quote paid successfully! Redirecting to chat...",
-      );
-      setTimeout(() => {
-        router.push(`/inbox?conversation=${searchParams.get("conversation")}`); // Assuming conversationId is also passed in URL
-      }, 3000);
-    },
-    onError: (error) => {
-      setStatus("failed");
-      // This is a critical error, as funds were just added but quote payment failed.
-      // User should be directed to earnings to check their balance.
-      if (error.data?.code === "CONFLICT") {
-        setMessage(
-          "Funds were added, but quote payment failed due to insufficient funds (unexpected error). Please check your wallet.",
-        );
-      } else {
-        setMessage(
-          error.message ||
-            "An unexpected error occurred after adding funds. Quote payment failed.",
-        );
-      }
-      toast.error(message); // Show toast with more context
-      setTimeout(() => {
-        router.push("/earnings");
-      }, 5000);
     },
   });
 
@@ -130,10 +99,10 @@ function PaymentCallback() {
               </h2>
               <p className="mt-2 text-gray-600">{message}</p>
               <button
-                onClick={() => router.push("/earnings")}
+                onClick={() => router.push("/wallet")}
                 className="mt-6 rounded-md bg-pink-600 px-6 py-2 font-semibold text-white hover:bg-pink-700"
               >
-                Return to Earnings
+                Return to Wallet
               </button>
             </>
           )}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Star,
   MessageSquare,
@@ -31,12 +31,7 @@ type order = routerOutput["order"]["getMyActiveOrders"][0];
 const VendorDashboardPage = () => {
   const { isVendor, loading } = useUserType();
   const router = useRouter();
-  const [isSidebarSticky, setIsSidebarSticky] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(0);
-  const sidebarRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState("leads");
-  const [sidebarTransform, setSidebarTransform] = useState("translateY(0px)");
 
   // Fetch real data from API
   const { data: pendingQuotes, isLoading: quotesLoading } =
@@ -45,71 +40,14 @@ const VendorDashboardPage = () => {
     });
   const { data: activeOrders, isLoading: ordersLoading } =
     api.order.getMyActiveOrders.useQuery();
+  
+  const { data: wallet } = api.payment.getWallet.useQuery();
 
   useEffect(() => {
     if (!loading && !isVendor) {
       router.push("/");
     }
   }, [loading, isVendor, router]);
-
-  // Effect to capture sidebar width
-  useLayoutEffect(() => {
-    const sidebarEl = sidebarRef.current;
-    if (sidebarEl && window.innerWidth >= 1024) {
-      setSidebarWidth(sidebarEl.offsetWidth);
-    }
-
-    const handleResize = () => {
-      if (sidebarEl && window.innerWidth >= 1024) {
-        if (!isSidebarSticky) {
-          sidebarEl.style.width = "auto"; // Reset to get natural width
-        }
-        setSidebarWidth(sidebarEl.offsetWidth);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [isSidebarSticky]);
-
-  // Effect for sticky sidebar
-  useEffect(() => {
-    if (window.innerWidth < 1024) return; // Only run sticky logic on desktop
-
-    const sidebarEl = sidebarRef.current;
-    const contentEl = contentRef.current;
-    if (!sidebarEl || !contentEl) return;
-
-    const topOffset = 127; // Your header height
-
-    const handleScroll = () => {
-      if (!sidebarEl || !contentEl) return;
-
-      const contentRect = contentEl.getBoundingClientRect();
-      const contentBottom = contentRect.bottom + window.scrollY - topOffset;
-      const sidebarHeight = sidebarEl.offsetHeight;
-      const stickyTop = document.documentElement.scrollTop + topOffset;
-
-      const startStickyOffset = contentEl.offsetTop;
-
-      if (stickyTop > startStickyOffset) {
-        setIsSidebarSticky(true);
-      } else {
-        setIsSidebarSticky(false);
-      }
-
-      if (isSidebarSticky && stickyTop + sidebarHeight > contentBottom) {
-        setSidebarTransform(
-          `translateY(${contentBottom - (stickyTop + sidebarHeight)}px)`,
-        );
-      } else {
-        setSidebarTransform("translateY(0px)");
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [isSidebarSticky]);
 
   if (loading || !isVendor) {
     return (
@@ -124,40 +62,21 @@ const VendorDashboardPage = () => {
       {/* Container */}
       <div className="container mx-auto px-4 py-8 sm:px-8">
         {/* Main Layout Grid */}
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-4 items-start">
           {/* Left Column (Sticky Sidebar on Desktop) */}
           <div className="relative lg:col-span-1">
             {/* Mobile View: Static Card */}
             <div className="lg:hidden">
               <VendorSidebar />
             </div>
-            {/* Desktop View: Sticky Wrapper */}
-            <div
-              ref={sidebarRef}
-              className={cn(
-                "hidden w-full transition-all duration-100 lg:block",
-                isSidebarSticky ? "fixed" : "relative",
-              )}
-              style={
-                isSidebarSticky
-                  ? {
-                      top: "127px",
-                      width: `${sidebarWidth}px`, // Apply the saved width
-                      transform: sidebarTransform,
-                    }
-                  : {
-                      width: "auto",
-                      top: "auto",
-                      transform: "translateY(0px)",
-                    }
-              }
-            >
+            {/* Desktop View: Sticky Wrapper - using CSS sticky */}
+            <div className="hidden lg:block lg:sticky lg:top-36">
               <VendorSidebar />
             </div>
           </div>
 
           {/* Right Column (Main Content) */}
-          <div className="space-y-8 lg:col-span-3" ref={contentRef}>
+          <div className="space-y-8 lg:col-span-3">
             <h1 className="text-3xl font-bold text-gray-800">Welcome back!</h1>
 
             {/* Alert */}
@@ -170,7 +89,6 @@ const VendorDashboardPage = () => {
                   <p className="text-sm font-semibold text-yellow-800">
                     Verify your Information
                   </p>
-                  {/* FIX: Updated text as requested */}
                   <p className="mt-1 text-sm text-yellow-700">
                     To activate your profile, please complete your KYC
                     verification.
@@ -185,8 +103,8 @@ const VendorDashboardPage = () => {
             {/* "Our Twist": Key Metric Cards */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               <StatCard
-                title="Monthly Earnings"
-                value={"..."}
+                title="Total Earnings"
+                value={wallet ? `₦${wallet.totalEarnings.toLocaleString()}` : "..."}
                 icon={DollarSign}
                 color="text-green-600 bg-green-100"
               />
@@ -249,6 +167,7 @@ const VendorDashboardPage = () => {
 const VendorSidebar = () => {
   const [isAvailable, setIsAvailable] = useState(true);
   const { data: vendorProfile } = api.vendor.getMyProfile.useQuery();
+  const { data: wallet } = api.payment.getWallet.useQuery();
 
   return (
     <div className="space-y-6">
@@ -329,20 +248,15 @@ const VendorSidebar = () => {
         </button>
       </div>
 
-      {/* Earnings Card */}
+      {/* Wallet Balance Card */}
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Earnings</h3>
-          <span className="text-xs font-semibold text-gray-500">
-            {new Date()
-              .toLocaleString("en-US", { month: "short", year: "numeric" })
-              .toUpperCase()}
-          </span>
+          <h3 className="text-lg font-semibold">Wallet Balance</h3>
         </div>
         <p className="text-3xl font-bold text-gray-900">
-          ₦{0..toLocaleString()}
+          {wallet ? `₦${wallet.availableBalance.toLocaleString()}` : "..."}
         </p>
-        <Link href="/v/earnings">
+        <Link href="/wallet">
           <button className="mt-3 text-sm font-semibold text-pink-600 hover:text-pink-700">
             View Details
           </button>
