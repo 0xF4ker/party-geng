@@ -387,7 +387,7 @@ const VendorProfileHeader = ({
               <Image
                 src={
                   vendorProfile?.avatarUrl ??
-                  "https://placehold.co/160x160/d1d5db/ffffff?text=V"
+                  "https://www.gravatar.com/avatar/?d=mp&f=y"
                 }
                 alt={vendorProfile?.companyName ?? "Vendor"}
                 className="h-32 w-32 rounded-full border-4 border-white bg-gray-200 object-cover sm:h-40 sm:w-40"

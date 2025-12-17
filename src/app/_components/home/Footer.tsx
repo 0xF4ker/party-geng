@@ -13,23 +13,8 @@ import ClientOnly from "@/components/ui/ClientOnly";
 
 const footerSections = [
   {
-    title: "Categories",
-    links: [
-      { href: "/categories/bands", label: "Bands" },
-      { href: "/categories/solo-musicians", label: "Solo Musicians" },
-      { href: "/categories/ensembles", label: "Ensembles" },
-      { href: "/categories/djs", label: "DJs" },
-      { href: "/categories/variety-acts", label: "Variety Acts" },
-      { href: "/categories/speakers", label: "Speakers" },
-      { href: "/categories/comedians", label: "Comedians" },
-    ],
-  },
-  {
     title: "About",
     links: [
-      { href: "/careers", label: "Careers" },
-      { href: "/press-and-news", label: "Press & News" },
-      { href: "/partnerships", label: "Partnerships" },
       { href: "/privacy-policy", label: "Privacy Policy" },
       { href: "/terms-of-service", label: "Terms of Service" },
     ],
@@ -38,20 +23,14 @@ const footerSections = [
     title: "Support",
     links: [
       { href: "/help-and-support", label: "Help & Support" },
-      { href: "/trust-and-safety", label: "Trust & Safety" },
-      { href: "/selling-on-partygeng", label: "Selling on PartyGeng" },
-      { href: "/buying-on-partygeng", label: "Buying on PartyGeng" },
+      { href: "/frequently-asked-questions", label: "FAQ" },
     ],
   },
   {
     title: "Community",
     links: [
       { href: "/events", label: "Events" },
-      { href: "/blog", label: "Blog" },
       { href: "/forum", label: "Forum" },
-      { href: "/community-standards", label: "Community Standards" },
-      { href: "/podcast", label: "Podcast" },
-      { href: "/affiliates", label: "Affiliates" },
     ],
   },
   {
@@ -59,10 +38,6 @@ const footerSections = [
     links: [
       { href: "/partygeng-business", label: "PartyGeng Business" },
       { href: "/partygeng-pro", label: "PartyGeng Pro" },
-      { href: "/partygeng-guides", label: "PartyGeng Guides" },
-      { href: "/get-inspired", label: "Get Inspired" },
-      { href: "/clearvoice", label: "ClearVoice" },
-      { href: "/learn", label: "Learn" },
     ],
   },
 ];

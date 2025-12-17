@@ -393,7 +393,7 @@ const ProfileHeader = ({
             <Image
               src={
                 clientProfile?.avatarUrl ??
-                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1964&auto=format&fit=crop"
+                "https://www.gravatar.com/avatar/?d=mp&f=y"
               }
               alt={clientProfile?.name ?? "Client"}
               className="h-32 w-32 rounded-full border-4 border-white bg-gray-200 object-cover sm:h-40 sm:w-40"

@@ -153,56 +153,36 @@ const WalletPageContent = () => {
               </button>
             </div>
 
-                                    {/* --- Cards --- */}
+            {/* --- Cards --- */}
 
-                                    <div
+            <div
+              className={cn(
+                "grid grid-cols-1 gap-6",
 
-                                      className={cn(
+                userType === "client" ? "md:grid-cols-2" : "",
+              )}
+            >
+              {/* Card 1: Available Funds (COMMON) */}
 
-                                        "grid grid-cols-1 gap-6",
+              <AvailableFundsCard
+                availableBalance={availableBalance}
+                onAddFunds={() => setShowAddFundsModal(true)}
+                onWithdraw={() => setShowWithdrawModal(true)}
+                onTransfer={() => setShowTransferModal(true)}
+                onRequest={() => setShowRequestModal(true)}
+              />
 
-                                        userType === "client" ? "md:grid-cols-2" : "",
+              {/* Card 2: Earnings & Expenses (Client Only) */}
 
-                                      )}
+              {userType === "client" && (
+                <ClientEarningsExpensesCard
+                  totalEarnings={totalEarnings}
+                  totalExpenses={totalExpenses}
+                />
+              )}
+            </div>
 
-                                    >
-
-                                      {/* Card 1: Available Funds (COMMON) */}
-
-                                      <AvailableFundsCard
-
-                                        availableBalance={availableBalance}
-
-                                        onAddFunds={() => setShowAddFundsModal(true)}
-
-                                        onWithdraw={() => setShowWithdrawModal(true)}
-
-                                        onTransfer={() => setShowTransferModal(true)}
-
-                                        onRequest={() => setShowRequestModal(true)}
-
-                                      />
-
-                        
-
-                                      {/* Card 2: Earnings & Expenses (Client Only) */}
-
-                                      {userType === "client" && (
-
-                                        <ClientEarningsExpensesCard
-
-                                          totalEarnings={totalEarnings}
-
-                                          totalExpenses={totalExpenses}
-
-                                        />
-
-                                      )}
-
-                                    </div>
-
-                        
-                        {/* --- Transaction History --- */}
+            {/* --- Transaction History --- */}
             <div className="mt-12 rounded-lg border border-gray-200 bg-white shadow-sm">
               {/* Filters */}
               <div className="flex flex-col gap-4 border-b border-gray-200 p-4 sm:flex-row">
