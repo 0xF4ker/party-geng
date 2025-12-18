@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useUiStore } from "@/stores/ui";
 
 const sections = [
   { id: "info-collect", title: "1. Information We Collect" },
@@ -20,6 +21,7 @@ const sections = [
 
 export default function TermsOfServicePage() {
   const [activeSection, setActiveSection] = useState("");
+  const { headerHeight } = useUiStore();
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -50,7 +52,7 @@ export default function TermsOfServicePage() {
   };
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-white min-h-screen" style={{ paddingTop: headerHeight }}>
       {/* Header */}
       <div className="bg-pink-50 py-12 md:py-20">
         <div className="container mx-auto px-4 md:px-6">

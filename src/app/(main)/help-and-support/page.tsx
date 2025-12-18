@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Mail, Phone, MapPin, Send, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useUiStore } from "@/stores/ui";
 
 export default function HelpSupportPage() {
   const [loading, setLoading] = useState(false);
@@ -13,6 +14,7 @@ export default function HelpSupportPage() {
     subject: "",
     message: "",
   });
+  const { headerHeight } = useUiStore();
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -34,7 +36,7 @@ export default function HelpSupportPage() {
   };
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-white min-h-screen" style={{ paddingTop: headerHeight }}>
       {/* Header */}
       <div className="bg-pink-50 py-12 md:py-20">
         <div className="container mx-auto px-4 md:px-6">

@@ -10,6 +10,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Search, Mail, MessageCircle, AlertCircle } from "lucide-react";
+import { useUiStore } from "@/stores/ui";
 
 const faqData = [
   {
@@ -26,7 +27,7 @@ const faqData = [
         answer: (
           <div className="space-y-2">
             <p>PartyGeng is open to:</p>
-            <ul className="list-disc pl-5 space-y-1">
+            <ul className="list-disc space-y-1 pl-5">
               <li>Individuals planning personal or corporate events</li>
               <li>Event vendors and service providers</li>
               <li>Businesses offering event-related services</li>
@@ -51,11 +52,14 @@ const faqData = [
         answer: (
           <div className="space-y-2">
             <p>You can sign up using:</p>
-            <ul className="list-disc pl-5 space-y-1">
+            <ul className="list-disc space-y-1 pl-5">
               <li>Email</li>
               <li>Google sign-in (for personal accounts)</li>
             </ul>
-            <p>Vendors are required to complete additional verification before going live.</p>
+            <p>
+              Vendors are required to complete additional verification before
+              going live.
+            </p>
           </div>
         ),
       },
@@ -69,12 +73,14 @@ const faqData = [
         answer: (
           <div className="space-y-2">
             <p>Verification may include:</p>
-            <ul className="list-disc pl-5 space-y-1">
+            <ul className="list-disc space-y-1 pl-5">
               <li>Email confirmation</li>
               <li>Phone number verification</li>
               <li>Identity or business documentation (for vendors)</li>
             </ul>
-            <p>Verified accounts enjoy increased trust and platform privileges.</p>
+            <p>
+              Verified accounts enjoy increased trust and platform privileges.
+            </p>
           </div>
         ),
       },
@@ -104,7 +110,7 @@ const faqData = [
         answer: (
           <div className="space-y-2">
             <p>PartyGeng offers:</p>
-            <ul className="list-disc pl-5 space-y-1">
+            <ul className="list-disc space-y-1 pl-5">
               <li>Budget tracking</li>
               <li>Vendor management</li>
               <li>Guest list & RSVP tracking</li>
@@ -125,7 +131,7 @@ const faqData = [
         answer: (
           <div className="space-y-2">
             <p>Use the Vendors Page to search by:</p>
-            <ul className="list-disc pl-5 space-y-1">
+            <ul className="list-disc space-y-1 pl-5">
               <li>Category</li>
               <li>Location</li>
               <li>Rating</li>
@@ -137,11 +143,14 @@ const faqData = [
       {
         question: "How do vendor bookings work?",
         answer: (
-          <ol className="list-decimal pl-5 space-y-1">
+          <ol className="list-decimal space-y-1 pl-5">
             <li>Select a vendor</li>
             <li>Engage the vendor in a chat and request for service quote</li>
             <li>Accept or decline quote</li>
-            <li>If accepted, send an invite to vendor to be added to your moodboard for collective planning with other vendors on the event.</li>
+            <li>
+              If accepted, send an invite to vendor to be added to your
+              moodboard for collective planning with other vendors on the event.
+            </li>
             <li>Payment is completed via PartyGeng Wallet</li>
           </ol>
         ),
@@ -153,7 +162,8 @@ const faqData = [
       },
       {
         question: "Can I favorite vendors?",
-        answer: "Yes. You can save vendors to your favorite for quick access later.",
+        answer:
+          "Yes. You can save vendors to your favorite for quick access later.",
       },
     ],
   },
@@ -171,7 +181,7 @@ const faqData = [
         answer: (
           <div className="space-y-2">
             <p>Yes, but uploaded content must:</p>
-            <ul className="list-disc pl-5 space-y-1">
+            <ul className="list-disc space-y-1 pl-5">
               <li>Not exceed 10MB per file</li>
               <li>Follow community guidelines</li>
               <li>Avoid explicit or harmful content</li>
@@ -195,7 +205,7 @@ const faqData = [
         answer: (
           <div className="space-y-2">
             <p>The PartyGeng Wallet allows users to:</p>
-            <ul className="list-disc pl-5 space-y-1">
+            <ul className="list-disc space-y-1 pl-5">
               <li>Add funds</li>
               <li>Transfer funds</li>
               <li>Receive payments</li>
@@ -231,12 +241,14 @@ const faqData = [
         answer: (
           <div className="space-y-2">
             <p>Refunds depend on:</p>
-            <ul className="list-disc pl-5 space-y-1">
+            <ul className="list-disc space-y-1 pl-5">
               <li>Vendor refund policy</li>
               <li>Time of cancellation</li>
               <li>Evidence provided</li>
             </ul>
-            <p>All refund requests are handled through the Resolution Centre.</p>
+            <p>
+              All refund requests are handled through the Resolution Centre.
+            </p>
           </div>
         ),
       },
@@ -245,7 +257,7 @@ const faqData = [
         answer: (
           <div className="space-y-2">
             <p>The Resolution Centre helps users resolve:</p>
-            <ul className="list-disc pl-5 space-y-1">
+            <ul className="list-disc space-y-1 pl-5">
               <li>Payment disputes</li>
               <li>Vendor no-shows</li>
               <li>Fraud or unauthorized transactions</li>
@@ -270,7 +282,7 @@ const faqData = [
         answer: (
           <div className="space-y-2">
             <p>The following are strictly prohibited:</p>
-            <ul className="list-disc pl-5 space-y-1">
+            <ul className="list-disc space-y-1 pl-5">
               <li>Explicit sexual content</li>
               <li>Promotion of illegal activities</li>
               <li>Cyberbullying or harassment</li>
@@ -286,7 +298,7 @@ const faqData = [
         answer: (
           <div className="space-y-2">
             <p>Penalties may include:</p>
-            <ul className="list-disc pl-5 space-y-1">
+            <ul className="list-disc space-y-1 pl-5">
               <li>Content removal</li>
               <li>Temporary account suspension</li>
               <li>Permanent account ban</li>
@@ -300,7 +312,7 @@ const faqData = [
         answer: (
           <div className="space-y-2">
             <p>You can report directly from:</p>
-            <ul className="list-disc pl-5 space-y-1">
+            <ul className="list-disc space-y-1 pl-5">
               <li>User profiles</li>
               <li>Messages</li>
               <li>Posts</li>
@@ -325,7 +337,7 @@ const faqData = [
         answer: (
           <div className="space-y-2">
             <p>PartyGeng is optimized for:</p>
-            <ul className="list-disc pl-5 space-y-1">
+            <ul className="list-disc space-y-1 pl-5">
               <li>Mobile devices</li>
               <li>Tablets</li>
               <li>Desktop browsers</li>
@@ -338,7 +350,7 @@ const faqData = [
         answer: (
           <div className="space-y-2">
             <p>You can reach us via:</p>
-            <ul className="list-disc pl-5 space-y-1">
+            <ul className="list-disc space-y-1 pl-5">
               <li>In-app support chat</li>
               <li>Resolution Centre</li>
               <li>Email: support@partygeng.com</li>
@@ -362,9 +374,23 @@ const faqData = [
         answer: (
           <div className="space-y-2">
             <p>You can find all policies on:</p>
-            <ul className="list-disc pl-5 space-y-1">
-              <li><Link href="/terms-of-service" className="text-pink-600 hover:underline">Terms of Service</Link></li>
-              <li><Link href="/privacy-policy" className="text-pink-600 hover:underline">Privacy Policy</Link></li>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>
+                <Link
+                  href="/terms-of-service"
+                  className="text-pink-600 hover:underline"
+                >
+                  Terms of Service
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/privacy-policy"
+                  className="text-pink-600 hover:underline"
+                >
+                  Privacy Policy
+                </Link>
+              </li>
               <li>Refund Policy</li>
               <li>Community Guidelines</li>
             </ul>
@@ -378,6 +404,7 @@ const faqData = [
 export default function FAQPage() {
   const [activeCategory, setActiveCategory] = useState("general");
   const [searchQuery, setSearchQuery] = useState("");
+  const { headerHeight } = useUiStore();
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -388,7 +415,7 @@ export default function FAQPage() {
           }
         });
       },
-      { rootMargin: "-20% 0px -35% 0px" }
+      { rootMargin: "-20% 0px -35% 0px" },
     );
 
     faqData.forEach(({ id }) => {
@@ -414,32 +441,32 @@ export default function FAQPage() {
         (item) =>
           item.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
           (typeof item.answer === "string" &&
-            item.answer.toLowerCase().includes(searchQuery.toLowerCase()))
+            item.answer.toLowerCase().includes(searchQuery.toLowerCase())),
       ),
     }))
     .filter((section) => section.items.length > 0);
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="min-h-screen bg-white" style={{ paddingTop: headerHeight }}>
       {/* Header */}
       <div className="bg-pink-50 py-12 md:py-20">
         <div className="container mx-auto px-4 md:px-6">
-          <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-3xl md:text-5xl font-bold text-gray-900 mb-6">
+          <div className="mx-auto max-w-4xl text-center">
+            <h1 className="mb-6 text-3xl font-bold text-gray-900 md:text-5xl">
               Frequently Asked Questions
             </h1>
-            <p className="text-lg md:text-xl text-gray-600 mb-8">
+            <p className="mb-8 text-lg text-gray-600 md:text-xl">
               Everything you need to know about PartyGeng.
             </p>
-            
+
             {/* Search Bar */}
-            <div className="relative max-w-lg mx-auto">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <div className="relative mx-auto max-w-lg">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                 <Search className="h-5 w-5 text-gray-400" />
               </div>
               <input
                 type="text"
-                className="block w-full pl-10 pr-3 py-4 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-pink-500 focus:border-pink-500 sm:text-sm shadow-sm"
+                className="block w-full rounded-xl border border-gray-200 bg-white py-4 pr-3 pl-10 leading-5 placeholder-gray-500 shadow-sm focus:border-pink-500 focus:placeholder-gray-400 focus:ring-1 focus:ring-pink-500 focus:outline-none sm:text-sm"
                 placeholder="Search for answers..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -449,11 +476,11 @@ export default function FAQPage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 md:px-6 py-12 flex flex-col lg:flex-row gap-12">
+      <div className="container mx-auto flex flex-col gap-12 px-4 py-12 md:px-6 lg:flex-row">
         {/* Sidebar Navigation - Hidden on mobile/tablet */}
-        <aside className="hidden lg:block w-1/4 min-w-[250px] shrink-0">
+        <aside className="hidden w-1/4 min-w-[250px] shrink-0 lg:block">
           <div className="sticky top-24 space-y-1">
-            <h3 className="font-bold text-gray-900 mb-4 uppercase tracking-wider text-sm">
+            <h3 className="mb-4 text-sm font-bold tracking-wider text-gray-900 uppercase">
               Categories
             </h3>
             <nav className="flex flex-col space-y-1 border-l-2 border-gray-100">
@@ -462,10 +489,10 @@ export default function FAQPage() {
                   key={id}
                   onClick={() => scrollToSection(id)}
                   className={cn(
-                    "text-left py-2 px-4 text-sm font-medium transition-all hover:text-pink-600 border-l-2 -ml-[2px]",
+                    "-ml-0.5 border-l-2 px-4 py-2 text-left text-sm font-medium transition-all hover:text-pink-600",
                     activeCategory === id
-                      ? "border-pink-600 text-pink-600 bg-pink-50/50"
-                      : "border-transparent text-gray-500"
+                      ? "border-pink-600 bg-pink-50/50 text-pink-600"
+                      : "border-transparent text-gray-500",
                   )}
                 >
                   {category}
@@ -473,37 +500,44 @@ export default function FAQPage() {
               ))}
             </nav>
 
-             <div className="mt-8 bg-gray-50 p-6 rounded-xl border border-gray-100">
-                <h4 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
-                    <MessageCircle className="h-4 w-4 text-pink-600" />
-                    Still have questions?
-                </h4>
-                <p className="text-sm text-gray-600 mb-4">Can&apos;t find the answer you&apos;re looking for? Please chat to our friendly team.</p>
-                <Link 
-                    href="/help-and-support" 
-                    className="block w-full text-center py-2 px-4 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                    Get in touch
-                </Link>
+            <div className="mt-8 rounded-xl border border-gray-100 bg-gray-50 p-6">
+              <h4 className="mb-2 flex items-center gap-2 font-bold text-gray-900">
+                <MessageCircle className="h-4 w-4 text-pink-600" />
+                Still have questions?
+              </h4>
+              <p className="mb-4 text-sm text-gray-600">
+                Can&apos;t find the answer you&apos;re looking for? Please chat
+                to our friendly team.
+              </p>
+              <Link
+                href="/help-and-support"
+                className="block w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                Get in touch
+              </Link>
             </div>
           </div>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 max-w-4xl mx-auto lg:mx-0">
+        <main className="mx-auto max-w-4xl flex-1 lg:mx-0">
           <div className="space-y-16">
             {filteredFAQs.map((section) => (
-              <section key={section.id} id={section.id} className="scroll-mt-24">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6 pb-2 border-b border-gray-100">
+              <section
+                key={section.id}
+                id={section.id}
+                className="scroll-mt-24"
+              >
+                <h2 className="mb-6 border-b border-gray-100 pb-2 text-2xl font-bold text-gray-900">
                   {section.category}
                 </h2>
                 <Accordion type="single" collapsible className="w-full">
                   {section.items.map((item, index) => (
                     <AccordionItem key={index} value={`${section.id}-${index}`}>
-                      <AccordionTrigger className="text-left text-base font-semibold text-gray-800 hover:text-pink-600 hover:no-underline py-4">
+                      <AccordionTrigger className="py-4 text-left text-base font-semibold text-gray-800 hover:text-pink-600 hover:no-underline">
                         {item.question}
                       </AccordionTrigger>
-                      <AccordionContent className="text-gray-600 leading-relaxed text-base pb-4">
+                      <AccordionContent className="pb-4 text-base leading-relaxed text-gray-600">
                         {item.answer}
                       </AccordionContent>
                     </AccordionItem>
@@ -513,34 +547,42 @@ export default function FAQPage() {
             ))}
 
             {filteredFAQs.length === 0 && (
-                <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
-                    <AlertCircle className="h-10 w-10 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900">No results found</h3>
-                    <p className="text-gray-500 mt-1">
-                        We couldn&apos;t find any FAQs matching &quot;{searchQuery}&quot;.
-                    </p>
-                    <button 
-                        onClick={() => setSearchQuery("")}
-                        className="mt-4 text-pink-600 font-medium hover:underline"
-                    >
-                        Clear search
-                    </button>
-                </div>
+              <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 py-20 text-center">
+                <AlertCircle className="mx-auto mb-4 h-10 w-10 text-gray-400" />
+                <h3 className="text-lg font-medium text-gray-900">
+                  No results found
+                </h3>
+                <p className="mt-1 text-gray-500">
+                  We couldn&apos;t find any FAQs matching &quot;{searchQuery}
+                  &quot;.
+                </p>
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="mt-4 font-medium text-pink-600 hover:underline"
+                >
+                  Clear search
+                </button>
+              </div>
             )}
           </div>
 
           {/* Mobile "Still have questions?" Card */}
-          <div className="mt-16 lg:hidden bg-gray-50 p-8 rounded-2xl border border-gray-100 text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-pink-100 mb-4">
-                <Mail className="h-6 w-6 text-pink-600" />
+          <div className="mt-16 rounded-2xl border border-gray-100 bg-gray-50 p-8 text-center lg:hidden">
+            <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-pink-100">
+              <Mail className="h-6 w-6 text-pink-600" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Still have questions?</h3>
-            <p className="text-gray-600 mb-6">Can&apos;t find the answer you&apos;re looking for? Please chat to our friendly team.</p>
-            <Link 
-                href="/help-and-support" 
-                className="inline-block py-3 px-6 bg-pink-600 text-white rounded-lg font-semibold hover:bg-pink-700 transition-colors shadow-sm"
+            <h3 className="mb-2 text-xl font-bold text-gray-900">
+              Still have questions?
+            </h3>
+            <p className="mb-6 text-gray-600">
+              Can&apos;t find the answer you&apos;re looking for? Please chat to
+              our friendly team.
+            </p>
+            <Link
+              href="/help-and-support"
+              className="inline-block rounded-lg bg-pink-600 px-6 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-pink-700"
             >
-                Get in touch
+              Get in touch
             </Link>
           </div>
         </main>
