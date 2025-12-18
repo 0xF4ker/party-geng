@@ -369,8 +369,8 @@ const VendorProfileHeader = ({
         >
           <Image
             src={
-              vendorProfile?.bannerUrl ??
-              "https://images.unsplash.com/photo-1505238680356-667803448bb6?q=80&w=2070&auto=format&fit=crop"
+              vendorProfile?.bannerUrl ?? "/banner.jpg"
+              // "https://images.unsplash.com/photo-1505238680356-667803448bb6?q=80&w=2070&auto=format&fit=crop"
             }
             alt="Banner"
             className="h-full w-full object-cover"
@@ -384,16 +384,19 @@ const VendorProfileHeader = ({
           {/* Avatar & Actions */}
           <div className="-mt-24 flex flex-col items-center sm:flex-row sm:items-end sm:justify-between">
             <div className="flex flex-col items-center sm:flex-row sm:items-end">
-              <Image
-                src={
-                  vendorProfile?.avatarUrl ??
-                  "https://www.gravatar.com/avatar/?d=mp&f=y"
-                }
-                alt={vendorProfile?.companyName ?? "Vendor"}
-                className="h-32 w-32 rounded-full border-4 border-white bg-gray-200 object-cover sm:h-40 sm:w-40"
-                width={160}
-                height={160}
-              />
+              {vendorProfile?.avatarUrl ? (
+                <Image
+                  src={vendorProfile?.avatarUrl}
+                  alt={vendorProfile?.companyName ?? "Vendor"}
+                  className="h-32 w-32 rounded-full border-4 border-white bg-gray-200 object-cover sm:h-40 sm:w-40"
+                  width={160}
+                  height={160}
+                />
+              ) : (
+                <div className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-white bg-pink-100 text-4xl font-bold text-pink-600 sm:h-40 sm:w-40">
+                  {vendorProfile?.companyName?.charAt(0).toUpperCase() ?? "V"}
+                </div>
+              )}
               <div className="mt-4 text-center sm:ml-6 sm:text-left">
                 <h1 className="text-2xl font-bold sm:text-3xl">
                   {vendorProfile?.companyName ?? "New Vendor"}

@@ -376,8 +376,8 @@ const ProfileHeader = ({
         >
           <Image
             src={
-              clientProfile?.bannerUrl ??
-              "https://images.unsplash.com/photo-1505238680356-667803448bb6?q=80&w=2070&auto=format&fit=crop"
+              clientProfile?.bannerUrl ?? "/banner.jpg"
+              // "https://images.unsplash.com/photo-1505238680356-667803448bb6?q=80&w=2070&auto=format&fit=crop"
             }
             alt="Banner"
             className="h-full w-full object-cover"
@@ -390,16 +390,18 @@ const ProfileHeader = ({
         <div className="relative container mx-auto max-w-4xl px-4">
           {/* Avatar & Actions */}
           <div className="-mt-24 flex items-end justify-between sm:-mt-28">
+            {clientProfile?.avatarUrl ? (
             <Image
               src={
-                clientProfile?.avatarUrl ??
-                "https://www.gravatar.com/avatar/?d=mp&f=y"
+                clientProfile?.avatarUrl 
               }
               alt={clientProfile?.name ?? "Client"}
               className="h-32 w-32 rounded-full border-4 border-white bg-gray-200 object-cover sm:h-40 sm:w-40"
               width={160}
               height={160}
-            />
+            />) : (<div className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-white bg-pink-100 text-4xl font-bold text-pink-600 sm:h-40 sm:w-40">
+              {clientProfile?.name?.charAt(0).toUpperCase() ?? "C"}
+            </div>)}
             <div className="flex items-center space-x-2 pb-4">
               {isOwnProfile ? (
                 <>

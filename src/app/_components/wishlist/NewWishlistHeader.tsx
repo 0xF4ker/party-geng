@@ -277,8 +277,8 @@ const NewWishlistHeader = ({ event }: { event: EventWithWishlist }) => {
         >
           <Image
             src={
-              event.coverImage ??
-              "https://images.unsplash.com/photo-1505238680356-667803448bb6?q=80&w=2070&auto=format&fit=crop"
+              event.coverImage ?? "/banner.jpg"
+              // "https://images.unsplash.com/photo-1505238680356-667803448bb6?q=80&w=2070&auto=format&fit=crop"
             }
             alt="Banner"
             className="h-full w-full object-cover"
