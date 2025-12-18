@@ -480,7 +480,7 @@ export default function FAQPage() {
                 </h4>
                 <p className="text-sm text-gray-600 mb-4">Can&apos;t find the answer you&apos;re looking for? Please chat to our friendly team.</p>
                 <Link 
-                    href="/contact" 
+                    href="/help-and-support" 
                     className="block w-full text-center py-2 px-4 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                     Get in touch
@@ -537,7 +537,7 @@ export default function FAQPage() {
             <h3 className="text-xl font-bold text-gray-900 mb-2">Still have questions?</h3>
             <p className="text-gray-600 mb-6">Can&apos;t find the answer you&apos;re looking for? Please chat to our friendly team.</p>
             <Link 
-                href="/contact" 
+                href="/help-and-support" 
                 className="inline-block py-3 px-6 bg-pink-600 text-white rounded-lg font-semibold hover:bg-pink-700 transition-colors shadow-sm"
             >
                 Get in touch
