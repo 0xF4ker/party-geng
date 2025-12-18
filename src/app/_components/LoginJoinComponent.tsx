@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { X, Check, ArrowLeft, Mail } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { api } from "@/trpc/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 // import { useQueryClient } from "@tanstack/react-query";
@@ -646,13 +647,13 @@ const AuthModal = ({
             <p className="mt-8 text-xs text-gray-400">
               By {view === "join" ? "joining" : "signing in"}, you agree to the
               Partygeng{" "}
-              <a href="#" className="underline">
+              <Link href="/terms-of-service" className="underline hover:text-pink-600">
                 Terms of Service
-              </a>{" "}
+              </Link>{" "}
               and to occasionally receive emails from us. Please read our{" "}
-              <a href="#" className="underline">
+              <Link href="/privacy-policy" className="underline hover:text-pink-600">
                 Privacy Policy
-              </a>{" "}
+              </Link>{" "}
               to learn how we use your personal data.
             </p>
           </div>
