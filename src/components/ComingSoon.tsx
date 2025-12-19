@@ -1,6 +1,9 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
 import { ArrowLeft, Rocket } from "lucide-react";
+import { useUiStore } from "@/stores/ui";
 
 interface ComingSoonProps {
   title: string;
@@ -11,8 +14,13 @@ const ComingSoon: React.FC<ComingSoonProps> = ({
   title,
   description = "We are working hard to bring this feature to life. Stay tuned!",
 }) => {
+  const { headerHeight } = useUiStore();
+
   return (
-    <div className="flex min-h-[70vh] flex-col items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50 px-4 py-12">
+    <div 
+      className="flex min-h-[70vh] flex-col items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50 px-4 py-12"
+      style={{ paddingTop: headerHeight ? `${headerHeight + 48}px` : undefined }}
+    >
       <div className="mx-auto max-w-2xl text-center">
         {/* Icon/Illustration */}
         <div className="mb-8 flex justify-center">
