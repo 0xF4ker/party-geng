@@ -103,7 +103,7 @@ const Footer = () => {
         </div>
 
         {/* Desktop Grid View */}
-        <div className="hidden gap-8 py-16 lg:grid lg:grid-cols-5">
+        <div className="hidden gap-8 py-16 lg:grid lg:grid-cols-4">
           {footerSections.map((section) => (
             <div key={section.title}>
               <h3 className="mb-6 text-lg font-bold">{section.title}</h3>

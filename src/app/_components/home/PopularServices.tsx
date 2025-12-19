@@ -7,10 +7,30 @@ import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import type { EmblaPluginType } from "embla-carousel";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { api } from "@/trpc/react";
+
+const CATEGORY_IMAGES: Record<string, string> = {
+  "Music & DJs":
+    "https://placehold.co/250x350/ec4899/ffffff?text=Music+%26+DJs",
+  "Food & Beverage":
+    "https://placehold.co/250x350/7c3aed/ffffff?text=Food+%26+Beverage",
+  Media: "https://placehold.co/250x350/3b82f6/ffffff?text=Media",
+  Planning: "https://placehold.co/250x350/ef4444/ffffff?text=Planning",
+  "Decor & Design":
+    "https://placehold.co/250x350/10b981/ffffff?text=Decor+%26+Design",
+  Entertainment:
+    "https://placehold.co/250x350/f59e0b/ffffff?text=Entertainment",
+  "Equipment Rental":
+    "https://placehold.co/250x350/6366f1/ffffff?text=Equipment+Rental",
+  Transportation:
+    "https://placehold.co/250x350/8b5cf6/ffffff?text=Transportation",
+};
+
+const DEFAULT_IMAGE = "https://placehold.co/250x350/9ca3af/ffffff?text=Service";
 
 const PopularServices = () => {
-  // FIX: Use useState with lazy initialization instead of useRef.
-  // This ensures the plugin is created once and is safe to read during render.
+  const { data: categories } = api.category.getAll.useQuery();
+
   const [autoplayPlugin] = useState(() => {
     const AutoplayPlugin = Autoplay as unknown as (opts?: {
       delay?: number;
@@ -20,8 +40,8 @@ const PopularServices = () => {
 
     return AutoplayPlugin({
       delay: 4000,
-      stopOnInteraction: false, // Continue autoplay after user interaction
-      stopOnMouseEnter: true, // Pause autoplay on hover
+      stopOnInteraction: false,
+      stopOnMouseEnter: true,
     });
   });
 
@@ -30,7 +50,7 @@ const PopularServices = () => {
       loop: true,
       align: "start",
     },
-    [autoplayPlugin], // Pass the plugin instance directly from state
+    [autoplayPlugin],
   );
 
   const scrollPrev = useCallback(() => {
@@ -41,80 +61,37 @@ const PopularServices = () => {
     if (emblaApi) emblaApi.scrollNext();
   }, [emblaApi]);
 
-  const services = [
-    {
-      name: "Bands",
-      image: "https://placehold.co/250x350/ec4899/ffffff?text=Bands",
-      url: "/categories/bands",
-    },
-    {
-      name: "Solo Musicians",
-      image: "https://placehold.co/250x350/7c3aed/ffffff?text=Solo+Musicians",
-      url: "/categories/solo-musicians",
-    },
-    {
-      name: "Ensembles",
-      image: "https://placehold.co/250x350/3b82f6/ffffff?text=Ensembles",
-      url: "/categories/ensembles",
-    },
-    {
-      name: "DJs",
-      image: "https://placehold.co/250x350/ef4444/ffffff?text=DJs",
-      url: "/categories/djs",
-    },
-    {
-      name: "Variety Acts",
-      image: "https://placehold.co/250x350/10b981/ffffff?text=Variety+Acts",
-      url: "/categories/variety-acts",
-    },
-    {
-      name: "Speakers",
-      image: "https://placehold.co/250x350/f59e0b/ffffff?text=Speakers",
-      url: "/categories/speakers",
-    },
-    {
-      name: "Comedians",
-      image: "https://placehold.co/250x350/6366f1/ffffff?text=Comedians",
-      url: "/categories/comedians",
-    },
-    {
-      name: "Tribute / Impersonators",
-      image: "https://placehold.co/250x350/8b5cf6/ffffff?text=Tribute",
-      url: "/categories/tribute-impersonators",
-    },
-    {
-      name: "Party Rentals",
-      image: "https://placehold.co/250x350/ec4899/ffffff?text=Party+Rentals",
-      url: "/categories/party-rentals",
-    },
-    {
-      name: "Photographers / Videographers",
-      image: "https://placehold.co/250x350/7c3aed/ffffff?text=Photo+Video",
-      url: "/categories/photographers-videographers",
-    },
-    {
-      name: "Event Staffing",
-      image: "https://placehold.co/250x350/3b82f6/ffffff?text=Event+Staffing",
-      url: "/categories/event-staffing",
-    },
-    {
-      name: "Personal Style",
-      image: "https://placehold.co/250x350/ef4444/ffffff?text=Personal+Style",
-      url: "/categories/personal-style",
-    },
-    {
-      name: "Event Planning",
-      image: "https://placehold.co/250x350/10b981/ffffff?text=Event+Planning",
-      url: "/categories/event-planning",
-    },
-  ];
+  // Combine categories and their services into a display list
+  // For now, let's just display the top-level categories as "Popular Services"
+  // or we could flatten the services. The prompt implies "Popular Services"
+  // but showing categories is often better for navigation.
+  // Given the seed data structure, let's show Categories.
+
+  const itemsToDisplay =
+    categories?.map((category) => ({
+      name: category.name,
+      image: CATEGORY_IMAGES[category.name] ?? DEFAULT_IMAGE,
+      url: `/categories/${category.slug}`,
+    })) ?? [];
+
+  // Fallback if no data yet (e.g. loading or empty DB)
+  // This matches the seed data so it looks good immediately
+  const fallbackItems = Object.entries(CATEGORY_IMAGES).map(
+    ([name, image]) => ({
+      name,
+      image,
+      url: `/categories/${name.toLowerCase().replace(/ & /g, "-and-").replace(/ /g, "-")}`,
+    }),
+  );
+
+  const displayItems =
+    itemsToDisplay.length > 0 ? itemsToDisplay : fallbackItems;
 
   return (
     <section className="bg-white py-16">
       <div className="container mx-auto px-4">
         <div className="mb-8 flex items-center justify-between">
-          <h2 className="text-3xl font-bold">Popular services</h2>
-          {/* Hide buttons on mobile, let users swipe */}
+          <h2 className="text-3xl font-bold">Explore Categories</h2>
           <div className="hidden gap-2 sm:flex">
             <button
               onClick={scrollPrev}
@@ -131,35 +108,28 @@ const PopularServices = () => {
           </div>
         </div>
 
-        {/* Carousel Viewport */}
         <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>
-            {/* Carousel Container */}
             <div className="-ml-4 flex">
-              {" "}
-              {/* Negative margin to offset slide padding */}
-              {services.map((service) => (
+              {displayItems.map((item) => (
                 <div
-                  className="shrink-0 grow-0 basis-full pl-4 sm:basis-1/2 md:basis-1/3 lg:basis-1/5 xl:basis-1/6" // Responsive slide widths with padding
-                  key={service.name}
+                  className="shrink-0 grow-0 basis-full pl-4 sm:basis-1/2 md:basis-1/3 lg:basis-1/5 xl:basis-1/6"
+                  key={item.name}
                 >
                   <Link
-                    href={service.url}
+                    href={item.url}
                     className="group relative block h-[350px] overflow-hidden rounded-lg shadow-sm"
                   >
                     <Image
-                      src={service.image}
-                      alt={service.name}
+                      src={item.image}
+                      alt={item.name}
                       className="absolute inset-0 h-full w-full rounded-lg object-cover transition-transform duration-300 group-hover:scale-105"
                       width={250}
                       height={350}
                     />
-                    {/* Gradient Overlay */}
                     <div className="absolute inset-0 rounded-lg bg-linear-to-t from-black/60 via-black/10 to-transparent transition-all"></div>
-
-                    {/* Text content moved to bottom */}
                     <div className="absolute bottom-4 left-4 text-white">
-                      <h3 className="text-xl font-bold">{service.name}</h3>
+                      <h3 className="text-xl font-bold">{item.name}</h3>
                     </div>
                   </Link>
                 </div>
@@ -167,18 +137,17 @@ const PopularServices = () => {
             </div>
           </div>
 
-          {/* New Overlapping Buttons for Desktop */}
           <button
             onClick={scrollPrev}
             className="absolute top-1/2 left-0 z-10 hidden -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow-md transition-all hover:bg-white lg:flex"
-            aria-label="Previous service"
+            aria-label="Previous category"
           >
             <ChevronLeft className="h-6 w-6 text-gray-800" />
           </button>
           <button
             onClick={scrollNext}
             className="absolute top-1/2 right-0 z-10 hidden translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow-md transition-all hover:bg-white lg:flex"
-            aria-label="Next service"
+            aria-label="Next category"
           >
             <ChevronRight className="h-6 w-6 text-gray-800" />
           </button>

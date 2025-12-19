@@ -555,7 +555,7 @@ const AuthModal = ({
                   >
                     <p className="font-bold text-gray-800">Vendor</p>
                     <p className="text-sm text-gray-600">
-                      I&Apos;m an event professional looking to offer my
+                      I&apos;m an event professional looking to offer my
                       services.
                     </p>
                   </button>
@@ -647,11 +647,17 @@ const AuthModal = ({
             <p className="mt-8 text-xs text-gray-400">
               By {view === "join" ? "joining" : "signing in"}, you agree to the
               Partygeng{" "}
-              <Link href="/terms-of-service" className="underline hover:text-pink-600">
+              <Link
+                href="/terms-of-service"
+                className="underline hover:text-pink-600"
+              >
                 Terms of Service
               </Link>{" "}
               and to occasionally receive emails from us. Please read our{" "}
-              <Link href="/privacy-policy" className="underline hover:text-pink-600">
+              <Link
+                href="/privacy-policy"
+                className="underline hover:text-pink-600"
+              >
                 Privacy Policy
               </Link>{" "}
               to learn how we use your personal data.
