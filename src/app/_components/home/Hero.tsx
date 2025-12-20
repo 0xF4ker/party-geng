@@ -1,22 +1,77 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Lottie from "lottie-react";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
+import useEmblaCarousel from "embla-carousel-react";
+import Autoplay from "embla-carousel-autoplay";
+import type { EmblaPluginType } from "embla-carousel";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+const HERO_SLIDES = [
+  {
+    id: 1,
+    image: "https://placehold.co/600x500/ec4899/ffffff?text=Weddings",
+    title: "Dream Weddings",
+    subtitle: "Venues, Decor & Planning",
+  },
+  {
+    id: 2,
+    image: "https://placehold.co/600x500/7c3aed/ffffff?text=Corporate+Events",
+    title: "Corporate Galas",
+    subtitle: "Professional setups & Catering",
+  },
+  {
+    id: 3,
+    image: "https://placehold.co/600x500/3b82f6/ffffff?text=Concerts",
+    title: "Live Entertainment",
+    subtitle: "DJs, Bands & Sound",
+  },
+  {
+    id: 4,
+    image: "https://placehold.co/600x500/f59e0b/ffffff?text=Private+Parties",
+    title: "Private Parties",
+    subtitle: "Intimate gatherings & Celebrations",
+  },
+];
 
 const Hero = () => {
   const [animationData, setAnimationData] = useState<object | null>(null);
   const { profile } = useAuthStore();
   const { headerHeight } = useUiStore();
+
+  // Embla Carousel Setup
+  const [autoplayPlugin] = useState(() => {
+    const AutoplayPlugin = Autoplay as unknown as (opts?: {
+      delay?: number;
+      stopOnInteraction?: boolean;
+      stopOnMouseEnter?: boolean;
+    }) => EmblaPluginType;
+
+    return AutoplayPlugin({
+      delay: 5000,
+      stopOnInteraction: false,
+      stopOnMouseEnter: true,
+    });
+  });
+
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [autoplayPlugin]);
+
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) emblaApi.scrollPrev();
+  }, [emblaApi]);
+
+  const scrollNext = useCallback(() => {
+    if (emblaApi) emblaApi.scrollNext();
+  }, [emblaApi]);
   
   useEffect(() => {
     fetch("/lottiefiles/Fireworks.json")
       .then((response) => response.json())
       .then((data: unknown) => {
-        // 5. Once fetched, set it into the state
         setAnimationData(data as object);
       })
       .catch((error) =>
@@ -24,14 +79,9 @@ const Hero = () => {
       );
   }, []);
 
-  // Determine the 'Plan an Event' destination
-  // If logged in: go to /manage_events
-  // If not logged in: go to /login (which should ideally handle redirect, or user manually navigates)
-  // The requirement says: "link to the login page... else link them to manage_events"
   const planEventHref = profile ? "/manage_events" : "/login";
 
   return (
-    // The <section> remains relative
     <section 
       className="relative overflow-hidden bg-pink-50/50"
       style={{ paddingTop: headerHeight ? `${headerHeight}px` : undefined }}
@@ -51,18 +101,17 @@ const Hero = () => {
         )}
       </div>
 
-      {/* 3. Content (must have a higher z-index) */}
       <div className="relative z-20 container mx-auto px-6 py-20 md:py-32">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           {/* Left Column */}
           <div className="text-center lg:text-left">
             <h1 className="text-4xl leading-tight font-bold text-gray-900 sm:text-5xl md:text-6xl">
-              The #1 Marketplace for
-              <span className="brand-text-gradient block">Event Vendors</span>
+              The Ultimate Hub for
+              <span className="brand-text-gradient block">Event Experiences</span>
             </h1>
             <p className="mx-auto mt-6 max-w-lg text-lg text-gray-600 md:text-xl lg:mx-0">
-              From weddings in Lagos to corporate galas in Abuja. Connect with trusted vendors, 
-              manage your bookings, and bring your dream events to life across Nigeria.
+              Connect with top talent, plan your dream event, and share your moments with a vibrant community. 
+              From weddings in Lagos to corporate galas in Abuja, bring your vision to life.
             </p>
             <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row lg:justify-start">
               <Link
@@ -100,61 +149,54 @@ const Hero = () => {
             </div>
           </div>
 
-          {/* Right Column (The glass card) */}
-          <div className="relative mx-auto w-full max-w-md lg:mx-0 lg:ml-auto">
+          {/* Right Column (Carousel) */}
+          <div className="relative mx-auto w-full max-w-xl lg:mx-0 lg:ml-auto">
              {/* Decorative blob */}
              <div className="absolute top-0 -left-4 -z-10 h-72 w-72 animate-pulse rounded-full bg-purple-300 opacity-30 blur-3xl filter"></div>
              <div className="absolute bottom-0 -right-4 -z-10 h-72 w-72 animate-pulse rounded-full bg-pink-300 opacity-30 blur-3xl filter animation-delay-2000"></div>
 
-            <div className="vendor-card rounded-2xl border border-white/40 bg-white/60 p-4 shadow-2xl backdrop-blur-md">
-              <div className="relative overflow-hidden rounded-xl">
-                <Image
-                  src="/banner.jpg" 
-                  alt="Featured Event Vendor"
-                  className="h-64 w-full object-cover"
-                  width={600}
-                  height={400}
-                  priority
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                <div className="absolute top-4 right-4 flex items-center space-x-1 rounded-full bg-white/90 px-3 py-1 text-sm font-bold text-yellow-500 backdrop-blur-sm shadow-sm">
-                  <span>★</span>
-                  <span className="text-gray-900">5.0</span>
-                </div>
-                <div className="absolute right-4 bottom-4 left-4 text-white">
-                  <h3 className="text-2xl font-bold">Eko Hotels & Suites</h3>
-                  <div className="mt-2 flex items-center text-sm font-medium">
-                    <span className="rounded-md bg-purple-600/90 px-2 py-0.5 backdrop-blur-md">
-                      Venue
-                    </span>
-                    <span className="ml-2 flex items-center text-gray-100">
-                      <span className="mr-1">📍</span>
-                      Victoria Island, Lagos
-                    </span>
-                  </div>
+            <div className="relative overflow-hidden rounded-2xl border border-white/40 bg-white/30 shadow-2xl backdrop-blur-md">
+              <div className="embla" ref={emblaRef}>
+                <div className="flex">
+                  {HERO_SLIDES.map((slide) => (
+                    <div className="relative min-w-full flex-[0_0_100%]" key={slide.id}>
+                      <div className="relative aspect-[4/3] w-full overflow-hidden">
+                        <Image
+                          src={slide.image}
+                          alt={slide.title}
+                          fill
+                          className="object-cover transition-transform duration-700 hover:scale-105"
+                          priority={slide.id === 1}
+                        />
+                        {/* Overlay Gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                        
+                        {/* Content */}
+                        <div className="absolute bottom-0 left-0 w-full p-6 text-white">
+                          <h3 className="text-2xl font-bold mb-1">{slide.title}</h3>
+                          <p className="text-gray-200 font-medium">{slide.subtitle}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="p-4">
-                <p className="text-gray-700 font-medium">
-                  Luxury event spaces for weddings, conferences, and concerts.
-                </p>
-                <div className="mt-6 flex items-center justify-between">
-                  <div className="flex -space-x-2">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="h-8 w-8 rounded-full border-2 border-white bg-gray-200" />
-                    ))}
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gray-100 text-xs text-gray-500">
-                      +42
-                    </span>
-                  </div>
-                  <Link
-                    href="/categories/venues"
-                    className="rounded-lg bg-gray-900 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800"
-                  >
-                    View Details
-                  </Link>
-                </div>
-              </div>
+
+              {/* Navigation Buttons */}
+              <button 
+                onClick={scrollPrev}
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/20 p-2 text-white backdrop-blur-md transition-all hover:bg-white/40 hover:scale-110"
+                aria-label="Previous slide"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+              <button 
+                onClick={scrollNext}
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/20 p-2 text-white backdrop-blur-md transition-all hover:bg-white/40 hover:scale-110"
+                aria-label="Next slide"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
             </div>
           </div>
         </div>
