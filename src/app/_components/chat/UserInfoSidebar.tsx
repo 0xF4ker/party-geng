@@ -10,10 +10,13 @@ import {
   ExternalLink,
   ShieldCheck,
   X,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { api } from "@/trpc/react";
+import { toast } from "sonner";
 
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
@@ -34,13 +37,43 @@ export const UserInfoSidebar = ({
   onClose,
 }: UserInfoSidebarProps) => {
   const router = useRouter();
+  const utils = api.useUtils();
+
+  const removeParticipantMutation = api.chat.removeParticipant.useMutation({
+    onSuccess: () => {
+      toast.success("Participant removed.");
+      utils.chat.getConversations.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleRemoveParticipant = (userIdToRemove: string) => {
+    if (confirm("Are you sure you want to remove this user from the group?")) {
+      removeParticipantMutation.mutate({
+        conversationId: conversation.id,
+        userIdToRemove,
+      });
+    }
+  };
+
   // 1. Find the "Other" user
   const otherParticipant = conversation.participants.find(
     (p) => p.userId !== currentUserId,
   );
   const otherUser = otherParticipant?.user;
+
+  const { data: orders } = api.order.getOrdersBetweenUsers.useQuery({
+      userOneId: currentUserId,
+      userTwoId: otherUser?.id ?? "",
+  }, {
+      enabled: !!otherUser?.id && !conversation.isGroup,
+  });
+  
+  const activeOrders = orders?.filter(o => o.status === 'ACTIVE');
   
   if (conversation.isGroup && conversation.clientEvent) {
+    const isGroupAdmin = conversation.groupAdminId === currentUserId;
+
     return (
       <div className="flex h-full flex-col bg-white">
         {onClose && (
@@ -67,18 +100,34 @@ export const UserInfoSidebar = ({
           </h4>
           <ul className="space-y-3">
             {conversation.participants.map(p => (
-              <li key={p.userId} className="flex items-center gap-3">
-                <Image
-                  src={p.user.vendorProfile?.avatarUrl ?? p.user.clientProfile?.avatarUrl ?? "https://placehold.co/40x40"}
-                  alt={p.user.username}
-                  width={40}
-                  height={40}
-                  className="h-10 w-10 rounded-full"
-                />
-                <div>
-                  <p className="font-semibold text-gray-800">{p.user.vendorProfile?.companyName ?? p.user.clientProfile?.name ?? p.user.username}</p>
-                  <p className="text-sm text-gray-500">{p.userId === conversation.groupAdminId ? "Admin" : "Member"}</p>
+              <li key={p.userId} className="flex items-center justify-between gap-3 group">
+                <div className="flex items-center gap-3">
+                  <Image
+                    src={p.user.vendorProfile?.avatarUrl ?? p.user.clientProfile?.avatarUrl ?? "https://placehold.co/40x40"}
+                    alt={p.user.username}
+                    width={40}
+                    height={40}
+                    className="h-10 w-10 rounded-full"
+                  />
+                  <div>
+                    <p className="font-semibold text-gray-800">{p.user.vendorProfile?.companyName ?? p.user.clientProfile?.name ?? p.user.username}</p>
+                    <p className="text-sm text-gray-500">{p.userId === conversation.groupAdminId ? "Admin" : "Member"}</p>
+                  </div>
                 </div>
+                {isGroupAdmin && p.userId !== currentUserId && (
+                  <button
+                    onClick={() => handleRemoveParticipant(p.userId)}
+                    disabled={removeParticipantMutation.isPending}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-red-50 text-red-500 transition-all"
+                    title="Remove from group"
+                  >
+                    {removeParticipantMutation.isPending && removeParticipantMutation.variables?.userIdToRemove === p.userId ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -86,15 +135,6 @@ export const UserInfoSidebar = ({
       </div>
     );
   }
-
-  const { data: orders } = api.order.getOrdersBetweenUsers.useQuery({
-      userOneId: currentUserId,
-      userTwoId: otherUser?.id ?? "",
-  }, {
-      enabled: !!otherUser?.id,
-  });
-  
-  const activeOrders = orders?.filter(o => o.status === 'ACTIVE');
 
   if (!otherUser) return null;
 

@@ -36,6 +36,8 @@ import type { AppRouter } from "@/server/api/root";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { createId } from "@paralleldrive/cuid2";
+import { ChatSettingsModal } from "@/app/_components/chat/ChatSettingsModal";
+import { normalizeDate } from "@/lib/dateUtils";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type conversationOutput = routerOutput["chat"]["getConversations"][number];
@@ -52,6 +54,7 @@ const InboxPageContent = () => {
   const [selectedConvo, setSelectedConvo] = useState<conversationOutput>();
   const [showMobileChat, setShowMobileChat] = useState(false);
   const [showInfoSidebar, setShowInfoSidebar] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Ref to track if we have already auto-selected from URL
   const hasAutoSelectedRef = useRef(false);
@@ -161,6 +164,8 @@ const InboxPageContent = () => {
     addOptimisticMessage,
     removeOptimisticMessage,
     updateOptimisticStatus,
+    sendTypingEvent,
+    typingUsers,
   } = useChatRealtime(selectedConvo?.id, messagesData?.messages ?? []);
 
   // 4. Mutation: Send Message
@@ -175,7 +180,7 @@ const InboxPageContent = () => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]);
+  }, [messages, typingUsers]); // Scroll when typing changes too
 
   const handleSend = async (text: string, retryTempId?: string) => {
     if (!selectedConvo || !user) return;
@@ -198,6 +203,8 @@ const InboxPageContent = () => {
         clientProfile: null,
         vendorProfile: null,
       },
+      isDeletedForEveryone: false,
+      deletedByIds: [],
     };
 
     if (retryTempId) {
@@ -220,6 +227,18 @@ const InboxPageContent = () => {
     );
   };
 
+  const getTypingText = () => {
+    if (typingUsers.length === 0) return null;
+    const names = typingUsers.map(userId => {
+        const p = selectedConvo?.participants.find(p => p.userId === userId);
+        return p?.user.username ?? "Someone";
+    });
+    
+    if (names.length === 1) return `${names[0]} is typing...`;
+    if (names.length === 2) return `${names[0]} and ${names[1]} are typing...`;
+    return "Several people are typing...";
+  };
+
   if (!user)
     return (
       <div className="flex h-screen items-center justify-center">
@@ -234,6 +253,10 @@ const InboxPageContent = () => {
       className="min-h-screen bg-gray-50 text-gray-900"
       style={{ paddingTop: headerHeight }}
     >
+      <ChatSettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+      />
       <div
         className="flex border-t border-gray-200 bg-white text-gray-900"
         style={{ height: `calc(100vh - ${headerHeight}px)` }}
@@ -253,6 +276,7 @@ const InboxPageContent = () => {
                 setShowMobileChat(true);
               }}
               currentUserId={user.id}
+              onOpenSettings={() => setShowSettings(true)}
             />
           )}
         </aside>
@@ -320,6 +344,17 @@ const InboxPageContent = () => {
                         shownUnreadDivider = true;
                       }
 
+                      // Check read status
+                      let isRead = false;
+                      if (msg.senderId === user.id && selectedConvo) {
+                          const otherParticipants = selectedConvo.participants.filter(p => p.userId !== user.id);
+                          // Check if everyone else has read it
+                          const messageDate = normalizeDate(msg.createdAt);
+                          isRead = otherParticipants.length > 0 && otherParticipants.every(p => {
+                              return p.lastReadAt && new Date(p.lastReadAt) >= messageDate;
+                          });
+                      }
+
                       return (
                         <React.Fragment key={msg.id || msg.tempId}>
                           {showDivider && (
@@ -347,6 +382,10 @@ const InboxPageContent = () => {
                               message={msg}
                               isMe={msg.senderId === user.id}
                               onRetry={() => handleSend(msg.text, msg.tempId)}
+                              // Pass refetch to TextMessageBubble for actions
+                              onUpdate={() => refetchMessages()}
+                              isGroupAdmin={selectedConvo.groupAdminId === user.id}
+                              isRead={isRead}
                             />
                           )}
                         </React.Fragment>
@@ -359,6 +398,11 @@ const InboxPageContent = () => {
 
               {/* Input */}
               <div className="bg-white p-4">
+                {typingUsers.length > 0 && (
+                    <div className="text-xs text-gray-500 italic mb-2 ml-2 animate-pulse">
+                        {getTypingText()}
+                    </div>
+                )}
                 <ChatInput
                   onSend={handleSend}
                   isVendor={isVendor}
@@ -374,6 +418,7 @@ const InboxPageContent = () => {
                     void refetchConvos();
                   }}
                   isGroup={selectedConvo.isGroup}
+                  onTyping={sendTypingEvent}
                 />
               </div>
             </>

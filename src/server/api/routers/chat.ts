@@ -6,8 +6,29 @@ import { QuoteStatus } from "@prisma/client";
 export const chatRouter = createTRPCRouter({
   // Get all conversations for current user
   getConversations: protectedProcedure.query(async ({ ctx }) => {
+    // Fetch blocked user IDs to filter them out or handle them
+    const blockedUsers = await ctx.db.block.findMany({
+      where: {
+        OR: [{ blockerId: ctx.user.id }, { blockedId: ctx.user.id }],
+      },
+      select: {
+        blockerId: true,
+        blockedId: true,
+      },
+    });
+
+    const blockedUserIds = new Set(
+      blockedUsers.flatMap((b) => [b.blockerId, b.blockedId]).filter((id) => id !== ctx.user.id)
+    );
+
     const conversations = await ctx.db.conversation.findMany({
-      where: { participants: { some: { userId: ctx.user.id } } },
+      where: {
+        participants: {
+          some: {
+            userId: ctx.user.id,
+          },
+        },
+      },
       include: {
         clientEvent: {
           select: {
@@ -47,11 +68,20 @@ export const chatRouter = createTRPCRouter({
         messages: {
           orderBy: { createdAt: "desc" },
           take: 1,
+          where: {
+            // Ensure the preview message isn't one deleted by the user
+            deletions: {
+              none: {
+                userId: ctx.user.id,
+              },
+            },
+          },
           select: {
             id: true,
             text: true,
             createdAt: true,
             senderId: true,
+            isDeletedForEveryone: true,
           },
         },
       },
@@ -60,38 +90,63 @@ export const chatRouter = createTRPCRouter({
       },
     });
 
-    const unreadCounts = await Promise.all(
+    // Post-processing to filter and format
+    const processedConversations = await Promise.all(
       conversations.map(async (c) => {
-        const participant = c.participants.find(p => p.userId === ctx.user.id);
-        if (!participant) return { conversationId: c.id, count: 0 };
-        
-        const count = await ctx.db.message.count({
+        const myParticipant = c.participants.find((p) => p.userId === ctx.user.id);
+        if (!myParticipant) return null;
+
+        // Check if conversation should be hidden due to "delete conversation" action
+        // If the latest message is older than clearedAt, hide the conversation
+        const latestMessage = c.messages[0];
+        if (
+          myParticipant.clearedAt &&
+          latestMessage &&
+          latestMessage.createdAt <= myParticipant.clearedAt
+        ) {
+          // Effectively hidden until new message
+          return null;
+        }
+
+        // Calculate unread count
+        const unreadCount = await ctx.db.message.count({
           where: {
             conversationId: c.id,
             createdAt: {
-              gt: participant.lastReadAt ?? new Date(0),
+              gt: myParticipant.lastReadAt ?? new Date(0),
             },
             senderId: {
               not: ctx.user.id,
-            }
+            },
+            // Don't count messages deleted for everyone or for me
+            isDeletedForEveryone: false,
+            deletions: {
+              none: {
+                userId: ctx.user.id,
+              },
+            },
           },
         });
-        return { conversationId: c.id, count };
+
+        // Add blocked status to other participants
+        const participants = c.participants.map((p) => ({
+          ...p,
+          isBlocked: blockedUserIds.has(p.userId),
+        }));
+
+        return {
+          ...c,
+          participants,
+          unreadCount,
+          // Add my settings to the top level for easier access
+          isPinned: myParticipant.isPinned,
+          isArchived: myParticipant.isArchived,
+          isMuted: myParticipant.isMuted,
+        };
       })
     );
 
-    const unreadMap = unreadCounts.reduce(
-      (acc, curr) => {
-        acc[curr.conversationId] = curr.count;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
-
-    return conversations.map((c) => ({
-      ...c,
-      unreadCount: unreadMap[c.id] ?? 0,
-    }));
+    return processedConversations.filter((c): c is NonNullable<typeof c> => c !== null);
   }),
 
   // Get messages for a specific conversation
@@ -116,10 +171,28 @@ export const chatRouter = createTRPCRouter({
         throw new Error("Unauthorized");
       }
 
-      const participant = conversation.participants.find(p => p.userId === ctx.user.id);
+      const participant = conversation.participants.find(
+        (p) => p.userId === ctx.user.id,
+      );
 
       const messages = await ctx.db.message.findMany({
-        where: { conversationId: input.conversationId },
+        where: {
+          conversationId: input.conversationId,
+          // Filter out messages deleted for me
+          deletions: {
+            none: {
+              userId: ctx.user.id,
+            },
+          },
+          // Filter out messages cleared by "delete conversation"
+          ...(participant?.clearedAt
+            ? {
+                createdAt: {
+                  gt: participant.clearedAt,
+                },
+              }
+            : {}),
+        },
         take: input.limit + 1,
         ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
         orderBy: { createdAt: "desc" },
@@ -142,8 +215,12 @@ export const chatRouter = createTRPCRouter({
         const nextItem = messages.pop();
         nextCursor = nextItem!.id;
       }
-      
-      const firstUnread = messages.find(m => m.createdAt > (participant?.lastReadAt ?? new Date(0)) && m.senderId !== ctx.user.id);
+
+      const firstUnread = messages.find(
+        (m) =>
+          m.createdAt > (participant?.lastReadAt ?? new Date(0)) &&
+          m.senderId !== ctx.user.id,
+      );
 
       return {
         messages: messages.reverse(),
@@ -172,6 +249,31 @@ export const chatRouter = createTRPCRouter({
         !conversation.participants.some((p) => p.userId === ctx.user.id)
       ) {
         throw new Error("Unauthorized");
+      }
+
+      // Check for blocked users
+      // If 1-on-1, check if the other user has blocked me or I blocked them
+      if (!conversation.isGroup) {
+        const otherParticipant = conversation.participants.find(
+          (p) => p.userId !== ctx.user.id,
+        );
+        if (otherParticipant) {
+          const block = await ctx.db.block.findFirst({
+            where: {
+              OR: [
+                { blockerId: ctx.user.id, blockedId: otherParticipant.userId },
+                { blockerId: otherParticipant.userId, blockedId: ctx.user.id },
+              ],
+            },
+          });
+
+          if (block) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "You cannot message this user.",
+            });
+          }
+        }
       }
 
       const [message] = await ctx.db.$transaction([
@@ -204,7 +306,7 @@ export const chatRouter = createTRPCRouter({
 
       return message;
     }),
-    
+
   markConversationAsRead: protectedProcedure
     .input(z.object({ conversationId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -229,8 +331,25 @@ export const chatRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Check block status first
+      const block = await ctx.db.block.findFirst({
+        where: {
+          OR: [
+            { blockerId: ctx.user.id, blockedId: input.otherUserId },
+            { blockerId: input.otherUserId, blockedId: ctx.user.id },
+          ],
+        },
+      });
+
+      if (block) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Cannot create conversation with this user.",
+        });
+      }
+
       const users = [ctx.user.id, input.otherUserId];
-      
+
       const existing = await ctx.db.conversation.findFirst({
         where: {
           isGroup: false,
@@ -238,23 +357,25 @@ export const chatRouter = createTRPCRouter({
             { participants: { some: { userId: ctx.user.id } } },
             { participants: { some: { userId: input.otherUserId } } },
             { participants: { every: { userId: { in: users } } } },
-          ]
+          ],
         },
       });
 
-      if (existing) return existing;
+      if (existing) {
+        return existing;
+      }
 
       return ctx.db.conversation.create({
         data: {
           participants: {
-            create: users.map(userId => ({
-              user: { connect: { id: userId } }
-            }))
-          }
+            create: users.map((userId) => ({
+              user: { connect: { id: userId } },
+            })),
+          },
         },
       });
     }),
-    
+
   getUnreadConversationCount: protectedProcedure.query(async ({ ctx }) => {
     const participations = await ctx.db.conversationParticipant.findMany({
       where: { userId: ctx.user.id },
@@ -263,18 +384,31 @@ export const chatRouter = createTRPCRouter({
           include: {
             messages: {
               orderBy: {
-                createdAt: 'desc'
+                createdAt: "desc",
               },
-              take: 1
-            }
-          }
-        }
-      }
+              take: 1,
+              where: {
+                deletions: {
+                  none: {
+                    userId: ctx.user.id,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     let unreadCount = 0;
     for (const p of participations) {
-      if (p.conversation.messages[0] && p.conversation.messages[0].createdAt > (p.lastReadAt ?? new Date(0)) && p.conversation.messages[0].senderId !== ctx.user.id) {
+      const latestMsg = p.conversation.messages[0];
+      if (
+        latestMsg &&
+        latestMsg.createdAt > (p.lastReadAt ?? new Date(0)) &&
+        latestMsg.senderId !== ctx.user.id &&
+        !latestMsg.isDeletedForEveryone
+      ) {
         unreadCount++;
       }
     }
@@ -282,85 +416,293 @@ export const chatRouter = createTRPCRouter({
   }),
 
   createEventGroupChat: protectedProcedure
-  .input(
-    z.object({
-      eventId: z.string(),
-      memberIds: z.array(z.string()),
-    }),
-  )
-  .mutation(async ({ ctx, input }) => {
-    const { eventId, memberIds } = input;
-    const userId = ctx.user.id;
+    .input(
+      z.object({
+        eventId: z.string(),
+        memberIds: z.array(z.string()),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { eventId, memberIds } = input;
+      const userId = ctx.user.id;
 
-    // 1. Find the event
-    const event = await ctx.db.clientEvent.findUnique({
-      where: { id: eventId },
-      include: { client: true },
-    });
+      // 1. Find the event
+      const event = await ctx.db.clientEvent.findUnique({
+        where: { id: eventId },
+        include: { client: true },
+      });
 
-    if (!event) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
-    }
-    
-    // 2. Authorize action
-    const isOwner = event.client.userId === userId;
-    if (!isOwner) {
+      if (!event) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+      }
+
+      // 2. Authorize action
+      const isOwner = event.client.userId === userId;
+      if (!isOwner) {
         const invitations = await ctx.db.eventInvitation.findMany({
-            where: {
-                eventId: input.eventId,
-                vendorId: { in: input.memberIds },
-                status: QuoteStatus.ACCEPTED,
-            }
+          where: {
+            eventId: input.eventId,
+            vendorId: { in: input.memberIds },
+            status: QuoteStatus.ACCEPTED,
+          },
         });
 
         if (invitations.length !== input.memberIds.length) {
-            throw new TRPCError({
-                code: "FORBIDDEN",
-                message: "You don't have permission to create a chat for this event.",
-            });
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message:
+              "You don't have permission to create a chat for this event.",
+          });
         }
-    }
+      }
 
-    // 3. Check if a group chat already exists for this event
-    let conversation = await ctx.db.conversation.findUnique({
-      where: { clientEventId: eventId },
-      include: { participants: true }
-    });
+      // 3. Check if a group chat already exists for this event
+      let conversation = await ctx.db.conversation.findUnique({
+        where: { clientEventId: eventId },
+        include: { participants: true },
+      });
 
-    if (conversation) {
-      // 4a. If it exists, add new members
-      const existingParticipantIds = new Set(conversation.participants.map((p) => p.userId));
-      const allPotentialMembers = [...new Set([event.client.userId, ...memberIds])];
-      const newMemberIds = allPotentialMembers.filter((id) => !existingParticipantIds.has(id));
+      if (conversation) {
+        // 4a. If it exists, add new members
+        const existingParticipantIds = new Set(
+          conversation.participants.map((p) => p.userId),
+        );
+        const allPotentialMembers = [
+          ...new Set([event.client.userId, ...memberIds]),
+        ];
+        const newMemberIds = allPotentialMembers.filter(
+          (id) => !existingParticipantIds.has(id),
+        );
 
-      if (newMemberIds.length > 0) {
-        await ctx.db.conversation.update({
-          where: { id: conversation.id },
-          data: {
-            participants: {
-              create: newMemberIds.map((id) => ({ userId: id })),
+        if (newMemberIds.length > 0) {
+          await ctx.db.conversation.update({
+            where: { id: conversation.id },
+            data: {
+              participants: {
+                create: newMemberIds.map((id) => ({ userId: id })),
+              },
             },
+          });
+        }
+      } else {
+        // 4b. If it doesn't exist, create it
+        const allParticipantIds = [
+          ...new Set([event.client.userId, ...memberIds]),
+        ];
+        conversation = await ctx.db.conversation.create({
+          data: {
+            clientEventId: eventId,
+            isGroup: true,
+            groupAdminId: event.client.userId,
+            participants: {
+              create: allParticipantIds.map((id) => ({ userId: id })),
+            },
+          },
+          include: {
+            participants: true,
           },
         });
       }
-    } else {
-      // 4b. If it doesn't exist, create it
-      const allParticipantIds = [...new Set([event.client.userId, ...memberIds])];
-      conversation = await ctx.db.conversation.create({
-        data: {
-          clientEventId: eventId,
-          isGroup: true,
-          groupAdminId: event.client.userId,
-          participants: {
-            create: allParticipantIds.map((id) => ({ userId: id })),
+
+      return conversation;
+    }),
+
+  deleteMessage: protectedProcedure
+    .input(
+      z.object({
+        messageId: z.string(),
+        deleteType: z.enum(["ME", "EVERYONE"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const message = await ctx.db.message.findUnique({
+        where: { id: input.messageId },
+        include: { conversation: true },
+      });
+
+      if (!message) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Message not found" });
+      }
+
+      if (input.deleteType === "EVERYONE") {
+        const isSender = message.senderId === ctx.user.id;
+        const isGroupAdmin = message.conversation.groupAdminId === ctx.user.id;
+
+        if (!isSender && !isGroupAdmin) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You can only delete your own messages for everyone, unless you are the group admin.",
+          });
+        }
+
+        return ctx.db.message.update({
+          where: { id: input.messageId },
+          data: { isDeletedForEveryone: true },
+        });
+      } else {
+        // Delete for ME: Create a MessageDeletion record
+        return ctx.db.messageDeletion.create({
+          data: {
+            userId: ctx.user.id,
+            messageId: input.messageId,
+          },
+        });
+      }
+    }),
+
+  updateConversationSettings: protectedProcedure
+    .input(
+      z.object({
+        conversationId: z.string(),
+        isPinned: z.boolean().optional(),
+        isArchived: z.boolean().optional(),
+        isMuted: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.conversationParticipant.update({
+        where: {
+          userId_conversationId: {
+            userId: ctx.user.id,
+            conversationId: input.conversationId,
           },
         },
-        include: {
-          participants: true,
+        data: {
+          isPinned: input.isPinned,
+          isArchived: input.isArchived,
+          isMuted: input.isMuted,
         },
+      });
+    }),
+
+  deleteConversation: protectedProcedure
+    .input(z.object({ conversationId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.conversationParticipant.update({
+        where: {
+          userId_conversationId: {
+            userId: ctx.user.id,
+            conversationId: input.conversationId,
+          },
+        },
+        data: {
+          clearedAt: new Date(),
+        },
+      });
+    }),
+
+  removeParticipant: protectedProcedure
+    .input(
+      z.object({
+        conversationId: z.string(),
+        userIdToRemove: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const conversation = await ctx.db.conversation.findUnique({
+        where: { id: input.conversationId },
+      });
+
+      if (!conversation || !conversation.isGroup) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Invalid conversation",
+        });
+      }
+
+      if (conversation.groupAdminId !== ctx.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only the group admin can remove members.",
+        });
+      }
+
+      return ctx.db.conversationParticipant.delete({
+        where: {
+          userId_conversationId: {
+            userId: input.userIdToRemove,
+            conversationId: input.conversationId,
+          },
+        },
+      });
+    }),
+
+  leaveGroup: protectedProcedure
+    .input(z.object({ conversationId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const conversation = await ctx.db.conversation.findUnique({
+        where: { id: input.conversationId },
+      });
+
+      if (!conversation || !conversation.isGroup) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Invalid conversation",
+        });
+      }
+      
+      await ctx.db.conversationParticipant.delete({
+        where: {
+          userId_conversationId: {
+            userId: ctx.user.id,
+            conversationId: input.conversationId,
+          },
+        },
+      });
+
+      if (conversation.clientEventId) {
+        const eventVendor = await ctx.db.eventVendor.findFirst({
+            where: {
+                eventId: conversation.clientEventId,
+                vendorId: ctx.user.id
+            }
+        });
+
+        if (eventVendor) {
+            await ctx.db.eventVendor.delete({
+                where: { id: eventVendor.id }
+            });
+        }
+      }
+
+      return { success: true };
+    }),
+
+  // --- SETTINGS ---
+  getSettings: protectedProcedure.query(async ({ ctx }) => {
+    let settings = await ctx.db.chatSettings.findUnique({
+      where: { userId: ctx.user.id },
+    });
+
+    if (!settings) {
+      settings = await ctx.db.chatSettings.create({
+        data: { userId: ctx.user.id },
       });
     }
 
-    return conversation;
+    return settings;
   }),
+
+  updateSettings: protectedProcedure
+    .input(
+      z.object({
+        readReceipts: z.boolean().optional(),
+        typingIndicators: z.boolean().optional(),
+        muteAll: z.boolean().optional(),
+        soundEnabled: z.boolean().optional(),
+        vibrationEnabled: z.boolean().optional(),
+        emailNotifications: z.boolean().optional(),
+        theme: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.chatSettings.upsert({
+        where: { userId: ctx.user.id },
+        create: {
+          userId: ctx.user.id,
+          ...input,
+        },
+        update: input,
+      });
+    }),
 });

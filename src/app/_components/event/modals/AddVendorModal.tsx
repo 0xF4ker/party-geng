@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { api } from "@/trpc/react";
-import { Loader2, Search, Check, ChevronDown, X } from "lucide-react";
+import { Loader2, Search, Check, ChevronDown, X, Trash2 } from "lucide-react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { Button } from "@/components/ui/button";
@@ -84,8 +84,26 @@ export const AddVendorModal = ({
     },
   });
 
+  const removeVendor = api.event.removeVendor.useMutation({
+    onSuccess: () => {
+      toast.success("Vendor removed from event.");
+      // Invalidate both event details and search to refresh status
+      void utils.event.getById.invalidate({ id: event.id });
+      void utils.vendor.searchVendors.invalidate();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
   const handleInviteVendor = (vendorId: string) => {
     sendInvitation.mutate({ eventId: event.id, vendorId });
+  };
+
+  const handleRemoveVendor = (vendorId: string) => {
+    if (confirm("Are you sure you want to remove this vendor? This will unhire them from the event.")) {
+      removeVendor.mutate({ eventId: event.id, vendorId });
+    }
   };
 
   const hiredVendorIds = useMemo(
@@ -252,9 +270,24 @@ export const AddVendorModal = ({
                     </div>
                   </Link>
                   {hiredVendorIds.includes(vendor.user.id) ? (
-                    <span className="text-sm font-semibold text-green-600">
-                      Hired
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-green-600">
+                        Hired
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 px-2"
+                        onClick={() => handleRemoveVendor(vendor.user.id)}
+                        disabled={removeVendor.isPending && removeVendor.variables?.vendorId === vendor.user.id}
+                      >
+                        {removeVendor.isPending && removeVendor.variables?.vendorId === vendor.user.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   ) : (
                     <Button
                       onClick={() => handleInviteVendor(vendor.user.id)}

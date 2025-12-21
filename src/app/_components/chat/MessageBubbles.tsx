@@ -1,8 +1,8 @@
 // components/chat/MessageBubbles.tsx
-import React from "react";
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
-import { FileText, Clock, AlertCircle, RefreshCw } from "lucide-react";
+import { FileText, Clock, AlertCircle, RefreshCw, MoreVertical, Trash2, Check, CheckCheck } from "lucide-react";
 import type { MessageWithStatus } from "@/hooks/useChatRealtime";
 import { normalizeDate } from "@/lib/dateUtils";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,14 @@ import Image from "next/image";
 
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
+import { api } from "@/trpc/react";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type message = routerOutput["chat"]["getMessages"]["messages"][number];
@@ -20,15 +28,68 @@ export const TextMessageBubble = ({
   message,
   isMe,
   onRetry,
+  onUpdate,
+  isGroupAdmin,
+  isRead = false,
 }: {
   message: MessageWithStatus;
   isMe: boolean;
   onRetry?: () => void;
+  onUpdate?: () => void;
+  isGroupAdmin?: boolean;
+  isRead?: boolean;
 }) => {
   const isPending = message.status === "sending";
   const isError = message.status === "error";
-  const senderName = message.sender.clientProfile?.name ?? message.sender.vendorProfile?.companyName ?? message.sender.username;
-  const senderAvatar = message.sender.clientProfile?.avatarUrl ?? message.sender.vendorProfile?.avatarUrl ?? `https://placehold.co/40x40/ec4899/ffffff?text=${senderName.charAt(0)}`;
+  
+  // Safe access for sender
+  const sender = message.sender || {};
+  const senderName = sender.clientProfile?.name ?? sender.vendorProfile?.companyName ?? sender.username ?? "...";
+  const senderAvatar = sender.clientProfile?.avatarUrl ?? sender.vendorProfile?.avatarUrl ?? `https://placehold.co/40x40/ec4899/ffffff?text=${(senderName[0] || "?").toUpperCase()}`;
+
+  const deleteMutation = api.chat.deleteMessage.useMutation({
+    onSuccess: () => {
+      toast.success("Message deleted");
+      onUpdate?.();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleDelete = (type: "ME" | "EVERYONE") => {
+    if (message.id) {
+        deleteMutation.mutate({ messageId: message.id, deleteType: type });
+    }
+  };
+
+  // Safe access for deleted flag
+  const isDeletedForEveryone = !!(message as any).isDeletedForEveryone;
+
+  if (isDeletedForEveryone) {
+      return (
+        <div
+            className={cn(
+                "group flex w-full gap-2",
+                isMe ? "justify-end" : "justify-start",
+            )}
+        >
+            {!isMe && (
+                <div className="flex flex-col items-center justify-end">
+                    <div className="h-8 w-8 relative rounded-full overflow-hidden bg-gray-200">
+                        <Image src={senderAvatar} alt={senderName} fill className="object-cover" />
+                    </div>
+                </div>
+            )}
+            <div className="flex max-w-[80%] flex-col items-end gap-1">
+                <div className={cn(
+                    "relative rounded-2xl px-4 py-2 text-sm shadow-sm border border-gray-100 bg-gray-50 text-gray-500 italic",
+                    isMe ? "rounded-br-none" : "rounded-bl-none"
+                )}>
+                    This message was deleted
+                </div>
+            </div>
+        </div>
+      );
+  }
 
   return (
     <div
@@ -44,10 +105,37 @@ export const TextMessageBubble = ({
             </div>
         </div>
       )}
-      <div className="flex max-w-[80%] flex-col items-end gap-1">
+      <div className="flex max-w-[80%] flex-col items-end gap-1 relative">
         {!isMe && (
             <span className="text-[10px] text-gray-500 w-full text-left ml-1">{senderName}</span>
         )}
+        
+        {/* Context Menu Trigger - Visible on Hover */}
+        {!isPending && !isError && message.id && (
+            <div className={cn(
+                "absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-10",
+                isMe ? "-left-8" : "-right-8"
+            )}>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button className="p-1 rounded-full hover:bg-gray-200 text-gray-400">
+                            <MoreVertical className="h-4 w-4" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => handleDelete("ME")}>
+                            Delete for Me
+                        </DropdownMenuItem>
+                        {(isMe || isGroupAdmin) && (
+                            <DropdownMenuItem onClick={() => handleDelete("EVERYONE")} className="text-red-600">
+                                Delete for Everyone
+                            </DropdownMenuItem>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+        )}
+
         <div
           className={cn(
             "relative rounded-2xl px-4 py-2 text-sm shadow-sm transition-all",
@@ -81,11 +169,20 @@ export const TextMessageBubble = ({
 
             {/* STATE 3: SENT (Standard) */}
             {!isPending && !isError && (
-              <span title={normalizeDate(message.createdAt).toLocaleString()}>
-                {formatDistanceToNow(normalizeDate(message.createdAt), {
-                  addSuffix: true,
-                })}
-              </span>
+              <>
+                <span title={normalizeDate(message.createdAt).toLocaleString()}>
+                  {formatDistanceToNow(normalizeDate(message.createdAt), {
+                    addSuffix: true,
+                  })}
+                </span>
+                {isMe && (
+                    isRead ? (
+                        <CheckCheck className="h-3.5 w-3.5 text-blue-200" />
+                    ) : (
+                        <Check className="h-3.5 w-3.5" />
+                    )
+                )}
+              </>
             )}
           </div>
         </div>
@@ -121,8 +218,9 @@ export const QuoteMessageBubble = ({
   const quote = message.quote;
   if (!quote) return null;
 
-  const senderName = message.sender.clientProfile?.name ?? message.sender.vendorProfile?.companyName ?? message.sender.username;
-  const senderAvatar = message.sender.clientProfile?.avatarUrl ?? message.sender.vendorProfile?.avatarUrl ?? `https://placehold.co/40x40/ec4899/ffffff?text=${senderName.charAt(0)}`;
+  const sender = message.sender || {};
+  const senderName = sender.clientProfile?.name ?? sender.vendorProfile?.companyName ?? sender.username ?? "...";
+  const senderAvatar = sender.clientProfile?.avatarUrl ?? sender.vendorProfile?.avatarUrl ?? `https://placehold.co/40x40/ec4899/ffffff?text=${(senderName[0] || "?").toUpperCase()}`;
 
 
   const getStatusStyles = (status: string) => {

@@ -112,6 +112,7 @@ model User {
   clientProfile      ClientProfile?      // One-to-one
   vendorProfile      VendorProfile?      // One-to-one
   wallet             Wallet?             // One-to-one
+  chatSettings       ChatSettings?       // One-to-one
   participations     ConversationParticipant[]
   messages           Message[]           @relation("Sender")
   clientQuotes       Quote[]             @relation("ClientQuotes")
@@ -131,6 +132,10 @@ model User {
   postBookmarks      PostBookmark[]
   boardPosts         BoardPost[]
   savePlans          SavePlan[]
+  
+  blockedUsers       Block[]             @relation("Blocker")
+  blockedBy          Block[]             @relation("Blocked")
+  messageDeletions   MessageDeletion[]
 }
 
 model ClientProfile {
@@ -176,6 +181,33 @@ model VendorProfile {
   services           ServicesOnVendors[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+}
+
+model ChatSettings {
+  id                 String   @id @default(uuid())
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String   @unique
+  readReceipts       Boolean  @default(true)
+  typingIndicators   Boolean  @default(true)
+  muteAll            Boolean  @default(false)
+  soundEnabled       Boolean  @default(true)
+  vibrationEnabled   Boolean  @default(true)
+  emailNotifications Boolean  @default(true)
+  theme              String   @default("light") // light, dark, system
+  updatedAt          DateTime @updatedAt
+}
+
+model Block {
+  id        String   @id @default(uuid())
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockerId String
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  blockedId String
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
 }
 
 
@@ -308,6 +340,12 @@ model ConversationParticipant {
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   lastReadAt     DateTime?
+  
+  // New chat features
+  isPinned       Boolean      @default(false)
+  isArchived     Boolean      @default(false)
+  isMuted        Boolean      @default(false)
+  clearedAt      DateTime?    // If set, messages before this date are hidden for this user (Delete Conversation view)
 
   @@id([userId, conversationId])
 }
@@ -322,6 +360,23 @@ model Message {
   quote                  Quote?
   eventInvitation        EventInvitation?
   createdAt              DateTime            @default(now())
+  
+  // New chat features
+  isDeletedForEveryone   Boolean             @default(false)
+  deletions              MessageDeletion[]
+}
+
+model MessageDeletion {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, messageId])
+  @@index([userId])
+  @@index([messageId])
 }
 
 model Quote {

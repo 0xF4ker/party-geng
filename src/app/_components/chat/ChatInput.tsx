@@ -11,6 +11,7 @@ interface ChatInputProps {
   otherUserId: string;
   onQuoteSent: () => void;
   isGroup?: boolean;
+  onTyping?: () => void;
 }
 
 export const ChatInput = ({
@@ -21,10 +22,12 @@ export const ChatInput = ({
   otherUserId,
   onQuoteSent,
   isGroup = false,
+  onTyping,
 }: ChatInputProps) => {
   const [text, setText] = useState("");
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lastTypingTime = useRef<number>(0);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -33,6 +36,17 @@ export const ChatInput = ({
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`; // Grow up to 120px
     }
   }, [text]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setText(e.target.value);
+    
+    // Throttle typing event (e.g., once every 2 seconds)
+    const now = Date.now();
+    if (onTyping && now - lastTypingTime.current > 2000) {
+      onTyping();
+      lastTypingTime.current = now;
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -63,7 +77,7 @@ export const ChatInput = ({
         <textarea
           ref={textareaRef}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder="Type your message..."
           rows={1}
