@@ -75,6 +75,21 @@ export const postRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const limit = 20;
       const { cursor } = input ?? {};
+      
+      let excludedAuthorIds: string[] = [];
+      if (ctx.user) {
+          const blocks = await ctx.db.block.findMany({
+              where: {
+                  OR: [
+                      { blockerId: ctx.user.id },
+                      { blockedId: ctx.user.id },
+                  ]
+              },
+              select: { blockerId: true, blockedId: true }
+          });
+          excludedAuthorIds = blocks.flatMap(b => [b.blockerId, b.blockedId]).filter(id => id !== ctx.user.id);
+      }
+
       const posts = await ctx.db.post.findMany({
         take: limit + 1,
         where: {
@@ -83,6 +98,7 @@ export const postRouter = createTRPCRouter({
             contains: "#trending",
             mode: "insensitive",
           },
+          authorId: { notIn: excludedAuthorIds },
         },
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: { createdAt: "desc" },
