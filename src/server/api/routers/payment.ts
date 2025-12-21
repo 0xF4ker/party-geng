@@ -3,7 +3,11 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { TransactionType, WishlistItemType, NotificationType } from "@prisma/client";
+import {
+  TransactionType,
+  WishlistItemType,
+  NotificationType,
+} from "@prisma/client";
 
 // const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY ?? undefined;
 
@@ -63,21 +67,19 @@ export const paymentRouter = createTRPCRouter({
           message: "Recipient not found.",
         });
       }
-      
+
       if (recipient.id === senderId) {
         throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "You cannot transfer funds to yourself.",
+          code: "BAD_REQUEST",
+          message: "You cannot transfer funds to yourself.",
         });
       }
 
       // Ensure recipient has a wallet
       let recipientWallet = recipient.wallet;
-      if (!recipientWallet) {
-        recipientWallet = await ctx.db.wallet.create({
-            data: { userId: recipient.id },
-        });
-      }
+      recipientWallet ??= await ctx.db.wallet.create({
+        data: { userId: recipient.id },
+      });
 
       // 3. Execute Transfer
       return ctx.db.$transaction(async (prisma) => {
@@ -100,19 +102,19 @@ export const paymentRouter = createTRPCRouter({
             type: TransactionType.TRANSFER,
             amount: -amount,
             status: "COMPLETED",
-            description: description || `Transfer to @${recipient.username}`,
+            description: description ?? `Transfer to @${recipient.username}`,
           },
         });
 
-        const recipientTx = await prisma.transaction.create({
-          data: {
-            walletId: recipientWallet.id,
-            type: TransactionType.TRANSFER, // Or define a specific type like TRANSFER_RECEIVED
-            amount: amount,
-            status: "COMPLETED",
-            description: description || `Transfer from @${ctx.user.username}`,
-          },
-        });
+        // const recipientTx = await prisma.transaction.create({
+        //   data: {
+        //     walletId: recipientWallet.id,
+        //     type: TransactionType.TRANSFER, // Or define a specific type like TRANSFER_RECEIVED
+        //     amount: amount,
+        //     status: "COMPLETED",
+        //     description: description || `Transfer from @${ctx.user.username}`,
+        //   },
+        // });
 
         // Notify recipient
         await prisma.notification.create({
@@ -127,7 +129,7 @@ export const paymentRouter = createTRPCRouter({
         return { success: true, transactionId: senderTx.id };
       });
     }),
-    
+
   // Request funds from another user
   requestFunds: protectedProcedure
     .input(
@@ -138,38 +140,38 @@ export const paymentRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-        const { payerUsername, amount, description } = input;
-        
-        const payer = await ctx.db.user.findUnique({
-            where: { username: payerUsername },
+      const { payerUsername, amount, description } = input;
+
+      const payer = await ctx.db.user.findUnique({
+        where: { username: payerUsername },
+      });
+
+      if (!payer) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found.",
         });
+      }
 
-        if (!payer) {
-            throw new TRPCError({
-                code: "NOT_FOUND",
-                message: "User not found.",
-            });
-        }
-        
-        if (payer.id === ctx.user.id) {
-            throw new TRPCError({
-                code: "BAD_REQUEST",
-                message: "You cannot request funds from yourself.",
-            });
-        }
-
-        // For now, we just send a notification. 
-        // In a more complex system, we might create a PaymentRequest model.
-        await ctx.db.notification.create({
-            data: {
-                userId: payer.id,
-                type: NotificationType.PAYMENT_REQUEST,
-                message: `@${ctx.user.username} is requesting ₦${amount.toLocaleString()}: ${description || 'No description'}`,
-                link: `/wallet?modal=transfer&recipient=${ctx.user.username}&amount=${amount}`, // hypothetical link to pre-fill transfer
-            },
+      if (payer.id === ctx.user.id) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You cannot request funds from yourself.",
         });
+      }
 
-        return { success: true, message: "Request sent successfully." };
+      // For now, we just send a notification.
+      // In a more complex system, we might create a PaymentRequest model.
+      await ctx.db.notification.create({
+        data: {
+          userId: payer.id,
+          type: NotificationType.PAYMENT_REQUEST,
+          message: `@${ctx.user.username} is requesting ₦${amount.toLocaleString()}: ${description ?? "No description"}`,
+          link: `/wallet?modal=transfer&recipient=${ctx.user.username}&amount=${amount}`, // hypothetical link to pre-fill transfer
+        },
+      });
+
+      return { success: true, message: "Request sent successfully." };
     }),
 
   contributeToWishlist: protectedProcedure
@@ -272,13 +274,13 @@ export const paymentRouter = createTRPCRouter({
 
         // 4. Create WishlistContribution
         const newContribution = await prisma.wishlistContribution.create({
-            data: {
-                wishlistItemId: wishlistItemId,
-                guestUserId: contributorId,
-                guestName: guestName,
-                type: "CASH",
-                amount: amount,
-            },
+          data: {
+            wishlistItemId: wishlistItemId,
+            guestUserId: contributorId,
+            guestName: guestName,
+            type: "CASH",
+            amount: amount,
+          },
         });
 
         return newContribution;

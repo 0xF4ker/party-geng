@@ -1,8 +1,16 @@
 // components/chat/MessageBubbles.tsx
-import React, { useState } from "react";
+import React from "react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
-import { FileText, Clock, AlertCircle, RefreshCw, MoreVertical, Trash2, Check, CheckCheck } from "lucide-react";
+import {
+  FileText,
+  Clock,
+  AlertCircle,
+  RefreshCw,
+  MoreVertical,
+  Check,
+  CheckCheck,
+} from "lucide-react";
 import type { MessageWithStatus } from "@/hooks/useChatRealtime";
 import { normalizeDate } from "@/lib/dateUtils";
 import { useRouter } from "next/navigation";
@@ -41,11 +49,18 @@ export const TextMessageBubble = ({
 }) => {
   const isPending = message.status === "sending";
   const isError = message.status === "error";
-  
+
   // Safe access for sender
   const sender = message.sender || {};
-  const senderName = sender.clientProfile?.name ?? sender.vendorProfile?.companyName ?? sender.username ?? "...";
-  const senderAvatar = sender.clientProfile?.avatarUrl ?? sender.vendorProfile?.avatarUrl ?? `https://placehold.co/40x40/ec4899/ffffff?text=${(senderName[0] || "?").toUpperCase()}`;
+  const senderName =
+    sender.clientProfile?.name ??
+    sender.vendorProfile?.companyName ??
+    sender.username ??
+    "...";
+  const senderAvatar =
+    sender.clientProfile?.avatarUrl ??
+    sender.vendorProfile?.avatarUrl ??
+    `https://placehold.co/40x40/ec4899/ffffff?text=${(senderName[0] ?? "?").toUpperCase()}`;
 
   const deleteMutation = api.chat.deleteMessage.useMutation({
     onSuccess: () => {
@@ -57,38 +72,45 @@ export const TextMessageBubble = ({
 
   const handleDelete = (type: "ME" | "EVERYONE") => {
     if (message.id) {
-        deleteMutation.mutate({ messageId: message.id, deleteType: type });
+      deleteMutation.mutate({ messageId: message.id, deleteType: type });
     }
   };
 
   // Safe access for deleted flag
-  const isDeletedForEveryone = !!(message as any).isDeletedForEveryone;
+  const isDeletedForEveryone = !!message.isDeletedForEveryone;
 
   if (isDeletedForEveryone) {
-      return (
-        <div
-            className={cn(
-                "group flex w-full gap-2",
-                isMe ? "justify-end" : "justify-start",
-            )}
-        >
-            {!isMe && (
-                <div className="flex flex-col items-center justify-end">
-                    <div className="h-8 w-8 relative rounded-full overflow-hidden bg-gray-200">
-                        <Image src={senderAvatar} alt={senderName} fill className="object-cover" />
-                    </div>
-                </div>
-            )}
-            <div className="flex max-w-[80%] flex-col items-end gap-1">
-                <div className={cn(
-                    "relative rounded-2xl px-4 py-2 text-sm shadow-sm border border-gray-100 bg-gray-50 text-gray-500 italic",
-                    isMe ? "rounded-br-none" : "rounded-bl-none"
-                )}>
-                    This message was deleted
-                </div>
+    return (
+      <div
+        className={cn(
+          "group flex w-full gap-2",
+          isMe ? "justify-end" : "justify-start",
+        )}
+      >
+        {!isMe && (
+          <div className="flex flex-col items-center justify-end">
+            <div className="relative h-8 w-8 overflow-hidden rounded-full bg-gray-200">
+              <Image
+                src={senderAvatar}
+                alt={senderName}
+                fill
+                className="object-cover"
+              />
             </div>
+          </div>
+        )}
+        <div className="flex max-w-[80%] flex-col items-end gap-1">
+          <div
+            className={cn(
+              "relative rounded-2xl border border-gray-100 bg-gray-50 px-4 py-2 text-sm text-gray-500 italic shadow-sm",
+              isMe ? "rounded-br-none" : "rounded-bl-none",
+            )}
+          >
+            This message was deleted
+          </div>
         </div>
-      );
+      </div>
+    );
   }
 
   return (
@@ -100,40 +122,52 @@ export const TextMessageBubble = ({
     >
       {!isMe && (
         <div className="flex flex-col items-center justify-end">
-            <div className="h-8 w-8 relative rounded-full overflow-hidden bg-gray-200">
-                <Image src={senderAvatar} alt={senderName} fill className="object-cover" />
-            </div>
+          <div className="relative h-8 w-8 overflow-hidden rounded-full bg-gray-200">
+            <Image
+              src={senderAvatar}
+              alt={senderName}
+              fill
+              className="object-cover"
+            />
+          </div>
         </div>
       )}
-      <div className="flex max-w-[80%] flex-col items-end gap-1 relative">
+      <div className="relative flex max-w-[80%] flex-col items-end gap-1">
         {!isMe && (
-            <span className="text-[10px] text-gray-500 w-full text-left ml-1">{senderName}</span>
+          <span className="ml-1 w-full text-left text-[10px] text-gray-500">
+            {senderName}
+          </span>
         )}
-        
+
         {/* Context Menu Trigger - Visible on Hover */}
         {!isPending && !isError && message.id && (
-            <div className={cn(
-                "absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-10",
-                isMe ? "-left-8" : "-right-8"
-            )}>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <button className="p-1 rounded-full hover:bg-gray-200 text-gray-400">
-                            <MoreVertical className="h-4 w-4" />
-                        </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => handleDelete("ME")}>
-                            Delete for Me
-                        </DropdownMenuItem>
-                        {(isMe || isGroupAdmin) && (
-                            <DropdownMenuItem onClick={() => handleDelete("EVERYONE")} className="text-red-600">
-                                Delete for Everyone
-                            </DropdownMenuItem>
-                        )}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
+          <div
+            className={cn(
+              "absolute top-1/2 z-10 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100",
+              isMe ? "-left-8" : "-right-8",
+            )}
+          >
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="rounded-full p-1 text-gray-400 hover:bg-gray-200">
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => handleDelete("ME")}>
+                  Delete for Me
+                </DropdownMenuItem>
+                {(isMe || isGroupAdmin) && (
+                  <DropdownMenuItem
+                    onClick={() => handleDelete("EVERYONE")}
+                    className="text-red-600"
+                  >
+                    Delete for Everyone
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )}
 
         <div
@@ -175,13 +209,12 @@ export const TextMessageBubble = ({
                     addSuffix: true,
                   })}
                 </span>
-                {isMe && (
-                    isRead ? (
-                        <CheckCheck className="h-3.5 w-3.5 text-blue-200" />
-                    ) : (
-                        <Check className="h-3.5 w-3.5" />
-                    )
-                )}
+                {isMe &&
+                  (isRead ? (
+                    <CheckCheck className="h-3.5 w-3.5 text-blue-200" />
+                  ) : (
+                    <Check className="h-3.5 w-3.5" />
+                  ))}
               </>
             )}
           </div>
@@ -219,9 +252,15 @@ export const QuoteMessageBubble = ({
   if (!quote) return null;
 
   const sender = message.sender || {};
-  const senderName = sender.clientProfile?.name ?? sender.vendorProfile?.companyName ?? sender.username ?? "...";
-  const senderAvatar = sender.clientProfile?.avatarUrl ?? sender.vendorProfile?.avatarUrl ?? `https://placehold.co/40x40/ec4899/ffffff?text=${(senderName[0] || "?").toUpperCase()}`;
-
+  const senderName =
+    sender.clientProfile?.name ??
+    sender.vendorProfile?.companyName ??
+    sender.username ??
+    "...";
+  const senderAvatar =
+    sender.clientProfile?.avatarUrl ??
+    sender.vendorProfile?.avatarUrl ??
+    `https://placehold.co/40x40/ec4899/ffffff?text=${(senderName[0] ?? "?").toUpperCase()}`;
 
   const getStatusStyles = (status: string) => {
     switch (status) {
@@ -235,67 +274,79 @@ export const QuoteMessageBubble = ({
   };
 
   return (
-    <div className={cn("flex w-full gap-2", isMe ? "justify-end" : "justify-start")}>
+    <div
+      className={cn(
+        "flex w-full gap-2",
+        isMe ? "justify-end" : "justify-start",
+      )}
+    >
       {!isMe && (
         <div className="flex flex-col items-center justify-end">
-            <div className="h-8 w-8 relative rounded-full overflow-hidden bg-gray-200">
-                <Image src={senderAvatar} alt={senderName} fill className="object-cover" />
-            </div>
+          <div className="relative h-8 w-8 overflow-hidden rounded-full bg-gray-200">
+            <Image
+              src={senderAvatar}
+              alt={senderName}
+              fill
+              className="object-cover"
+            />
+          </div>
         </div>
       )}
       <div>
         {!isMe && (
-            <span className="text-[10px] text-gray-500 w-full text-left ml-1 block mb-1">{senderName}</span>
+          <span className="mb-1 ml-1 block w-full text-left text-[10px] text-gray-500">
+            {senderName}
+          </span>
         )}
         <div
-            className={cn(
+          className={cn(
             "w-72 overflow-hidden rounded-xl border shadow-sm",
             getStatusStyles(quote.status),
-            )}
+          )}
         >
-            {/* Header */}
-            <div className="flex items-center gap-3 border-b border-black/5 p-3">
+          {/* Header */}
+          <div className="flex items-center gap-3 border-b border-black/5 p-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm">
-                <FileText className="h-5 w-5 text-pink-600" />
+              <FileText className="h-5 w-5 text-pink-600" />
             </div>
             <div>
-                <p className="text-xs font-bold tracking-wider text-gray-500 uppercase">
+              <p className="text-xs font-bold tracking-wider text-gray-500 uppercase">
                 Quote
-                </p>
-                <p className="font-semibold text-gray-900">{quote.title}</p>
+              </p>
+              <p className="font-semibold text-gray-900">{quote.title}</p>
             </div>
-            </div>
+          </div>
 
-            {/* Content */}
-            <div className="space-y-2 bg-white/50 p-4">
+          {/* Content */}
+          <div className="space-y-2 bg-white/50 p-4">
             <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Price:</span>
-                <span className="font-bold">₦{quote.price.toLocaleString()}</span>
+              <span className="text-gray-500">Price:</span>
+              <span className="font-bold">₦{quote.price.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Status:</span>
-                <span
+              <span className="text-gray-500">Status:</span>
+              <span
                 className={cn(
-                    "rounded-full px-2 py-0.5 text-xs font-bold",
-                    quote.status === "PENDING"
+                  "rounded-full px-2 py-0.5 text-xs font-bold",
+                  quote.status === "PENDING"
                     ? "bg-yellow-100 text-yellow-800"
                     : quote.status === "ACCEPTED"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700",
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-700",
                 )}
-                >
+              >
                 {quote.status}
-                </span>
+              </span>
             </div>
             <div className="pt-3">
-                <button
+              <button
                 onClick={() => router.push(`/quote/${quote.id}`)}
                 className="w-full rounded-lg bg-gray-100 py-2 text-xs font-semibold hover:bg-gray-200 disabled:opacity-50"
-                >
+              >
                 {quote.status === "PENDING" ? "View / Accept" : "View Details"}
-                </button>
+              </button>
             </div>
-            </div>
+          </div>
         </div>
       </div>
     </div>

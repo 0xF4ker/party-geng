@@ -18,7 +18,9 @@ export const chatRouter = createTRPCRouter({
     });
 
     const blockedUserIds = new Set(
-      blockedUsers.flatMap((b) => [b.blockerId, b.blockedId]).filter((id) => id !== ctx.user.id)
+      blockedUsers
+        .flatMap((b) => [b.blockerId, b.blockedId])
+        .filter((id) => id !== ctx.user.id),
     );
 
     const conversations = await ctx.db.conversation.findMany({
@@ -93,7 +95,9 @@ export const chatRouter = createTRPCRouter({
     // Post-processing to filter and format
     const processedConversations = await Promise.all(
       conversations.map(async (c) => {
-        const myParticipant = c.participants.find((p) => p.userId === ctx.user.id);
+        const myParticipant = c.participants.find(
+          (p) => p.userId === ctx.user.id,
+        );
         if (!myParticipant) return null;
 
         // Check if conversation should be hidden due to "delete conversation" action
@@ -143,10 +147,12 @@ export const chatRouter = createTRPCRouter({
           isArchived: myParticipant.isArchived,
           isMuted: myParticipant.isMuted,
         };
-      })
+      }),
     );
 
-    return processedConversations.filter((c): c is NonNullable<typeof c> => c !== null);
+    return processedConversations.filter(
+      (c): c is NonNullable<typeof c> => c !== null,
+    );
   }),
 
   // Get messages for a specific conversation
@@ -521,7 +527,10 @@ export const chatRouter = createTRPCRouter({
       });
 
       if (!message) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Message not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Message not found",
+        });
       }
 
       if (input.deleteType === "EVERYONE") {
@@ -531,7 +540,8 @@ export const chatRouter = createTRPCRouter({
         if (!isSender && !isGroupAdmin) {
           throw new TRPCError({
             code: "FORBIDDEN",
-            message: "You can only delete your own messages for everyone, unless you are the group admin.",
+            message:
+              "You can only delete your own messages for everyone, unless you are the group admin.",
           });
         }
 
@@ -603,7 +613,7 @@ export const chatRouter = createTRPCRouter({
         where: { id: input.conversationId },
       });
 
-      if (!conversation || !conversation.isGroup) {
+      if (!conversation?.isGroup) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Invalid conversation",
@@ -634,13 +644,13 @@ export const chatRouter = createTRPCRouter({
         where: { id: input.conversationId },
       });
 
-      if (!conversation || !conversation.isGroup) {
+      if (!conversation?.isGroup) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Invalid conversation",
         });
       }
-      
+
       await ctx.db.conversationParticipant.delete({
         where: {
           userId_conversationId: {
@@ -652,16 +662,16 @@ export const chatRouter = createTRPCRouter({
 
       if (conversation.clientEventId) {
         const eventVendor = await ctx.db.eventVendor.findFirst({
-            where: {
-                eventId: conversation.clientEventId,
-                vendorId: ctx.user.id
-            }
+          where: {
+            eventId: conversation.clientEventId,
+            vendorId: ctx.user.id,
+          },
         });
 
         if (eventVendor) {
-            await ctx.db.eventVendor.delete({
-                where: { id: eventVendor.id }
-            });
+          await ctx.db.eventVendor.delete({
+            where: { id: eventVendor.id },
+          });
         }
       }
 
@@ -674,11 +684,9 @@ export const chatRouter = createTRPCRouter({
       where: { userId: ctx.user.id },
     });
 
-    if (!settings) {
-      settings = await ctx.db.chatSettings.create({
-        data: { userId: ctx.user.id },
-      });
-    }
+    settings ??= await ctx.db.chatSettings.create({
+      data: { userId: ctx.user.id },
+    });
 
     return settings;
   }),

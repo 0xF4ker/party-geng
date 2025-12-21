@@ -42,7 +42,7 @@ export const UserInfoSidebar = ({
   const removeParticipantMutation = api.chat.removeParticipant.useMutation({
     onSuccess: () => {
       toast.success("Participant removed.");
-      utils.chat.getConversations.invalidate();
+      void utils.chat.getConversations.invalidate();
     },
     onError: (err) => toast.error(err.message),
   });
@@ -62,29 +62,35 @@ export const UserInfoSidebar = ({
   );
   const otherUser = otherParticipant?.user;
 
-  const { data: orders } = api.order.getOrdersBetweenUsers.useQuery({
+  const { data: orders } = api.order.getOrdersBetweenUsers.useQuery(
+    {
       userOneId: currentUserId,
       userTwoId: otherUser?.id ?? "",
-  }, {
+    },
+    {
       enabled: !!otherUser?.id && !conversation.isGroup,
-  });
-  
-  const activeOrders = orders?.filter(o => o.status === 'ACTIVE');
-  
+    },
+  );
+
+  const activeOrders = orders?.filter((o) => o.status === "ACTIVE");
+
   if (conversation.isGroup && conversation.clientEvent) {
     const isGroupAdmin = conversation.groupAdminId === currentUserId;
 
     return (
       <div className="flex h-full flex-col bg-white">
         {onClose && (
-          <div className="p-4 border-b lg:hidden">
-            <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100">
+          <div className="border-b p-4 lg:hidden">
+            <button
+              onClick={onClose}
+              className="rounded-full p-1 hover:bg-gray-100"
+            >
               <X className="h-5 w-5 text-gray-600" />
             </button>
           </div>
         )}
         <div className="flex flex-col items-center border-b border-gray-100 p-8">
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-pink-100 to-pink-200 text-3xl font-bold text-pink-600 shadow-inner">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-linear-to-br from-pink-100 to-pink-200 text-3xl font-bold text-pink-600 shadow-inner">
             G
           </div>
           <h2 className="mt-4 text-center text-xl font-bold text-gray-900">
@@ -99,29 +105,46 @@ export const UserInfoSidebar = ({
             Participants ({conversation.participants.length})
           </h4>
           <ul className="space-y-3">
-            {conversation.participants.map(p => (
-              <li key={p.userId} className="flex items-center justify-between gap-3 group">
+            {conversation.participants.map((p) => (
+              <li
+                key={p.userId}
+                className="group flex items-center justify-between gap-3"
+              >
                 <div className="flex items-center gap-3">
                   <Image
-                    src={p.user.vendorProfile?.avatarUrl ?? p.user.clientProfile?.avatarUrl ?? "https://placehold.co/40x40"}
+                    src={
+                      p.user.vendorProfile?.avatarUrl ??
+                      p.user.clientProfile?.avatarUrl ??
+                      "https://placehold.co/40x40"
+                    }
                     alt={p.user.username}
                     width={40}
                     height={40}
                     className="h-10 w-10 rounded-full"
                   />
                   <div>
-                    <p className="font-semibold text-gray-800">{p.user.vendorProfile?.companyName ?? p.user.clientProfile?.name ?? p.user.username}</p>
-                    <p className="text-sm text-gray-500">{p.userId === conversation.groupAdminId ? "Admin" : "Member"}</p>
+                    <p className="font-semibold text-gray-800">
+                      {p.user.vendorProfile?.companyName ??
+                        p.user.clientProfile?.name ??
+                        p.user.username}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {p.userId === conversation.groupAdminId
+                        ? "Admin"
+                        : "Member"}
+                    </p>
                   </div>
                 </div>
                 {isGroupAdmin && p.userId !== currentUserId && (
                   <button
                     onClick={() => handleRemoveParticipant(p.userId)}
                     disabled={removeParticipantMutation.isPending}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-red-50 text-red-500 transition-all"
+                    className="rounded-full p-1.5 text-red-500 opacity-0 transition-all group-hover:opacity-100 hover:bg-red-50"
                     title="Remove from group"
                   >
-                    {removeParticipantMutation.isPending && removeParticipantMutation.variables?.userIdToRemove === p.userId ? (
+                    {removeParticipantMutation.isPending &&
+                    removeParticipantMutation.variables?.userIdToRemove ===
+                      p.userId ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Trash2 className="h-4 w-4" />
@@ -152,7 +175,9 @@ export const UserInfoSidebar = ({
 
   const avatarUrl = vendorProfile?.avatarUrl ?? clientProfile?.avatarUrl;
   const locationData = vendorProfile?.location ?? clientProfile?.location;
-  const location = (locationData as unknown as { display_name: string } | null)?.display_name ?? "Nigeria";
+  const location =
+    (locationData as unknown as { display_name: string } | null)
+      ?.display_name ?? "Nigeria";
 
   const joinedDate = otherUser.createdAt
     ? new Date(otherUser.createdAt)
@@ -161,11 +186,14 @@ export const UserInfoSidebar = ({
   return (
     <div className="flex h-full flex-col bg-white">
       {onClose && (
-          <div className="p-4 border-b lg:hidden">
-              <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100">
-                  <X className="h-5 w-5 text-gray-600"/>
-              </button>
-          </div>
+        <div className="border-b p-4 lg:hidden">
+          <button
+            onClick={onClose}
+            className="rounded-full p-1 hover:bg-gray-100"
+          >
+            <X className="h-5 w-5 text-gray-600" />
+          </button>
+        </div>
       )}
       {/* --- Profile Header --- */}
       <div className="flex flex-col items-center border-b border-gray-100 p-8">
@@ -180,7 +208,7 @@ export const UserInfoSidebar = ({
               />
             </div>
           ) : (
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-pink-100 to-pink-200 text-3xl font-bold text-pink-600 shadow-inner">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-linear-to-br from-pink-100 to-pink-200 text-3xl font-bold text-pink-600 shadow-inner">
               {displayName.charAt(0).toUpperCase()}
             </div>
           )}
@@ -252,7 +280,7 @@ export const UserInfoSidebar = ({
               />
             </ul>
           </div>
-          
+
           {/* Active Orders */}
           {activeOrders && activeOrders.length > 0 && (
             <div>
@@ -261,18 +289,28 @@ export const UserInfoSidebar = ({
                 Active Orders
               </h4>
               <ul className="space-y-2">
-                {activeOrders.map(order => (
-                    <li key={order.id} className="p-2 -mx-2 rounded-md hover:bg-gray-50">
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <p className="font-semibold text-sm">{order.quote.title}</p>
-                                <p className="text-xs text-gray-500">₦{order.amount.toLocaleString()}</p>
-                            </div>
-                            <button onClick={() => router.push(`/orders/${order.id}`)} className="text-xs font-semibold text-pink-600 hover:underline">
-                                Manage
-                            </button>
-                        </div>
-                    </li>
+                {activeOrders.map((order) => (
+                  <li
+                    key={order.id}
+                    className="-mx-2 rounded-md p-2 hover:bg-gray-50"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold">
+                          {order.quote.title}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          ₦{order.amount.toLocaleString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => router.push(`/orders/${order.id}`)}
+                        className="text-xs font-semibold text-pink-600 hover:underline"
+                      >
+                        Manage
+                      </button>
+                    </div>
+                  </li>
                 ))}
               </ul>
             </div>

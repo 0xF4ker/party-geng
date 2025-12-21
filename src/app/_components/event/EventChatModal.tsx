@@ -53,19 +53,19 @@ export const EventChatModal = ({
         senderId: user!.id,
         conversationId,
         createdAt: new Date(), // Changed to Date object
-        status: "sending" as const,
-        quote: null,
-        eventInvitation: null,
-        sender: {
-          id: user!.id,
-          username: user!.username,
-          clientProfile: null,
-          vendorProfile: null,
-        },
-      };
-
-      addOptimisticMessage(optimisticMessage);
-
+                  status: "sending" as const,
+                  quote: null,
+                  eventInvitation: null,
+                  sender: {
+                    id: user!.id,
+                    username: user!.username,
+                    clientProfile: null,
+                    vendorProfile: null,
+                  },
+                  isDeletedForEveryone: false, // Add this line
+                };
+        
+              addOptimisticMessage(optimisticMessage);
       return { previousMessages, optimisticId: newMessage.optimisticId };
     },
     onSuccess: (sentMessage, _variables, context) => {

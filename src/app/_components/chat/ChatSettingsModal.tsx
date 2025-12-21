@@ -230,10 +230,7 @@ const GeneralSettings = () => {
             variant="outline"
             size="sm"
             onClick={() =>
-              toggle(
-                "theme",
-                settings.theme === "light" ? "dark" : ("light" as any),
-              )
+              toggle("theme", settings.theme === "light" ? "dark" : "light")
             }
           >
             Switch to {settings.theme === "light" ? "Dark" : "Light"}

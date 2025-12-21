@@ -204,7 +204,6 @@ const InboxPageContent = () => {
         vendorProfile: null,
       },
       isDeletedForEveryone: false,
-      deletedByIds: [],
     };
 
     if (retryTempId) {

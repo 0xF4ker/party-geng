@@ -1,7 +1,12 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { SavePlanFrequency, TransactionType, SavePlanStatus, NotificationType } from "@prisma/client";
+import {
+  SavePlanFrequency,
+  TransactionType,
+  SavePlanStatus,
+  NotificationType,
+} from "@prisma/client";
 
 export const savePlanRouter = createTRPCRouter({
   // Create a new savings plan
@@ -15,10 +20,18 @@ export const savePlanRouter = createTRPCRouter({
         autoSaveAmount: z.number().optional(), // Required if frequency is not MANUAL
         targetDate: z.date(),
         initialDeposit: z.number().optional(), // Optional initial deposit
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { title, description, targetAmount, frequency, autoSaveAmount, targetDate, initialDeposit } = input;
+      const {
+        title,
+        description,
+        targetAmount,
+        frequency,
+        autoSaveAmount,
+        targetDate,
+        initialDeposit,
+      } = input;
       const userId = ctx.user.id;
 
       if (frequency !== "MANUAL" && (!autoSaveAmount || autoSaveAmount <= 0)) {
@@ -134,7 +147,7 @@ export const savePlanRouter = createTRPCRouter({
       z.object({
         planId: z.string(),
         amount: z.number().min(100, "Minimum deposit is 100"),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
       const { planId, amount } = input;
@@ -144,14 +157,14 @@ export const savePlanRouter = createTRPCRouter({
         where: { id: planId },
       });
 
-      if (!plan || plan.userId !== userId) {
+      if (plan?.userId !== userId) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Plan not found." });
       }
 
       if (plan.status !== "ACTIVE") {
         throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Cannot deposit into an inactive plan.",
+          code: "BAD_REQUEST",
+          message: "Cannot deposit into an inactive plan.",
         });
       }
 
@@ -193,16 +206,16 @@ export const savePlanRouter = createTRPCRouter({
 
         // Check if target reached (optional notification)
         if (updatedPlan.currentAmount >= updatedPlan.targetAmount) {
-             // Could send a notification or mark as COMPLETED automatically if desired
-             // For now, we just notify
-             await prisma.notification.create({
-                 data: {
-                     userId,
-                     type: NotificationType.ORDER_UPDATE, // Using generic update type
-                     message: `Congratulations! You've reached your target for "${plan.title}"!`,
-                     link: `/isave/${plan.id}`,
-                 }
-             })
+          // Could send a notification or mark as COMPLETED automatically if desired
+          // For now, we just notify
+          await prisma.notification.create({
+            data: {
+              userId,
+              type: NotificationType.ORDER_UPDATE, // Using generic update type
+              message: `Congratulations! You've reached your target for "${plan.title}"!`,
+              link: `/isave/${plan.id}`,
+            },
+          });
         }
 
         return updatedPlan;
@@ -220,14 +233,14 @@ export const savePlanRouter = createTRPCRouter({
         where: { id: planId },
       });
 
-      if (!plan || plan.userId !== userId) {
+      if (plan?.userId !== userId) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Plan not found." });
       }
 
       if (plan.currentAmount === 0) {
-          // Just delete if empty
-          await ctx.db.savePlan.delete({ where: { id: planId } });
-          return { success: true, message: "Plan deleted." };
+        // Just delete if empty
+        await ctx.db.savePlan.delete({ where: { id: planId } });
+        return { success: true, message: "Plan deleted." };
       }
 
       // If funds exist, return to wallet
@@ -236,7 +249,10 @@ export const savePlanRouter = createTRPCRouter({
       });
 
       if (!wallet) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Wallet not found." });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Wallet not found.",
+        });
       }
 
       return ctx.db.$transaction(async (prisma) => {
@@ -253,78 +269,82 @@ export const savePlanRouter = createTRPCRouter({
             type: TransactionType.ISAVE_WITHDRAWAL,
             amount: plan.currentAmount,
             status: "COMPLETED",
-            savePlanId: planId, // Keep reference? Or nullable if we delete. 
-                                // Prisma might complain if we delete the plan and it's referenced.
-                                // We should probably set status to CANCELLED instead of deleting.
+            savePlanId: planId, // Keep reference? Or nullable if we delete.
+            // Prisma might complain if we delete the plan and it's referenced.
+            // We should probably set status to CANCELLED instead of deleting.
             description: `Broken iSave plan: ${plan.title}`,
           },
         });
 
         // Mark plan as CANCELLED (Soft delete preferred for financial records)
-        // OR delete if user wants it gone. 
+        // OR delete if user wants it gone.
         // Based on "Deleting the plan will return all saved funds", let's soft delete or just update status.
         // Updating status preserves history.
         await prisma.savePlan.update({
-            where: { id: planId },
-            data: { status: SavePlanStatus.CANCELLED, currentAmount: 0 }
+          where: { id: planId },
+          data: { status: SavePlanStatus.CANCELLED, currentAmount: 0 },
         });
 
         return { success: true, message: "Plan broken and funds returned." };
       });
     }),
-    
-    // Withdraw completed plan
-    withdrawCompletedPlan: protectedProcedure
+
+  // Withdraw completed plan
+  withdrawCompletedPlan: protectedProcedure
     .input(z.object({ planId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-        const { planId } = input;
-        const userId = ctx.user.id;
+      const { planId } = input;
+      const userId = ctx.user.id;
 
-        const plan = await ctx.db.savePlan.findUnique({
-            where: { id: planId },
+      const plan = await ctx.db.savePlan.findUnique({
+        where: { id: planId },
+      });
+
+      if (plan?.userId !== userId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Plan not found." });
+      }
+
+      if (plan.targetDate > new Date()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Cannot withdraw active plan before target date. Use 'Break Plan' instead.",
+        });
+      }
+
+      if (plan.currentAmount === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No funds to withdraw.",
+        });
+      }
+
+      const wallet = await ctx.db.wallet.findUnique({ where: { userId } });
+      if (!wallet) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      return ctx.db.$transaction(async (prisma) => {
+        await prisma.wallet.update({
+          where: { userId },
+          data: { availableBalance: { increment: plan.currentAmount } },
         });
 
-        if (!plan || plan.userId !== userId) {
-            throw new TRPCError({ code: "NOT_FOUND", message: "Plan not found." });
-        }
-
-        if (plan.targetDate > new Date()) {
-            throw new TRPCError({
-                code: "BAD_REQUEST",
-                message: "Cannot withdraw active plan before target date. Use 'Break Plan' instead.",
-            });
-        }
-        
-        if (plan.currentAmount === 0) {
-             throw new TRPCError({ code: "BAD_REQUEST", message: "No funds to withdraw." });
-        }
-
-        const wallet = await ctx.db.wallet.findUnique({ where: { userId } });
-        if (!wallet) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-
-        return ctx.db.$transaction(async (prisma) => {
-            await prisma.wallet.update({
-                where: { userId },
-                data: { availableBalance: { increment: plan.currentAmount } },
-            });
-
-            await prisma.transaction.create({
-                data: {
-                    walletId: wallet.id,
-                    type: TransactionType.ISAVE_WITHDRAWAL,
-                    amount: plan.currentAmount,
-                    status: "COMPLETED",
-                    savePlanId: planId,
-                    description: `Withdrew completed iSave plan: ${plan.title}`,
-                },
-            });
-
-            await prisma.savePlan.update({
-                where: { id: planId },
-                data: { status: SavePlanStatus.COMPLETED, currentAmount: 0 },
-            });
-
-            return { success: true };
+        await prisma.transaction.create({
+          data: {
+            walletId: wallet.id,
+            type: TransactionType.ISAVE_WITHDRAWAL,
+            amount: plan.currentAmount,
+            status: "COMPLETED",
+            savePlanId: planId,
+            description: `Withdrew completed iSave plan: ${plan.title}`,
+          },
         });
+
+        await prisma.savePlan.update({
+          where: { id: planId },
+          data: { status: SavePlanStatus.COMPLETED, currentAmount: 0 },
+        });
+
+        return { success: true };
+      });
     }),
 });

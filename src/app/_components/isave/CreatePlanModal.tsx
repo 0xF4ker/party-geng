@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { SavePlanFrequency } from "@prisma/client";
+import type { SavePlanFrequency } from "@prisma/client";
 
 interface CreatePlanModalProps {
   isOpen: boolean;

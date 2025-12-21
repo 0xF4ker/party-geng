@@ -33,6 +33,27 @@ export type MessageWithStatus = DBMessage & {
   status?: "sending" | "sent" | "error";
 };
 
+interface RealtimeMessage {
+  id: string;
+  createdAt: string;
+  senderId: string;
+  conversationId: string;
+  text: string;
+  isDeletedForEveryone?: boolean;
+  sender?: {
+    id: string;
+    username: string;
+    clientProfile: null;
+    vendorProfile: null;
+  } | null;
+  quote?: null;
+  eventInvitation?: null;
+}
+
+interface TypingBroadcastPayload {
+  userId: string;
+}
+
 export const useChatRealtime = (
   conversationId: string | undefined,
   initialMessages: DBMessage[],
@@ -74,30 +95,36 @@ export const useChatRealtime = (
           filter: `conversationId=eq.${conversationId}`,
         },
         (payload) => {
-          const rawMessage = payload.new as any; // Cast to any to access new fields safely
+          const rawMessage = payload.new as unknown as RealtimeMessage;
           const newMessage: MessageWithStatus = {
             ...rawMessage,
+            // Ensure properties required by DBMessage/MessageWithStatus are present
+            id: rawMessage.id,
+            conversationId: rawMessage.conversationId,
+            text: rawMessage.text,
+            senderId: rawMessage.senderId,
             createdAt: normalizeDate(rawMessage.createdAt),
             status: "sent",
-            sender: rawMessage.sender || { 
-                id: rawMessage.senderId, 
-                username: "...",
-                clientProfile: null,
-                vendorProfile: null
+            sender: rawMessage.sender ?? {
+              id: rawMessage.senderId,
+              username: "...",
+              clientProfile: null,
+              vendorProfile: null,
             },
             quote: rawMessage.quote ?? null,
             eventInvitation: rawMessage.eventInvitation ?? null,
             isDeletedForEveryone: rawMessage.isDeletedForEveryone ?? false,
-          };
+          } as MessageWithStatus;
+
           setNewMessages((prev) => [...prev, newMessage]);
-          
+
           // Clear typing indicator for this user when they send a message
           if (rawMessage.senderId) {
-             setTypingUsers((prev) => {
-                const next = new Set(prev);
-                next.delete(rawMessage.senderId);
-                return next;
-             });
+            setTypingUsers((prev) => {
+              const next = new Set(prev);
+              next.delete(rawMessage.senderId);
+              return next;
+            });
           }
         },
       )
@@ -110,58 +137,64 @@ export const useChatRealtime = (
           filter: `conversationId=eq.${conversationId}`,
         },
         (payload) => {
-           // Handle updates like "Delete for Everyone"
-           const updatedMessage = payload.new as any;
-           
-           const newMessage: MessageWithStatus = {
+          // Handle updates like "Delete for Everyone"
+          const updatedMessage = payload.new as unknown as RealtimeMessage;
+
+          const newMessage: MessageWithStatus = {
             ...updatedMessage,
+            id: updatedMessage.id,
+            conversationId: updatedMessage.conversationId,
+            text: updatedMessage.text,
+            senderId: updatedMessage.senderId,
             createdAt: normalizeDate(updatedMessage.createdAt),
             status: "sent",
-            sender: updatedMessage.sender || { 
-                id: updatedMessage.senderId, 
-                username: "...",
-                clientProfile: null,
-                vendorProfile: null
+            sender: updatedMessage.sender ?? {
+              id: updatedMessage.senderId,
+              username: "...",
+              clientProfile: null,
+              vendorProfile: null,
             },
             quote: updatedMessage.quote ?? null,
             eventInvitation: updatedMessage.eventInvitation ?? null,
             isDeletedForEveryone: updatedMessage.isDeletedForEveryone ?? false,
-          };
-           setNewMessages((prev) => {
-               const filtered = prev.filter(m => m.id !== updatedMessage.id);
-               // If existing message updated, we update it in place. 
-               // However, `messages` memo handles merging by ID.
-               // We just push the updated version.
-               return [...filtered, newMessage];
-           });
-        }
-      )
-      .on('broadcast', { event: 'typing' }, (payload) => {
-          const userId = payload.payload.userId;
-          if (!userId) return;
+          } as MessageWithStatus;
 
-          setTypingUsers((prev) => {
-              const next = new Set(prev);
-              next.add(userId);
-              return next;
+          setNewMessages((prev) => {
+            const filtered = prev.filter((m) => m.id !== updatedMessage.id);
+            // If existing message updated, we update it in place.
+            // However, `messages` memo handles merging by ID.
+            // We just push the updated version.
+            return [...filtered, newMessage];
           });
+        },
+      )
+      .on("broadcast", { event: "typing" }, (payload) => {
+        const typedPayload = payload.payload as TypingBroadcastPayload;
+        const userId = typedPayload.userId;
+        if (!userId) return;
 
-          // Clear existing timeout
-          if (typingTimeouts.current.has(userId)) {
-              clearTimeout(typingTimeouts.current.get(userId));
-          }
+        setTypingUsers((prev) => {
+          const next = new Set(prev);
+          next.add(userId);
+          return next;
+        });
 
-          // Set new timeout to clear typing status
-          const timeout = setTimeout(() => {
-              setTypingUsers((prev) => {
-                  const next = new Set(prev);
-                  next.delete(userId);
-                  return next;
-              });
-              typingTimeouts.current.delete(userId);
-          }, 3000);
+        // Clear existing timeout
+        if (typingTimeouts.current.has(userId)) {
+          clearTimeout(typingTimeouts.current.get(userId));
+        }
 
-          typingTimeouts.current.set(userId, timeout);
+        // Set new timeout to clear typing status
+        const timeout = setTimeout(() => {
+          setTypingUsers((prev) => {
+            const next = new Set(prev);
+            next.delete(userId);
+            return next;
+          });
+          typingTimeouts.current.delete(userId);
+        }, 3000);
+
+        typingTimeouts.current.set(userId, timeout);
       })
       .subscribe();
 
@@ -174,14 +207,14 @@ export const useChatRealtime = (
   }, [conversationId]);
 
   const sendTypingEvent = useCallback(() => {
-      if (!channelRef.current || !profile) return;
-      if (settings?.typingIndicators === false) return;
-      
-      void channelRef.current.send({
-          type: 'broadcast',
-          event: 'typing',
-          payload: { userId: profile.id },
-      });
+    if (!channelRef.current || !profile) return;
+    if (settings?.typingIndicators === false) return;
+
+    void channelRef.current.send({
+      type: "broadcast",
+      event: "typing",
+      payload: { userId: profile.id },
+    });
   }, [profile, settings]);
 
   const addOptimisticMessage = useCallback((msg: MessageWithStatus) => {

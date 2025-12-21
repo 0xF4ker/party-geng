@@ -155,7 +155,7 @@ const ClientEventPlannerPage = () => {
       {/* --- Add Vendor Modal --- */}
       {isVendorModalOpen && selectedEvent && (
         <AddVendorModal
-          event={selectedEvent as any} // Type mismatch fix: getMyEvents vs getById event types
+          event={selectedEvent}
           isOpen={isVendorModalOpen}
           onClose={() => setIsVendorModalOpen(false)}
         />

@@ -4,8 +4,8 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { api } from "@/trpc/react";
 import { Loader2, Search, Check, ChevronDown, X, Trash2 } from "lucide-react";
-import type { inferRouterOutputs } from "@trpc/server";
-import type { AppRouter } from "@/server/api/root";
+// import type { inferRouterOutputs } from "@trpc/server";
+// import type { AppRouter } from "@/server/api/root";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,11 +26,21 @@ import LocationSearchInput, {
   type LocationSearchResult,
 } from "@/components/ui/LocationSearchInput";
 
-type RouterOutput = inferRouterOutputs<AppRouter>;
-type Event = RouterOutput["event"]["getById"];
+// type RouterOutput = inferRouterOutputs<AppRouter>;
+// Remove strict dependency on getById full return type
+// type Event = RouterOutput["event"]["getById"];
+
+export interface AddVendorModalEvent {
+  id: string;
+  hiredVendors?: {
+    vendor: {
+      id: string;
+    };
+  }[];
+}
 
 interface AddVendorModalProps {
-  event: Event;
+  event: AddVendorModalEvent;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -101,7 +111,11 @@ export const AddVendorModal = ({
   };
 
   const handleRemoveVendor = (vendorId: string) => {
-    if (confirm("Are you sure you want to remove this vendor? This will unhire them from the event.")) {
+    if (
+      confirm(
+        "Are you sure you want to remove this vendor? This will unhire them from the event.",
+      )
+    ) {
       removeVendor.mutate({ eventId: event.id, vendorId });
     }
   };
@@ -277,11 +291,15 @@ export const AddVendorModal = ({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 px-2"
+                        className="h-8 px-2 text-red-500 hover:bg-red-50 hover:text-red-700"
                         onClick={() => handleRemoveVendor(vendor.user.id)}
-                        disabled={removeVendor.isPending && removeVendor.variables?.vendorId === vendor.user.id}
+                        disabled={
+                          removeVendor.isPending &&
+                          removeVendor.variables?.vendorId === vendor.user.id
+                        }
                       >
-                        {removeVendor.isPending && removeVendor.variables?.vendorId === vendor.user.id ? (
+                        {removeVendor.isPending &&
+                        removeVendor.variables?.vendorId === vendor.user.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Trash2 className="h-4 w-4" />

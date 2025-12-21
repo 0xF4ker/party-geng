@@ -1,14 +1,14 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { OrderStatus, TransactionStatus, NotificationType } from "@prisma/client";
+import { OrderStatus, NotificationType } from "@prisma/client";
 
 export const orderRouter = createTRPCRouter({
   getOrdersBetweenUsers: protectedProcedure
     .input(z.object({ userOneId: z.string(), userTwoId: z.string() }))
     .query(async ({ ctx, input }) => {
       const { userOneId, userTwoId } = input;
-      
+
       // Ensure the current user is one of the two users
       if (ctx.user.id !== userOneId && ctx.user.id !== userTwoId) {
         throw new TRPCError({ code: "FORBIDDEN" });
@@ -25,7 +25,7 @@ export const orderRouter = createTRPCRouter({
           quote: true,
         },
         orderBy: {
-          createdAt: 'desc',
+          createdAt: "desc",
         },
       });
     }),
@@ -89,7 +89,7 @@ export const orderRouter = createTRPCRouter({
       });
 
       // No payment received notification here as payment is now separate
-      
+
       return order;
     }),
 
@@ -221,8 +221,8 @@ export const orderRouter = createTRPCRouter({
         },
       });
     }),
-    
-    completeOrder: protectedProcedure
+
+  completeOrder: protectedProcedure
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const { orderId } = input;
@@ -263,12 +263,12 @@ export const orderRouter = createTRPCRouter({
 
         // 2. Notify vendor
         await prisma.notification.create({
-            data: {
-                userId: order.vendorId,
-                type: NotificationType.ORDER_COMPLETED,
-                message: `Your order for "${order.quote.title}" has been marked as complete by the client.`,
-                link: `/orders/${order.id}`, // Link to order details
-            },
+          data: {
+            userId: order.vendorId,
+            type: NotificationType.ORDER_COMPLETED,
+            message: `Your order for "${order.quote.title}" has been marked as complete by the client.`,
+            link: `/orders/${order.id}`, // Link to order details
+          },
         });
 
         return updatedOrder;
