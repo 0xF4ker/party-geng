@@ -1,17 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, PiggyBank, Calendar, Trash2, ArrowUpRight, CheckCircle } from "lucide-react";
+import { Plus, PiggyBank, Calendar, ArrowUpRight } from "lucide-react";
 import { api } from "@/trpc/react";
-import { formatDistanceToNow } from "date-fns";
 import { CreatePlanModal } from "@/app/_components/isave/CreatePlanModal";
 import Link from "next/link";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 
 const ISavePage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const router = useRouter();
 
   const { data: plans, isLoading, refetch } = api.savePlan.getAll.useQuery();
 
@@ -60,7 +57,7 @@ const ISavePage = () => {
                       style={{
                         width: `${Math.min(
                           (plan.currentAmount / plan.targetAmount) * 100,
-                          100
+                          100,
                         )}%`,
                       }}
                     />
@@ -72,7 +69,8 @@ const ISavePage = () => {
                         {plan.title}
                       </h3>
                       <p className="text-sm text-gray-500 capitalize">
-                        {plan.frequency.toLowerCase()} • {plan.status.toLowerCase()}
+                        {plan.frequency.toLowerCase()} •{" "}
+                        {plan.status.toLowerCase()}
                       </p>
                     </div>
                     <div className="rounded-full bg-pink-50 p-2 text-pink-600">

@@ -38,7 +38,7 @@ export const ChatSettingsModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl gap-0 p-0">
-        <DialogHeader className="px-6 py-4 border-b">
+        <DialogHeader className="border-b px-6 py-4">
           <DialogTitle>Chat Settings</DialogTitle>
           <DialogDescription>
             Manage your messaging preferences and privacy.
@@ -47,7 +47,7 @@ export const ChatSettingsModal = ({
 
         <div className="flex h-[500px]">
           {/* Sidebar */}
-          <div className="w-1/3 border-r bg-gray-50/50 p-2 space-y-1">
+          <div className="w-1/3 space-y-1 border-r bg-gray-50/50 p-2">
             <button
               onClick={() => setActiveTab("general")}
               className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
@@ -74,7 +74,11 @@ export const ChatSettingsModal = ({
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
-            {activeTab === "general" ? <GeneralSettings /> : <PrivacySettings />}
+            {activeTab === "general" ? (
+              <GeneralSettings />
+            ) : (
+              <PrivacySettings />
+            )}
           </div>
         </div>
       </DialogContent>
@@ -101,16 +105,19 @@ const GeneralSettings = () => {
     onError: (err, newSettings, context) => {
       toast.error("Failed to update settings");
       if (context?.previousSettings) {
-        utils.chat.getSettings.setData(undefined, context.previousSettings);
+        void utils.chat.getSettings.setData(
+          undefined,
+          context.previousSettings,
+        );
       }
     },
     onSettled: () => {
-      utils.chat.getSettings.invalidate();
+      void utils.chat.getSettings.invalidate();
     },
   });
 
-  const toggle = (key: string, value: boolean) => {
-    mutation.mutate({ [key]: value });
+  const toggle = async (key: string, value: boolean | string) => {
+    await mutation.mutateAsync({ [key]: value });
   };
 
   if (isLoading) {
@@ -126,14 +133,14 @@ const GeneralSettings = () => {
   return (
     <div className="space-y-8">
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+        <h3 className="text-sm font-medium tracking-wider text-gray-500 uppercase">
           Messaging Preferences
         </h3>
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <label className="text-sm font-medium">Read Receipts</label>
             <p className="text-xs text-gray-500">
-              Let others know when you've read their messages.
+              Let others know when you&apos;ve read their messages.
             </p>
           </div>
           <Switch
@@ -156,7 +163,7 @@ const GeneralSettings = () => {
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+        <h3 className="text-sm font-medium tracking-wider text-gray-500 uppercase">
           Notifications
         </h3>
         <div className="flex items-center justify-between">
@@ -199,26 +206,35 @@ const GeneralSettings = () => {
           />
         </div>
       </div>
-      
+
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+        <h3 className="text-sm font-medium tracking-wider text-gray-500 uppercase">
           Appearance
         </h3>
         <div className="flex items-center justify-between">
-           <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <Moon className="h-4 w-4 text-gray-500" />
             <div className="space-y-0.5">
               <label className="text-sm font-medium">Theme</label>
               <p className="text-xs text-gray-500">
-                {settings.theme === "light" ? "Light Mode" : settings.theme === "dark" ? "Dark Mode" : "System"}
+                {settings.theme === "light"
+                  ? "Light Mode"
+                  : settings.theme === "dark"
+                    ? "Dark Mode"
+                    : "System"}
               </p>
             </div>
           </div>
           {/* Simple toggle for now, could be a select */}
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
-            onClick={() => toggle("theme", settings.theme === "light" ? "dark" : "light" as any)}
+            onClick={() =>
+              toggle(
+                "theme",
+                settings.theme === "light" ? "dark" : ("light" as any),
+              )
+            }
           >
             Switch to {settings.theme === "light" ? "Dark" : "Light"}
           </Button>
@@ -229,15 +245,19 @@ const GeneralSettings = () => {
 };
 
 const PrivacySettings = () => {
-  const { data: blockedUsers, isLoading, refetch } = api.user.getBlockedUsers.useQuery();
+  const {
+    data: blockedUsers,
+    isLoading,
+    refetch,
+  } = api.user.getBlockedUsers.useQuery();
   const utils = api.useUtils();
 
   const unblockMutation = api.user.unblockUser.useMutation({
     onSuccess: () => {
       toast.success("User unblocked");
-      refetch();
+      void refetch();
       // Invalidate conversations to refresh lists if needed
-      utils.chat.getConversations.invalidate();
+      void utils.chat.getConversations.invalidate();
     },
     onError: (err) => toast.error(err.message),
   });
@@ -245,10 +265,10 @@ const PrivacySettings = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">
+        <h3 className="mb-4 text-sm font-medium tracking-wider text-gray-500 uppercase">
           Blocked Users
         </h3>
-        <p className="text-sm text-gray-600 mb-6">
+        <p className="mb-6 text-sm text-gray-600">
           Blocked users cannot message you or view your profile.
         </p>
 
@@ -258,29 +278,50 @@ const PrivacySettings = () => {
           </div>
         ) : blockedUsers?.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-12 text-center">
-            <UserX className="h-8 w-8 text-gray-300 mb-2" />
-            <p className="text-sm text-gray-500">You haven't blocked anyone yet.</p>
+            <UserX className="mb-2 h-8 w-8 text-gray-300" />
+            <p className="text-sm text-gray-500">
+              You haven&apos;t blocked anyone yet.
+            </p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-100">
             {blockedUsers?.map((block) => (
-              <li key={block.id} className="flex items-center justify-between py-3">
+              <li
+                key={block.id}
+                className="flex items-center justify-between py-3"
+              >
                 <div className="flex items-center gap-3">
                   <Avatar>
-                    <AvatarImage src={block.blocked.clientProfile?.avatarUrl ?? block.blocked.vendorProfile?.avatarUrl ?? undefined} />
-                    <AvatarFallback>{block.blocked.username[0].toUpperCase()}</AvatarFallback>
+                    <AvatarImage
+                      src={
+                        block.blocked.clientProfile?.avatarUrl ??
+                        block.blocked.vendorProfile?.avatarUrl ??
+                        undefined
+                      }
+                    />
+                    <AvatarFallback>
+                      {block.blocked.username[0]?.toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
                   <div>
                     <p className="text-sm font-medium text-gray-900">
-                      {block.blocked.clientProfile?.name ?? block.blocked.vendorProfile?.companyName ?? block.blocked.username}
+                      {block.blocked.clientProfile?.name ??
+                        block.blocked.vendorProfile?.companyName ??
+                        block.blocked.username}
                     </p>
-                    <p className="text-xs text-gray-500">@{block.blocked.username}</p>
+                    <p className="text-xs text-gray-500">
+                      @{block.blocked.username}
+                    </p>
                   </div>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => unblockMutation.mutate({ userIdToUnblock: block.blockedId })}
+                  onClick={async () =>
+                    await unblockMutation.mutateAsync({
+                      userIdToUnblock: block.blockedId,
+                    })
+                  }
                   disabled={unblockMutation.isPending}
                 >
                   Unblock

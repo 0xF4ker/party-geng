@@ -4,14 +4,12 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Users,
   Plus,
-  Search,
   Gift,
   MoreVertical,
   X,
   ToggleLeft,
   ToggleRight,
   Trash2,
-  ShieldCheck,
   Loader2,
 } from "lucide-react";
 import Image from "next/image";
@@ -56,13 +54,13 @@ const ClientEventPlannerPage = () => {
     setIsVendorModalOpen(true);
   };
 
-    if (loading || !isClient) {
-        return (
-            <div className="flex h-screen items-center justify-center">
-                <Loader2 className="animate-spin text-pink-600" />
-            </div>
-        );
-    }
+  if (loading || !isClient) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="animate-spin text-pink-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
@@ -237,7 +235,7 @@ const EventCard = ({
       setIsMenuOpen(false);
     }
   };
-  
+
   const handleMenuToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault(); // Prevent Link navigation
     e.stopPropagation();
@@ -303,22 +301,23 @@ const EventCard = ({
                 <MoreVertical className="h-5 w-5" />
               </button>
               {isMenuOpen && (
-                <div className="absolute top-full right-0 z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg" onClick={(e) => e.stopPropagation()}>
-<Link href={`/event/${event.id}/wishlist`}>
-                    <button
-                      className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-                    >
+                <div
+                  className="absolute top-full right-0 z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Link href={`/event/${event.id}/wishlist`}>
+                    <button className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
                       <Gift className="h-4 w-4" /> Manage Wishlist
                     </button>
                   </Link>
                   <button
                     onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setIsMenuOpen(false);
-                        // Open add vendor modal if we had a handler here, but onAddVendorClick is on the Plus button
-                        if (onAddVendorClick) onAddVendorClick(e);
-                    }} 
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsMenuOpen(false);
+                      // Open add vendor modal if we had a handler here, but onAddVendorClick is on the Plus button
+                      if (onAddVendorClick) onAddVendorClick(e);
+                    }}
                     className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
                   >
                     <Users className="h-4 w-4" /> Add Vendor
@@ -420,10 +419,11 @@ const EventCard = ({
   );
 };
 
-
 // --- MODAL COMPONENTS ---
 
-import LocationSearchInput, { type LocationSearchResult } from "@/components/ui/LocationSearchInput";
+import LocationSearchInput, {
+  type LocationSearchResult,
+} from "@/components/ui/LocationSearchInput";
 
 // ...
 
