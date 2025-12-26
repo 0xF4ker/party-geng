@@ -16,7 +16,6 @@ import {
   ChartColumnStacked,
   ListCheck,
   Menu,
-  X
 } from "lucide-react";
 import {
   Sheet,
@@ -24,7 +23,6 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-  SheetClose
 } from "@/components/ui/sheet"; // Ensure you have this shadcn/ui component
 import { Button } from "@/components/ui/button";
 
@@ -55,9 +53,8 @@ export function AdminMobileNav() {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white pb-safe pt-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] md:hidden">
+    <div className="pb-safe fixed right-0 bottom-0 left-0 z-50 border-t border-gray-200 bg-white pt-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] md:hidden">
       <div className="flex items-center justify-around px-2">
-        
         {/* Render Primary Bottom Links */}
         {bottomNavItems.map((item) => {
           const isActive = pathname === item.href;
@@ -89,8 +86,11 @@ export function AdminMobileNav() {
               <span className="text-[10px] font-medium">Menu</span>
             </button>
           </SheetTrigger>
-          
-          <SheetContent side="right" className="flex w-[80%] flex-col p-0 sm:max-w-sm">
+
+          <SheetContent
+            side="right"
+            className="flex w-[80%] flex-col p-0 sm:max-w-sm"
+          >
             <SheetHeader className="border-b border-gray-100 p-6 text-left">
               <SheetTitle className="flex items-center gap-2 text-lg font-bold text-gray-900">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-600 text-white">
@@ -118,7 +118,9 @@ export function AdminMobileNav() {
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`}
                     >
-                      <Icon className={`h-5 w-5 ${isActive ? "text-pink-600" : "text-gray-400"}`} />
+                      <Icon
+                        className={`h-5 w-5 ${isActive ? "text-pink-600" : "text-gray-400"}`}
+                      />
                       {item.name}
                     </Link>
                   );
@@ -137,9 +139,13 @@ export function AdminMobileNav() {
                 </Link>
               </div>
             </div>
-            
+
             <div className="border-t border-gray-100 bg-gray-50 p-4">
-              <Button variant="outline" className="w-full" onClick={() => setOpen(false)}>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setOpen(false)}
+              >
                 Close Menu
               </Button>
             </div>

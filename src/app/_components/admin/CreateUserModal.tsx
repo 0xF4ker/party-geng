@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/utils/supabase/client"; // Your client-side supabase
+import { createClient } from "@/utils/supabase/client";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import {
@@ -10,14 +10,24 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"; // Assuming shadcn/ui
-import { Button } from "@/components/ui/button"; // Assuming shadcn/ui
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+
+// Define the full set of roles available in the system
+type UserRole = "CLIENT" | "VENDOR" | "ADMIN" | "SUPPORT" | "FINANCE";
+
+// Helper to check if a role is an admin-type role
+const isAdminRole = (
+  role: UserRole,
+): role is "ADMIN" | "SUPPORT" | "FINANCE" => {
+  return ["ADMIN", "SUPPORT", "FINANCE"].includes(role);
+};
 
 export function CreateUserModal({
   defaultRole,
 }: {
-  defaultRole: "CLIENT" | "VENDOR" | "ADMIN";
+  defaultRole: UserRole; // Updated type to include SUPPORT/FINANCE
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -29,9 +39,7 @@ export function CreateUserModal({
 
   const supabase = createClient();
 
-  // 1. Mutation for Standard Users (Syncs DB after Auth)
   const createUserMutation = api.user.createUser.useMutation();
-  // 2. Mutation for Admins (If needed, you can restrict this)
   const createAdminMutation = api.user.adminCreateUser.useMutation();
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -44,7 +52,7 @@ export function CreateUserModal({
         email: formData.email,
         password: formData.password,
         options: {
-          data: { username: formData.username, role: defaultRole }, // Store metadata
+          data: { username: formData.username, role: defaultRole },
         },
       });
 
@@ -53,28 +61,33 @@ export function CreateUserModal({
 
       const userId = authData.user.id;
 
-      // Step B: Sync to Database using your Mutation
-      if (defaultRole === "ADMIN" || defaultRole === "SUPPORT") {
+      // Step B: Sync to Database using the correct mutation based on role
+      if (isAdminRole(defaultRole)) {
+        // TS specifically knows defaultRole is "ADMIN" | "SUPPORT" | "FINANCE" here
         await createAdminMutation.mutateAsync({
           id: userId,
           email: formData.email,
           username: formData.username,
-          role: defaultRole as any,
+          role: defaultRole,
         });
       } else {
+        // TS knows defaultRole is "CLIENT" | "VENDOR" here
         await createUserMutation.mutateAsync({
           id: userId,
           email: formData.email,
           username: formData.username,
-          role: defaultRole as any, // 'CLIENT' | 'VENDOR'
+          role: defaultRole,
         });
       }
 
       toast.success("User created successfully!");
       setIsOpen(false);
       setFormData({ email: "", username: "", password: "" });
-    } catch (err: any) {
-      toast.error(err.message || "Failed to create user");
+    } catch (err) {
+      // Safer error handling without explicit 'any'
+      const message =
+        err instanceof Error ? err.message : "Failed to create user";
+      toast.error(message);
     } finally {
       setLoading(false);
     }

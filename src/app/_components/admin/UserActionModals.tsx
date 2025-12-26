@@ -1,32 +1,68 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2, AlertTriangle } from "lucide-react";
 
+// Define strict types for roles to avoid 'any'
+type UserRole = "CLIENT" | "VENDOR" | "ADMIN" | "SUPPORT" | "FINANCE";
 type ActionType = "DELETE" | "SUSPEND" | "ROLE" | null;
 
 interface UserActionModalsProps {
   isOpen: boolean;
   onClose: () => void;
   type: ActionType;
+  // We accept string for role to be flexible with DB inputs, but cast to UserRole internally
   user: { id: string; username: string; role: string } | null;
   onSuccess: () => void;
 }
 
-export function UserActionModals({ isOpen, onClose, type, user, onSuccess }: UserActionModalsProps) {
+export function UserActionModals({
+  isOpen,
+  onClose,
+  type,
+  user,
+  onSuccess,
+}: UserActionModalsProps) {
   const [loading, setLoading] = useState(false);
-  
+
   // Form States
   const [suspendReason, setSuspendReason] = useState("");
-  const [suspendDuration, setSuspendDuration] = useState("7"); // "7", "30", "permanent"
-  const [newRole, setNewRole] = useState(user?.role || "CLIENT");
+  const [suspendDuration, setSuspendDuration] = useState("7");
+  const [newRole, setNewRole] = useState<UserRole>("CLIENT");
+
+  // Sync state when the selected user changes
+  useEffect(() => {
+    if (user) {
+      // Validate if the user.role is a valid UserRole, fallback to CLIENT if unknown
+      const role = ["CLIENT", "VENDOR", "ADMIN", "SUPPORT", "FINANCE"].includes(
+        user.role,
+      )
+        ? (user.role as UserRole)
+        : "CLIENT";
+      setNewRole(role);
+      setSuspendReason(""); // Reset reason on user change
+    }
+  }, [user]);
 
   // API Mutations
   const deleteMutation = api.user.deleteUser.useMutation();
@@ -42,8 +78,10 @@ export function UserActionModals({ isOpen, onClose, type, user, onSuccess }: Use
       toast.success("User permanently deleted");
       onSuccess();
       onClose();
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete user",
+      );
     } finally {
       setLoading(false);
     }
@@ -55,13 +93,20 @@ export function UserActionModals({ isOpen, onClose, type, user, onSuccess }: Use
       await suspendMutation.mutateAsync({
         userId: user.id,
         reason: suspendReason,
-        durationDays: suspendDuration === "permanent" ? undefined : parseInt(suspendDuration),
+        durationDays:
+          suspendDuration === "permanent"
+            ? undefined
+            : parseInt(suspendDuration),
       });
-      toast.success(suspendDuration === "permanent" ? "User banned" : "User suspended");
+      toast.success(
+        suspendDuration === "permanent" ? "User banned" : "User suspended",
+      );
       onSuccess();
       onClose();
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to suspend user",
+      );
     } finally {
       setLoading(false);
     }
@@ -72,13 +117,16 @@ export function UserActionModals({ isOpen, onClose, type, user, onSuccess }: Use
     try {
       await roleMutation.mutateAsync({
         userId: user.id,
-        newRole: newRole as any,
+        // newRole is strictly typed now, no 'as any' needed
+        newRole: newRole,
       });
       toast.success("Role updated successfully");
       onSuccess();
       onClose();
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update role",
+      );
     } finally {
       setLoading(false);
     }
@@ -87,7 +135,6 @@ export function UserActionModals({ isOpen, onClose, type, user, onSuccess }: Use
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
-        
         {/* DELETE MODAL */}
         {type === "DELETE" && (
           <>
@@ -96,12 +143,20 @@ export function UserActionModals({ isOpen, onClose, type, user, onSuccess }: Use
                 <AlertTriangle className="h-5 w-5" /> Delete Account
               </DialogTitle>
               <DialogDescription>
-                Are you sure you want to delete <strong>{user.username}</strong>? This action cannot be undone and will remove all associated data.
+                Are you sure you want to delete <strong>{user.username}</strong>
+                ? This action cannot be undone and will remove all associated
+                data.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="mt-4">
-              <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
-              <Button variant="destructive" onClick={handleDelete} disabled={loading}>
+              <Button variant="outline" onClick={onClose} disabled={loading}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={loading}
+              >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Delete Permanently
               </Button>
@@ -121,7 +176,10 @@ export function UserActionModals({ isOpen, onClose, type, user, onSuccess }: Use
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Duration</Label>
-                <Select value={suspendDuration} onValueChange={setSuspendDuration}>
+                <Select
+                  value={suspendDuration}
+                  onValueChange={setSuspendDuration}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -134,16 +192,21 @@ export function UserActionModals({ isOpen, onClose, type, user, onSuccess }: Use
               </div>
               <div className="space-y-2">
                 <Label>Reason</Label>
-                <Textarea 
-                  placeholder="Violation of terms..." 
-                  value={suspendReason} 
+                <Textarea
+                  placeholder="Violation of terms..."
+                  value={suspendReason}
                   onChange={(e) => setSuspendReason(e.target.value)}
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
-              <Button onClick={handleSuspend} disabled={loading || !suspendReason}>
+              <Button variant="outline" onClick={onClose} disabled={loading}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSuspend}
+                disabled={loading || !suspendReason}
+              >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Confirm Suspension
               </Button>
@@ -162,21 +225,26 @@ export function UserActionModals({ isOpen, onClose, type, user, onSuccess }: Use
             </DialogHeader>
             <div className="py-4">
               <Label className="mb-2 block">Select Role</Label>
-              <Select value={newRole} onValueChange={setNewRole}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CLIENT">Client</SelectItem>
-                    <SelectItem value="VENDOR">Vendor</SelectItem>
-                    <SelectItem value="SUPPORT">Support</SelectItem>
-                    <SelectItem value="FINANCE">Finance</SelectItem>
-                    <SelectItem value="ADMIN">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
+              <Select
+                value={newRole}
+                onValueChange={(val: UserRole) => setNewRole(val)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CLIENT">Client</SelectItem>
+                  <SelectItem value="VENDOR">Vendor</SelectItem>
+                  <SelectItem value="SUPPORT">Support</SelectItem>
+                  <SelectItem value="FINANCE">Finance</SelectItem>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={loading}>
+                Cancel
+              </Button>
               <Button onClick={handleRoleUpdate} disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Update Role
