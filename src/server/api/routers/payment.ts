@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, protectedProcedure, adminProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
   TransactionType,
   WishlistItemType,
   NotificationType,
+  TransactionStatus
 } from "@prisma/client";
 
 // const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY ?? undefined;
@@ -527,6 +528,178 @@ export const paymentRouter = createTRPCRouter({
           description: `Withdrawal to ${input.accountName} - ${input.accountNumber}`,
         },
       });
+
+      return { success: true };
+    }),
+
+    /**
+   * Get High-Level Financial Stats
+   */
+  adminGetStats: adminProcedure.query(async ({ ctx }) => {
+    const [totalInflow, totalPayouts, pendingPayoutsCount, pendingPayoutsVolume] = await Promise.all([
+      // 1. Total Money Entered (Topups)
+      ctx.db.transaction.aggregate({
+        where: { type: "TOPUP", status: "COMPLETED" },
+        _sum: { amount: true },
+      }),
+      // 2. Total Money Left (Completed Payouts) - Amount is negative in DB, so we sum
+      ctx.db.transaction.aggregate({
+        where: { type: "PAYOUT", status: "COMPLETED" },
+        _sum: { amount: true },
+      }),
+      // 3. Count of Pending Payouts
+      ctx.db.transaction.count({
+        where: { type: "PAYOUT", status: "PENDING" },
+      }),
+      // 4. Volume of Pending Payouts
+      ctx.db.transaction.aggregate({
+        where: { type: "PAYOUT", status: "PENDING" },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    return {
+      totalInflow: totalInflow._sum.amount || 0,
+      totalPayouts: Math.abs(totalPayouts._sum.amount || 0),
+      pendingPayoutsCount,
+      pendingPayoutsVolume: Math.abs(pendingPayoutsVolume._sum.amount || 0),
+    };
+  }),
+
+  /**
+   * Get All Transactions (Paginated & Filtered)
+   */
+  adminGetAllTransactions: adminProcedure
+    .input(z.object({
+      limit: z.number().default(20),
+      cursor: z.string().nullish(),
+      type: z.nativeEnum(TransactionType).optional(),
+      status: z.nativeEnum(TransactionStatus).optional(),
+      search: z.string().optional(), // Search by user email or username
+    }))
+    .query(async ({ ctx, input }) => {
+      const { limit, cursor, type, status, search } = input;
+
+      const where: Prisma.TransactionWhereInput = {
+        type,
+        status,
+        wallet: search ? {
+          user: {
+            OR: [
+              { email: { contains: search, mode: "insensitive" } },
+              { username: { contains: search, mode: "insensitive" } },
+            ]
+          }
+        } : undefined
+      };
+
+      const items = await ctx.db.transaction.findMany({
+        take: limit + 1,
+        cursor: cursor ? { id: cursor } : undefined,
+        where,
+        orderBy: { createdAt: "desc" },
+        include: {
+          wallet: {
+            include: {
+              user: {
+                select: {
+                  username: true,
+                  email: true,
+                  role: true,
+                  vendorProfile: { select: { companyName: true } },
+                  clientProfile: { select: { name: true } }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      let nextCursor: typeof cursor | undefined = undefined;
+      if (items.length > limit) {
+        const nextItem = items.pop();
+        nextCursor = nextItem!.id;
+      }
+
+      return { items, nextCursor };
+    }),
+
+  /**
+   * Process Payout (Approve/Reject Withdrawal)
+   */
+  adminProcessPayout: adminProcedure
+    .input(z.object({
+      transactionId: z.string(),
+      action: z.enum(["APPROVE", "REJECT"]),
+      rejectionReason: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { transactionId, action, rejectionReason } = input;
+
+      const transaction = await ctx.db.transaction.findUnique({
+        where: { id: transactionId },
+        include: { wallet: true }
+      });
+
+      if (!transaction) throw new TRPCError({ code: "NOT_FOUND" });
+      if (transaction.type !== "PAYOUT") throw new TRPCError({ code: "BAD_REQUEST", message: "Not a payout" });
+      if (transaction.status !== "PENDING") throw new TRPCError({ code: "CONFLICT", message: "Transaction already processed" });
+
+      if (action === "APPROVE") {
+        // 1. Mark as Completed
+        // In a real app, you might trigger the Bank Transfer API here
+        await ctx.db.transaction.update({
+          where: { id: transactionId },
+          data: { status: "COMPLETED" },
+        });
+
+        await ctx.db.notification.create({
+          data: {
+            userId: transaction.wallet.userId,
+            type: NotificationType.PAYMENT_REQUEST, // Or generic message
+            message: `Your withdrawal of ₦${Math.abs(transaction.amount).toLocaleString()} has been processed.`,
+            link: "/wallet",
+          }
+        });
+
+        await logActivity({
+          ctx, action: "PAYOUT_APPROVE", entityType: "TRANSACTION", entityId: transactionId,
+          details: { amount: transaction.amount, userId: transaction.wallet.userId }
+        });
+
+      } else {
+        // 2. Reject: Refund the money to the wallet
+        return ctx.db.$transaction(async (prisma) => {
+          // A. Mark transaction as FAILED
+          const updatedTx = await prisma.transaction.update({
+            where: { id: transactionId },
+            data: { status: "FAILED", description: `Payout Rejected: ${rejectionReason}` },
+          });
+
+          // B. Refund Wallet (amount was negative, so we subtract the negative to add it back, or just add absolute)
+          await prisma.wallet.update({
+            where: { id: transaction.walletId },
+            data: { availableBalance: { increment: Math.abs(transaction.amount) } },
+          });
+
+          // C. Notify
+          await prisma.notification.create({
+            data: {
+              userId: transaction.wallet.userId,
+              type: NotificationType.PAYMENT_REQUEST,
+              message: `Withdrawal rejected: ${rejectionReason}. Funds returned to wallet.`,
+              link: "/wallet",
+            }
+          });
+
+          await logActivity({
+            ctx, action: "PAYOUT_REJECT", entityType: "TRANSACTION", entityId: transactionId,
+            details: { reason: rejectionReason }
+          });
+
+          return updatedTx;
+        });
+      }
 
       return { success: true };
     }),

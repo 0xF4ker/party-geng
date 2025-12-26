@@ -100,13 +100,22 @@ enum SavePlanStatus {
   CANCELLED
 }
 
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
 // --- 2. AUTH & USER MODELS ---
 
 model User {
   id       String   @id @default(uuid()) // Links to auth.users.id
   email    String   @unique
-  username String   @unique
+  username String   @unique 
   role     UserRole // Set at sign-up (CLIENT or VENDOR)
+  status           UserStatus @default(ACTIVE)
+  suspensionReason String?
+  suspendedUntil   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

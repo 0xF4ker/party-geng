@@ -1,4 +1,4 @@
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, protectedProcedure, adminProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { OrderStatus, NotificationType } from "@prisma/client";
@@ -57,13 +57,14 @@ export const orderRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "Order not found." });
       }
 
-      if (order.clientId !== ctx.user.id && order.vendorId !== ctx.user.id) {
+      const isAdmin = ["ADMIN", "SUPPORT", "FINANCE"].includes(ctx.user.role);
+      
+      if (!isAdmin && order.clientId !== ctx.user.id && order.vendorId !== ctx.user.id) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You are not authorized to view this order.",
         });
       }
-
       return order;
     }),
 
@@ -273,5 +274,109 @@ export const orderRouter = createTRPCRouter({
 
         return updatedOrder;
       });
+    }),
+    // --- NEW ADMIN PROCEDURES ---
+
+  /**
+   * Get All Orders (Admin)
+   * Supports pagination, status filtering, and search by ID/Client/Vendor
+   */
+  getAllOrders: adminProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(20),
+      cursor: z.string().nullish(),
+      status: z.nativeEnum(OrderStatus).optional(),
+      search: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { limit, cursor, status, search } = input;
+
+      const where: Prisma.OrderWhereInput = {
+        status: status || undefined,
+        OR: search ? [
+          { id: { contains: search, mode: "insensitive" } },
+          { client: { username: { contains: search, mode: "insensitive" } } },
+          { vendor: { username: { contains: search, mode: "insensitive" } } },
+          { vendor: { vendorProfile: { companyName: { contains: search, mode: "insensitive" } } } }
+        ] : undefined
+      };
+
+      const items = await ctx.db.order.findMany({
+        take: limit + 1,
+        cursor: cursor ? { id: cursor } : undefined,
+        where,
+        orderBy: { createdAt: "desc" },
+        include: {
+          client: {
+             select: { 
+               username: true, 
+               email: true,
+               clientProfile: { select: { name: true, avatarUrl: true } } 
+             }
+          },
+          vendor: {
+             select: { 
+               username: true, 
+               email: true,
+               vendorProfile: { select: { companyName: true, avatarUrl: true } } 
+             }
+          },
+          quote: { select: { title: true, price: true, eventDate: true } }
+        }
+      });
+
+      let nextCursor: typeof cursor | undefined = undefined;
+      if (items.length > limit) {
+        const nextItem = items.pop();
+        nextCursor = nextItem!.id;
+      }
+
+      return { items, nextCursor };
+    }),
+
+  /**
+   * Admin Force Update Order Status
+   * Used for dispute resolution or manual cancellations
+   */
+  adminUpdateStatus: adminProcedure
+    .input(z.object({
+      orderId: z.string(),
+      status: z.nativeEnum(OrderStatus),
+      reason: z.string().min(1)
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { orderId, status, reason } = input;
+
+      const order = await ctx.db.order.findUnique({ where: { id: orderId } });
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+
+      const updated = await ctx.db.order.update({
+        where: { id: orderId },
+        data: { status },
+      });
+
+      // Log the admin action
+      await logActivity({
+        ctx,
+        action: "ORDER_ADMIN_UPDATE",
+        entityType: "ORDER",
+        entityId: orderId,
+        details: { 
+          previousStatus: order.status, 
+          newStatus: status, 
+          reason 
+        }
+      });
+
+      // Notify parties (Simplified)
+      const message = `Order #${orderId.slice(0,8)} status changed to ${status} by Admin. Reason: ${reason}`;
+      await ctx.db.notification.createMany({
+        data: [
+          { userId: order.clientId, type: NotificationType.ORDER_UPDATE, message, link: `/orders/${orderId}` },
+          { userId: order.vendorId, type: NotificationType.ORDER_UPDATE, message, link: `/orders/${orderId}` }
+        ]
+      });
+
+      return updated;
     }),
 });

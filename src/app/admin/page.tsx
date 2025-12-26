@@ -295,7 +295,7 @@ export default async function AdminDashboard() {
             </Link>
 
             <Link
-              href="/admin/reports"
+              href="/admin/finance"
               className="group flex w-full items-center justify-between rounded-lg border border-gray-200 p-3 text-sm font-medium text-gray-700 transition-all hover:border-emerald-300 hover:bg-emerald-50"
             >
               <div className="flex items-center gap-3">

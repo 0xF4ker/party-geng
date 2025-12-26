@@ -196,18 +196,15 @@ export const userRouter = createTRPCRouter({
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(20),
-        cursor: z.string().nullish(), // For infinite scroll or simple pagination
-        role: z
-          .enum(["CLIENT", "VENDOR", "ADMIN", "SUPPORT", "FINANCE"])
-          .optional(),
+        cursor: z.string().nullish(),
+        role: z.enum(["CLIENT", "VENDOR", "ADMIN", "SUPPORT", "FINANCE"]).optional(),
         search: z.string().optional(),
-      }),
+      })
     )
     .query(async ({ ctx, input }) => {
       const { limit, cursor, role, search } = input;
-
       const where: Prisma.UserWhereInput = {
-        role: role ?? undefined,
+        role: role ? role : undefined,
         OR: search
           ? [
               { email: { contains: search, mode: "insensitive" } },
@@ -217,7 +214,7 @@ export const userRouter = createTRPCRouter({
       };
 
       const items = await ctx.db.user.findMany({
-        take: limit + 1, // Fetch 1 extra to check for next page
+        take: limit + 1,
         cursor: cursor ? { id: cursor } : undefined,
         where,
         orderBy: { createdAt: "desc" },
@@ -233,10 +230,7 @@ export const userRouter = createTRPCRouter({
         nextCursor = nextItem!.id;
       }
 
-      return {
-        items,
-        nextCursor,
-      };
+      return { items, nextCursor };
     }),
 
   /**
@@ -336,6 +330,64 @@ export const userRouter = createTRPCRouter({
       return user;
     }),
 
+    suspendUser: adminProcedure
+    .input(z.object({
+      userId: z.string(),
+      reason: z.string(),
+      durationDays: z.number().optional(), // If undefined = Permanent Ban
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.userId === ctx.user.id) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot suspend yourself." });
+      }
+
+      const suspendedUntil = input.durationDays 
+        ? new Date(Date.now() + input.durationDays * 24 * 60 * 60 * 1000) 
+        : null;
+
+      const updated = await ctx.db.user.update({
+        where: { id: input.userId },
+        data: {
+          status: input.durationDays ? "SUSPENDED" : "BANNED",
+          suspensionReason: input.reason,
+          suspendedUntil: suspendedUntil,
+        },
+      });
+
+      await logActivity({
+        ctx,
+        action: input.durationDays ? "USER_SUSPEND" : "USER_BAN",
+        entityType: "USER",
+        entityId: input.userId,
+        details: { reason: input.reason, duration: input.durationDays || "Permanent" },
+      });
+
+      return updated;
+    }),
+
+  // 3. Restore User
+  restoreUser: adminProcedure
+    .input(z.object({ userId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const updated = await ctx.db.user.update({
+        where: { id: input.userId },
+        data: {
+          status: "ACTIVE",
+          suspensionReason: null,
+          suspendedUntil: null,
+        },
+      });
+
+      await logActivity({
+        ctx,
+        action: "USER_RESTORE",
+        entityType: "USER",
+        entityId: input.userId,
+      });
+
+      return updated;
+    }),
+
   /**
    * Delete User (Admin Only)
    * Hard delete per schema.
@@ -391,5 +443,43 @@ export const userRouter = createTRPCRouter({
       });
 
       return updated;
+    }),
+    adminGetUser: adminProcedure
+    .input(z.object({ userId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const user = await ctx.db.user.findUnique({
+        where: { id: input.userId },
+        include: {
+          wallet: true,
+          clientProfile: {
+            include: {
+              _count: {
+                select: { events: true }, // Count events created
+              },
+            },
+          },
+          vendorProfile: {
+            include: {
+              _count: {
+                select: { services: true }, // Count services offered
+              },
+            },
+          },
+          adminProfile: true,
+          _count: {
+            select: {
+              clientOrders: true, // Orders placed
+              vendorOrders: true, // Orders received
+              authoredReviews: true,
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      }
+
+      return user;
     }),
 });

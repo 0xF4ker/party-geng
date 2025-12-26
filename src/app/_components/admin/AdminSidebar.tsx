@@ -12,15 +12,21 @@ import {
   Settings,
   LogOut,
   ShieldCheck,
+  ShieldUser,
+  ChartColumnStacked,
+  ListCheck
 } from "lucide-react";
 
 const navItems = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { name: "Users", href: "/admin/users", icon: Users },
   { name: "Vendors", href: "/admin/vendors", icon: Store },
+  { name: "Admins", href: "/admin/admins", icon: ShieldUser },
+  { name: "Categories", href: "/admin/categories", icon: ChartColumnStacked },
   { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
   { name: "KYC", href: "/admin/kyc", icon: FileCheck },
   { name: "Finance", href: "/admin/finance", icon: Wallet },
+  { name: "Audit Log", href: "/admin/audit", icon: ListCheck },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 

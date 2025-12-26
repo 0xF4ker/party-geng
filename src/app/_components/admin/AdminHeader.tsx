@@ -4,7 +4,7 @@ import { useAuthStore } from "@/stores/auth";
 import { Bell, Search } from "lucide-react";
 
 export function AdminHeader() {
-  const { profile, isLoading } = useAuthStore();
+  const { profile } = useAuthStore();
   return (
     <header className="flex h-20 items-center justify-between px-6 lg:px-10">
       {/* Mobile Logo (Visible only on small screens) */}
