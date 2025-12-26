@@ -1,11 +1,112 @@
-  import { createTRPCRouter, publicProcedure, adminProcedure } from "@/server/api/trpc";
-  import { z } from "zod";
-  import { TRPCError } from "@trpc/server";
+import {
+  createTRPCRouter,
+  publicProcedure,
+  adminProcedure,
+} from "@/server/api/trpc";
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { slugify } from "@/lib/utils";
+import { logActivity } from "../services/activityLogger";
 
-  export const categoryRouter = createTRPCRouter({
-    // Get all categories with their services
-    getAll: publicProcedure.query(async ({ ctx }) => {
-      return ctx.db.category.findMany({
+export const categoryRouter = createTRPCRouter({
+  // Get all categories with their services
+  getAll: publicProcedure.query(async ({ ctx }) => {
+    return ctx.db.category.findMany({
+      include: {
+        services: {
+          include: {
+            _count: {
+              select: {
+                vendors: true, // Count vendors instead of gigs
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        name: "asc",
+      },
+    });
+  }),
+
+  getPopularServices: publicProcedure.query(async ({ ctx }) => {
+    const popularServices = await ctx.db.service.findMany({
+      select: {
+        name: true,
+        slug: true,
+        category: {
+          select: {
+            slug: true,
+          },
+        },
+        _count: {
+          select: {
+            vendors: true,
+          },
+        },
+      },
+      orderBy: {
+        vendors: {
+          _count: "desc",
+        },
+      },
+      take: 5,
+    });
+
+    return popularServices.map((service) => ({
+      label: service.name,
+      value: service.slug,
+      categorySlug: service.category.slug,
+      type: "service" as const,
+    }));
+  }),
+
+  getSearchList: publicProcedure.query(async ({ ctx }) => {
+    const categories = await ctx.db.category.findMany({
+      select: {
+        name: true,
+        slug: true,
+      },
+    });
+
+    const services = await ctx.db.service.findMany({
+      select: {
+        name: true,
+        slug: true,
+        category: {
+          select: {
+            slug: true,
+          },
+        },
+      },
+    });
+
+    const searchList = [
+      ...categories.map((category) => ({
+        label: category.name,
+        value: category.slug,
+        type: "category" as const,
+      })),
+      ...services.map((service) => ({
+        label: service.name,
+        value: service.slug,
+        categorySlug: service.category.slug,
+        type: "service" as const,
+      })),
+    ];
+
+    return searchList;
+  }),
+
+  // Get category by slug with services and popular gigs
+  getBySlug: publicProcedure
+    .input(z.object({ slug: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const decodedSlug = decodeURIComponent(input.slug);
+      const category = await ctx.db.category.findFirst({
+        where: {
+          slug: decodedSlug,
+        },
         include: {
           services: {
             include: {
@@ -17,163 +118,68 @@
             },
           },
         },
+      });
+
+      if (!category) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Category not found",
+        });
+      }
+
+      return category;
+    }),
+
+  // Get a single category by ID
+  getById: publicProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.category.findUnique({
+        where: { id: input.id },
+        include: {
+          services: true,
+        },
+      });
+    }),
+
+  // Get services by category ID
+  getServicesByCategory: publicProcedure
+    .input(z.object({ categoryId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.service.findMany({
+        where: { categoryId: input.categoryId },
         orderBy: {
           name: "asc",
         },
       });
     }),
 
-    getPopularServices: publicProcedure.query(async ({ ctx }) => {
-      const popularServices = await ctx.db.service.findMany({
+  // Get a single service by slug
+  getServiceBySlug: publicProcedure
+    .input(z.object({ slug: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const service = await ctx.db.service.findUnique({
+        where: {
+          slug: input.slug,
+        },
         select: {
+          id: true,
           name: true,
-          slug: true,
-          category: {
-            select: {
-              slug: true,
-            },
-          },
-          _count: {
-            select: {
-              vendors: true,
-            },
-          },
+          categoryId: true,
         },
-        orderBy: {
-          vendors: {
-            _count: "desc",
-          },
-        },
-        take: 5,
       });
 
-      return popularServices.map((service) => ({
-        label: service.name,
-        value: service.slug,
-        categorySlug: service.category.slug,
-        type: "service" as const,
-      }));
+      if (!service) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Service not found",
+        });
+      }
+
+      return service;
     }),
 
-    getSearchList: publicProcedure.query(async ({ ctx }) => {
-      const categories = await ctx.db.category.findMany({
-        select: {
-          name: true,
-          slug: true,
-        },
-      });
-
-      const services = await ctx.db.service.findMany({
-        select: {
-          name: true,
-          slug: true,
-          category: {
-            select: {
-              slug: true,
-            },
-          },
-        },
-      });
-
-      const searchList = [
-        ...categories.map((category) => ({
-          label: category.name,
-          value: category.slug,
-          type: "category" as const,
-        })),
-        ...services.map((service) => ({
-          label: service.name,
-          value: service.slug,
-          categorySlug: service.category.slug,
-          type: "service" as const,
-        })),
-      ];
-
-      return searchList;
-    }),
-
-    // Get category by slug with services and popular gigs
-    getBySlug: publicProcedure
-      .input(z.object({ slug: z.string() }))
-      .query(async ({ ctx, input }) => {
-        const decodedSlug = decodeURIComponent(input.slug);
-        const category = await ctx.db.category.findFirst({
-          where: {
-            slug: decodedSlug,
-          },
-          include: {
-            services: {
-              include: {
-                _count: {
-                  select: {
-                    vendors: true, // Count vendors instead of gigs
-                  },
-                },
-              },
-            },
-          },
-        });
-
-        if (!category) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Category not found",
-          });
-        }
-
-        return category;
-      }),
-
-    // Get a single category by ID
-    getById: publicProcedure
-      .input(z.object({ id: z.number() }))
-      .query(async ({ ctx, input }) => {
-        return ctx.db.category.findUnique({
-          where: { id: input.id },
-          include: {
-            services: true,
-          },
-        });
-      }),
-
-    // Get services by category ID
-    getServicesByCategory: publicProcedure
-      .input(z.object({ categoryId: z.number() }))
-      .query(async ({ ctx, input }) => {
-        return ctx.db.service.findMany({
-          where: { categoryId: input.categoryId },
-          orderBy: {
-            name: "asc",
-          },
-        });
-      }),
-
-    // Get a single service by slug
-    getServiceBySlug: publicProcedure
-      .input(z.object({ slug: z.string() }))
-      .query(async ({ ctx, input }) => {
-        const service = await ctx.db.service.findUnique({
-          where: {
-            slug: input.slug,
-          },
-          select: {
-            id: true,
-            name: true,
-            categoryId: true,
-          },
-        });
-
-        if (!service) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Service not found",
-          });
-        }
-
-        return service;
-      }),
-
-      // --- NEW ADMIN MUTATIONS ---
+  // --- NEW ADMIN MUTATIONS ---
 
   // 1. Manage Categories
   upsertCategory: adminProcedure
@@ -182,10 +188,10 @@
         id: z.number().optional(), // If present, update. If null, create.
         name: z.string().min(1),
         slug: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
-      const slug = input.slug || slugify(input.name);
+      const slug = input.slug ?? slugify(input.name);
 
       // Check for slug collision
       const existing = await ctx.db.category.findFirst({
@@ -270,10 +276,10 @@
         categoryId: z.number(),
         name: z.string().min(1),
         slug: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ ctx, input }) => {
-      const slug = input.slug || slugify(input.name);
+      const slug = input.slug ?? slugify(input.name);
 
       const existing = await ctx.db.service.findFirst({
         where: {
@@ -356,4 +362,4 @@
 
       return deleted;
     }),
-  });
+});

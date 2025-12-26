@@ -1,14 +1,20 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { createTRPCRouter, protectedProcedure, adminProcedure } from "@/server/api/trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  adminProcedure,
+} from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
   TransactionType,
   WishlistItemType,
   NotificationType,
-  TransactionStatus
+  TransactionStatus,
+  type Prisma,
 } from "@prisma/client";
+import { logActivity } from "../services/activityLogger";
 
 // const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY ?? undefined;
 
@@ -532,11 +538,16 @@ export const paymentRouter = createTRPCRouter({
       return { success: true };
     }),
 
-    /**
+  /**
    * Get High-Level Financial Stats
    */
   adminGetStats: adminProcedure.query(async ({ ctx }) => {
-    const [totalInflow, totalPayouts, pendingPayoutsCount, pendingPayoutsVolume] = await Promise.all([
+    const [
+      totalInflow,
+      totalPayouts,
+      pendingPayoutsCount,
+      pendingPayoutsVolume,
+    ] = await Promise.all([
       // 1. Total Money Entered (Topups)
       ctx.db.transaction.aggregate({
         where: { type: "TOPUP", status: "COMPLETED" },
@@ -559,10 +570,10 @@ export const paymentRouter = createTRPCRouter({
     ]);
 
     return {
-      totalInflow: totalInflow._sum.amount || 0,
-      totalPayouts: Math.abs(totalPayouts._sum.amount || 0),
+      totalInflow: totalInflow._sum.amount ?? 0,
+      totalPayouts: Math.abs(totalPayouts._sum.amount ?? 0),
       pendingPayoutsCount,
-      pendingPayoutsVolume: Math.abs(pendingPayoutsVolume._sum.amount || 0),
+      pendingPayoutsVolume: Math.abs(pendingPayoutsVolume._sum.amount ?? 0),
     };
   }),
 
@@ -570,27 +581,31 @@ export const paymentRouter = createTRPCRouter({
    * Get All Transactions (Paginated & Filtered)
    */
   adminGetAllTransactions: adminProcedure
-    .input(z.object({
-      limit: z.number().default(20),
-      cursor: z.string().nullish(),
-      type: z.nativeEnum(TransactionType).optional(),
-      status: z.nativeEnum(TransactionStatus).optional(),
-      search: z.string().optional(), // Search by user email or username
-    }))
+    .input(
+      z.object({
+        limit: z.number().default(20),
+        cursor: z.string().nullish(),
+        type: z.nativeEnum(TransactionType).optional(),
+        status: z.nativeEnum(TransactionStatus).optional(),
+        search: z.string().optional(), // Search by user email or username
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const { limit, cursor, type, status, search } = input;
 
       const where: Prisma.TransactionWhereInput = {
         type,
         status,
-        wallet: search ? {
-          user: {
-            OR: [
-              { email: { contains: search, mode: "insensitive" } },
-              { username: { contains: search, mode: "insensitive" } },
-            ]
-          }
-        } : undefined
+        wallet: search
+          ? {
+              user: {
+                OR: [
+                  { email: { contains: search, mode: "insensitive" } },
+                  { username: { contains: search, mode: "insensitive" } },
+                ],
+              },
+            }
+          : undefined,
       };
 
       const items = await ctx.db.transaction.findMany({
@@ -607,12 +622,12 @@ export const paymentRouter = createTRPCRouter({
                   email: true,
                   role: true,
                   vendorProfile: { select: { companyName: true } },
-                  clientProfile: { select: { name: true } }
-                }
-              }
-            }
-          }
-        }
+                  clientProfile: { select: { name: true } },
+                },
+              },
+            },
+          },
+        },
       });
 
       let nextCursor: typeof cursor | undefined = undefined;
@@ -628,22 +643,29 @@ export const paymentRouter = createTRPCRouter({
    * Process Payout (Approve/Reject Withdrawal)
    */
   adminProcessPayout: adminProcedure
-    .input(z.object({
-      transactionId: z.string(),
-      action: z.enum(["APPROVE", "REJECT"]),
-      rejectionReason: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        transactionId: z.string(),
+        action: z.enum(["APPROVE", "REJECT"]),
+        rejectionReason: z.string().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { transactionId, action, rejectionReason } = input;
 
       const transaction = await ctx.db.transaction.findUnique({
         where: { id: transactionId },
-        include: { wallet: true }
+        include: { wallet: true },
       });
 
       if (!transaction) throw new TRPCError({ code: "NOT_FOUND" });
-      if (transaction.type !== "PAYOUT") throw new TRPCError({ code: "BAD_REQUEST", message: "Not a payout" });
-      if (transaction.status !== "PENDING") throw new TRPCError({ code: "CONFLICT", message: "Transaction already processed" });
+      if (transaction.type !== "PAYOUT")
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Not a payout" });
+      if (transaction.status !== "PENDING")
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Transaction already processed",
+        });
 
       if (action === "APPROVE") {
         // 1. Mark as Completed
@@ -659,27 +681,37 @@ export const paymentRouter = createTRPCRouter({
             type: NotificationType.PAYMENT_REQUEST, // Or generic message
             message: `Your withdrawal of ₦${Math.abs(transaction.amount).toLocaleString()} has been processed.`,
             link: "/wallet",
-          }
+          },
         });
 
         await logActivity({
-          ctx, action: "PAYOUT_APPROVE", entityType: "TRANSACTION", entityId: transactionId,
-          details: { amount: transaction.amount, userId: transaction.wallet.userId }
+          ctx,
+          action: "PAYOUT_APPROVE",
+          entityType: "TRANSACTION",
+          entityId: transactionId,
+          details: {
+            amount: transaction.amount,
+            userId: transaction.wallet.userId,
+          },
         });
-
       } else {
         // 2. Reject: Refund the money to the wallet
         return ctx.db.$transaction(async (prisma) => {
           // A. Mark transaction as FAILED
           const updatedTx = await prisma.transaction.update({
             where: { id: transactionId },
-            data: { status: "FAILED", description: `Payout Rejected: ${rejectionReason}` },
+            data: {
+              status: "FAILED",
+              description: `Payout Rejected: ${rejectionReason}`,
+            },
           });
 
           // B. Refund Wallet (amount was negative, so we subtract the negative to add it back, or just add absolute)
           await prisma.wallet.update({
             where: { id: transaction.walletId },
-            data: { availableBalance: { increment: Math.abs(transaction.amount) } },
+            data: {
+              availableBalance: { increment: Math.abs(transaction.amount) },
+            },
           });
 
           // C. Notify
@@ -689,12 +721,15 @@ export const paymentRouter = createTRPCRouter({
               type: NotificationType.PAYMENT_REQUEST,
               message: `Withdrawal rejected: ${rejectionReason}. Funds returned to wallet.`,
               link: "/wallet",
-            }
+            },
           });
 
           await logActivity({
-            ctx, action: "PAYOUT_REJECT", entityType: "TRANSACTION", entityId: transactionId,
-            details: { reason: rejectionReason }
+            ctx,
+            action: "PAYOUT_REJECT",
+            entityType: "TRANSACTION",
+            entityId: transactionId,
+            details: { reason: rejectionReason },
           });
 
           return updatedTx;
