@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 
 export function AdminMobileNav() {
   const pathname = usePathname();
+  const { signOut } = useAuth();
   const [open, setOpen] = useState(false);
 
   // 1. Primary Bottom Links (Most frequent actions)
@@ -130,13 +131,13 @@ export function AdminMobileNav() {
               <div className="my-6 border-t border-gray-100" />
 
               <div className="space-y-4">
-                <Link
-                  href="/"
+                <button
+                  onClick={() => signOut()}
                   className="flex w-full items-center gap-3 rounded-lg border border-gray-200 px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                 >
                   <LogOut className="h-4 w-4" />
-                  Back to Site
-                </Link>
+                  Log Out
+                </button>
               </div>
             </div>
 
