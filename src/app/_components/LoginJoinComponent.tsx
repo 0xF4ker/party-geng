@@ -258,6 +258,11 @@ const AuthModal = ({
                 (data.user.user_metadata?.role as string) === "CLIENT"
                   ? {}
                   : null,
+              adminProfile: ["ADMIN", "SUPPORT", "FINANCE"].includes(
+                data.user.user_metadata?.role as string,
+              )
+                ? {}
+                : null,
               createdAt: new Date(data.user.created_at),
               updatedAt: new Date(),
             };
@@ -284,6 +289,8 @@ const AuthModal = ({
             router.push("/dashboard");
           } else if (userRole === "CLIENT") {
             router.push("/manage_events");
+          } else if (["ADMIN", "SUPPORT", "FINANCE"].includes(userRole)) {
+            router.push("/admin");
           } else {
             router.push("/");
           }
@@ -336,13 +343,23 @@ const AuthModal = ({
         return;
       }
 
-      // 2. Create user in database via tRPC
-      await createUserMutation.mutateAsync({
-        id: authData.user.id,
-        email: authData.user.email!,
-        username,
-        role: selectedRole.toUpperCase() as "CLIENT" | "VENDOR",
-      });
+      // 2. Create user in database via tRPC (acts as confirmation/upsert)
+      try {
+        await createUserMutation.mutateAsync({
+          id: authData.user.id,
+          email: authData.user.email!,
+          username,
+          role: selectedRole.toUpperCase() as "CLIENT" | "VENDOR",
+        });
+      } catch (err) {
+        // If this fails, it might be because the trigger beat us to it (race condition)
+        // or a network error. We log it but don't block the user since they are
+        // authenticated in Supabase. The 'healAccount' or future flows can fix gaps.
+        console.warn(
+          "User creation confirmation failed (likely handled by trigger):",
+          err,
+        );
+      }
 
       // Check if user was auto-confirmed (session exists)
       const hasSession = authData.session !== null;

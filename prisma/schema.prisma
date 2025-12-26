@@ -16,6 +16,9 @@ datasource db {
 enum UserRole {
   CLIENT
   VENDOR
+  ADMIN
+  SUPPORT
+  FINANCE
 }
 
 enum KycStatus {
@@ -111,6 +114,7 @@ model User {
   // --- Relations ---
   clientProfile      ClientProfile?      // One-to-one
   vendorProfile      VendorProfile?      // One-to-one
+  adminProfile       AdminProfile?       // One-to-one
   wallet             Wallet?             // One-to-one
   chatSettings       ChatSettings?       // One-to-one
   participations     ConversationParticipant[]
@@ -136,6 +140,7 @@ model User {
   blockedUsers       Block[]             @relation("Blocker")
   blockedBy          Block[]             @relation("Blocked")
   messageDeletions   MessageDeletion[]
+  activityLogs       ActivityLog[]
 }
 
 model ClientProfile {
@@ -669,3 +674,34 @@ model SavePlan {
 
   @@index([userId])
 }
+
+
+model AdminProfile {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String   @unique
+  fullName  String
+  department String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --- 11. AUDIT & LOGGING ---
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  action      String   // e.g., "LOGIN", "CREATE_GIG", "UPDATE_PROFILE"
+  entityType  String?  // e.g., "ORDER", "USER", "GIG"
+  entityId    String?  // ID of the affected entity
+  details     Json?    // Extra metadata (diffs, snapshots)
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+

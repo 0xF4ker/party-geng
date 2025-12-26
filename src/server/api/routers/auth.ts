@@ -10,7 +10,9 @@ import { createClient } from "@/utils/supabase/server";
 export const authRouter = createTRPCRouter({
   /**
    * Create user in database after Supabase signup
-   * This should be called from a webhook or after successful Supabase signup
+   * This acts as a confirmation/sync step. The DB trigger usually handles this,
+   * but this mutation ensures the record exists and related profiles are set up
+   * correctly, handling any race conditions or trigger failures.
    */
   createUser: publicProcedure
     .input(
@@ -22,33 +24,18 @@ export const authRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Check if user already exists
-      const existingUser = await ctx.db.user.findUnique({
+      // 1. Upsert User (Safe against Trigger race conditions)
+      // If the trigger already created it, we just update/confirm fields.
+      const user = await ctx.db.user.upsert({
         where: { id: input.id },
-      });
-
-      if (existingUser) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "User already exists",
-        });
-      }
-
-      // Check if username is taken
-      const existingUsername = await ctx.db.user.findUnique({
-        where: { username: input.username },
-      });
-
-      if (existingUsername) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "Username already taken",
-        });
-      }
-
-      // Create user
-      const user = await ctx.db.user.create({
-        data: {
+        update: {
+          email: input.email,
+          username: input.username,
+          // We generally don't want to overwrite role if it was set correctly,
+          // but input.role is authoritative from the signup form here.
+          role: input.role,
+        },
+        create: {
           id: input.id,
           email: input.email,
           username: input.username,
@@ -56,27 +43,32 @@ export const authRouter = createTRPCRouter({
         },
       });
 
-      // Create profile based on role
+      // 2. Ensure Wallet exists
+      await ctx.db.wallet.upsert({
+        where: { userId: user.id },
+        create: { userId: user.id },
+        update: {},
+      });
+
+      // 3. Ensure Profile exists based on Role
       if (input.role === "CLIENT") {
-        await ctx.db.clientProfile.create({
-          data: {
-            userId: user.id,
-          },
+        await ctx.db.clientProfile.upsert({
+          where: { userId: user.id },
+          create: { userId: user.id },
+          update: {},
         });
       } else if (input.role === "VENDOR") {
-        await ctx.db.vendorProfile.create({
-          data: {
+        await ctx.db.vendorProfile.upsert({
+          where: { userId: user.id },
+          create: {
             userId: user.id,
+            kycStatus: "PENDING",
+            rating: 0,
+            subscriptionStatus: "INACTIVE",
           },
+          update: {},
         });
       }
-
-      // Create wallet for user
-      await ctx.db.wallet.create({
-        data: {
-          userId: user.id,
-        },
-      });
 
       return user;
     }),

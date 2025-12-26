@@ -16,8 +16,10 @@ import { invitationRouter } from "@/server/api/routers/invitation";
 import { eventInvitationRouter } from "@/server/api/routers/eventInvitation";
 import { personalTodoRouter } from "@/server/api/routers/personalTodo";
 import { savePlanRouter } from "@/server/api/routers/savePlan";
+import { adminRouter } from "@/server/api/routers/admin";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
+import { activityLogRouter } from "./routers/activityLog";
 
 /**
  * This is the primary router for your server.
@@ -43,6 +45,8 @@ export const appRouter = createTRPCRouter({
   eventInvitation: eventInvitationRouter,
   personalTodo: personalTodoRouter,
   savePlan: savePlanRouter,
+  admin: adminRouter,
+  activityLog: activityLogRouter,
 });
 
 // export type definition of API
@@ -61,7 +65,6 @@ export type RouterInputs = inferRouterInputs<AppRouter>;
  * @example type HelloOutput = RouterOutputs['example']['hello']
  */
 export type RouterOutputs = inferRouterOutputs<AppRouter>;
-
 
 /**
  * Create a server-side caller for the tRPC API.
