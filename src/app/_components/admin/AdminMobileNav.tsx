@@ -25,6 +25,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"; // Ensure you have this shadcn/ui component
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 export function AdminMobileNav() {
   const pathname = usePathname();
