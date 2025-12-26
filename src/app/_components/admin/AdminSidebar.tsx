@@ -14,8 +14,9 @@ import {
   ShieldCheck,
   ShieldUser,
   ChartColumnStacked,
-  ListCheck
+  ListCheck,
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -32,6 +33,7 @@ const navItems = [
 
 export function AdminSidebar({ role }: { role: string }) {
   const pathname = usePathname();
+  const { signOut } = useAuth();
 
   return (
     <div className="flex h-full flex-col justify-between bg-white px-4 py-6">
@@ -95,13 +97,13 @@ export function AdminSidebar({ role }: { role: string }) {
           </div>
         </div>
 
-        <Link
-          href="/"
+        <button
+          onClick={() => signOut()}
           className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
         >
           <LogOut className="h-4 w-4" />
-          Back to Site
-        </Link>
+          Log Out
+        </button>
       </div>
     </div>
   );

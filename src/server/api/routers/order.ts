@@ -5,7 +5,7 @@ import {
 } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { OrderStatus, NotificationType, Prisma } from "@prisma/client";
+import { OrderStatus, NotificationType, type Prisma } from "@prisma/client";
 import { logActivity } from "../services/activityLogger";
 
 export const orderRouter = createTRPCRouter({
