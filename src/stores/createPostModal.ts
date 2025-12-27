@@ -2,12 +2,21 @@ import { create } from "zustand";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 
-type Post = inferRouterOutputs<AppRouter>["post"]["getById"];
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+
+// 1. Get the two possible shapes of a post
+type TrendingPost = RouterOutputs["post"]["getTrending"]["posts"][number];
+type DetailedPost = RouterOutputs["post"]["getById"];
+
+// 2. Create a Union Type (It can be either a Snapshot OR a Full Detail)
+// This tells TypeScript: "I accept any valid post object from our system"
+type PostShape = TrendingPost | DetailedPost;
 
 type CreatePostModalStore = {
   isOpen: boolean;
-  postToEdit: Post | null;
-  onOpen: (postToEdit?: Post) => void;
+  postToEdit: PostShape | null;
+  // 3. Update the function signature to accept the Union
+  onOpen: (postToEdit?: PostShape) => void;
   onClose: () => void;
 };
 

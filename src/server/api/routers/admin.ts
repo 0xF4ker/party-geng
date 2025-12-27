@@ -1,84 +1,142 @@
 import { z } from "zod";
-import {
-  adminProcedure,
-  createTRPCRouter,
-} from "@/server/api/trpc";
+import { adminProcedure, createTRPCRouter } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { TransactionType, TransactionStatus } from "@prisma/client";
 
 export const adminRouter = createTRPCRouter({
   getDashboardStats: adminProcedure.query(async ({ ctx }) => {
     const { role } = ctx.user;
 
-    // Initialize stats
-    let userCount: number | undefined;
-    let vendorCount: number | undefined;
-    let orderCount: number | undefined;
-    let pendingKycCount: number | undefined;
-    let totalRevenue: number | undefined;
-    let totalPayouts: number | undefined;
-
-    // --- ADMIN: Gets Everything ---
-    if (role === "ADMIN") {
-      userCount = await ctx.db.user.count();
-      vendorCount = await ctx.db.vendorProfile.count();
-      orderCount = await ctx.db.order.count();
-      
-      pendingKycCount = await ctx.db.vendorProfile.count({
-        where: { kycStatus: "IN_REVIEW" },
-      });
-
-      // Simple revenue aggregation (completed orders)
-      const revenueAgg = await ctx.db.order.aggregate({
-        _sum: { amount: true },
-        where: { status: "COMPLETED" },
-      });
-      totalRevenue = revenueAgg._sum.amount ?? 0;
-
-      // Simple payout aggregation
-      const payoutAgg = await ctx.db.transaction.aggregate({
-        _sum: { amount: true },
-        where: { type: "PAYOUT", status: "COMPLETED" },
-      });
-      totalPayouts = payoutAgg._sum.amount ?? 0;
-    }
-
-    // --- SUPPORT: Users & KYC ---
-    else if (role === "SUPPORT") {
-      userCount = await ctx.db.user.count();
-      vendorCount = await ctx.db.vendorProfile.count();
-      pendingKycCount = await ctx.db.vendorProfile.count({
-        where: { kycStatus: "IN_REVIEW" },
-      });
-    }
-
-    // --- FINANCE: Money & Orders ---
-    else if (role === "FINANCE") {
-      orderCount = await ctx.db.order.count();
-      
-      const revenueAgg = await ctx.db.order.aggregate({
-        _sum: { amount: true },
-        where: { status: "COMPLETED" },
-      });
-      totalRevenue = revenueAgg._sum.amount ?? 0;
-
-      const payoutAgg = await ctx.db.transaction.aggregate({
-        _sum: { amount: true },
-        where: { type: "PAYOUT", status: "COMPLETED" },
-      });
-      totalPayouts = payoutAgg._sum.amount ?? 0;
-    }
-
-    return {
+    // --- SHARED STATS (Base) ---
+    const stats = {
       role,
-      userCount,
-      vendorCount,
-      orderCount,
-      pendingKycCount,
-      totalRevenue,
-      totalPayouts,
+      userCount: undefined as number | undefined,
+      vendorCount: undefined as number | undefined,
+      orderCount: undefined as number | undefined,
+      pendingKycCount: undefined as number | undefined,
+      totalRevenue: undefined as number | undefined,
+      totalVolume: undefined as number | undefined, // GMV
+      pendingPayoutsVolume: undefined as number | undefined,
+      pendingPayoutsCount: undefined as number | undefined,
     };
+
+    // Calculate GMV (Gross Merchandise Value)
+    // Definition: Total money SPENT by users (Transfers + Gifts)
+    // We filter for amount < 0 to count the "Debit" side of the transaction
+    const calculateGMV = async () => {
+      const agg = await ctx.db.transaction.aggregate({
+        _sum: { amount: true },
+        where: {
+          status: TransactionStatus.COMPLETED,
+          amount: { lt: 0 }, // Only count money LEAVING wallets (Spending)
+          type: { in: [TransactionType.TRANSFER, TransactionType.GIFT] }, // Services + Wishlists
+        },
+      });
+      return Math.abs(agg._sum.amount ?? 0);
+    };
+
+    // Calculate Revenue (Platform Profit)
+    // Definition: Service fees collected
+    const calculateRevenue = async () => {
+      const agg = await ctx.db.transaction.aggregate({
+        _sum: { amount: true },
+        where: {
+          status: TransactionStatus.COMPLETED,
+          type: TransactionType.SERVICE_FEE,
+        },
+      });
+      return Math.abs(agg._sum.amount ?? 0);
+    };
+
+    // --- 1. ADMIN (God View) ---
+    if (role === "ADMIN") {
+      const [
+        users,
+        vendors,
+        orders,
+        pendingKyc,
+        revenue,
+        gmv,
+        pendingPayoutsAgg,
+        pendingPayoutsCnt,
+      ] = await Promise.all([
+        ctx.db.user.count(),
+        ctx.db.vendorProfile.count(),
+        ctx.db.order.count({ where: { status: "ACTIVE" } }),
+        ctx.db.vendorProfile.count({ where: { kycStatus: "IN_REVIEW" } }),
+        calculateRevenue(),
+        calculateGMV(),
+        ctx.db.transaction.aggregate({
+          _sum: { amount: true },
+          where: {
+            type: TransactionType.PAYOUT,
+            status: TransactionStatus.PENDING,
+          },
+        }),
+        ctx.db.transaction.count({
+          where: {
+            type: TransactionType.PAYOUT,
+            status: TransactionStatus.PENDING,
+          },
+        }),
+      ]);
+
+      stats.userCount = users;
+      stats.vendorCount = vendors;
+      stats.orderCount = orders;
+      stats.pendingKycCount = pendingKyc;
+      stats.totalRevenue = revenue;
+      stats.totalVolume = gmv; // This is now Transfers + Gifts
+      stats.pendingPayoutsVolume = Math.abs(pendingPayoutsAgg._sum.amount ?? 0);
+      stats.pendingPayoutsCount = pendingPayoutsCnt;
+    }
+
+    // --- 2. SUPPORT (Operations View) ---
+    else if (role === "SUPPORT") {
+      const [users, vendors, pendingKyc, disputeOrders] = await Promise.all([
+        ctx.db.user.count(),
+        ctx.db.vendorProfile.count(),
+        ctx.db.vendorProfile.count({ where: { kycStatus: "IN_REVIEW" } }),
+        ctx.db.order.count({ where: { status: "IN_DISPUTE" } }),
+      ]);
+
+      stats.userCount = users;
+      stats.vendorCount = vendors;
+      stats.pendingKycCount = pendingKyc;
+      stats.orderCount = disputeOrders;
+    }
+
+    // --- 3. FINANCE (Money View) ---
+    else if (role === "FINANCE") {
+      const [revenue, gmv, pendingPayoutsAgg, pendingPayoutsCnt] =
+        await Promise.all([
+          calculateRevenue(),
+          calculateGMV(),
+          ctx.db.transaction.aggregate({
+            _sum: { amount: true },
+            where: {
+              type: TransactionType.PAYOUT,
+              status: TransactionStatus.PENDING,
+            },
+          }),
+          ctx.db.transaction.count({
+            where: {
+              type: TransactionType.PAYOUT,
+              status: TransactionStatus.PENDING,
+            },
+          }),
+        ]);
+
+      stats.totalRevenue = revenue;
+      stats.totalVolume = gmv;
+      stats.pendingPayoutsVolume = Math.abs(pendingPayoutsAgg._sum.amount ?? 0);
+      stats.pendingPayoutsCount = pendingPayoutsCnt;
+    }
+
+    return stats;
   }),
 
+  // ... (keep rest of router: getPendingKyc, approveKyc)
   getPendingKyc: adminProcedure
     .input(
       z.object({
@@ -87,41 +145,20 @@ export const adminRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const vendors = await ctx.db.vendorProfile.findMany({
+      return ctx.db.vendorProfile.findMany({
         where: { kycStatus: "IN_REVIEW" },
         take: input.limit,
         skip: input.offset,
-        include: {
-          user: {
-            select: {
-              email: true,
-              username: true,
-            },
-          },
-        },
+        include: { user: { select: { email: true, username: true } } },
       });
-      return vendors;
     }),
 
   approveKyc: adminProcedure
     .input(z.object({ vendorProfileId: z.string(), approved: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
-      const vendor = await ctx.db.vendorProfile.findUnique({
-        where: { id: input.vendorProfileId },
-      });
-
-      if (!vendor) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Vendor profile not found",
-        });
-      }
-
       return ctx.db.vendorProfile.update({
         where: { id: input.vendorProfileId },
-        data: {
-          kycStatus: input.approved ? "APPROVED" : "REJECTED",
-        },
+        data: { kycStatus: input.approved ? "APPROVED" : "REJECTED" },
       });
     }),
 });

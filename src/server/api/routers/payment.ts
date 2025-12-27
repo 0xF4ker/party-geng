@@ -510,7 +510,7 @@ export const paymentRouter = createTRPCRouter({
         });
       }
 
-      // In a real implementation, you would:
+      // In a real implementation, we would:
       // 1. Integrate with Paystack Transfer API
       // 2. Verify bank details
       // 3. Process the withdrawal
