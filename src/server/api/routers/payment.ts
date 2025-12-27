@@ -651,6 +651,8 @@ export const paymentRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      ctx.auditFlags.disabled = true;
+
       const { transactionId, action, rejectionReason } = input;
 
       const transaction = await ctx.db.transaction.findUnique({

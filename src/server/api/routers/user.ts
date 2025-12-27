@@ -197,14 +197,16 @@ export const userRouter = createTRPCRouter({
       z.object({
         limit: z.number().min(1).max(100).default(20),
         cursor: z.string().nullish(),
-        role: z.enum(["CLIENT", "VENDOR", "ADMIN", "SUPPORT", "FINANCE"]).optional(),
+        role: z
+          .enum(["CLIENT", "VENDOR", "ADMIN", "SUPPORT", "FINANCE"])
+          .optional(),
         search: z.string().optional(),
-      })
+      }),
     )
     .query(async ({ ctx, input }) => {
       const { limit, cursor, role, search } = input;
       const where: Prisma.UserWhereInput = {
-        role: role ? role : undefined,
+        role: role ?? undefined,
         OR: search
           ? [
               { email: { contains: search, mode: "insensitive" } },
@@ -309,6 +311,8 @@ export const userRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      ctx.auditFlags.disabled = true;
+
       const user = await ctx.db.user.create({
         data: {
           id: input.id,
@@ -330,19 +334,26 @@ export const userRouter = createTRPCRouter({
       return user;
     }),
 
-    suspendUser: adminProcedure
-    .input(z.object({
-      userId: z.string(),
-      reason: z.string(),
-      durationDays: z.number().optional(), // If undefined = Permanent Ban
-    }))
+  suspendUser: adminProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+        reason: z.string(),
+        durationDays: z.number().optional(), // If undefined = Permanent Ban
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
+      ctx.auditFlags.disabled = true;
+
       if (input.userId === ctx.user.id) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot suspend yourself." });
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot suspend yourself.",
+        });
       }
 
-      const suspendedUntil = input.durationDays 
-        ? new Date(Date.now() + input.durationDays * 24 * 60 * 60 * 1000) 
+      const suspendedUntil = input.durationDays
+        ? new Date(Date.now() + input.durationDays * 24 * 60 * 60 * 1000)
         : null;
 
       const updated = await ctx.db.user.update({
@@ -359,7 +370,10 @@ export const userRouter = createTRPCRouter({
         action: input.durationDays ? "USER_SUSPEND" : "USER_BAN",
         entityType: "USER",
         entityId: input.userId,
-        details: { reason: input.reason, duration: input.durationDays || "Permanent" },
+        details: {
+          reason: input.reason,
+          duration: input.durationDays ?? "Permanent",
+        },
       });
 
       return updated;
@@ -369,6 +383,8 @@ export const userRouter = createTRPCRouter({
   restoreUser: adminProcedure
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      ctx.auditFlags.disabled = true;
+
       const updated = await ctx.db.user.update({
         where: { id: input.userId },
         data: {
@@ -395,6 +411,8 @@ export const userRouter = createTRPCRouter({
   deleteUser: adminProcedure
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      ctx.auditFlags.disabled = true;
+
       // Prevent deleting self
       if (input.userId === ctx.user.id) {
         throw new TRPCError({
@@ -429,6 +447,8 @@ export const userRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      ctx.auditFlags.disabled = true;
+
       const updated = await ctx.db.user.update({
         where: { id: input.userId },
         data: { role: input.newRole },
@@ -444,7 +464,7 @@ export const userRouter = createTRPCRouter({
 
       return updated;
     }),
-    adminGetUser: adminProcedure
+  adminGetUser: adminProcedure
     .input(z.object({ userId: z.string() }))
     .query(async ({ ctx, input }) => {
       const user = await ctx.db.user.findUnique({

@@ -370,6 +370,8 @@ export const orderRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      ctx.auditFlags.disabled = true;
+
       const { orderId, status, reason } = input;
 
       const order = await ctx.db.order.findUnique({ where: { id: orderId } });

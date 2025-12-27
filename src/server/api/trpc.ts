@@ -54,6 +54,7 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
     db,
     supabase,
     user: profile,
+    auditFlags: { disabled: false },
     ...opts,
   };
 };
@@ -130,6 +131,10 @@ const activityLoggerMiddleware = t.middleware(async (opts) => {
   const { ctx, next, path, type } = opts;
 
   const result = await next();
+
+  if (ctx.auditFlags.disabled) {
+    return result;
+  }
 
   // FIX 2: Safely access rawInput by asserting the opts shape.
   // We use `unknown` to strictly avoid `any`.

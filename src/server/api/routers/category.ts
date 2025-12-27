@@ -191,6 +191,8 @@ export const categoryRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      ctx.auditFlags.disabled = true;
+
       const slug = input.slug ?? slugify(input.name);
 
       // Check for slug collision
@@ -241,6 +243,8 @@ export const categoryRouter = createTRPCRouter({
   deleteCategory: adminProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
+      ctx.auditFlags.disabled = true;
+
       // Check if it has services
       const count = await ctx.db.service.count({
         where: { categoryId: input.id },
@@ -279,6 +283,8 @@ export const categoryRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      ctx.auditFlags.disabled = true;
+
       const slug = input.slug ?? slugify(input.name);
 
       const existing = await ctx.db.service.findFirst({
@@ -336,6 +342,8 @@ export const categoryRouter = createTRPCRouter({
   deleteService: adminProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
+      ctx.auditFlags.disabled = true;
+
       // Check for vendor usage
       const vendorCount = await ctx.db.servicesOnVendors.count({
         where: { serviceId: input.id },

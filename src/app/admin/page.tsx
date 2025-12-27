@@ -217,7 +217,7 @@ async function RecentActivityFeed() {
 
       <div className="border-t p-2 text-center">
         <Link
-          href="/admin/logs"
+          href="/admin/audit"
           className="inline-flex items-center text-xs font-medium text-blue-600 hover:text-blue-800"
         >
           View all logs <ArrowRight className="ml-1 h-3 w-3" />
