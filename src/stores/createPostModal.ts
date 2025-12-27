@@ -10,7 +10,7 @@ type DetailedPost = RouterOutputs["post"]["getById"];
 
 // 2. Create a Union Type (It can be either a Snapshot OR a Full Detail)
 // This tells TypeScript: "I accept any valid post object from our system"
-type PostShape = TrendingPost | DetailedPost;
+export type PostShape = TrendingPost | DetailedPost;
 
 type CreatePostModalStore = {
   isOpen: boolean;

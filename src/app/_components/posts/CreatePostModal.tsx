@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreatePostModal } from "@/stores/createPostModal";
+import { useCreatePostModal, type PostShape } from "@/stores/createPostModal";
 import { useUpload } from "@/hooks/useUpload";
 import { api } from "@/trpc/react";
 import type { AssetType } from "@prisma/client";
@@ -39,7 +39,7 @@ const CreatePostForm = ({
   postToEdit,
 }: {
   onClose: () => void;
-  postToEdit: Post | null;
+  postToEdit: PostShape | null;
 }) => {
   const { user } = useAuth();
   const { upload, isLoading: isUploading } = useUpload();
