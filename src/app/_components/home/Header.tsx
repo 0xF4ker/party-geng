@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Menu,  Calendar, Flame } from "lucide-react";
+import { Menu, Calendar, Flame } from "lucide-react";
 import { EnvelopeIcon } from "@heroicons/react/24/solid";
 import LoginJoinComponent from "../LoginJoinComponent";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
@@ -25,9 +25,7 @@ const Modal = ({
   onClose: () => void;
 }) => {
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
+    if (e.target === e.currentTarget) onClose();
   };
 
   useEffect(() => {
@@ -107,14 +105,9 @@ const Header = () => {
         setIsProfileDropdownOpen(false);
       }
     };
-
-    if (isProfileDropdownOpen) {
+    if (isProfileDropdownOpen)
       document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isProfileDropdownOpen]);
 
   return (
@@ -122,8 +115,7 @@ const Header = () => {
       <header
         ref={headerRef}
         className={cn(
-          "fixed top-0 right-0 left-0 z-40 w-full bg-white text-gray-800",
-          "shadow-md",
+          "fixed top-0 right-0 left-0 z-40 w-full bg-white text-gray-800 shadow-md",
         )}
       >
         <div
@@ -132,9 +124,13 @@ const Header = () => {
           )}
         >
           <div className="flex w-full items-center justify-between">
+            {/* LEFT: Menu & Logo */}
             <div className="flex shrink-0 items-center">
-              <button onClick={toggleMobileMenu} className="lg:hidden">
-                <Menu className="h-6 w-6" />
+              <button
+                onClick={toggleMobileMenu}
+                className="-ml-1 p-1 lg:hidden"
+              >
+                <Menu className="h-6 w-6 text-gray-600" />
               </button>
               <Link href="/">
                 <Image
@@ -142,11 +138,12 @@ const Header = () => {
                   alt="PartyGeng Logo"
                   width={150}
                   height={50}
-                  className="ml-4 h-6 w-auto object-contain"
+                  className="ml-3 h-6 w-auto object-contain sm:ml-4"
                 />
               </Link>
             </div>
 
+            {/* MIDDLE: Search (Hidden on Mobile) */}
             {loading ? (
               <div className="mx-4 hidden grow sm:flex lg:mx-16">
                 <Skeleton className="h-10 w-full max-w-lg" />
@@ -164,21 +161,10 @@ const Header = () => {
               )
             )}
 
+            {/* RIGHT: Actions */}
             {loading ? (
               <div className="flex items-center gap-4">
-                <div className="hidden items-center gap-6 lg:flex">
-                  <Skeleton className="h-9 w-24 rounded-md" />
-                  <Skeleton className="h-6 w-20" />
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="h-10 w-10 rounded-full" />
-                    <Skeleton className="h-10 w-10 rounded-full" />
-                    <Skeleton className="h-10 w-10 rounded-full" />
-                  </div>
-                  <Skeleton className="h-10 w-10 rounded-full" />
-                </div>
-                <div className="lg:hidden">
-                  <Skeleton className="h-10 w-10 rounded-full" />
-                </div>
+                <Skeleton className="h-10 w-10 rounded-full" />
               </div>
             ) : isGuest ? (
               <nav className="flex items-center gap-3">
@@ -197,6 +183,7 @@ const Header = () => {
               </nav>
             ) : (
               <div className="flex items-center gap-2 sm:gap-4">
+                {/* Desktop Nav Links */}
                 <nav className="hidden items-center gap-6 lg:flex">
                   <Button
                     asChild
@@ -204,27 +191,26 @@ const Header = () => {
                     className="bg-linear-to-r from-orange-400 to-pink-500 font-semibold text-white shadow-sm hover:from-orange-500 hover:to-pink-600"
                   >
                     <Link href="/trending">
-                      <Flame className="mr-2 h-4 w-4" />
-                      Trending
+                      <Flame className="mr-2 h-4 w-4" /> Trending
                     </Link>
                   </Button>
                   {isVendor ? (
                     <>
                       <Link
                         href="/dashboard"
-                        className="text-sm font-medium text-gray-700 transition-colors hover:text-pink-500"
+                        className="text-sm font-medium text-gray-700 hover:text-pink-500"
                       >
                         Dashboard
                       </Link>
                       <Link
                         href="/manage_orders"
-                        className="text-sm font-medium text-gray-700 transition-colors hover:text-pink-500"
+                        className="text-sm font-medium text-gray-700 hover:text-pink-500"
                       >
                         Orders
                       </Link>
                       <Link
                         href="/wallet"
-                        className="text-sm font-medium text-gray-700 transition-colors hover:text-pink-500"
+                        className="text-sm font-medium text-gray-700 hover:text-pink-500"
                       >
                         Wallet
                       </Link>
@@ -232,14 +218,16 @@ const Header = () => {
                   ) : (
                     <Link
                       href="/manage_orders"
-                      className="text-sm font-medium text-gray-700 transition-colors hover:text-pink-500"
+                      className="text-sm font-medium text-gray-700 hover:text-pink-500"
                     >
                       Orders
                     </Link>
                   )}
                 </nav>
 
-                <div className="flex items-center gap-1">
+                {/* Icons Area */}
+                <div className="flex items-center gap-1 sm:gap-2">
+                  {/* Desktop Inbox */}
                   <Link
                     href="/inbox"
                     className="relative hidden h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 hover:text-pink-600 md:flex"
@@ -249,22 +237,23 @@ const Header = () => {
                       <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-pink-600 ring-1 ring-white" />
                     )}
                   </Link>
-                  <NotificationDropdown className="hidden text-gray-600 hover:bg-gray-100 hover:text-pink-600 md:flex" />
+
+                  {/* NOTIFICATION BELL: Now visible on Mobile (flex) instead of (hidden md:flex) */}
+                  <NotificationDropdown className="flex text-gray-600 hover:bg-gray-100 hover:text-pink-600" />
                 </div>
 
+                {/* Plan Event (Desktop Client Only) */}
                 {!isVendor && (
-                  <div className="hidden items-center lg:flex">
-                    <div className="ml-2">
-                      <Link href="/manage_events">
-                        <button className="flex items-center gap-2 rounded-md bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-pink-700">
-                          <Calendar className="h-4 w-4" />
-                          Plan Event
-                        </button>
-                      </Link>
-                    </div>
+                  <div className="ml-2 hidden items-center lg:flex">
+                    <Link href="/manage_events">
+                      <button className="flex items-center gap-2 rounded-md bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-pink-700">
+                        <Calendar className="h-4 w-4" /> Plan Event
+                      </button>
+                    </Link>
                   </div>
                 )}
 
+                {/* Profile Picture */}
                 <div className="relative" ref={profileDropdownRef}>
                   <Link
                     href={
@@ -272,7 +261,7 @@ const Header = () => {
                     }
                     className="block rounded-full ring-2 ring-transparent transition-all hover:ring-pink-500 focus:outline-none"
                   >
-                    <div className="h-10 w-10 overflow-hidden rounded-full border border-gray-100 bg-pink-100 shadow-sm">
+                    <div className="h-9 w-9 overflow-hidden rounded-full border border-gray-100 bg-pink-100 shadow-sm sm:h-10 sm:w-10">
                       {avatarUrl ? (
                         <Image
                           src={avatarUrl}
@@ -282,7 +271,7 @@ const Header = () => {
                           height={40}
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center font-semibold text-pink-600">
+                        <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-pink-600 sm:text-base">
                           {displayName?.charAt(0).toUpperCase() ??
                             (isVendor ? "V" : "C")}
                         </div>
@@ -294,6 +283,7 @@ const Header = () => {
             )}
           </div>
 
+          {/* Mobile Search Bar (Client Only) */}
           {loading ? (
             <div className="mt-3 w-full sm:hidden">
               <Skeleton className="h-10 w-full" />
@@ -312,8 +302,10 @@ const Header = () => {
           )}
         </div>
 
+        {/* Carousel Divider */}
         <div className="w-full border-b border-gray-200"></div>
 
+        {/* Categories (Desktop Client Only) */}
         {loading ? (
           <div className="hidden w-full sm:block">
             <Skeleton className="h-10 w-full" />

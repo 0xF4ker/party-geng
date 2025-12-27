@@ -7,10 +7,11 @@ import {
   MessageSquare,
   CheckCircle,
   XCircle,
-  Hourglass, // For Clearing
-  FileText, // For Quotes
-  Star, // For Reviews
+  Hourglass,
+  FileText,
+  Star,
   Loader2,
+  MoreHorizontal,
 } from "lucide-react";
 import Image from "next/image";
 import { api } from "@/trpc/react";
@@ -18,14 +19,23 @@ import { useAuthStore } from "@/stores/auth";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 
-type routerOutput = inferRouterOutputs<AppRouter>;
-type order = routerOutput["order"]["getMyOrders"][0];
-type quote = routerOutput["order"]["getMyQuotes"][0];
+// --- 1. STRICT TYPES ---
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type Order = RouterOutputs["order"]["getMyOrders"][number];
+type Quote = RouterOutputs["order"]["getMyQuotes"][number];
+type NextRouter = ReturnType<typeof useRouter>;
+type UserType = "vendor" | "client";
 
-// --- Type Definitions ---
 interface Tab {
   id: string;
   title: string;
@@ -33,24 +43,58 @@ interface Tab {
   icon: React.ElementType;
 }
 
-// --- Main Page Component ---
+// --- Helpers ---
+const StatusBadge = ({ status }: { status: string }) => {
+  const styles: Record<string, string> = {
+    ACTIVE: "bg-blue-100 text-blue-700 border-blue-200",
+    COMPLETED: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    CANCELLED: "bg-red-50 text-red-700 border-red-200",
+    PENDING: "bg-orange-100 text-orange-700 border-orange-200",
+    IN_DISPUTE: "bg-purple-100 text-purple-700 border-purple-200",
+  };
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
+        styles[status] ?? "border-gray-200 bg-gray-100 text-gray-700",
+      )}
+    >
+      {status.replace("_", " ")}
+    </span>
+  );
+};
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(
+    amount,
+  );
+
+const formatDate = (date: Date | string) =>
+  new Date(date).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+// --- Main Page ---
 const OrdersPage = () => {
   const { profile } = useAuthStore();
   const router = useRouter();
   const isVendor = profile?.role === "VENDOR";
 
-  const initialTab = useMemo(() => isVendor ? "newLeads" : "pending", [isVendor]);
+  const initialTab = useMemo(
+    () => (isVendor ? "newLeads" : "pending"),
+    [isVendor],
+  );
   const [activeTab, setActiveTab] = useState(initialTab);
 
-  // Fetch quotes (for new leads)
   const { data: quotes, isLoading: quotesLoading } =
     api.order.getMyQuotes.useQuery();
-
-  // Fetch orders
   const { data: orders, isLoading: ordersLoading } =
     api.order.getMyOrders.useQuery();
 
-  // Group data by status
+  // Filter Data
   const newLeads = quotes?.filter((q) => q.status === "PENDING") ?? [];
   const pendingQuotes = quotes?.filter((q) => q.status === "PENDING") ?? [];
   const activeOrders = orders?.filter((o) => o.status === "ACTIVE") ?? [];
@@ -112,454 +156,518 @@ const OrdersPage = () => {
   ];
 
   const tabs = isVendor ? vendorTabs : clientTabs;
-
   const isLoading = quotesLoading || ordersLoading;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
-        <div className="container mx-auto px-4 py-8 sm:px-8">
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-pink-600 border-r-transparent"></div>
-              <p className="mt-4 text-gray-600">Loading orders...</p>
-            </div>
-          </div>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 pt-[120px]">
+        <Loader2 className="h-8 w-8 animate-spin text-pink-600" />
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
-      <div className="container mx-auto px-4 py-8 sm:px-8">
-        <h1 className="mb-6 text-3xl font-bold">Manage Orders</h1>
+  const userType: UserType = isVendor ? "vendor" : "client";
 
-        {/* Main Content Area */}
-        <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-          {/* Tabs */}
-          <div className="flex items-center overflow-x-auto border-b border-gray-200">
-            {tabs.map((tab) => (
-              <TabButton
-                key={tab.id}
-                title={tab.title}
-                count={tab.count}
-                icon={tab.icon}
-                isActive={activeTab === tab.id}
-                onClick={() => setActiveTab(tab.id)}
+  return (
+    <div className="min-h-screen bg-gray-50 pt-[100px] pb-20 text-gray-900">
+      <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Manage Orders</h1>
+            <p className="text-sm text-gray-500">
+              Track your gigs, quotes, and history.
+            </p>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="mb-6 flex space-x-1 overflow-x-auto rounded-xl bg-gray-100 p-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex min-w-[120px] items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all",
+                activeTab === tab.id
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:bg-gray-200/50 hover:text-gray-700",
+              )}
+            >
+              <tab.icon
+                className={cn(
+                  "h-4 w-4",
+                  activeTab === tab.id ? "text-pink-600" : "text-gray-400",
+                )}
+              />
+              {tab.title}
+              {tab.count > 0 && (
+                <span
+                  className={cn(
+                    "ml-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold",
+                    activeTab === tab.id
+                      ? "bg-pink-100 text-pink-700"
+                      : "bg-gray-200 text-gray-600",
+                  )}
+                >
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="space-y-4">
+          {isVendor ? (
+            <>
+              {activeTab === "newLeads" && (
+                <QuoteList
+                  quotes={newLeads}
+                  userType="vendor"
+                  router={router}
+                />
+              )}
+              {activeTab === "active" && (
+                <OrderList
+                  orders={activeOrders}
+                  userType="vendor"
+                  router={router}
+                />
+              )}
+              {activeTab === "completed" && (
+                <OrderList
+                  orders={completedOrders}
+                  userType="vendor"
+                  router={router}
+                />
+              )}
+              {activeTab === "cancelled" && (
+                <OrderList
+                  orders={cancelledOrders}
+                  userType="vendor"
+                  router={router}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              {activeTab === "pending" && (
+                <QuoteList
+                  quotes={pendingQuotes}
+                  userType="client"
+                  router={router}
+                />
+              )}
+              {activeTab === "active" && (
+                <OrderList
+                  orders={activeOrders}
+                  userType="client"
+                  router={router}
+                />
+              )}
+              {activeTab === "completed" && (
+                <OrderList
+                  orders={completedOrders}
+                  userType="client"
+                  router={router}
+                />
+              )}
+              {activeTab === "cancelled" && (
+                <OrderList
+                  orders={cancelledOrders}
+                  userType="client"
+                  router={router}
+                />
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- QUOTE COMPONENTS ---
+
+interface QuoteListProps {
+  quotes: Quote[];
+  userType: UserType;
+  router: NextRouter;
+}
+
+const QuoteList = ({ quotes, userType, router }: QuoteListProps) => {
+  if (quotes.length === 0)
+    return <EmptyState label="No pending quotes found." />;
+
+  return (
+    <>
+      {/* Desktop Table */}
+      <div className="hidden overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm md:block">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-gray-50 text-gray-500">
+            <tr>
+              <th className="px-6 py-4 font-medium">Service</th>
+              <th className="px-6 py-4 font-medium">User</th>
+              <th className="px-6 py-4 font-medium">Date</th>
+              <th className="px-6 py-4 font-medium">Amount</th>
+              <th className="px-6 py-4 text-right font-medium">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {quotes.map((quote) => (
+              <QuoteRow
+                key={quote.id}
+                quote={quote}
+                userType={userType}
+                router={router}
               />
             ))}
-          </div>
-
-          {/* Order List */}
-          <div className="divide-y divide-gray-100">
-            {isVendor ? (
-              <>
-                {activeTab === "newLeads" && (
-                  <QuoteList
-                    quotes={newLeads}
-                    userType="vendor"
-                    router={router}
-                  />
-                )}
-                {activeTab === "active" && (
-                  <OrderList
-                    orders={activeOrders}
-                    userType="vendor"
-                    status="active"
-                    router={router}
-                  />
-                )}
-                {activeTab === "completed" && (
-                  <OrderList
-                    orders={completedOrders}
-                    userType="vendor"
-                    status="completed"
-                    router={router}
-                  />
-                )}
-                {activeTab === "cancelled" && (
-                  <OrderList
-                    orders={cancelledOrders}
-                    userType="vendor"
-                    status="cancelled"
-                    router={router}
-                  />
-                )}
-              </>
-            ) : (
-              <>
-                {activeTab === "pending" && (
-                  <QuoteList
-                    quotes={pendingQuotes}
-                    userType="client"
-                    router={router}
-                  />
-                )}
-                {activeTab === "active" && (
-                  <OrderList
-                    orders={activeOrders}
-                    userType="client"
-                    status="active"
-                    router={router}
-                  />
-                )}
-                {activeTab === "completed" && (
-                  <OrderList
-                    orders={completedOrders}
-                    userType="client"
-                    status="completed"
-                    router={router}
-                  />
-                )}
-                {activeTab === "cancelled" && (
-                  <OrderList
-                    orders={cancelledOrders}
-                    userType="client"
-                    status="cancelled"
-                    router={router}
-                  />
-                )}
-              </>
-            )}
-          </div>
-        </div>
+          </tbody>
+        </table>
       </div>
-    </div>
+
+      {/* Mobile Grid */}
+      <div className="grid gap-4 md:hidden">
+        {quotes.map((quote) => (
+          <QuoteCard
+            key={quote.id}
+            quote={quote}
+            userType={userType}
+            router={router}
+          />
+        ))}
+      </div>
+    </>
   );
 };
 
-// --- Sub-Components ---
+interface QuoteItemProps {
+  quote: Quote;
+  userType: UserType;
+  router: NextRouter;
+}
 
-const TabButton = ({
-  title,
-  count,
-  icon: Icon,
-  isActive,
-  onClick,
-}: {
-  title: string;
-  count: number;
-  icon: React.ElementType;
-  isActive: boolean;
-  onClick: () => void;
-}) => (
-  <button
-    onClick={onClick}
-    className={cn(
-      "flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors sm:px-6 sm:text-base",
-      isActive
-        ? "border-pink-600 text-pink-600"
-        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-800",
-    )}
-  >
-    <Icon
-      className={cn("h-4 w-4", isActive ? "text-pink-600" : "text-gray-400")}
-    />
-    {title}
-    <span
-      className={cn(
-        "rounded-full px-2 py-0.5 text-xs font-bold",
-        isActive ? "bg-pink-100 text-pink-700" : "bg-gray-100 text-gray-600",
-      )}
-    >
-      {count}
-    </span>
-  </button>
-);
-
-// Quote List Component (for pending quotes/new leads)
-const QuoteList = ({
-  quotes,
-  userType,
-  router,
-}: {
-  quotes: quote[];
-  userType: string;
-  router: ReturnType<typeof useRouter>;
-}) => {
-  if (quotes.length === 0) {
-    return (
-      <p className="p-10 text-center text-gray-500">
-        {userType === "vendor"
-          ? "No new leads at the moment."
-          : "No pending quotes."}
-      </p>
-    );
-  }
-
-  return (
-    <div className="divide-y divide-gray-100">
-      {quotes.map((quote) => (
-        <QuoteCard
-          key={quote.id}
-          quote={quote}
-          userType={userType}
-          router={router}
-        />
-      ))}
-    </div>
-  );
-};
-
-// Order List Component
-const OrderList = ({
-  orders,
-  userType,
-  status,
-  router,
-}: {
-  orders: order[];
-  userType: string;
-  status: string;
-  router: ReturnType<typeof useRouter>;
-}) => {
-  if (orders.length === 0) {
-    return (
-      <p className="p-10 text-center text-gray-500">
-        No orders in this category.
-      </p>
-    );
-  }
-
-  return (
-    <div className="divide-y divide-gray-100">
-      {orders.map((order) => (
-        <OrderCard
-          key={order.id}
-          order={order}
-          userType={userType}
-          status={status}
-          router={router}
-        />
-      ))}
-    </div>
-  );
-};
-
-// Quote Card Component
-const QuoteCard = ({
-  quote,
-  userType,
-  router,
-}: {
-  quote: quote;
-  userType: string;
-  router: ReturnType<typeof useRouter>;
-}) => {
+const QuoteRow = ({ quote, userType, router }: QuoteItemProps) => {
   const isVendor = userType === "vendor";
-
   const profile = isVendor
-    ? quote.client.clientProfile // <-- This is safe
-    : quote.vendor.vendorProfile; // <-- This is also safe
-
+    ? quote.client.clientProfile
+    : quote.vendor.vendorProfile;
   const name = isVendor
     ? quote.client.clientProfile?.name
     : quote.vendor.vendorProfile?.companyName;
+  const username = isVendor ? quote.client.username : quote.vendor.username;
+
+  const displayName = name ?? username;
   const avatar =
     profile?.avatarUrl ??
-    `https://placehold.co/40x40/ec4899/ffffff?text=${name?.charAt(0)}`;
+    `https://placehold.co/40x40/f3f4f6/6b7280?text=${displayName.charAt(0)}`;
 
   return (
-    <div className="p-4 hover:bg-gray-50">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start space-x-4">
+    <tr className="group hover:bg-gray-50/50">
+      <td className="px-6 py-4 font-medium text-gray-900">{quote.title}</td>
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-3">
           <Image
             src={avatar}
-            alt={name ?? "User"}
-            className="h-12 w-12 shrink-0 rounded-full"
-            width={48}
-            height={48}
+            alt=""
+            width={32}
+            height={32}
+            className="rounded-full bg-gray-100 object-cover"
           />
-          <div className="grow">
-            <p className="font-semibold text-gray-800">{name}</p>
-            <p className="text-sm text-gray-600">{quote.title}</p>
-            <p className="mt-1 flex items-center gap-2 text-sm text-gray-400">
-              <CalendarDays className="h-4 w-4" />
-              {new Date(quote.eventDate).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+          <span className="text-gray-700">{displayName}</span>
+        </div>
+      </td>
+      <td className="px-6 py-4 text-gray-500">{formatDate(quote.eventDate)}</td>
+      <td className="px-6 py-4 font-semibold text-gray-900">
+        {formatCurrency(quote.price)}
+      </td>
+      <td className="px-6 py-4 text-right">
+        <Button
+          size="sm"
+          onClick={() => router.push(`/quote/${quote.id}`)}
+          className="border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:text-pink-600"
+        >
+          {isVendor ? "Send Quote" : "View Quote"}
+        </Button>
+      </td>
+    </tr>
+  );
+};
+
+const QuoteCard = ({ quote, userType, router }: QuoteItemProps) => {
+  const isVendor = userType === "vendor";
+  const name = isVendor
+    ? quote.client.clientProfile?.name
+    : quote.vendor.vendorProfile?.companyName;
+  const username = isVendor ? quote.client.username : quote.vendor.username;
+  const displayName = name ?? username;
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between">
+        <div>
+          <h3 className="font-semibold text-gray-900">{quote.title}</h3>
+          <p className="mt-1 flex items-center gap-1 text-sm text-gray-500">
+            <CalendarDays className="h-3.5 w-3.5" />{" "}
+            {formatDate(quote.eventDate)}
+          </p>
+        </div>
+        <StatusBadge status="PENDING" />
+      </div>
+
+      <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-gray-100 text-xs font-bold text-gray-500">
+            {/* If we had the avatar URL here we'd use it, otherwise simple initial */}
+            {displayName.charAt(0)}
+          </div>
+          <div className="text-sm">
+            <p className="text-xs text-gray-500">
+              {isVendor ? "Client" : "Vendor"}
             </p>
+            <p className="font-medium text-gray-900">{displayName}</p>
           </div>
         </div>
-
-        <div className="flex items-center justify-between gap-2 sm:flex-col sm:items-end sm:justify-start">
-          <span className="text-xl font-bold text-gray-900">
-            ₦{quote.price.toLocaleString()}
-          </span>
-          <div className="shrink-0">
-            <ActionButton
-              text={isVendor ? "Send Quote" : "View Quote"}
-              icon={FileText}
-              primary
-              onClick={() => router.push(`/quote/${quote.id}`)}
-            />
-          </div>
+        <div className="text-right">
+          <p className="text-xs text-gray-500">Budget</p>
+          <p className="font-bold text-gray-900">
+            {formatCurrency(quote.price)}
+          </p>
         </div>
       </div>
+
+      <Button
+        onClick={() => router.push(`/quote/${quote.id}`)}
+        className="mt-4 w-full bg-gray-900 text-white hover:bg-gray-800"
+      >
+        {isVendor ? "Review & Send Quote" : "View Details"}
+      </Button>
     </div>
   );
 };
 
-// Order Card Component
-const OrderCard = ({
-  order,
-  userType,
-  status,
-  router,
-}: {
-  order: order;
-  userType: string;
-  status: string;
-  router: ReturnType<typeof useRouter>;
-}) => {
+// --- ORDER COMPONENTS ---
+
+interface OrderListProps {
+  orders: Order[];
+  userType: UserType;
+  router: NextRouter;
+}
+
+const OrderList = ({ orders, userType, router }: OrderListProps) => {
+  if (orders.length === 0) return <EmptyState label="No orders found." />;
+
+  return (
+    <>
+      {/* Desktop Table */}
+      <div className="hidden overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm md:block">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-gray-50 text-gray-500">
+            <tr>
+              <th className="px-6 py-4 font-medium">Order ID</th>
+              <th className="px-6 py-4 font-medium">Service</th>
+              <th className="px-6 py-4 font-medium">User</th>
+              <th className="px-6 py-4 font-medium">Status</th>
+              <th className="px-6 py-4 font-medium">Amount</th>
+              <th className="px-6 py-4 text-right font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {orders.map((order) => (
+              <OrderRow
+                key={order.id}
+                order={order}
+                userType={userType}
+                router={router}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Grid */}
+      <div className="grid gap-4 md:hidden">
+        {orders.map((order) => (
+          <OrderCard
+            key={order.id}
+            order={order}
+            userType={userType}
+            router={router}
+          />
+        ))}
+      </div>
+    </>
+  );
+};
+
+interface OrderItemProps {
+  order: Order;
+  userType: UserType;
+  router: NextRouter;
+}
+
+const OrderRow = ({ order, userType, router }: OrderItemProps) => {
   const isVendor = userType === "vendor";
-  const utils = api.useContext();
-
-  const completeOrder = api.order.completeOrder.useMutation({
-    onSuccess: () => {
-      toast.success("Order marked as complete!");
-      void utils.order.getMyOrders.invalidate();
-    },
-    onError: (error) => {
-      toast.error(error.message || "Failed to complete order.");
-    },
-  });
-
   const profile = isVendor
-    ? order.client.clientProfile // <-- This is safe
-    : order.vendor.vendorProfile; // <-- This is also safe
-
+    ? order.client.clientProfile
+    : order.vendor.vendorProfile;
   const name = isVendor
     ? order.client.clientProfile?.name
     : order.vendor.vendorProfile?.companyName;
+  const username = isVendor ? order.client.username : order.vendor.username;
+  const displayName = name ?? username;
+
   const avatar =
     profile?.avatarUrl ??
-    `https://placehold.co/40x40/ec4899/ffffff?text=${name?.charAt(0)}`;
+    `https://placehold.co/40x40?text=${displayName.charAt(0)}`;
 
-  const actionButtons = [];
-  if (isVendor) {
-    if (status === "active")
-      actionButtons.push(
-        <ActionButton
-          key="chat"
-          text="View Chat"
-          icon={MessageSquare}
-          onClick={() =>
-            router.push(`/inbox?conversation=${order.quote.conversationId}`)
-          }
-        />,
-      );
-    if (status === "completed")
-      actionButtons.push(
-        <ActionButton
-          key="details"
-          text="View Details"
-          icon={FileText}
-          onClick={() => router.push(`/orders/${order.id}`)}
-        />,
-      );
-  } else {
-    // Client view
-    if (status === "active") {
-      actionButtons.push(
-        <ActionButton
-          key="chat"
-          text="View Chat"
-          icon={MessageSquare}
-          onClick={() =>
-            router.push(`/inbox?conversation=${order.quote.conversationId}`)
-          }
-        />,
-      );
-      actionButtons.push(
-        <ActionButton
-          key="complete"
-          text={completeOrder.isPending ? "Completing..." : "Mark as Complete"}
-          icon={completeOrder.isPending ? Loader2 : CheckCircle}
-          primary
-          onClick={() => completeOrder.mutate({ orderId: order.id })}
-          disabled={completeOrder.isPending}
-        />,
-      );
-    }
-    if (status === "completed")
-      actionButtons.push(
-        <ActionButton
-          key="review"
-          text="Leave a Review"
-          icon={Star}
-          primary
-          onClick={() => router.push(`/orders/${order.id}/review`)}
-        />,
-      );
-  }
+  const completeOrder = api.order.completeOrder.useMutation({
+    onSuccess: () => {
+      toast.success("Marked as complete!");
+      window.location.reload();
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   return (
-    <div className="p-4 hover:bg-gray-50">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start space-x-4">
+    <tr className="group hover:bg-gray-50/50">
+      <td className="px-6 py-4 font-mono text-xs text-gray-500">
+        #{order.id.slice(0, 8)}
+      </td>
+      <td className="px-6 py-4 font-medium text-gray-900">
+        {order.quote.title}
+      </td>
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-3">
           <Image
             src={avatar}
-            alt={name ?? "User"}
-            className="h-12 w-12 shrink-0 rounded-full"
-            width={48}
-            height={48}
+            alt=""
+            width={32}
+            height={32}
+            className="rounded-full bg-gray-100 object-cover"
           />
-          <div className="grow">
-            <p className="font-semibold text-gray-800">{name}</p>
-            <p className="text-sm text-gray-600">{order.quote.title}</p>
-            <p className="mt-1 flex items-center gap-2 text-sm text-gray-400">
-              <CalendarDays className="h-4 w-4" />
-              {new Date(order.eventDate).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+          <span className="text-gray-700">{displayName}</span>
+        </div>
+      </td>
+      <td className="px-6 py-4">
+        <StatusBadge status={order.status} />
+      </td>
+      <td className="px-6 py-4 font-semibold text-gray-900">
+        {formatCurrency(order.amount)}
+      </td>
+      <td className="px-6 py-4 text-right">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={() =>
+                router.push(`/inbox?conversation=${order.quote.conversationId}`)
+              }
+            >
+              <MessageSquare className="mr-2 h-4 w-4" /> Chat
+            </DropdownMenuItem>
+            {order.status === "ACTIVE" && !isVendor && (
+              <DropdownMenuItem
+                onClick={() => completeOrder.mutate({ orderId: order.id })}
+              >
+                <CheckCircle className="mr-2 h-4 w-4 text-emerald-600" /> Mark
+                Complete
+              </DropdownMenuItem>
+            )}
+            {order.status === "COMPLETED" && !isVendor && (
+              <DropdownMenuItem
+                onClick={() => router.push(`/orders/${order.id}/review`)}
+              >
+                <Star className="mr-2 h-4 w-4 text-yellow-500" /> Review
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </td>
+    </tr>
+  );
+};
+
+const OrderCard = ({ order, userType, router }: OrderItemProps) => {
+  const isVendor = userType === "vendor";
+  const name = isVendor
+    ? order.client.clientProfile?.name
+    : order.vendor.vendorProfile?.companyName;
+  const username = isVendor ? order.client.username : order.vendor.username;
+  const displayName = name ?? username;
+
+  const completeOrder = api.order.completeOrder.useMutation({
+    onSuccess: () => {
+      toast.success("Marked as complete!");
+      window.location.reload();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between">
+        <div>
+          <span className="font-mono text-xs text-gray-400">
+            #{order.id.slice(0, 8)}
+          </span>
+          <h3 className="font-semibold text-gray-900">{order.quote.title}</h3>
+        </div>
+        <StatusBadge status={order.status} />
+      </div>
+
+      <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">
+            {displayName.charAt(0)}
+          </div>
+          <div className="text-sm">
+            <p className="font-medium text-gray-900">{displayName}</p>
+            <p className="text-xs text-gray-500">
+              {formatCurrency(order.amount)}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2 sm:flex-col sm:items-end sm:justify-start">
-          <span className="text-xl font-bold text-gray-900">
-            ₦{order.amount.toLocaleString()}
-          </span>
-          <div className="flex shrink-0 gap-2">{actionButtons}</div>
+        {/* Mobile Actions */}
+        <div className="flex gap-2">
+          <Button
+            size="icon"
+            variant="outline"
+            className="h-8 w-8"
+            onClick={() =>
+              router.push(`/inbox?conversation=${order.quote.conversationId}`)
+            }
+          >
+            <MessageSquare className="h-4 w-4 text-gray-600" />
+          </Button>
+          {order.status === "ACTIVE" && !isVendor && (
+            <Button
+              size="sm"
+              onClick={() => completeOrder.mutate({ orderId: order.id })}
+              disabled={completeOrder.isPending}
+              className="h-8 bg-emerald-600 hover:bg-emerald-700"
+            >
+              <CheckCircle className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-const ActionButton = ({
-  text,
-  icon: Icon,
-  primary = false,
-  onClick,
-  disabled = false,
-}: {
-  text: string;
-  icon: React.ElementType;
-  primary?: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-}) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    className={cn(
-      "flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition-colors sm:w-auto",
-      primary
-        ? "bg-pink-600 text-white hover:bg-pink-700"
-        : "bg-gray-100 text-gray-700 hover:bg-gray-200",
-      "disabled:cursor-not-allowed disabled:opacity-50",
-    )}
-  >
-    <Icon className={cn("h-4 w-4", disabled && "animate-spin")} />
-    {text}
-  </button>
+const EmptyState = ({ label }: { label: string }) => (
+  <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 text-center">
+    <div className="mb-3 rounded-full bg-white p-4 shadow-sm">
+      <Briefcase className="h-8 w-8 text-gray-400" />
+    </div>
+    <p className="text-gray-500">{label}</p>
+  </div>
 );
 
 export default OrdersPage;

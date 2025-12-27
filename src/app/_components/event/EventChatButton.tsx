@@ -29,7 +29,8 @@ export const EventChatButton = () => {
     <>
       <Button
         onClick={() => setIsChatOpen(!isChatOpen)}
-        className="fixed right-6 bottom-6 z-50 h-16 w-16 rounded-full shadow-lg"
+        // UPDATED: bottom-24 for mobile, lg:bottom-6 for desktop
+        className="fixed right-6 bottom-24 z-50 h-14 w-14 rounded-full shadow-lg lg:bottom-6 lg:h-16 lg:w-16"
       >
         {isChatOpen ? <X /> : <MessageCircle className="h-8 w-8" />}
       </Button>
