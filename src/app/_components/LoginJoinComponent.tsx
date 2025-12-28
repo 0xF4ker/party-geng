@@ -271,7 +271,7 @@ const AuthModal = ({
 
             // If Active, update store and redirect
             const { setProfile } = useAuthStore.getState();
-            setProfile(profile!);
+            setProfile(profile);
 
             if (onClose) onClose();
 
