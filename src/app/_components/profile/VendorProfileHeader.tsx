@@ -14,6 +14,7 @@ import {
   Wallet,
   Award,
   Flame,
+  Grid3x3, // Added icon for Gallery
 } from "lucide-react";
 import { EnvelopeIcon } from "@heroicons/react/24/solid";
 import { cn } from "@/lib/utils";
@@ -30,8 +31,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
-type vendorProfileWithUser = routerOutput["vendor"]["getByUsername"];
-type reviews = routerOutput["review"]["getForVendor"];
+type VendorProfileWithUser = routerOutput["vendor"]["getByUsername"];
+type Reviews = routerOutput["review"]["getForVendor"];
 
 // Modal from Header.tsx
 const Modal = ({
@@ -77,11 +78,11 @@ const VendorProfileHeader = ({
   setActiveTab,
   reviews,
 }: {
-  vendorProfile: vendorProfileWithUser;
+  vendorProfile: VendorProfileWithUser;
   isOwnProfile: boolean;
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  reviews: reviews | undefined;
+  reviews: Reviews | undefined;
 }) => {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
@@ -214,8 +215,6 @@ const VendorProfileHeader = ({
   const headerIconColor = isHeaderSticky
     ? "text-gray-600 hover:text-pink-500"
     : "text-white hover:text-pink-300";
-
-  const tabs = ["gallery", "reviews"];
 
   return (
     <>
@@ -499,24 +498,23 @@ const VendorProfileHeader = ({
           )}
         >
           <div className="container mx-auto max-w-4xl px-4">
-            <div className="hidden sm:block">
-              <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={cn(
-                      "border-b-2 px-1 py-4 text-sm font-medium capitalize",
-                      activeTab === tab
-                        ? "border-pink-600 text-pink-600"
-                        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700",
-                    )}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </nav>
-            </div>
+            <nav
+              className="scrollbar-hide -mb-px flex space-x-8 overflow-x-auto"
+              aria-label="Tabs"
+            >
+              <TabButton
+                title="Gallery"
+                icon={<Grid3x3 className="h-5 w-5" />}
+                isActive={activeTab === "gallery"}
+                onClick={() => setActiveTab("gallery")}
+              />
+              <TabButton
+                title="Reviews"
+                icon={<Award className="h-5 w-5" />}
+                isActive={activeTab === "reviews"}
+                onClick={() => setActiveTab("reviews")}
+              />
+            </nav>
           </div>
         </div>
       </div>
@@ -541,5 +539,30 @@ const VendorProfileHeader = ({
     </>
   );
 };
+
+const TabButton = ({
+  title,
+  icon,
+  isActive,
+  onClick,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  isActive: boolean;
+  onClick: () => void;
+}) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      "flex shrink-0 items-center gap-2 border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap transition-colors",
+      isActive
+        ? "border-pink-600 text-pink-600"
+        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-800",
+    )}
+  >
+    {icon}
+    {title}
+  </button>
+);
 
 export default VendorProfileHeader;

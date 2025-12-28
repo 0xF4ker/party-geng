@@ -19,8 +19,20 @@ export const userRouter = createTRPCRouter({
             services: true,
           },
         },
-        clientProfile: true,
+        clientProfile: {
+          include: {
+            // Count events hosted by this client
+            _count: {
+              select: { events: true },
+            },
+          },
+        },
         adminProfile: true,
+        // Fetch ONLY completed orders to calculate "Hires Made" efficiently
+        clientOrders: {
+          where: { status: "COMPLETED" },
+          select: { id: true, status: true },
+        },
       },
     });
   }),
@@ -29,7 +41,6 @@ export const userRouter = createTRPCRouter({
   getById: publicProcedure
     .input(z.object({ userId: z.string() }))
     .query(async ({ ctx, input }) => {
-      // Check for blocks if user is logged in
       if (ctx.user) {
         const block = await ctx.db.block.findFirst({
           where: {
@@ -42,7 +53,7 @@ export const userRouter = createTRPCRouter({
 
         if (block) {
           throw new TRPCError({
-            code: "NOT_FOUND", // Mask as not found for privacy
+            code: "NOT_FOUND",
             message: "User not found",
           });
         }
@@ -56,7 +67,19 @@ export const userRouter = createTRPCRouter({
               services: true,
             },
           },
-          clientProfile: true,
+          clientProfile: {
+            include: {
+              // Include event count for public profile
+              _count: {
+                select: { events: true },
+              },
+            },
+          },
+          // Include completed orders count for public profile
+          clientOrders: {
+            where: { status: "COMPLETED" },
+            select: { id: true, status: true },
+          },
         },
       });
 
@@ -74,7 +97,6 @@ export const userRouter = createTRPCRouter({
   getByUsername: publicProcedure
     .input(z.object({ username: z.string() }))
     .query(async ({ ctx, input }) => {
-      // First find the user to get their ID for block check
       const user = await ctx.db.user.findUnique({
         where: { username: input.username },
         include: {
@@ -83,7 +105,19 @@ export const userRouter = createTRPCRouter({
               services: true,
             },
           },
-          clientProfile: true,
+          clientProfile: {
+            include: {
+              // Include event count
+              _count: {
+                select: { events: true },
+              },
+            },
+          },
+          // Include completed orders
+          clientOrders: {
+            where: { status: "COMPLETED" },
+            select: { id: true, status: true },
+          },
         },
       });
 
@@ -94,7 +128,6 @@ export const userRouter = createTRPCRouter({
         });
       }
 
-      // Check for blocks if user is logged in
       if (ctx.user) {
         const block = await ctx.db.block.findFirst({
           where: {

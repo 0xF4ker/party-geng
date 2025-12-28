@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react"; // Added useCallback
 import Image from "next/image";
 import Link from "next/link";
 import { api } from "@/trpc/react";
 import {
   Loader2,
   Heart,
-  MessageCircle,
   Bookmark,
   Send,
   ChevronLeft,
@@ -31,7 +30,6 @@ import {
 import { useCreatePostModal } from "@/stores/createPostModal";
 import { formatDistanceToNow } from "date-fns";
 
-// --- TYPE INFERENCE ---
 import { type inferRouterOutputs } from "@trpc/server";
 import { type AppRouter } from "@/server/api/root";
 
@@ -66,14 +64,16 @@ const PostModal = ({
     isError,
   } = api.post.getById.useQuery({ id: postId ?? "" }, { enabled: !!postId });
 
-  const handleNext = () => {
+  // --- 1. DEFINE HANDLERS FIRST (Fixes "Cannot access before initialization") ---
+  const handleNext = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % posts.length);
-  };
+  }, [posts.length]);
 
-  const handlePrev = () => {
+  const handlePrev = useCallback(() => {
     setCurrentIndex((prev) => (prev - 1 + posts.length) % posts.length);
-  };
+  }, [posts.length]);
 
+  // --- 2. THEN USE EFFECT ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") handleNext();
@@ -82,8 +82,22 @@ const PostModal = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [posts.length, onClose]);
+  }, [handleNext, handlePrev, onClose]); // Add dependencies
 
+  // --- SHARE FUNCTION ---
+  const handleShare = async () => {
+    if (!postId) return;
+    const url = `${window.location.origin}/post/${postId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied to clipboard!");
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      toast.error("Failed to copy link.");
+    }
+  };
+
+  // ... (Rest of mutations) ...
   const deletePostMutation = api.post.delete.useMutation({
     onSuccess: () => {
       toast.success("Post deleted");
@@ -150,10 +164,12 @@ const PostModal = ({
   const isBookmarked = post?.viewer?.hasBookmarked ?? false;
 
   const handleLike = () => {
-    if (!user) return toast.error("Login required");
+    if (!user) {
+      toast.error("Login required");
+      return;
+    }
     if (!postId) return;
 
-    // FIX: Replaced ternary with if/else to satisfy ESLint
     if (isLiked) {
       unlikeMutation.mutate({ postId });
     } else {
@@ -183,16 +199,16 @@ const PostModal = ({
     >
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 z-50 rounded-full bg-white/20 p-2 text-white hover:bg-white/30 md:top-6 md:right-6"
+        className="absolute top-3 right-3 z-[110] rounded-full bg-zinc-800 p-2 text-white shadow-md transition-transform hover:scale-110 hover:bg-zinc-900 md:top-5 md:right-5"
+        aria-label="Close modal"
       >
-        <X className="h-6 w-6" />
+        <X className="h-5 w-5 sm:h-6 sm:w-6" />
       </button>
 
       <div
         className="flex h-full w-full max-w-7xl flex-col overflow-hidden bg-white shadow-2xl md:h-[85vh] md:rounded-2xl lg:flex-row"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* --- LEFT: MEDIA STAGE --- */}
         <div className="relative flex h-[40vh] w-full items-center justify-center bg-gray-50 lg:h-full lg:w-[65%] xl:w-[70%]">
           {activePost.assets[0] && (
             <div className="relative h-full w-full">
@@ -213,7 +229,7 @@ const PostModal = ({
                   e.stopPropagation();
                   handlePrev();
                 }}
-                className="absolute top-1/2 left-4 -translate-y-1/2 rounded-full bg-white p-2 text-gray-700 shadow-md transition hover:bg-gray-100 hover:text-gray-900"
+                className="absolute top-1/2 left-4 -translate-y-1/2 rounded-full bg-white/90 p-2 text-gray-700 shadow-md transition hover:bg-white hover:text-gray-900"
               >
                 <ChevronLeft className="h-6 w-6" />
               </button>
@@ -222,7 +238,7 @@ const PostModal = ({
                   e.stopPropagation();
                   handleNext();
                 }}
-                className="absolute top-1/2 right-4 -translate-y-1/2 rounded-full bg-white p-2 text-gray-700 shadow-md transition hover:bg-gray-100 hover:text-gray-900"
+                className="absolute top-1/2 right-4 -translate-y-1/2 rounded-full bg-white/90 p-2 text-gray-700 shadow-md transition hover:bg-white hover:text-gray-900"
               >
                 <ChevronRight className="h-6 w-6" />
               </button>
@@ -230,9 +246,7 @@ const PostModal = ({
           )}
         </div>
 
-        {/* --- RIGHT: SIDEBAR --- */}
         <div className="flex flex-1 flex-col border-l border-gray-100 bg-white lg:w-[35%] xl:w-[30%]">
-          {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-100 p-4">
             <Link href={profileUrl} className="group flex items-center gap-3">
               <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-gray-100 bg-gray-50">
@@ -293,7 +307,6 @@ const PostModal = ({
             )}
           </div>
 
-          {/* Body */}
           <div className="scrollbar-thin scrollbar-thumb-gray-200 flex-1 overflow-y-auto p-5">
             <div className="mb-6">
               {activePost.caption && (
@@ -387,7 +400,6 @@ const PostModal = ({
             )}
           </div>
 
-          {/* Footer */}
           <div className="border-t border-gray-100 bg-gray-50/50 p-4">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex gap-2">
@@ -407,6 +419,7 @@ const PostModal = ({
                   variant="outline"
                   size="sm"
                   className="gap-2 rounded-full border-gray-200 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+                  onClick={handleShare}
                 >
                   <Share2 className="h-4 w-4" /> Share
                 </Button>

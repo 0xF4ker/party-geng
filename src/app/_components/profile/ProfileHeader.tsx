@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
-  Check,
   MapPin,
   MessageSquare,
   Loader2,
@@ -35,8 +34,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
-type user = routerOutput["user"]["getByUsername"];
-type clientProfile = user["clientProfile"];
+type User = routerOutput["user"]["getByUsername"];
+type ClientProfile = User["clientProfile"];
 
 // Modal from Header.tsx
 const Modal = ({
@@ -82,8 +81,8 @@ const ProfileHeader = ({
   activeTab,
   setActiveTab,
 }: {
-  clientProfile: clientProfile;
-  profileUser: user;
+  clientProfile: ClientProfile;
+  profileUser: User;
   isOwnProfile: boolean;
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -145,7 +144,14 @@ const ProfileHeader = ({
     ? (user?.vendorProfile?.companyName ?? user?.username)
     : (user?.clientProfile?.name ?? user?.username);
 
-  // --- Handlers from Header.tsx ---
+  // --- Real Stats Logic ---
+  // Count only COMPLETED orders for "Hires Made"
+  const completedHires =
+    profileUser.clientOrders?.filter((o) => o.status === "COMPLETED").length ??
+    0;
+  const eventsHosted = profileUser.clientProfile?._count.events ?? 0;
+
+  // --- Handlers ---
   const openModal = (view: "login" | "join") => {
     setModalView(view);
     setIsModalOpen(true);
@@ -176,10 +182,9 @@ const ProfileHeader = ({
 
   // --- Scroll Effects ---
   useEffect(() => {
-    const HEADER_STICKY_HEIGHT = 64; // Height of the sticky header
+    const HEADER_STICKY_HEIGHT = 64;
 
     const handleScroll = () => {
-      // Header stickiness
       const bannerBottom =
         bannerRef.current?.getBoundingClientRect().bottom ?? 0;
       if (window.scrollY > bannerBottom) {
@@ -190,7 +195,6 @@ const ProfileHeader = ({
         setIsHeaderSticky(false);
       }
 
-      // Tabs stickiness
       if (tabsRef.current) {
         const { top } = tabsRef.current.getBoundingClientRect();
         setIsTabsSticky(top <= HEADER_STICKY_HEIGHT);
@@ -255,7 +259,7 @@ const ProfileHeader = ({
               </Link>
             </div>
 
-            {/* Middle: Search Bar (hidden on profile page for now) */}
+            {/* Middle: Search Bar */}
             <div className="mx-4 hidden grow sm:flex lg:mx-16">
               {searchList && (
                 <GlobalSearch
@@ -375,10 +379,7 @@ const ProfileHeader = ({
           className="relative h-48 w-full bg-gray-100 lg:h-64"
         >
           <Image
-            src={
-              clientProfile?.bannerUrl ?? "/banner.jpg"
-              // "https://images.unsplash.com/photo-1505238680356-667803448bb6?q=80&w=2070&auto=format&fit=crop"
-            }
+            src={clientProfile?.bannerUrl ?? "/banner.jpg"}
             alt="Banner"
             className="h-full w-full object-cover"
             layout="fill"
@@ -391,17 +392,18 @@ const ProfileHeader = ({
           {/* Avatar & Actions */}
           <div className="-mt-24 flex items-end justify-between sm:-mt-28">
             {clientProfile?.avatarUrl ? (
-            <Image
-              src={
-                clientProfile?.avatarUrl 
-              }
-              alt={clientProfile?.name ?? "Client"}
-              className="h-32 w-32 rounded-full border-4 border-white bg-gray-200 object-cover sm:h-40 sm:w-40"
-              width={160}
-              height={160}
-            />) : (<div className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-white bg-pink-100 text-4xl font-bold text-pink-600 sm:h-40 sm:w-40">
-              {clientProfile?.name?.charAt(0).toUpperCase() ?? "C"}
-            </div>)}
+              <Image
+                src={clientProfile?.avatarUrl}
+                alt={clientProfile?.name ?? "Client"}
+                className="h-32 w-32 rounded-full border-4 border-white bg-gray-200 object-cover sm:h-40 sm:w-40"
+                width={160}
+                height={160}
+              />
+            ) : (
+              <div className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-white bg-pink-100 text-4xl font-bold text-pink-600 sm:h-40 sm:w-40">
+                {clientProfile?.name?.charAt(0).toUpperCase() ?? "C"}
+              </div>
+            )}
             <div className="flex items-center space-x-2 pb-4">
               {isOwnProfile ? (
                 <>
@@ -443,18 +445,13 @@ const ProfileHeader = ({
             </div>
           </div>
 
-          {/* User Info, Bio, etc. */}
+          {/* User Info */}
           <div className="mt-4">
             <h1 className="text-2xl font-bold">
               {clientProfile?.name ?? profileUser.username ?? "Client"}
             </h1>
             <p className="text-sm text-gray-500">@{profileUser.username}</p>
-            <div className="mt-1 flex items-center gap-2">
-              <Check className="h-5 w-5 rounded-full bg-green-500 p-0.5 text-white" />
-              <span className="text-sm font-semibold text-green-600">
-                Verified Client
-              </span>
-            </div>
+            {/* REMOVED: Verified Client Badge */}
           </div>
           <div className="mt-4 max-w-2xl text-sm text-gray-800">
             <p>
@@ -488,19 +485,21 @@ const ProfileHeader = ({
               </span>
             </div>
           </div>
+
+          {/* UPDATED: Real Stats */}
           <div className="mt-4 flex items-center space-x-6">
             <div className="text-sm">
-              <span className="font-bold text-gray-900">0</span>
+              <span className="font-bold text-gray-900">{eventsHosted}</span>
               <span className="text-gray-500"> Events Hosted</span>
             </div>
             <div className="text-sm">
-              <span className="font-bold text-gray-900">0</span>
+              <span className="font-bold text-gray-900">{completedHires}</span>
               <span className="text-gray-500"> Hires Made</span>
             </div>
           </div>
         </div>
 
-        {/* Tab Navigation */}
+        {/* UPDATED: Scrollable Tab Navigation (replaces <select>) */}
         <div
           ref={tabsRef}
           className={cn(
@@ -511,56 +510,40 @@ const ProfileHeader = ({
           )}
         >
           <div className="container mx-auto max-w-4xl px-4">
-            <div className="sm:hidden">
-              <label htmlFor="tabs" className="sr-only">
-                Select a tab
-              </label>
-              <select
-                id="tabs"
-                name="tabs"
-                className="block w-full rounded-md border-gray-300 py-2 pr-10 pl-3 text-base focus:border-pink-500 focus:ring-pink-500 focus:outline-none sm:text-sm"
-                value={activeTab}
-                onChange={(e) => setActiveTab(e.target.value)}
-              >
-                <option value="upcoming">Upcoming Events</option>
-                <option value="past">Past Events</option>
-                <option value="gallery">Gallery</option>
-                <option value="reviews">Reviews</option>
-              </select>
-            </div>
-            <div className="hidden sm:block">
-              <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                <TabButton
-                  title="Upcoming Events"
-                  icon={<Briefcase className="h-5 w-5" />}
-                  isActive={activeTab === "upcoming"}
-                  onClick={() => setActiveTab("upcoming")}
-                />
-                <TabButton
-                  title="Past Events"
-                  icon={<History className="h-5 w-5" />}
-                  isActive={activeTab === "past"}
-                  onClick={() => setActiveTab("past")}
-                />
-                <TabButton
-                  title="Gallery"
-                  icon={<Grid3x3 className="h-5 w-5" />}
-                  isActive={activeTab === "gallery"}
-                  onClick={() => setActiveTab("gallery")}
-                />
-                <TabButton
-                  title="Reviews"
-                  icon={<Award className="h-5 w-5" />}
-                  isActive={activeTab === "reviews"}
-                  onClick={() => setActiveTab("reviews")}
-                />
-              </nav>
-            </div>
+            <nav
+              className="scrollbar-hide -mb-px flex space-x-8 overflow-x-auto"
+              aria-label="Tabs"
+            >
+              <TabButton
+                title="Upcoming Events"
+                icon={<Briefcase className="h-5 w-5" />}
+                isActive={activeTab === "upcoming"}
+                onClick={() => setActiveTab("upcoming")}
+              />
+              <TabButton
+                title="Past Events"
+                icon={<History className="h-5 w-5" />}
+                isActive={activeTab === "past"}
+                onClick={() => setActiveTab("past")}
+              />
+              <TabButton
+                title="Gallery"
+                icon={<Grid3x3 className="h-5 w-5" />}
+                isActive={activeTab === "gallery"}
+                onClick={() => setActiveTab("gallery")}
+              />
+              {/* <TabButton
+                title="Reviews"
+                icon={<Award className="h-5 w-5" />}
+                isActive={activeTab === "reviews"}
+                onClick={() => setActiveTab("reviews")}
+              /> */}
+            </nav>
           </div>
         </div>
       </div>
 
-      {/* --- Floating Components from Header.tsx --- */}
+      {/* Floating Components */}
       <MobileMenu
         isOpen={isMobileMenuOpen}
         onClose={toggleMobileMenu}
@@ -595,7 +578,7 @@ const TabButton = ({
   <button
     onClick={onClick}
     className={cn(
-      "flex items-center gap-2 border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap",
+      "flex shrink-0 items-center gap-2 border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap transition-colors",
       isActive
         ? "border-pink-600 text-pink-600"
         : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-800",
