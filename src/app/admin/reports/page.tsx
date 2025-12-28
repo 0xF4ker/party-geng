@@ -1,149 +1,333 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
+import Image from "next/image";
 import { api } from "@/trpc/react";
+import { formatDistanceToNow } from "date-fns";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  ShieldAlert,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Eye,
+  Trash2,
+  Ban,
+  UserX,
+  MessageSquare,
+  AlertTriangle,
+} from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
-type ReportReason =
-  | "EXPLICIT_CONTENT"
-  | "ILLEGAL_ACTIVITY"
-  | "HARASSMENT"
-  | "HATE_SPEECH_OR_VIOLENCE"
-  | "SPAM"
-  | "OTHER";
+type Report = any; // Inferred in real usage
 
-interface ReportModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  targetUserId?: string;
-  targetPostId?: string;
-}
+export default function AdminReportsPage() {
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
-export const ReportModal = ({
-  isOpen,
-  onClose,
-  targetUserId,
-  targetPostId,
-}: ReportModalProps) => {
-  const [reason, setReason] = useState<ReportReason>("SPAM");
-  const [details, setDetails] = useState("");
-
-  const reportMutation = api.report.create.useMutation({
-    onSuccess: () => {
-      toast.success(
-        "Report submitted. Thank you for keeping our community safe.",
-      );
-      onClose();
-      setDetails("");
-      setReason("SPAM");
-    },
-    onError: (err) => {
-      toast.error(err.message || "Failed to submit report.");
-    },
+  const { data, isLoading, refetch } = api.report.getAll.useQuery({
+    status: "PENDING", // Default to pending
+    limit: 50,
   });
 
-  const handleSubmit = () => {
-    reportMutation.mutate({
-      reason,
-      details,
-      targetUserId,
-      targetPostId,
-    });
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Report Center</h1>
+          <p className="text-muted-foreground">
+            Review and adjudicate user reports.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Badge
+            variant="outline"
+            className="gap-1 border-orange-200 bg-orange-50 px-3 py-1 text-orange-700"
+          >
+            <AlertTriangle className="h-3 w-3" />
+            {data?.reports.length ?? 0} Pending
+          </Badge>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+        {isLoading ? (
+          <div className="flex h-64 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          </div>
+        ) : data?.reports.length === 0 ? (
+          <div className="flex h-64 flex-col items-center justify-center text-gray-500">
+            <CheckCircle2 className="mb-2 h-10 w-10 text-green-500" />
+            <p>All clean! No pending reports.</p>
+          </div>
+        ) : (
+          <table className="w-full text-left text-sm">
+            <thead className="border-b bg-gray-50 font-medium text-gray-500">
+              <tr>
+                <th className="px-6 py-4">Type</th>
+                <th className="px-6 py-4">Reason</th>
+                <th className="px-6 py-4">Target</th>
+                <th className="px-6 py-4">Reported By</th>
+                <th className="px-6 py-4">Date</th>
+                <th className="px-6 py-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {data?.reports.map((report: any) => (
+                <tr key={report.id} className="hover:bg-gray-50/50">
+                  <td className="px-6 py-4">
+                    {report.targetPostId ? (
+                      <Badge variant="secondary">
+                        <MessageSquare className="mr-1 h-3 w-3" /> Post
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">
+                        <UserX className="mr-1 h-3 w-3" /> User
+                      </Badge>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 font-medium text-gray-900">
+                    {report.reason.replace(/_/g, " ")}
+                  </td>
+                  <td className="px-6 py-4">
+                    {report.targetPost ? (
+                      <span className="line-clamp-1 max-w-[200px] text-gray-600">
+                        {report.targetPost.caption || "Image Post"}
+                      </span>
+                    ) : report.targetUser ? (
+                      <div className="flex items-center gap-2">
+                        <div className="relative h-6 w-6 overflow-hidden rounded-full bg-gray-200">
+                          {/* Add Image component if avatar exists */}
+                        </div>
+                        <span className="font-semibold">
+                          @{report.targetUser.username}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-red-500 italic">
+                        Deleted Content
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-gray-500">
+                    @{report.reporter.username}
+                  </td>
+                  <td className="px-6 py-4 text-gray-500">
+                    {formatDistanceToNow(new Date(report.createdAt), {
+                      addSuffix: true,
+                    })}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setSelectedReport(report)}
+                    >
+                      Review
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Review Sheet */}
+      <ReportReviewSheet
+        report={selectedReport}
+        open={!!selectedReport}
+        onClose={() => {
+          setSelectedReport(null);
+          refetch();
+        }}
+      />
+    </div>
+  );
+}
+
+function ReportReviewSheet({
+  report,
+  open,
+  onClose,
+}: {
+  report: any;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [notes, setNotes] = useState("");
+  const utils = api.useContext();
+
+  const resolveMutation = api.report.resolveReport.useMutation({
+    onSuccess: () => {
+      toast.success("Report resolved");
+      onClose();
+      setNotes("");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleAction = (
+    action: "DISMISS" | "BAN_USER" | "DELETE_POST" | "DELETE_POST_AND_BAN",
+  ) => {
+    if (!report) return;
+    resolveMutation.mutate({ reportId: report.id, action, notes });
   };
 
-  const REASONS: { value: ReportReason; label: string }[] = [
-    { value: "EXPLICIT_CONTENT", label: "Explicit sexual content" },
-    { value: "ILLEGAL_ACTIVITY", label: "Promotion of illegal activities" },
-    { value: "HARASSMENT", label: "Cyberbullying or harassment" },
-    { value: "HATE_SPEECH_OR_VIOLENCE", label: "Hate speech or violence" },
-    { value: "SPAM", label: "Spam or scam" },
-    { value: "OTHER", label: "Other" },
-  ];
+  if (!report) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-red-600">
-            <AlertTriangle className="h-5 w-5" />
-            Report Content
-          </DialogTitle>
-          <DialogDescription>
-            Help us understand what's wrong. This report will be reviewed by our
-            safety team.
-          </DialogDescription>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent className="w-[400px] overflow-y-auto sm:w-[540px]">
+        <SheetHeader>
+          <SheetTitle>Review Report</SheetTitle>
+          <SheetDescription>
+            Reported for{" "}
+            <span className="font-bold text-red-600">{report.reason}</span>
+          </SheetDescription>
+        </SheetHeader>
 
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label>Why are you reporting this?</Label>
-            <RadioGroup
-              value={reason}
-              onValueChange={(v) => setReason(v as ReportReason)}
-              className="gap-2"
-            >
-              {REASONS.map((r) => (
-                <div
-                  key={r.value}
-                  className="flex items-center space-x-2 rounded-md border border-gray-100 p-2 hover:bg-gray-50"
-                >
-                  <RadioGroupItem value={r.value} id={r.value} />
-                  <Label
-                    htmlFor={r.value}
-                    className="flex-1 cursor-pointer font-normal"
-                  >
-                    {r.label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+        <div className="space-y-6 py-6">
+          {/* Details Section */}
+          <div className="rounded-lg border bg-gray-50 p-4">
+            <h4 className="mb-2 text-sm font-semibold text-gray-700">
+              Reporter's Note
+            </h4>
+            <p className="text-sm text-gray-600">
+              {report.details || "No additional details provided."}
+            </p>
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="details">Additional Details (Optional)</Label>
+          {/* Target Content Preview */}
+          <div className="rounded-lg border p-4">
+            <h4 className="mb-3 text-sm font-semibold text-gray-900">
+              Reported Content
+            </h4>
+
+            {report.targetPost ? (
+              <div className="space-y-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <div className="font-bold">
+                    @{report.targetPost.author.username}
+                  </div>
+                  <span className="text-xs text-gray-400">
+                    Post ID: {report.targetPostId}
+                  </span>
+                </div>
+                {report.targetPost.assets?.[0] && (
+                  <div className="relative aspect-video w-full overflow-hidden rounded-md bg-black">
+                    <Image
+                      src={report.targetPost.assets[0].url}
+                      alt="Reported content"
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                )}
+                <p className="text-sm text-gray-800 italic">
+                  "{report.targetPost.caption}"
+                </p>
+              </div>
+            ) : report.targetUser ? (
+              <div className="flex items-center gap-4">
+                <div className="relative h-16 w-16 overflow-hidden rounded-full bg-gray-200">
+                  {/* Avatar logic here */}
+                  <div className="flex h-full w-full items-center justify-center text-2xl font-bold text-gray-400">
+                    {report.targetUser.username[0].toUpperCase()}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">
+                    @{report.targetUser.username}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {report.targetUser.email}
+                  </p>
+                  <Badge
+                    className={
+                      report.targetUser.status === "BANNED"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-green-100 text-green-700"
+                    }
+                  >
+                    {report.targetUser.status}
+                  </Badge>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 font-medium text-red-500">
+                <XCircle className="h-5 w-5" /> Content has already been
+                deleted.
+              </div>
+            )}
+          </div>
+
+          {/* Admin Notes */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Resolution Notes</label>
             <Textarea
-              id="details"
-              placeholder="Please provide any specific details..."
-              value={details}
-              onChange={(e) => setDetails(e.target.value)}
-              className="resize-none"
+              placeholder="Why are you taking this action?"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
             />
           </div>
         </div>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={reportMutation.isPending}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={handleSubmit}
-            disabled={reportMutation.isPending}
-          >
-            {reportMutation.isPending && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        <SheetFooter className="flex-col gap-3 sm:flex-col">
+          <div className="grid w-full grid-cols-2 gap-3">
+            <Button
+              variant="outline"
+              onClick={() => handleAction("DISMISS")}
+              disabled={resolveMutation.isPending}
+            >
+              <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
+              Dismiss Report
+            </Button>
+
+            {report.targetPost ? (
+              <Button
+                variant="destructive"
+                onClick={() => handleAction("DELETE_POST")}
+                disabled={resolveMutation.isPending}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Post Only
+              </Button>
+            ) : (
+              <Button
+                variant="destructive"
+                onClick={() => handleAction("BAN_USER")}
+                disabled={resolveMutation.isPending}
+              >
+                <Ban className="mr-2 h-4 w-4" />
+                Ban User
+              </Button>
             )}
-            Submit Report
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </div>
+
+          {report.targetPost && (
+            <Button
+              variant="destructive"
+              className="w-full bg-red-700 hover:bg-red-800"
+              onClick={() => handleAction("DELETE_POST_AND_BAN")}
+              disabled={resolveMutation.isPending}
+            >
+              <ShieldAlert className="mr-2 h-4 w-4" />
+              Delete Post & Ban Author
+            </Button>
+          )}
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
-};
+}
