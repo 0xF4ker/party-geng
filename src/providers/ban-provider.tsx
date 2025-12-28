@@ -1,29 +1,45 @@
 "use client";
 
 import React from "react";
-import { useAuthStore } from "@/stores/auth"; // Or your specific auth hook path
+import { useAuthStore } from "@/stores/auth";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert, LogOut, Mail, Clock } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/utils/supabase/client";
+import { useQueryClient } from "@tanstack/react-query"; // Import QueryClient
 
 export const BanProvider = ({ children }: { children: React.ReactNode }) => {
-  const { profile, isLoading } = useAuthStore();
-  const router = useRouter();
+  // Destructure setProfile directly to ensure we use the bound action
+  const { profile, isLoading, setProfile } = useAuthStore();
+  const queryClient = useQueryClient();
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    useAuthStore.getState().setProfile(null); // Clear store
-    router.push("/");
-    router.refresh();
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+
+      // 1. Immediately clear the global auth store
+      setProfile(null);
+
+      // 2. Clear the entire TRPC/React Query cache.
+      // This prevents the "Banned" profile from lurking in the cache and re-triggering this screen.
+      queryClient.clear();
+
+      // 3. Force a hard refresh/navigation to the home page.
+      // using window.location instead of router.push ensures a clean state wipe.
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Sign out error:", error);
+      // Fallback force redirect
+      window.location.href = "/";
+    }
   };
 
-  // 1. Allow loading state to pass or handle gracefully
+  // 1. Allow loading state to pass (prevents flashing ban screen during hydration)
   if (isLoading) {
     return <>{children}</>;
   }
 
-  // 2. If not logged in, just render children (Middleware handles protection)
+  // 2. If not logged in, render app normally (Guest view)
   if (!profile) {
     return <>{children}</>;
   }

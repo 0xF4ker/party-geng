@@ -1,23 +1,26 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Check, ArrowLeft, Mail } from "lucide-react";
+import { X, Check, ArrowLeft, Mail, Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { api } from "@/trpc/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-// import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth";
 
-// Mock cn function for demonstration
+// --- STRICT TYPING ---
+// We infer the Profile type directly from the store's state
+// to ensure our optimistic updates are 100% compliant.
+type AuthState = ReturnType<typeof useAuthStore.getState>;
+type Profile = NonNullable<AuthState["profile"]>;
+
+// Mock cn function
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
   return inputs.filter(Boolean).join(" ");
 };
 
-// Mock Google & Apple/Facebook icons
 const GoogleIcon = () => (
-  // ... (omitted for brevity, no changes) ...
   <svg className="h-5 w-5" viewBox="0 0 48 48">
     <path
       fill="#FFC107"
@@ -39,14 +42,12 @@ const GoogleIcon = () => (
 );
 
 const AppleIcon = () => (
-  // ... (omitted for brevity, no changes) ...
   <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
     <path d="M10.021 6.54c.48.01 1.25.33 1.83.98s.96 1.48.96 2.37c0 .9-.35 1.63-.94 2.19c-.6.58-1.27.87-2.02.85c-.4-.01-1.12-.3-1.74-.93c-.62-.63-.97-1.42-.97-2.35c0-.9.37-1.68 1.02-2.23c.65-.55 1.38-.85 1.86-.88m1.78 7.37c.36-.5.54-1.1.54-1.8c0-.9-.37-1.68-1.1-2.33c-.75-.65-1.62-.97-2.61-.97c-.98 0-1.84.32-2.58.97c-.74.65-1.12 1.44-1.12 2.38c0 .92.34 1.7.99 2.33c.66.63 1.4.95 2.2.95c.57 0 1.1-.14 1.58-.42c.04.01.07.02.09.02c.07 0 .15-.01.21-.02M10 18C8.16 18 6.5 17.34 5.03 16.03C3.56 14.72 2.7 13.1 2.45 11.18c-.04-.33.07-.63.3-.87c.23-.24.52-.36.87-.36h.22c.28 0 .54.08.78.25c.24.17.5.42.78.75c.27.33.5.58.67.75c.18.17.35.26.49.26c.14 0 .3-.1.48-.29c.18-.2.4-.38.65-.56c.25-.18.53-.27.84-.27c.38 0 .75.14 1.09.4s.6.58.76.95c.03.06.07.1.13.12c.06.02.1.03.13.03h.25c.32 0 .59-.11.82-.33c.23-.22.34-.5.34-.84c-.03-1.6-.5-2.98-1.42-4.14c-.9-1.15-2-1.72-3.3-1.72c-.22 0-.46.03-.7.08c-.24.05-.5.1-.75.13c-.3 0-.56-.1-.78-.3c-.22-.2-.33-.45-.33-.74c0-.33.11-.59.33-.79c.22-.2.5-.3.84-.3h.25c2.3 0 4.2.7 5.68 2.1c.95.9 1.55 2.02 1.8 3.36c.03.14.04.28.04.4c0 .3-.1.55-.3.75c-.2.2-.44.3-.72.3c-.3 0-.58-.1-.82-.3s-.5-.38-.78-.57c-.28-.19-.53-.28-.75-.28c-.22 0-.4.08-.55.23c-.15.15-.3.33-.45.54c-.15.2-.3.38-.45.54c-.15.16-.3.24-.43.24c-.11 0-.23-.04-.35-.12c-.12-.08-.27-.19-.45-.33c-.18-.14-.38-.21-.6-.21c-.3 0-.58.11-.84.34c-.26.23-.39.52-.39.88c0 .33.16.68.48 1.04c.32.36.7.64 1.14.84c.44.2.9.3 1.38.3c1.9 0 3.44-.65 4.63-1.94c.5-.55.88-1.17 1.13-1.85c.03.2.04.4.04.6c0 1.2-.33 2.28-.98 3.22c-.65.94-1.48 1.68-2.5 2.2c-1.02.52-2.12.8-3.3.8Z"></path>
   </svg>
 );
 
 const FacebookIcon = () => (
-  // ... (omitted for brevity, no changes) ...
   <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
     <path
       fillRule="evenodd"
@@ -55,6 +56,19 @@ const FacebookIcon = () => (
     ></path>
   </svg>
 );
+
+// --- FORM COMPONENTS (Typed) ---
+
+interface EmailFormProps {
+  onBack: () => void;
+  isJoinView: boolean;
+  email: string;
+  setEmail: (email: string) => void;
+  password: string;
+  setPassword: (password: string) => void;
+  handleSubmit: (e: React.FormEvent) => void;
+  loading: boolean;
+}
 
 const EmailForm = ({
   onBack,
@@ -65,18 +79,7 @@ const EmailForm = ({
   setPassword,
   handleSubmit,
   loading,
-}: {
-  onBack: () => void;
-  isJoinView: boolean;
-  email: string;
-  setEmail: (email: string) => void;
-  password: string;
-  setPassword: (password: string) => void;
-  handleSubmit: (e: React.FormEvent) => void;
-  loading: boolean;
-}) => (
-  // FIX: Form fields no longer show "Confirm Password", just Email and Password
-  // The 'handleSubmit' function will now handle the logic to move to the username step
+}: EmailFormProps) => (
   <form onSubmit={handleSubmit} className="flex flex-col gap-4">
     <button
       type="button"
@@ -130,25 +133,32 @@ const EmailForm = ({
       disabled={loading}
       className="w-full rounded-lg bg-pink-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:cursor-not-allowed disabled:opacity-50"
     >
-      {loading ? "Loading..." : "Continue"}
+      {loading ? (
+        <div className="flex items-center justify-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading...
+        </div>
+      ) : (
+        "Continue"
+      )}
     </button>
   </form>
 );
 
-// NEW: Username Form Sub-component (from reference)
+interface UsernameFormProps {
+  onBack: () => void;
+  username: string;
+  setUsername: (username: string) => void;
+  handleCreateAccount: (e: React.FormEvent) => void;
+  loading: boolean;
+}
+
 const UsernameForm = ({
   onBack,
   username,
   setUsername,
   handleCreateAccount,
   loading,
-}: {
-  onBack: () => void;
-  username: string;
-  setUsername: (username: string) => void;
-  handleCreateAccount: (e: React.FormEvent) => void;
-  loading: boolean;
-}) => (
+}: UsernameFormProps) => (
   <form onSubmit={handleCreateAccount} className="flex flex-col gap-4">
     <button
       type="button"
@@ -183,7 +193,6 @@ const UsernameForm = ({
         className="mt-1 w-full rounded-md border border-gray-300 p-3 focus:outline-pink-500"
         required
       />
-      {/* Add validation messages here */}
     </div>
 
     <button
@@ -191,10 +200,18 @@ const UsernameForm = ({
       disabled={loading}
       className="w-full rounded-lg bg-pink-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:cursor-not-allowed disabled:opacity-50"
     >
-      {loading ? "Creating account..." : "Create my account"}
+      {loading ? (
+        <div className="flex items-center justify-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" /> Creating account...
+        </div>
+      ) : (
+        "Create my account"
+      )}
     </button>
   </form>
 );
+
+// --- MAIN COMPONENT ---
 
 const AuthModal = ({
   isModal = false,
@@ -206,19 +223,14 @@ const AuthModal = ({
   onClose?: () => void;
 }) => {
   const router = useRouter();
-  // const queryClient = useQueryClient();
   const [view, setView] = useState(initialView);
   const [selectedRole, setSelectedRole] = useState("client");
-  // FIX: Updated step logic
-  const [step, setStep] = useState("options"); // 'options', 'email', 'username'
-
+  const [step, setStep] = useState("options");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
-  // Removed confirmPassword, as it's part of the email form's logic if needed, but Fiverr flow doesn't use it on step 1
 
-  // tRPC hooks
   const createUserMutation = api.auth.createUser.useMutation();
   const utils = api.useUtils();
 
@@ -228,81 +240,67 @@ const AuthModal = ({
 
     try {
       if (view === "login") {
-        // Sign in with Supabase
         const supabase = createClient();
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) {
           toast.error(error.message);
+          setLoading(false);
         } else {
           toast.success("Welcome back!");
 
-          // Optimistically set profile from session data (instant!)
-          if (data.user) {
-            const optimisticProfile = {
-              id: data.user.id,
-              email: data.user.email!,
-              username:
-                (data.user.user_metadata?.username as string) ??
-                data.user.email?.split("@")[0] ??
-                "",
-              role: (data.user.user_metadata?.role as string) ?? "CLIENT",
-              vendorProfile:
-                (data.user.user_metadata?.role as string) === "VENDOR"
-                  ? {}
-                  : null,
-              clientProfile:
-                (data.user.user_metadata?.role as string) === "CLIENT"
-                  ? {}
-                  : null,
-              adminProfile: ["ADMIN", "SUPPORT", "FINANCE"].includes(
-                data.user.user_metadata?.role as string,
-              )
-                ? {}
-                : null,
-              createdAt: new Date(data.user.created_at),
-              updatedAt: new Date(),
-            };
+          try {
+            // Fetch profile securely from DB to check Ban Status
+            const profile = await utils.user.getProfile.fetch();
 
-            // Set optimistic profile in store immediately
+            if (
+              profile?.status === "BANNED" ||
+              profile?.status === "SUSPENDED"
+            ) {
+              const { setProfile } = useAuthStore.getState();
+              // Safe cast: TRPC response aligns with store, but store might have simpler types for optimistics
+              setProfile(profile);
+
+              if (onClose) onClose();
+              setLoading(false);
+              return; // STOP: Let BanProvider handle the UI lock.
+            }
+
+            // If Active, update store and redirect
             const { setProfile } = useAuthStore.getState();
-            // Type-safe cast to the setProfile parameter type to avoid using 'any'
-            setProfile(
-              optimisticProfile as unknown as Parameters<typeof setProfile>[0],
-            );
-          }
+            setProfile(profile!);
 
-          // Close modal immediately
-          if (onClose) onClose();
+            if (onClose) onClose();
 
-          // Invalidate and refetch real profile in background
-          await utils.user.getProfile.invalidate();
-          await utils.user.getProfile.fetch(); // Background fetch
-
-          // Navigate immediately using metadata
-          const userRole = data.user?.user_metadata?.role as string;
-
-          if (userRole === "VENDOR") {
-            router.push("/dashboard");
-          } else if (userRole === "CLIENT") {
-            router.push("/manage_events");
-          } else if (["ADMIN", "SUPPORT", "FINANCE"].includes(userRole)) {
-            router.push("/admin");
-          } else {
-            router.push("/");
+            const userRole = profile?.role;
+            if (userRole === "VENDOR") {
+              router.push("/dashboard");
+            } else if (userRole === "CLIENT") {
+              router.push("/manage_events");
+            } else if (
+              ["ADMIN", "SUPPORT", "FINANCE"].includes(userRole ?? "")
+            ) {
+              router.push("/admin");
+            } else {
+              router.push("/");
+            }
+          } catch (fetchError) {
+            console.error("Profile fetch error:", fetchError);
+            toast.error("Failed to load profile. Please refresh.");
+            if (onClose) onClose();
           }
         }
       } else {
-        // For join flow, proceed to username step
+        // Join flow
         setStep("username");
+        setLoading(false);
       }
     } catch (error) {
       console.log("Auth error:", error);
       toast.error(`An error occurred. Please try again.`);
-    } finally {
       setLoading(false);
     }
   };
@@ -313,20 +311,11 @@ const AuthModal = ({
 
     try {
       const supabase = createClient();
-
-      // Check if username is available
-      // Note: This would be better done with debouncing as user types
-      // For now, we'll skip the check and let the database handle uniqueness
-
-      // 1. Create Supabase auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            username,
-            role: selectedRole.toUpperCase(),
-          },
+          data: { username, role: selectedRole.toUpperCase() },
           emailRedirectTo: window.location.origin,
         },
       });
@@ -338,12 +327,11 @@ const AuthModal = ({
       }
 
       if (!authData.user) {
-        toast.error("Failed to create account. Please try again.");
+        toast.error("Failed to create account.");
         setLoading(false);
         return;
       }
 
-      // 2. Create user in database via tRPC (acts as confirmation/upsert)
       try {
         await createUserMutation.mutateAsync({
           id: authData.user.id,
@@ -352,66 +340,51 @@ const AuthModal = ({
           role: selectedRole.toUpperCase() as "CLIENT" | "VENDOR",
         });
       } catch (err) {
-        // If this fails, it might be because the trigger beat us to it (race condition)
-        // or a network error. We log it but don't block the user since they are
-        // authenticated in Supabase. The 'healAccount' or future flows can fix gaps.
-        console.warn(
-          "User creation confirmation failed (likely handled by trigger):",
-          err,
-        );
+        console.warn("User creation upsert failed:", err);
       }
 
-      // Check if user was auto-confirmed (session exists)
       const hasSession = authData.session !== null;
 
       if (hasSession) {
-        // User is automatically logged in (email confirmation disabled)
-        toast.success("Account created successfully! Welcome!");
+        toast.success("Account created successfully!");
 
-        // Optimistically set profile from signup data (instant!)
+        // Optimistic Profile for NEW accounts (Safe because they are default Active)
+        // We cast this to Profile because we know the structure of a fresh user
         const optimisticProfile = {
           id: authData.user.id,
           email: authData.user.email!,
           username,
           role: selectedRole.toUpperCase(),
+          status: "ACTIVE",
           vendorProfile: selectedRole === "vendor" ? {} : null,
           clientProfile: selectedRole === "client" ? {} : null,
-          createdAt: new Date(authData.user.created_at),
+          adminProfile: null,
+          wallet: null,
+          suspensionReason: null,
+          suspendedUntil: null,
+          createdAt: new Date(),
           updatedAt: new Date(),
-        };
+        } as unknown as Profile;
 
-        // Set optimistic profile in store immediately
         const { setProfile } = useAuthStore.getState();
-        // Cast to any to satisfy the store's stricter UserRole typing for optimistic updates
-        setProfile(
-          optimisticProfile as unknown as Parameters<typeof setProfile>[0],
-        );
+        setProfile(optimisticProfile);
 
-        // Close modal immediately
         if (onClose) onClose();
 
-        // Invalidate and refetch real profile in background
-        await utils.user.getProfile.invalidate();
-        await utils.user.getProfile.fetch(); // Background fetch
+        void utils.user.getProfile.invalidate();
 
-        // Navigate immediately based on selected role
         if (selectedRole === "vendor") {
           router.push("/dashboard");
         } else {
           router.push("/manage_events");
         }
       } else {
-        // User needs to verify email
-        toast.success(
-          "Account created! Please check your email to verify and login.",
-        );
-
-        // Close modal and don't redirect
+        toast.success("Account created! Please check your email.");
         if (onClose) onClose();
       }
     } catch (error) {
       console.error("Signup error:", error);
-      toast.error("An error occurred during signup. Please try again.");
+      toast.error("Error creating account.");
     } finally {
       setLoading(false);
     }
@@ -419,7 +392,6 @@ const AuthModal = ({
 
   const handleBack = (targetStep: "options" | "email") => {
     setStep(targetStep);
-    // Don't clear email/pass when going back to email form
     if (targetStep === "options") {
       setEmail("");
       setPassword("");
@@ -430,45 +402,25 @@ const AuthModal = ({
     <>
       <style>
         {`
-          .auth-view-wrapper {
-            position: relative;
-            /* Set min-height to prevent jiggle. Adjust as needed. */
-            min-height: 400px; 
-          }
-          .auth-view {
-            width: 100%;
-            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s;
-            position: absolute;
-            top: 0;
-            left: 0;
-            backface-visibility: hidden; /* Prevents flickering */
-          }
-          .auth-view.entering {
-            transform: translateX(0);
-            opacity: 1;
-          }
-          .auth-view.exiting-left {
-            transform: translateX(-100%);
-            opacity: 0;
-          }
-          .auth-view.hidden-right {
-            transform: translateX(100%);
-            opacity: 0;
-          }
+          .auth-view-wrapper { position: relative; min-height: 400px; }
+          .auth-view { width: 100%; transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s; position: absolute; top: 0; left: 0; backface-visibility: hidden; }
+          .auth-view.entering { transform: translateX(0); opacity: 1; }
+          .auth-view.exiting-left { transform: translateX(-100%); opacity: 0; }
+          .auth-view.hidden-right { transform: translateX(100%); opacity: 0; }
         `}
       </style>
 
       <div
         className={cn(
           "flex items-center justify-center",
-          isModal ? "fixed inset-0 z-50 bg-black/60" : "bg-gray-100", // Fullscreen bg if not modal
+          isModal ? "fixed inset-0 z-50 bg-black/60" : "bg-gray-100",
         )}
       >
         <div
           className={cn(
             "relative flex overflow-hidden bg-white shadow-xl",
             isModal
-              ? "m-4 h-full w-full sm:h-auto sm:max-h-[90vh] sm:max-w-4xl sm:rounded-lg" // Modal classes
+              ? "m-4 h-full w-full sm:h-auto sm:max-h-[90vh] sm:max-w-4xl sm:rounded-lg"
               : "min-h-screen w-screen sm:mx-auto sm:my-12 sm:h-auto sm:max-h-[90vh] sm:min-h-0 sm:w-full sm:max-w-4xl sm:rounded-lg",
           )}
         >
@@ -480,25 +432,21 @@ const AuthModal = ({
                 "url(https://placehold.co/600x800/ec4899/ffffff/png?text=Partygeng&font=inter)",
             }}
           >
-            {/* Overlay */}
             <div className="absolute inset-0 bg-pink-800 opacity-75"></div>
-            {/* Content */}
             <div className="relative z-10 text-white">
               <h2 className="mb-6 text-4xl leading-tight font-bold">
                 Success starts here.
               </h2>
               <ul className="space-y-4 text-lg">
                 <li className="flex items-center gap-3">
-                  <Check className="h-6 w-6 shrink-0" />
-                  Find verified vendors
+                  <Check className="h-6 w-6 shrink-0" /> Find verified vendors
                 </li>
                 <li className="flex items-center gap-3">
-                  <Check className="h-6 w-6 shrink-0" />
-                  Get quotes and pay securely
+                  <Check className="h-6 w-6 shrink-0" /> Get quotes and pay
+                  securely
                 </li>
                 <li className="flex items-center gap-3">
-                  <Check className="h-6 w-6 shrink-0" />
-                  Plan your perfect event
+                  <Check className="h-6 w-6 shrink-0" /> Plan your perfect event
                 </li>
               </ul>
             </div>
@@ -514,7 +462,7 @@ const AuthModal = ({
                 <X className="h-6 w-6" />
               </button>
             )}
-            {/* Show titles only on the first step */}
+
             <div className={cn(step !== "options" && "hidden")}>
               <h2 className="mb-4 text-3xl font-bold text-gray-900 md:hidden">
                 Success starts here.
@@ -540,7 +488,7 @@ const AuthModal = ({
                 </button>
               </p>
             </div>
-            {/* Role Selector (Only on 'join' and 'options' step) */}
+
             {view === "join" && step === "options" && (
               <div className="mb-6">
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -579,9 +527,8 @@ const AuthModal = ({
                 </div>
               </div>
             )}
-            {/* Animated View Wrapper */}
+
             <div className="auth-view-wrapper">
-              {/* View 1: Social & Email Options */}
               <div
                 className={cn(
                   "auth-view",
@@ -590,15 +537,14 @@ const AuthModal = ({
               >
                 <div className="flex flex-col gap-4">
                   <button className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50">
-                    <GoogleIcon />
-                    Continue with Google
+                    <GoogleIcon /> Continue with Google
                   </button>
                   <button
                     onClick={() => setStep("email")}
                     className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50"
                   >
-                    <Mail className="h-5 w-5 text-gray-600" />
-                    Continue with email
+                    <Mail className="h-5 w-5 text-gray-600" /> Continue with
+                    email
                   </button>
                 </div>
                 <div className="relative my-6">
@@ -611,17 +557,14 @@ const AuthModal = ({
                 </div>
                 <div className="flex flex-col gap-4 sm:flex-row">
                   <button className="flex flex-1 items-center justify-center gap-3 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50">
-                    <AppleIcon />
-                    Apple
+                    <AppleIcon /> Apple
                   </button>
                   <button className="flex flex-1 items-center justify-center gap-3 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50">
-                    <FacebookIcon />
-                    Facebook
+                    <FacebookIcon /> Facebook
                   </button>
                 </div>
               </div>
 
-              {/* View 2: Email Form */}
               <div
                 className={cn(
                   "auth-view",
@@ -644,7 +587,6 @@ const AuthModal = ({
                 />
               </div>
 
-              {/* View 3: Username Form (Join Only) */}
               <div
                 className={cn(
                   "auth-view",
@@ -659,8 +601,8 @@ const AuthModal = ({
                   loading={loading}
                 />
               </div>
-            </div>{" "}
-            {/* End of auth-view-wrapper */}
+            </div>
+
             <p className="mt-8 text-xs text-gray-400">
               By {view === "join" ? "joining" : "signing in"}, you agree to the
               Partygeng{" "}
