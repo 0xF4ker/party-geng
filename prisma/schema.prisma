@@ -106,6 +106,21 @@ enum UserStatus {
   BANNED
 }
 
+enum ReportReason {
+  EXPLICIT_CONTENT
+  ILLEGAL_ACTIVITY
+  HARASSMENT
+  HATE_SPEECH_OR_VIOLENCE
+  SPAM
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
 // --- 2. AUTH & USER MODELS ---
 
 model User {
@@ -150,6 +165,9 @@ model User {
   blockedBy          Block[]             @relation("Blocked")
   messageDeletions   MessageDeletion[]
   activityLogs       ActivityLog[]
+
+  reportsMade     Report[] @relation("Reporter")
+  reportsReceived Report[] @relation("ReportedUser")
 }
 
 model ClientProfile {
@@ -537,6 +555,8 @@ model Post {
   comments  PostComment[]
   bookmarks PostBookmark[]
 
+  reports Report[]
+
   @@index([authorId])
 }
 
@@ -712,5 +732,38 @@ model ActivityLog {
   @@index([userId])
   @@index([action])
   @@index([createdAt])
+}
+
+model Report {
+  id        String       @id @default(uuid())
+  
+  // Who is reporting?
+  reporter   User        @relation("Reporter", fields: [reporterId], references: [id])
+  reporterId String
+
+  // Why?
+  reason    ReportReason
+  details   String?      @db.Text
+  status    ReportStatus @default(PENDING)
+
+  // What is being reported? (Polymorphic-ish)
+  // 1. Account Report
+  targetUser   User?     @relation("ReportedUser", fields: [targetUserId], references: [id])
+  targetUserId String?
+
+  // 2. Post Report
+  targetPost   Post?     @relation(fields: [targetPostId], references: [id])
+  targetPostId String?
+
+  // Admin Resolution details
+  resolvedByAdminId String?
+  resolutionNotes   String?
+  resolvedAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reporterId])
+  @@index([status])
 }
 

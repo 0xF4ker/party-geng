@@ -20,6 +20,7 @@ import { adminRouter } from "@/server/api/routers/admin";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
 import { activityLogRouter } from "./routers/activityLog";
+import { reportRouter } from "./routers/report";
 
 /**
  * This is the primary router for your server.
@@ -47,6 +48,7 @@ export const appRouter = createTRPCRouter({
   savePlan: savePlanRouter,
   admin: adminRouter,
   activityLog: activityLogRouter,
+  report: reportRouter,
 });
 
 // export type definition of API

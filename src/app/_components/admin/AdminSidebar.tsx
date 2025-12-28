@@ -15,6 +15,7 @@ import {
   ShieldUser,
   ChartColumnStacked,
   ListCheck,
+  MessageSquareWarning,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -27,6 +28,7 @@ const navItems = [
   { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
   { name: "KYC", href: "/admin/kyc", icon: FileCheck },
   { name: "Finance", href: "/admin/finance", icon: Wallet },
+  { name: "Reports", href: "/admin/reports", icon: MessageSquareWarning },
   { name: "Audit Log", href: "/admin/audit", icon: ListCheck },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];

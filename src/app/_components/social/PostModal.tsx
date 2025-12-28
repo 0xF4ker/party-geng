@@ -17,6 +17,7 @@ import {
   Trash2,
   X,
   CheckCircle2,
+  Flag,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,8 @@ import { formatDistanceToNow } from "date-fns";
 import { type inferRouterOutputs } from "@trpc/server";
 import { type AppRouter } from "@/server/api/root";
 
+import { ReportModal } from "@/app/_components/modals/ReportModal";
+
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 export type PostSnapshot =
@@ -48,6 +51,7 @@ const PostModal = ({
   onClose?: () => void;
 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   const safeIndex =
     currentIndex >= 0 && currentIndex < posts.length ? currentIndex : 0;
@@ -302,6 +306,16 @@ const PostModal = ({
                   >
                     <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
                   </Button>
+                  {!isAuthor && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start text-orange-600 hover:text-orange-700"
+                      onClick={() => setIsReportOpen(true)}
+                    >
+                      <Flag className="mr-2 h-3.5 w-3.5" /> Report
+                    </Button>
+                  )}
                 </PopoverContent>
               </Popover>
             )}
@@ -439,6 +453,11 @@ const PostModal = ({
           </div>
         </div>
       </div>
+      <ReportModal
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+        targetPostId={activePost.id}
+      />
     </div>
   );
 };

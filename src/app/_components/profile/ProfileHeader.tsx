@@ -18,6 +18,7 @@ import {
   Wallet,
   Grid3x3,
   Flame,
+  Flag,
 } from "lucide-react";
 import { EnvelopeIcon } from "@heroicons/react/24/solid";
 import { cn } from "@/lib/utils";
@@ -32,12 +33,18 @@ import MobileMenu from "../home/MobileMenu";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ReportModal } from "@/app/_components/modals/ReportModal";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type User = routerOutput["user"]["getByUsername"];
 type ClientProfile = User["clientProfile"];
 
-// Modal from Header.tsx
+// Modal from Header.tsx (Internal helper)
 const Modal = ({
   children,
   onClose,
@@ -73,7 +80,7 @@ const Modal = ({
   );
 };
 
-// Main component
+// --- Main Component ---
 const ProfileHeader = ({
   clientProfile,
   profileUser,
@@ -90,16 +97,18 @@ const ProfileHeader = ({
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
 
-  // States from Header.tsx
+  // States from Header logic
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalView, setModalView] = useState<"login" | "join">("login");
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
 
-  // States from ProfileHeader.tsx
+  // States for Profile Header UI
   const [isTabsSticky, setIsTabsSticky] = useState(false);
   const [isHeaderSticky, setIsHeaderSticky] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false); // Reporting State
+
   const headerRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const bannerRef = useRef<HTMLDivElement>(null);
@@ -113,6 +122,12 @@ const ProfileHeader = ({
       enabled: !!user,
     });
   const { data: searchList } = api.category.getSearchList.useQuery();
+
+  // --- Logic for Real Stats ---
+  // Hires Made: Count of completed orders from the user object
+  // Events Hosted: Count from _count.events
+  const completedHires = profileUser.clientOrders?.length ?? 0; // Filtered in TRPC query
+  const eventsHosted = profileUser.clientProfile?._count?.events ?? 0;
 
   // --- Conversation Mutation ---
   const sendMessage = api.chat.sendMessage.useMutation();
@@ -143,13 +158,6 @@ const ProfileHeader = ({
   const displayName = isVendor
     ? (user?.vendorProfile?.companyName ?? user?.username)
     : (user?.clientProfile?.name ?? user?.username);
-
-  // --- Real Stats Logic ---
-  // Count only COMPLETED orders for "Hires Made"
-  const completedHires =
-    profileUser.clientOrders?.filter((o) => o.status === "COMPLETED").length ??
-    0;
-  const eventsHosted = profileUser.clientProfile?._count.events ?? 0;
 
   // --- Handlers ---
   const openModal = (view: "login" | "join") => {
@@ -205,7 +213,7 @@ const ProfileHeader = ({
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // --- Other Effects ---
+  // --- Click Outside for Dropdown ---
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -231,7 +239,7 @@ const ProfileHeader = ({
   return (
     <>
       <div ref={headerRef} className="relative bg-white pb-4">
-        {/* --- Merged Header --- */}
+        {/* --- Header Bar --- */}
         <header
           className={cn(
             "fixed top-0 right-0 left-0 z-40 w-full transition-all duration-300",
@@ -240,7 +248,6 @@ const ProfileHeader = ({
           )}
         >
           <div className="relative container mx-auto flex h-16 items-center justify-between px-4">
-            {/* Left Side: Hamburger + Logo */}
             <div className="flex shrink-0 items-center">
               <button onClick={toggleMobileMenu} className="lg:hidden">
                 <Menu className="h-6 w-6" />
@@ -259,7 +266,6 @@ const ProfileHeader = ({
               </Link>
             </div>
 
-            {/* Middle: Search Bar */}
             <div className="mx-4 hidden grow sm:flex lg:mx-16">
               {searchList && (
                 <GlobalSearch
@@ -269,7 +275,7 @@ const ProfileHeader = ({
               )}
             </div>
 
-            {/* Right Side: Nav Links */}
+            {/* Nav Items */}
             {loading ? (
               <div className="flex items-center space-x-6">
                 <Skeleton className="h-6 w-24" />
@@ -343,7 +349,6 @@ const ProfileHeader = ({
                   className={cn("hidden md:flex", headerIconColor)}
                 />
 
-                {/* Profile Dropdown */}
                 <div className="relative ml-2" ref={profileDropdownRef}>
                   <Link
                     href={
@@ -373,7 +378,7 @@ const ProfileHeader = ({
           </div>
         </header>
 
-        {/* Banner Image */}
+        {/* --- Banner Image --- */}
         <div
           ref={bannerRef}
           className="relative h-48 w-full bg-gray-100 lg:h-64"
@@ -388,12 +393,13 @@ const ProfileHeader = ({
           <div className="absolute inset-0 bg-linear-to-t from-white via-white/50 to-black/30"></div>
         </div>
 
+        {/* --- Profile Content --- */}
         <div className="relative container mx-auto max-w-4xl px-4">
-          {/* Avatar & Actions */}
           <div className="-mt-24 flex items-end justify-between sm:-mt-28">
+            {/* Avatar */}
             {clientProfile?.avatarUrl ? (
               <Image
-                src={clientProfile?.avatarUrl}
+                src={clientProfile.avatarUrl}
                 alt={clientProfile?.name ?? "Client"}
                 className="h-32 w-32 rounded-full border-4 border-white bg-gray-200 object-cover sm:h-40 sm:w-40"
                 width={160}
@@ -404,6 +410,8 @@ const ProfileHeader = ({
                 {clientProfile?.name?.charAt(0).toUpperCase() ?? "C"}
               </div>
             )}
+
+            {/* Actions (Message / Edit / Report) */}
             <div className="flex items-center space-x-2 pb-4">
               {isOwnProfile ? (
                 <>
@@ -437,28 +445,47 @@ const ProfileHeader = ({
                     )}
                     Message
                   </button>
-                  <button className="rounded-full border border-gray-300 bg-white p-2 text-gray-500 shadow-sm hover:bg-gray-100">
-                    <MoreHorizontal className="h-5 w-5" />
-                  </button>
+
+                  {/* Reporting Popover */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="rounded-full border border-gray-300 bg-white p-2 text-gray-500 shadow-sm hover:bg-gray-100">
+                        <MoreHorizontal className="h-5 w-5" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-40 p-1" align="end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-red-600 hover:bg-red-50 hover:text-red-700"
+                        onClick={() => setIsReportOpen(true)}
+                      >
+                        <Flag className="mr-2 h-4 w-4" />
+                        Report User
+                      </Button>
+                    </PopoverContent>
+                  </Popover>
                 </>
               )}
             </div>
           </div>
 
-          {/* User Info */}
+          {/* User Details */}
           <div className="mt-4">
             <h1 className="text-2xl font-bold">
               {clientProfile?.name ?? profileUser.username ?? "Client"}
             </h1>
             <p className="text-sm text-gray-500">@{profileUser.username}</p>
-            {/* REMOVED: Verified Client Badge */}
+            {/* Removed Verified Client Badge */}
           </div>
+
           <div className="mt-4 max-w-2xl text-sm text-gray-800">
             <p>
               {clientProfile?.bio ??
                 "Event enthusiast and planner. Creating memorable experiences since 2020. Let's connect and make magic happen!"}
             </p>
           </div>
+
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
             {clientProfile?.location && (
               <div className="flex items-center gap-1">
@@ -486,7 +513,7 @@ const ProfileHeader = ({
             </div>
           </div>
 
-          {/* UPDATED: Real Stats */}
+          {/* Real Stats */}
           <div className="mt-4 flex items-center space-x-6">
             <div className="text-sm">
               <span className="font-bold text-gray-900">{eventsHosted}</span>
@@ -499,7 +526,7 @@ const ProfileHeader = ({
           </div>
         </div>
 
-        {/* UPDATED: Scrollable Tab Navigation (replaces <select>) */}
+        {/* --- Scrollable Tabs --- */}
         <div
           ref={tabsRef}
           className={cn(
@@ -532,18 +559,18 @@ const ProfileHeader = ({
                 isActive={activeTab === "gallery"}
                 onClick={() => setActiveTab("gallery")}
               />
-              {/* <TabButton
+              <TabButton
                 title="Reviews"
                 icon={<Award className="h-5 w-5" />}
                 isActive={activeTab === "reviews"}
                 onClick={() => setActiveTab("reviews")}
-              /> */}
+              />
             </nav>
           </div>
         </div>
       </div>
 
-      {/* Floating Components */}
+      {/* --- Floating Components --- */}
       <MobileMenu
         isOpen={isMobileMenuOpen}
         onClose={toggleMobileMenu}
@@ -560,6 +587,13 @@ const ProfileHeader = ({
           />
         </Modal>
       )}
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+        targetUserId={profileUser.id}
+      />
     </>
   );
 };

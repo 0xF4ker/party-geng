@@ -14,7 +14,9 @@ import {
   Wallet,
   Award,
   Flame,
-  Grid3x3, // Added icon for Gallery
+  Grid3x3,
+  MoreHorizontal,
+  Flag,
 } from "lucide-react";
 import { EnvelopeIcon } from "@heroicons/react/24/solid";
 import { cn } from "@/lib/utils";
@@ -29,6 +31,12 @@ import MobileMenu from "../home/MobileMenu";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ReportModal } from "@/app/_components/modals/ReportModal";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
 type VendorProfileWithUser = routerOutput["vendor"]["getByUsername"];
@@ -87,14 +95,14 @@ const VendorProfileHeader = ({
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
 
-  // States from Header.tsx
+  // States
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalView, setModalView] = useState<"login" | "join">("login");
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-  const profileDropdownRef = useRef<HTMLDivElement>(null);
+  const [isReportOpen, setIsReportOpen] = useState(false); // Reporting state
 
-  // States from ProfileHeader.tsx
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
   const [isTabsSticky, setIsTabsSticky] = useState(false);
   const [isHeaderSticky, setIsHeaderSticky] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -122,7 +130,7 @@ const VendorProfileHeader = ({
     ? (user?.vendorProfile?.companyName ?? user?.username)
     : (user?.clientProfile?.name ?? user?.username);
 
-  // --- Handlers from Header.tsx ---
+  // --- Handlers ---
   const openModal = (view: "login" | "join") => {
     setModalView(view);
     setIsModalOpen(true);
@@ -168,10 +176,9 @@ const VendorProfileHeader = ({
 
   // --- Scroll Effects ---
   useEffect(() => {
-    const HEADER_STICKY_HEIGHT = 64; // Height of the sticky header
+    const HEADER_STICKY_HEIGHT = 64;
 
     const handleScroll = () => {
-      // Header stickiness
       const bannerBottom =
         bannerRef.current?.getBoundingClientRect().bottom ?? 0;
       if (window.scrollY > bannerBottom) {
@@ -182,7 +189,6 @@ const VendorProfileHeader = ({
         setIsHeaderSticky(false);
       }
 
-      // Tabs stickiness
       if (tabsRef.current) {
         const { top } = tabsRef.current.getBoundingClientRect();
         setIsTabsSticky(top <= HEADER_STICKY_HEIGHT);
@@ -193,7 +199,7 @@ const VendorProfileHeader = ({
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // --- Other Effects ---
+  // --- Click Outside ---
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -219,7 +225,7 @@ const VendorProfileHeader = ({
   return (
     <>
       <div ref={headerRef} className="relative bg-white pb-4">
-        {/* --- Merged Header --- */}
+        {/* --- Header --- */}
         <header
           className={cn(
             "fixed top-0 right-0 left-0 z-40 w-full transition-all duration-300",
@@ -228,7 +234,6 @@ const VendorProfileHeader = ({
           )}
         >
           <div className="relative container mx-auto flex h-16 items-center justify-between px-4">
-            {/* Left Side: Hamburger + Logo */}
             <div className="flex shrink-0 items-center">
               <button onClick={toggleMobileMenu} className="lg:hidden">
                 <Menu className="h-6 w-6" />
@@ -247,7 +252,6 @@ const VendorProfileHeader = ({
               </Link>
             </div>
 
-            {/* Middle: Search Bar (hidden on profile page for now) */}
             <div className="mx-4 hidden grow sm:flex lg:mx-16">
               {searchList && (
                 <GlobalSearch
@@ -257,7 +261,6 @@ const VendorProfileHeader = ({
               )}
             </div>
 
-            {/* Right Side: Nav Links */}
             {loading ? (
               <div className="flex items-center space-x-6">
                 <Skeleton className="h-6 w-24" />
@@ -331,7 +334,6 @@ const VendorProfileHeader = ({
                   className={cn("hidden md:flex", headerIconColor)}
                 />
 
-                {/* Profile Dropdown */}
                 <div className="relative ml-2" ref={profileDropdownRef}>
                   <Link
                     href={
@@ -361,16 +363,13 @@ const VendorProfileHeader = ({
           </div>
         </header>
 
-        {/* Banner Image */}
+        {/* --- Banner --- */}
         <div
           ref={bannerRef}
           className="relative h-48 w-full bg-gray-100 lg:h-64"
         >
           <Image
-            src={
-              vendorProfile?.bannerUrl ?? "/banner.jpg"
-              // "https://images.unsplash.com/photo-1505238680356-667803448bb6?q=80&w=2070&auto=format&fit=crop"
-            }
+            src={vendorProfile?.bannerUrl ?? "/banner.jpg"}
             alt="Banner"
             className="h-full w-full object-cover"
             layout="fill"
@@ -379,8 +378,8 @@ const VendorProfileHeader = ({
           <div className="absolute inset-0 bg-linear-to-t from-white via-white/50 to-black/30"></div>
         </div>
 
+        {/* --- Profile Content --- */}
         <div className="relative container mx-auto max-w-4xl px-4">
-          {/* Avatar & Actions */}
           <div className="-mt-24 flex flex-col items-center sm:flex-row sm:items-end sm:justify-between">
             <div className="flex flex-col items-center sm:flex-row sm:items-end">
               {vendorProfile?.avatarUrl ? (
@@ -405,6 +404,8 @@ const VendorProfileHeader = ({
                 </p>
               </div>
             </div>
+
+            {/* Actions */}
             <div className="mt-4 flex items-center space-x-2 sm:mt-0">
               {isOwnProfile ? (
                 <>
@@ -425,18 +426,40 @@ const VendorProfileHeader = ({
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={handleContactVendor}
-                  disabled={createConversation.isPending}
-                  className="flex items-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-pink-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {createConversation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <MessageSquare className="h-4 w-4" />
-                  )}
-                  Request Quote
-                </button>
+                <>
+                  <button
+                    onClick={handleContactVendor}
+                    disabled={createConversation.isPending}
+                    className="flex items-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-pink-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {createConversation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <MessageSquare className="h-4 w-4" />
+                    )}
+                    Request Quote
+                  </button>
+
+                  {/* Reporting Popover for Vendors */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="rounded-full border border-gray-300 bg-white p-2 text-gray-500 shadow-sm hover:bg-gray-100">
+                        <MoreHorizontal className="h-5 w-5" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-40 p-1" align="end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-red-600 hover:bg-red-50 hover:text-red-700"
+                        onClick={() => setIsReportOpen(true)}
+                      >
+                        <Flag className="mr-2 h-4 w-4" />
+                        Report Vendor
+                      </Button>
+                    </PopoverContent>
+                  </Popover>
+                </>
               )}
             </div>
           </div>
@@ -487,7 +510,7 @@ const VendorProfileHeader = ({
           )}
         </div>
 
-        {/* Tab Navigation */}
+        {/* --- Scrollable Tab Navigation --- */}
         <div
           ref={tabsRef}
           className={cn(
@@ -519,7 +542,7 @@ const VendorProfileHeader = ({
         </div>
       </div>
 
-      {/* --- Floating Components from Header.tsx --- */}
+      {/* --- Floating Components --- */}
       <MobileMenu
         isOpen={isMobileMenuOpen}
         onClose={toggleMobileMenu}
@@ -536,6 +559,13 @@ const VendorProfileHeader = ({
           />
         </Modal>
       )}
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+        targetUserId={vendorProfile.userId}
+      />
     </>
   );
 };
