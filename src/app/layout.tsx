@@ -10,6 +10,7 @@ import { TRPCReactProvider } from "@/trpc/react";
 import { AuthProvider } from "@/providers/auth-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { type Metadata } from "next";
+import { BanProvider } from "@/providers/ban-provider";
 
 export const metadata: Metadata = {
   title: "PartyGeng",
@@ -24,7 +25,7 @@ export default function RootLayout({
       <body>
         <TRPCReactProvider>
           <AuthProvider>
-            {children}
+            <BanProvider>{children}</BanProvider>
           </AuthProvider>
           <Toaster />
         </TRPCReactProvider>
