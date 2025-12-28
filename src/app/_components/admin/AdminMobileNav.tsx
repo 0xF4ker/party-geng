@@ -17,6 +17,7 @@ import {
   ListCheck,
   Menu,
   MessageSquareWarning,
+  CalendarX,
 } from "lucide-react";
 import {
   Sheet,
@@ -49,6 +50,7 @@ export function AdminMobileNav() {
     { name: "Admins", href: "/admin/admins", icon: ShieldUser },
     { name: "Categories", href: "/admin/categories", icon: ChartColumnStacked },
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
+    { name: "Events", href: "/admin/events", icon: CalendarX },
     { name: "KYC", href: "/admin/kyc", icon: FileCheck },
     { name: "Finance", href: "/admin/finance", icon: Wallet },
     { name: "Reports", href: "/admin/reports", icon: MessageSquareWarning },
