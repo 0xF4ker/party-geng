@@ -75,14 +75,14 @@ export const ReportModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="z-200 sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-red-600">
             <AlertTriangle className="h-5 w-5" />
             Report Content
           </DialogTitle>
           <DialogDescription>
-            Help us understand what's wrong. This report will be reviewed by our
+            Help us understand what&apos;s wrong. This report will be reviewed by our
             safety team.
           </DialogDescription>
         </DialogHeader>
