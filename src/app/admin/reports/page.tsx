@@ -9,7 +9,6 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  Eye,
   Trash2,
   Ban,
   UserX,
@@ -28,17 +27,50 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
-type Report = any; // Inferred in real usage
+// --- 1. Define Types ---
+// These should ideally be inferred from your TRPC output helper,
+// but for this file, explicit interfaces clarify what we expect.
+
+interface ReportUser {
+  id: string;
+  username: string;
+  email: string;
+  status: "ACTIVE" | "SUSPENDED" | "BANNED";
+  clientProfile?: { avatarUrl: string | null } | null;
+  vendorProfile?: { avatarUrl: string | null } | null;
+}
+
+interface ReportPost {
+  id: string;
+  caption: string | null;
+  author: { username: string };
+  assets: { url: string }[];
+}
+
+interface Report {
+  id: string;
+  reason: string;
+  details: string | null;
+  status: "PENDING" | "RESOLVED" | "DISMISSED";
+  createdAt: string | Date;
+  targetPostId?: string | null;
+  targetUserId?: string | null;
+  reporter: { username: string; email: string };
+  targetUser?: ReportUser | null;
+  targetPost?: ReportPost | null;
+}
 
 export default function AdminReportsPage() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
   const { data, isLoading, refetch } = api.report.getAll.useQuery({
-    status: "PENDING", // Default to pending
+    status: "PENDING",
     limit: 50,
   });
+
+  // Explicitly cast or validate the data if TRPC types aren't perfectly aligned yet
+  const reports = (data?.reports ?? []) as unknown as Report[];
 
   return (
     <div className="space-y-6">
@@ -55,7 +87,7 @@ export default function AdminReportsPage() {
             className="gap-1 border-orange-200 bg-orange-50 px-3 py-1 text-orange-700"
           >
             <AlertTriangle className="h-3 w-3" />
-            {data?.reports.length ?? 0} Pending
+            {reports.length} Pending
           </Badge>
         </div>
       </div>
@@ -65,7 +97,7 @@ export default function AdminReportsPage() {
           <div className="flex h-64 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           </div>
-        ) : data?.reports.length === 0 ? (
+        ) : reports.length === 0 ? (
           <div className="flex h-64 flex-col items-center justify-center text-gray-500">
             <CheckCircle2 className="mb-2 h-10 w-10 text-green-500" />
             <p>All clean! No pending reports.</p>
@@ -83,7 +115,7 @@ export default function AdminReportsPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {data?.reports.map((report: any) => (
+              {reports.map((report) => (
                 <tr key={report.id} className="hover:bg-gray-50/50">
                   <td className="px-6 py-4">
                     {report.targetPostId ? (
@@ -102,12 +134,15 @@ export default function AdminReportsPage() {
                   <td className="px-6 py-4">
                     {report.targetPost ? (
                       <span className="line-clamp-1 max-w-[200px] text-gray-600">
-                        {report.targetPost.caption || "Image Post"}
+                        {report.targetPost.caption ?? "Image Post"}
                       </span>
                     ) : report.targetUser ? (
                       <div className="flex items-center gap-2">
                         <div className="relative h-6 w-6 overflow-hidden rounded-full bg-gray-200">
-                          {/* Add Image component if avatar exists */}
+                          {/* Placeholder avatar logic */}
+                          <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-gray-500">
+                            {report.targetUser.username.charAt(0).toUpperCase()}
+                          </div>
                         </div>
                         <span className="font-semibold">
                           @{report.targetUser.username}
@@ -143,13 +178,12 @@ export default function AdminReportsPage() {
         )}
       </div>
 
-      {/* Review Sheet */}
       <ReportReviewSheet
         report={selectedReport}
         open={!!selectedReport}
         onClose={() => {
           setSelectedReport(null);
-          refetch();
+          void refetch();
         }}
       />
     </div>
@@ -161,13 +195,14 @@ function ReportReviewSheet({
   open,
   onClose,
 }: {
-  report: any;
+  report: Report | null;
   open: boolean;
   onClose: () => void;
 }) {
   const [notes, setNotes] = useState("");
-  const utils = api.useContext();
 
+  // Using explicit generic params for useMutation would be ideal,
+  // but standard TRPC inference works well here.
   const resolveMutation = api.report.resolveReport.useMutation({
     onSuccess: () => {
       toast.success("Report resolved");
@@ -193,7 +228,9 @@ function ReportReviewSheet({
           <SheetTitle>Review Report</SheetTitle>
           <SheetDescription>
             Reported for{" "}
-            <span className="font-bold text-red-600">{report.reason}</span>
+            <span className="font-bold text-red-600">
+              {report.reason.replace(/_/g, " ")}
+            </span>
           </SheetDescription>
         </SheetHeader>
 
@@ -201,10 +238,10 @@ function ReportReviewSheet({
           {/* Details Section */}
           <div className="rounded-lg border bg-gray-50 p-4">
             <h4 className="mb-2 text-sm font-semibold text-gray-700">
-              Reporter's Note
+              Reporter&apos;s Note
             </h4>
             <p className="text-sm text-gray-600">
-              {report.details || "No additional details provided."}
+              {report.details ?? "No additional details provided."}
             </p>
           </div>
 
@@ -221,10 +258,10 @@ function ReportReviewSheet({
                     @{report.targetPost.author.username}
                   </div>
                   <span className="text-xs text-gray-400">
-                    Post ID: {report.targetPostId}
+                    Post ID: {report.targetPostId?.slice(0, 8)}...
                   </span>
                 </div>
-                {report.targetPost.assets?.[0] && (
+                {report.targetPost.assets[0] && (
                   <div className="relative aspect-video w-full overflow-hidden rounded-md bg-black">
                     <Image
                       src={report.targetPost.assets[0].url}
@@ -234,16 +271,17 @@ function ReportReviewSheet({
                     />
                   </div>
                 )}
-                <p className="text-sm text-gray-800 italic">
-                  "{report.targetPost.caption}"
-                </p>
+                {report.targetPost.caption && (
+                  <p className="text-sm text-gray-800 italic">
+                    &quot;{report.targetPost.caption}&quot;
+                  </p>
+                )}
               </div>
             ) : report.targetUser ? (
               <div className="flex items-center gap-4">
                 <div className="relative h-16 w-16 overflow-hidden rounded-full bg-gray-200">
-                  {/* Avatar logic here */}
                   <div className="flex h-full w-full items-center justify-center text-2xl font-bold text-gray-400">
-                    {report.targetUser.username[0].toUpperCase()}
+                    {report.targetUser.username.charAt(0).toUpperCase()}
                   </div>
                 </div>
                 <div>
