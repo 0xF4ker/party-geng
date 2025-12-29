@@ -11,7 +11,8 @@ import {
   Banknote,
   CheckCircle,
   XCircle,
-  type LucideIcon, // Import type for icons
+  RefreshCw,
+  type LucideIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -27,8 +28,9 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
-// --- 1. TYPE INFERENCE ---
+// --- TYPE INFERENCE ---
 import { type inferRouterOutputs } from "@trpc/server";
 import { type AppRouter } from "@/server/api/root";
 
@@ -60,7 +62,10 @@ const TransactionStatusBadge = ({ status }: { status: string }) => {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${styles[status] ?? "bg-gray-100"}`}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
+        styles[status] ?? "bg-gray-100",
+      )}
     >
       <Icon className="h-3 w-3" /> {status}
     </span>
@@ -75,7 +80,7 @@ export default function AdminFinancePage() {
   const { data: stats, isLoading: statsLoading } =
     api.payment.adminGetStats.useQuery();
   const {
-    data: transactions,
+    data: transactionsData,
     isLoading: txLoading,
     refetch,
   } = api.payment.adminGetAllTransactions.useQuery({
@@ -84,6 +89,8 @@ export default function AdminFinancePage() {
     type: activeTab === "payouts" ? "PAYOUT" : undefined,
     status: activeTab === "payouts" ? "PENDING" : undefined,
   });
+
+  const transactions = transactionsData?.items ?? [];
 
   return (
     <div className="space-y-6">
@@ -98,7 +105,7 @@ export default function AdminFinancePage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Total Inflow"
-          value={stats?.totalInflow}
+          value={stats?.totalInflow ?? 0}
           icon={ArrowDownLeft}
           color="text-emerald-600"
           bg="bg-emerald-50"
@@ -106,7 +113,7 @@ export default function AdminFinancePage() {
         />
         <StatCard
           label="Total Payouts"
-          value={stats?.totalPayouts}
+          value={stats?.totalPayouts ?? 0}
           icon={ArrowUpRight}
           color="text-blue-600"
           bg="bg-blue-50"
@@ -114,7 +121,7 @@ export default function AdminFinancePage() {
         />
         <StatCard
           label="Pending Requests"
-          value={stats?.pendingPayoutsCount}
+          value={stats?.pendingPayoutsCount ?? 0}
           isCurrency={false}
           icon={Clock}
           color="text-orange-600"
@@ -123,7 +130,7 @@ export default function AdminFinancePage() {
         />
         <StatCard
           label="Pending Volume"
-          value={stats?.pendingPayoutsVolume}
+          value={stats?.pendingPayoutsVolume ?? 0}
           icon={Banknote}
           color="text-purple-600"
           bg="bg-purple-50"
@@ -169,16 +176,17 @@ export default function AdminFinancePage() {
         {/* TAB 1: ALL TRANSACTIONS */}
         <TabsContent value="transactions">
           <TransactionTable
-            data={transactions?.items}
+            data={transactions}
             isLoading={txLoading}
             showActions={false}
+            onActionComplete={refetch}
           />
         </TabsContent>
 
         {/* TAB 2: PAYOUT REQUESTS */}
         <TabsContent value="payouts">
           <TransactionTable
-            data={transactions?.items}
+            data={transactions}
             isLoading={txLoading}
             showActions={true}
             onActionComplete={refetch}
@@ -193,7 +201,7 @@ export default function AdminFinancePage() {
 
 interface StatCardProps {
   label: string;
-  value?: number | null;
+  value?: number;
   icon: LucideIcon;
   color: string;
   bg: string;
@@ -249,6 +257,15 @@ function TransactionTable({
   const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null);
   const [actionType, setActionType] = useState<PayoutActionType>(null);
 
+  // New Mutation for verification
+  const verifyMutation = api.payment.checkWithdrawalStatus.useMutation({
+    onSuccess: (res) => {
+      toast.success(res.message);
+      onActionComplete?.();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   if (isLoading)
     return (
       <div className="p-12 text-center">
@@ -265,6 +282,10 @@ function TransactionTable({
   const handleAction = (tx: TransactionItem, type: "APPROVE" | "REJECT") => {
     setSelectedTx(tx);
     setActionType(type);
+  };
+
+  const handleVerify = (tx: TransactionItem) => {
+    verifyMutation.mutate({ transactionId: tx.id });
   };
 
   return (
@@ -290,6 +311,9 @@ function TransactionTable({
                 tx.wallet.user.clientProfile?.name ??
                 tx.wallet.user.vendorProfile?.companyName ??
                 tx.wallet.user.username;
+
+              const isPendingPayout =
+                tx.type === "PAYOUT" && tx.status === "PENDING";
 
               return (
                 <tr key={tx.id} className="hover:bg-gray-50/50">
@@ -320,29 +344,39 @@ function TransactionTable({
                   </td>
                   <td
                     className="max-w-xs truncate px-6 py-4 text-xs"
-                    title={tx.description}
+                    title={tx.description ?? ""}
                   >
                     {tx.description}
                   </td>
                   {showActions && (
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 border-red-200 text-red-600 hover:bg-red-50"
-                          onClick={() => handleAction(tx, "REJECT")}
-                        >
-                          Reject
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="h-8 bg-emerald-600 hover:bg-emerald-700"
-                          onClick={() => handleAction(tx, "APPROVE")}
-                        >
-                          Pay
-                        </Button>
-                      </div>
+                      {isPendingPayout ? (
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-2 border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 hover:text-orange-800"
+                            onClick={() => handleVerify(tx)}
+                            disabled={verifyMutation.isPending}
+                          >
+                            {verifyMutation.isPending ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3.5 w-3.5" />
+                            )}
+                            Verify
+                          </Button>
+                          {/* Optional Manual Actions if verification fails or manual override needed */}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleAction(tx, "REJECT")}
+                          >
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      ) : null}
                     </td>
                   )}
                 </tr>
@@ -360,6 +394,8 @@ function TransactionTable({
             tx.wallet.user.clientProfile?.name ??
             tx.wallet.user.vendorProfile?.companyName ??
             tx.wallet.user.username;
+          const isPendingPayout =
+            tx.type === "PAYOUT" && tx.status === "PENDING";
 
           return (
             <div
@@ -371,7 +407,7 @@ function TransactionTable({
                   <p className="text-sm font-semibold text-gray-900">
                     {userDisplay}
                   </p>
-                  <p className="font-mono text-xs text-gray-500">
+                  <p className="mt-1 font-mono text-xs text-gray-500">
                     {format(new Date(tx.createdAt), "MMM d, HH:mm")}
                   </p>
                 </div>
@@ -397,22 +433,21 @@ function TransactionTable({
                 {tx.description}
               </div>
 
-              {showActions && (
-                <div className="grid grid-cols-2 gap-3 pt-1">
+              {showActions && isPendingPayout && (
+                <div className="grid grid-cols-1 pt-1">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="border-red-200 text-red-600 hover:bg-red-50"
-                    onClick={() => handleAction(tx, "REJECT")}
+                    className="gap-2 border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100"
+                    onClick={() => handleVerify(tx)}
+                    disabled={verifyMutation.isPending}
                   >
-                    Reject
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700"
-                    onClick={() => handleAction(tx, "APPROVE")}
-                  >
-                    Approve Payout
+                    {verifyMutation.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    )}
+                    Verify Status
                   </Button>
                 </div>
               )}
@@ -421,7 +456,7 @@ function TransactionTable({
         })}
       </div>
 
-      {/* ACTION MODAL */}
+      {/* ACTION MODAL (Kept for manual overrides if needed) */}
       <PayoutActionModal
         isOpen={!!selectedTx}
         onClose={() => {
@@ -489,7 +524,7 @@ function PayoutActionModal({
           </DialogTitle>
           <DialogDescription>
             {action === "APPROVE"
-              ? `Mark this transaction as completed? Ensure you have transferred funds to the user.`
+              ? `Mark this transaction as completed? Ensure funds have been sent.`
               : `Refund ${formatCurrency(tx.amount)} back to the user's wallet?`}
           </DialogDescription>
         </DialogHeader>

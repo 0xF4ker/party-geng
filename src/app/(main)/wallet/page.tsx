@@ -3,7 +3,6 @@
 import React, { useState, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  type LucideIcon, // Import type for icons
   ChevronDown,
   CalendarDays,
   ArrowDownUp,
@@ -13,15 +12,19 @@ import {
   Download,
   Plus,
   ArrowUpRight,
+  ArrowDownLeft,
   Wallet as WalletIcon,
+  Loader2,
+  type LucideIcon,
 } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useAuthStore } from "@/stores/auth";
 import { AddFundsModal } from "@/app/_components/payments/AddFundsModal";
-import { WithdrawModal } from "@/app/_components/payments/WithdrawModal";
+import { WithdrawModal } from "@/app/_components/payments/WithdrawModal"; // Ensure path matches
 import { TransferFundsModal } from "@/app/_components/payments/TransferFundsModal";
 import { RequestFundsModal } from "@/app/_components/payments/RequestFundsModal";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 // --- HELPERS ---
 const formatCurrency = (amount: number) =>
@@ -51,7 +54,7 @@ const TransactionTypeBadge = ({ type }: { type: string }) => {
   );
 };
 
-// --- MAIN COMPONENT ---
+// --- MAIN CONTENT ---
 
 const WalletPageContent = () => {
   const { profile } = useAuthStore();
@@ -124,7 +127,7 @@ const WalletPageContent = () => {
         {activeTab === "overview" && (
           <div className="mt-8 space-y-8">
             {/* iSave Banner */}
-            <div className="flex flex-col items-start justify-between gap-4 rounded-xl bg-linear-to-r from-pink-600 to-purple-600 p-6 text-white shadow-lg sm:flex-row sm:items-center">
+            <div className="flex flex-col items-start justify-between gap-4 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 p-6 text-white shadow-lg sm:flex-row sm:items-center">
               <div>
                 <h2 className="flex items-center gap-2 text-2xl font-bold">
                   <WalletIcon className="h-6 w-6" /> iSave
@@ -204,14 +207,14 @@ const WalletPageContent = () => {
                             className="transition-colors hover:bg-gray-50/50"
                           >
                             <td className="px-6 py-4 font-mono text-xs text-gray-500">
-                              {new Date(tx.createdAt).toLocaleDateString()}
+                              {format(new Date(tx.createdAt), "MMM d, HH:mm")}
                             </td>
                             <td className="px-6 py-4">
                               <TransactionTypeBadge type={tx.type} />
                             </td>
                             <td
                               className="max-w-xs truncate px-6 py-4 font-medium text-gray-900"
-                              title={tx.description}
+                              title={tx.description ?? ""}
                             >
                               {tx.description}
                             </td>
@@ -247,7 +250,7 @@ const WalletPageContent = () => {
                               {tx.description}
                             </p>
                             <p className="mt-1 font-mono text-xs text-gray-500">
-                              {new Date(tx.createdAt).toLocaleDateString()}
+                              {format(new Date(tx.createdAt), "MMM d, HH:mm")}
                             </p>
                           </div>
                           <div
