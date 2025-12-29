@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import {
@@ -12,6 +12,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -19,20 +21,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
-// Define strict types for roles to avoid 'any'
-type UserRole = "CLIENT" | "VENDOR" | "ADMIN" | "SUPPORT" | "FINANCE";
-type ActionType = "DELETE" | "SUSPEND" | "ROLE" | null;
+// Types
+import { type inferRouterOutputs } from "@trpc/server";
+import { type AppRouter } from "@/server/api/root";
+
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type UserItem = RouterOutputs["user"]["getUsers"]["items"][number];
+type ActionType = "DELETE" | "SUSPEND" | "ROLE";
 
 interface UserActionModalsProps {
   isOpen: boolean;
   onClose: () => void;
-  type: ActionType;
-  // We accept string for role to be flexible with DB inputs, but cast to UserRole internally
-  user: { id: string; username: string; role: string } | null;
+  type: ActionType | null;
+  user: UserItem | null;
   onSuccess: () => void;
 }
 
@@ -43,216 +46,181 @@ export function UserActionModals({
   user,
   onSuccess,
 }: UserActionModalsProps) {
-  const [loading, setLoading] = useState(false);
+  return (
+    <Dialog open={isOpen} onOpenChange={(val) => !val && onClose()}>
+      <DialogContent>
+        {user && type ? (
+          <ActionFormContent
+            key={`${user.id}-${type}`} // Forces a fresh start for every new action/user
+            user={user}
+            type={type}
+            onClose={onClose}
+            onSuccess={onSuccess}
+          />
+        ) : (
+          <div className="flex h-20 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-gray-300" />
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-  // Form States
-  const [suspendReason, setSuspendReason] = useState("");
-  const [suspendDuration, setSuspendDuration] = useState("7");
-  const [newRole, setNewRole] = useState<UserRole>("CLIENT");
+// --- SUB-COMPONENT: HANDLES STATE & LOGIC ---
+// Splitting this out ensures state is fresh every time it mounts.
 
-  // Sync state when the selected user changes
-  useEffect(() => {
-    if (user) {
-      // Validate if the user.role is a valid UserRole, fallback to CLIENT if unknown
-      const role = ["CLIENT", "VENDOR", "ADMIN", "SUPPORT", "FINANCE"].includes(
-        user.role,
-      )
-        ? (user.role as UserRole)
-        : "CLIENT";
-      setNewRole(role);
-      setSuspendReason(""); // Reset reason on user change
+function ActionFormContent({
+  user,
+  type,
+  onClose,
+  onSuccess,
+}: {
+  user: UserItem;
+  type: ActionType;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  // Initialize state directly from props (Lazy initialization)
+  // This runs only once when this sub-component mounts.
+  const [reason, setReason] = useState("");
+  const [newRole, setNewRole] = useState<string>(() => {
+    if (["ADMIN", "SUPPORT", "FINANCE"].includes(user.role)) {
+      return user.role;
     }
-  }, [user]);
+    return "";
+  });
 
-  // API Mutations
-  const deleteMutation = api.user.deleteUser.useMutation();
-  const suspendMutation = api.user.suspendUser.useMutation();
-  const roleMutation = api.user.updateUserRole.useMutation();
+  const utils = api.useContext();
 
-  if (!user) return null;
-
-  const handleDelete = async () => {
-    setLoading(true);
-    try {
-      await deleteMutation.mutateAsync({ userId: user.id });
-      toast.success("User permanently deleted");
+  // Mutations
+  const suspendMutation = api.user.suspendUser.useMutation({
+    onSuccess: () => {
+      toast.success("User suspended successfully");
       onSuccess();
       onClose();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete user",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
-  const handleSuspend = async () => {
-    setLoading(true);
-    try {
-      await suspendMutation.mutateAsync({
+  const deleteMutation = api.user.deleteUser.useMutation({
+    onSuccess: () => {
+      toast.success("User deleted successfully");
+      onSuccess();
+      onClose();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const roleMutation = api.user.updateUserRole.useMutation({
+    onSuccess: () => {
+      toast.success("User role updated successfully");
+      onSuccess();
+      onClose();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const isLoading =
+    suspendMutation.isPending ||
+    deleteMutation.isPending ||
+    roleMutation.isPending;
+
+  const handleSubmit = () => {
+    if (type === "SUSPEND") {
+      suspendMutation.mutate({
         userId: user.id,
-        reason: suspendReason,
-        durationDays:
-          suspendDuration === "permanent"
-            ? undefined
-            : parseInt(suspendDuration),
+        reason: reason,
+        durationDays: 30,
       });
-      toast.success(
-        suspendDuration === "permanent" ? "User banned" : "User suspended",
-      );
-      onSuccess();
-      onClose();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to suspend user",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRoleUpdate = async () => {
-    setLoading(true);
-    try {
-      await roleMutation.mutateAsync({
+    } else if (type === "DELETE") {
+      deleteMutation.mutate({ userId: user.id });
+    } else if (type === "ROLE") {
+      roleMutation.mutate({
         userId: user.id,
-        // newRole is strictly typed now, no 'as any' needed
-        newRole: newRole,
+        newRole: newRole as "ADMIN" | "SUPPORT" | "FINANCE",
       });
-      toast.success("Role updated successfully");
-      onSuccess();
-      onClose();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update role",
-      );
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        {/* DELETE MODAL */}
-        {type === "DELETE" && (
-          <>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-red-600">
-                <AlertTriangle className="h-5 w-5" /> Delete Account
-              </DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete <strong>{user.username}</strong>
-                ? This action cannot be undone and will remove all associated
-                data.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="mt-4">
-              <Button variant="outline" onClick={onClose} disabled={loading}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={loading}
-              >
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Delete Permanently
-              </Button>
-            </DialogFooter>
-          </>
-        )}
+    <>
+      <DialogHeader>
+        <DialogTitle>
+          {type === "DELETE" && "Delete User Account"}
+          {type === "SUSPEND" && "Suspend User Account"}
+          {type === "ROLE" && "Update Admin Role"}
+        </DialogTitle>
+        <DialogDescription>
+          Selected User:{" "}
+          <span className="text-foreground font-semibold">{user.username}</span>{" "}
+          ({user.email})
+        </DialogDescription>
+      </DialogHeader>
 
-        {/* SUSPEND MODAL */}
-        {type === "SUSPEND" && (
-          <>
-            <DialogHeader>
-              <DialogTitle>Suspend Account</DialogTitle>
-              <DialogDescription>
-                Restrict access for <strong>{user.username}</strong>.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Duration</Label>
-                <Select
-                  value={suspendDuration}
-                  onValueChange={setSuspendDuration}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="7">7 Days</SelectItem>
-                    <SelectItem value="30">30 Days</SelectItem>
-                    <SelectItem value="permanent">Permanent Ban</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Reason</Label>
-                <Textarea
-                  placeholder="Violation of terms..."
-                  value={suspendReason}
-                  onChange={(e) => setSuspendReason(e.target.value)}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={onClose} disabled={loading}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSuspend}
-                disabled={loading || !suspendReason}
-              >
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Confirm Suspension
-              </Button>
-            </DialogFooter>
-          </>
-        )}
+      {/* --- DELETE FORM --- */}
+      {type === "DELETE" && (
+        <div className="py-4">
+          <p className="rounded-md border border-red-100 bg-red-50 p-3 text-sm text-red-600">
+            Warning: This action is permanent and cannot be undone. All data
+            associated with this user will be removed.
+          </p>
+        </div>
+      )}
 
-        {/* ROLE MODAL */}
-        {type === "ROLE" && (
-          <>
-            <DialogHeader>
-              <DialogTitle>Update Role</DialogTitle>
-              <DialogDescription>
-                Change permissions for <strong>{user.username}</strong>.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <Label className="mb-2 block">Select Role</Label>
-              <Select
-                value={newRole}
-                onValueChange={(val: UserRole) => setNewRole(val)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CLIENT">Client</SelectItem>
-                  <SelectItem value="VENDOR">Vendor</SelectItem>
-                  <SelectItem value="SUPPORT">Support</SelectItem>
-                  <SelectItem value="FINANCE">Finance</SelectItem>
-                  <SelectItem value="ADMIN">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={onClose} disabled={loading}>
-                Cancel
-              </Button>
-              <Button onClick={handleRoleUpdate} disabled={loading}>
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Update Role
-              </Button>
-            </DialogFooter>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+      {/* --- SUSPEND FORM --- */}
+      {type === "SUSPEND" && (
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Reason for Suspension</Label>
+            <Input
+              placeholder="Violation of terms..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* --- ROLE FORM --- */}
+      {type === "ROLE" && (
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Select New Role</Label>
+            <Select value={newRole} onValueChange={setNewRole}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ADMIN">Super Admin</SelectItem>
+                <SelectItem value="SUPPORT">Support</SelectItem>
+                <SelectItem value="FINANCE">Finance</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs">
+              Note: You can only switch roles between internal admin teams.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button
+          variant={type === "DELETE" ? "destructive" : "default"}
+          onClick={handleSubmit}
+          disabled={
+            isLoading ||
+            (type === "SUSPEND" && !reason) ||
+            (type === "ROLE" && !newRole)
+          }
+        >
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Confirm
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

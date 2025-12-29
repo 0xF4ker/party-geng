@@ -52,7 +52,7 @@ export default async function AdminLayout({
       </div>
 
       {/* 4. Mobile Bottom Nav (Fixed Bottom) */}
-      <AdminMobileNav />
+      <AdminMobileNav role={role} />
     </div>
   );
 }
