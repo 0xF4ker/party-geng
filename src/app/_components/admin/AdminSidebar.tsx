@@ -20,27 +20,90 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
+// Define items with access control
 const navItems = [
-  { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { name: "Users", href: "/admin/users", icon: Users },
-  { name: "Vendors", href: "/admin/vendors", icon: Store },
-  { name: "Admins", href: "/admin/admins", icon: ShieldUser },
-  { name: "Categories", href: "/admin/categories", icon: ChartColumnStacked },
-  { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
-  { name: "Events", href: "/admin/events", icon: CalendarX },
-  { name: "KYC", href: "/admin/kyc", icon: FileCheck },
-  { name: "Finance", href: "/admin/finance", icon: Wallet },
-  { name: "Reports", href: "/admin/reports", icon: MessageSquareWarning },
-  { name: "Audit Log", href: "/admin/audit", icon: ListCheck },
-  { name: "Settings", href: "/admin/settings", icon: Settings },
+  {
+    name: "Dashboard",
+    href: "/admin",
+    icon: LayoutDashboard,
+    roles: ["ADMIN", "SUPPORT", "FINANCE"],
+  },
+  {
+    name: "Users",
+    href: "/admin/users",
+    icon: Users,
+    roles: ["ADMIN", "SUPPORT", "FINANCE"],
+  },
+  {
+    name: "Vendors",
+    href: "/admin/vendors",
+    icon: Store,
+    roles: ["ADMIN", "SUPPORT", "FINANCE"],
+  },
+  {
+    name: "Admins",
+    href: "/admin/admins",
+    icon: ShieldUser,
+    roles: ["ADMIN"],
+  },
+  {
+    name: "Categories",
+    href: "/admin/categories",
+    icon: ChartColumnStacked,
+    roles: ["ADMIN"],
+  },
+  {
+    name: "Orders",
+    href: "/admin/orders",
+    icon: ShoppingBag,
+    roles: ["ADMIN", "SUPPORT"],
+  },
+  {
+    name: "Events",
+    href: "/admin/events",
+    icon: CalendarX,
+    roles: ["ADMIN", "SUPPORT"],
+  },
+  {
+    name: "KYC",
+    href: "/admin/kyc",
+    icon: FileCheck,
+    roles: ["ADMIN", "SUPPORT"],
+  },
+  {
+    name: "Finance",
+    href: "/admin/finance",
+    icon: Wallet,
+    roles: ["ADMIN", "FINANCE"],
+  },
+  {
+    name: "Reports",
+    href: "/admin/reports",
+    icon: MessageSquareWarning,
+    roles: ["ADMIN", "SUPPORT"],
+  },
+  {
+    name: "Audit Log",
+    href: "/admin/audit",
+    icon: ListCheck,
+    roles: ["ADMIN", "SUPPORT", "FINANCE"],
+  },
+  {
+    name: "Settings",
+    href: "/admin/settings",
+    icon: Settings,
+    roles: ["ADMIN"],
+  },
 ];
 
 export function AdminSidebar({ role }: { role: string }) {
   const pathname = usePathname();
   const { signOut } = useAuth();
 
+  // Filter items based on role
+  const filteredNavItems = navItems.filter((item) => item.roles.includes(role));
+
   return (
-    // Outer container: Flex column, full height, no padding here (padding moves to children)
     <div className="flex h-full flex-col border-r border-gray-100 bg-white">
       {/* 1. Fixed Header Section */}
       <div className="px-6 py-6 pb-2">
@@ -60,10 +123,9 @@ export function AdminSidebar({ role }: { role: string }) {
       </div>
 
       {/* 2. Scrollable Navigation Section */}
-      {/* flex-1 takes up all available remaining space. overflow-y-auto enables scrolling. */}
       <div className="scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent flex-1 overflow-y-auto px-4 py-4">
         <nav className="space-y-1">
-          {navItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
 

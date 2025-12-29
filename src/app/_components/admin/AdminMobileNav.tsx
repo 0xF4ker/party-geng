@@ -25,38 +25,124 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet"; // Ensure you have this shadcn/ui component
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
-export function AdminMobileNav() {
+// Reuse the configuration to ensure consistency
+const fullMenuItemsConfig = [
+  {
+    name: "Dashboard",
+    href: "/admin",
+    icon: LayoutDashboard,
+    roles: ["ADMIN", "SUPPORT", "FINANCE"],
+  },
+  {
+    name: "Users",
+    href: "/admin/users",
+    icon: Users,
+    roles: ["ADMIN", "SUPPORT", "FINANCE"],
+  },
+  {
+    name: "Vendors",
+    href: "/admin/vendors",
+    icon: Store,
+    roles: ["ADMIN", "SUPPORT", "FINANCE"],
+  },
+  { name: "Admins", href: "/admin/admins", icon: ShieldUser, roles: ["ADMIN"] },
+  {
+    name: "Categories",
+    href: "/admin/categories",
+    icon: ChartColumnStacked,
+    roles: ["ADMIN"],
+  },
+  {
+    name: "Orders",
+    href: "/admin/orders",
+    icon: ShoppingBag,
+    roles: ["ADMIN", "SUPPORT"],
+  },
+  {
+    name: "Events",
+    href: "/admin/events",
+    icon: CalendarX,
+    roles: ["ADMIN", "SUPPORT"],
+  },
+  {
+    name: "KYC",
+    href: "/admin/kyc",
+    icon: FileCheck,
+    roles: ["ADMIN", "SUPPORT"],
+  },
+  {
+    name: "Finance",
+    href: "/admin/finance",
+    icon: Wallet,
+    roles: ["ADMIN", "FINANCE"],
+  },
+  {
+    name: "Reports",
+    href: "/admin/reports",
+    icon: MessageSquareWarning,
+    roles: ["ADMIN", "SUPPORT"],
+  },
+  {
+    name: "Audit Log",
+    href: "/admin/audit",
+    icon: ListCheck,
+    roles: ["ADMIN", "SUPPORT", "FINANCE"],
+  },
+  {
+    name: "Settings",
+    href: "/admin/settings",
+    icon: Settings,
+    roles: ["ADMIN"],
+  },
+];
+
+export function AdminMobileNav({ role }: { role: string }) {
   const pathname = usePathname();
   const { signOut } = useAuth();
   const [open, setOpen] = useState(false);
 
-  // 1. Primary Bottom Links (Most frequent actions)
-  const bottomNavItems = [
-    { name: "Home", href: "/admin", icon: LayoutDashboard },
-    { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
-    { name: "Users", href: "/admin/users", icon: Users },
-    { name: "Finance", href: "/admin/finance", icon: Wallet },
-  ];
+  // Filter full menu
+  const fullMenuItems = fullMenuItemsConfig.filter((item) =>
+    item.roles.includes(role),
+  );
 
-  // 2. Full Menu List (Matches Sidebar)
-  const fullMenuItems = [
-    { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { name: "Users", href: "/admin/users", icon: Users },
-    { name: "Vendors", href: "/admin/vendors", icon: Store },
-    { name: "Admins", href: "/admin/admins", icon: ShieldUser },
-    { name: "Categories", href: "/admin/categories", icon: ChartColumnStacked },
-    { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
-    { name: "Events", href: "/admin/events", icon: CalendarX },
-    { name: "KYC", href: "/admin/kyc", icon: FileCheck },
-    { name: "Finance", href: "/admin/finance", icon: Wallet },
-    { name: "Reports", href: "/admin/reports", icon: MessageSquareWarning },
-    { name: "Audit Log", href: "/admin/audit", icon: ListCheck },
-    { name: "Settings", href: "/admin/settings", icon: Settings },
-  ];
+  // Dynamic Bottom Nav based on Role Priority
+  // We want to show the most relevant items for the user's role
+  const getBottomNavItems = () => {
+    const base = [{ name: "Home", href: "/admin", icon: LayoutDashboard }];
+
+    if (role === "FINANCE") {
+      return [
+        ...base,
+        { name: "Finance", href: "/admin/finance", icon: Wallet },
+        { name: "Vendors", href: "/admin/vendors", icon: Store },
+        { name: "Users", href: "/admin/users", icon: Users },
+      ];
+    }
+
+    if (role === "SUPPORT") {
+      return [
+        ...base,
+        { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
+        { name: "Events", href: "/admin/events", icon: CalendarX },
+        { name: "Reports", href: "/admin/reports", icon: MessageSquareWarning },
+      ];
+    }
+
+    // Default (ADMIN)
+    return [
+      ...base,
+      { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
+      { name: "Users", href: "/admin/users", icon: Users },
+      { name: "Finance", href: "/admin/finance", icon: Wallet },
+    ];
+  };
+
+  const bottomNavItems = getBottomNavItems();
 
   return (
     <div className="pb-safe fixed right-0 bottom-0 left-0 z-50 border-t border-gray-200 bg-white pt-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] md:hidden">
@@ -117,7 +203,7 @@ export function AdminMobileNav() {
                     <Link
                       key={item.href}
                       href={item.href}
-                      onClick={() => setOpen(false)} // Close sheet on click
+                      onClick={() => setOpen(false)}
                       className={`flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors ${
                         isActive
                           ? "bg-pink-50 text-pink-600"

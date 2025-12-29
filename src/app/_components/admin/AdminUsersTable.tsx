@@ -28,16 +28,11 @@ import { Button } from "@/components/ui/button";
 import { UserActionModals } from "./UserActionModals";
 import { UserDetailSheet } from "./UserDetailSheet";
 
-// --- 1. TYPE INFERENCE ---
 import { type inferRouterOutputs } from "@trpc/server";
-import { type AppRouter } from "@/server/api/root"; // Ensure this path points to your appRouter export
+import { type AppRouter } from "@/server/api/root";
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
-
-// We extract the array element type from the 'getUsers' query output
-// getUsers returns { items: User[], nextCursor: ... }
 type UserItem = RouterOutputs["user"]["getUsers"]["items"][number];
-
 type ActionType = "DELETE" | "SUSPEND" | "ROLE";
 
 interface AdminUsersTableProps {
@@ -46,13 +41,12 @@ interface AdminUsersTableProps {
 
 export function AdminUsersTable({ initialRole }: AdminUsersTableProps) {
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState(initialRole);
+  const [roleFilter] = useState(initialRole); // Removed setRoleFilter if unused, or keep if you plan to toggle
 
   // Modal & Sheet State
   const [modalOpen, setModalOpen] = useState(false);
   const [activeAction, setActiveAction] = useState<ActionType | null>(null);
 
-  // Strictly typed state using the inferred UserItem
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
   const [viewUserId, setViewUserId] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -117,7 +111,6 @@ export function AdminUsersTable({ initialRole }: AdminUsersTableProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {/* No type assertion needed here, 'user' is automatically UserItem */}
                 {data?.items.map((user) => (
                   <DesktopUserRow
                     key={user.id}
@@ -139,6 +132,7 @@ export function AdminUsersTable({ initialRole }: AdminUsersTableProps) {
                 user={user}
                 onView={handleViewUser}
                 onAction={openModal}
+                onRestore={handleRestore}
               />
             ))}
           </div>
@@ -168,11 +162,10 @@ interface UserRowProps {
   user: UserItem;
   onView: (id: string) => void;
   onAction: (action: ActionType, user: UserItem) => void;
-  onRestore?: (id: string) => void;
+  onRestore: (id: string) => void;
 }
 
 function DesktopUserRow({ user, onView, onAction, onRestore }: UserRowProps) {
-  // Use nullish coalescing to safely handle potential nulls
   const displayName =
     user.clientProfile?.name ??
     user.vendorProfile?.companyName ??
@@ -211,10 +204,16 @@ function DesktopUserRow({ user, onView, onAction, onRestore }: UserRowProps) {
       </td>
       <td className="px-6 py-4">
         <span
-          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${user.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+            user.status === "ACTIVE"
+              ? "bg-emerald-100 text-emerald-700"
+              : "bg-red-100 text-red-700"
+          }`}
         >
           <span
-            className={`h-1.5 w-1.5 rounded-full ${user.status === "ACTIVE" ? "bg-emerald-500" : "bg-red-500"}`}
+            className={`h-1.5 w-1.5 rounded-full ${
+              user.status === "ACTIVE" ? "bg-emerald-500" : "bg-red-500"
+            }`}
           ></span>
           {user.status}
         </span>
@@ -230,7 +229,7 @@ function DesktopUserRow({ user, onView, onAction, onRestore }: UserRowProps) {
           <UserActionsDropdown
             user={user}
             onAction={onAction}
-            onRestore={onRestore!}
+            onRestore={onRestore}
             isSuspended={isSuspended}
           />
         </div>
@@ -239,13 +238,14 @@ function DesktopUserRow({ user, onView, onAction, onRestore }: UserRowProps) {
   );
 }
 
-function MobileUserCard({ user, onView, onAction }: UserRowProps) {
+function MobileUserCard({ user, onView, onAction, onRestore }: UserRowProps) {
   const displayName =
     user.clientProfile?.name ??
     user.vendorProfile?.companyName ??
     user.username;
   const displayAvatar =
     user.clientProfile?.avatarUrl ?? user.vendorProfile?.avatarUrl;
+  const isSuspended = user.status === "SUSPENDED" || user.status === "BANNED";
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -271,9 +271,18 @@ function MobileUserCard({ user, onView, onAction }: UserRowProps) {
             </p>
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => onView(user.id)}>
-          <Eye className="h-4 w-4 text-gray-400" />
-        </Button>
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" onClick={() => onView(user.id)}>
+            <Eye className="h-4 w-4 text-gray-400" />
+          </Button>
+          {/* Added Dropdown here for Mobile */}
+          <UserActionsDropdown
+            user={user}
+            onAction={onAction}
+            onRestore={onRestore}
+            isSuspended={isSuspended}
+          />
+        </div>
       </div>
 
       <div className="flex items-center justify-between border-t border-gray-50 pt-3">
@@ -282,7 +291,11 @@ function MobileUserCard({ user, onView, onAction }: UserRowProps) {
             {user.role}
           </span>
           <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${user.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+              user.status === "ACTIVE"
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-red-100 text-red-700"
+            }`}
           >
             {user.status}
           </span>
@@ -292,15 +305,6 @@ function MobileUserCard({ user, onView, onAction }: UserRowProps) {
           {formatDistanceToNow(new Date(user.createdAt))}
         </div>
       </div>
-
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full"
-        onClick={() => onAction("ROLE", user)}
-      >
-        Manage User
-      </Button>
     </div>
   );
 }
@@ -318,6 +322,10 @@ function UserActionsDropdown({
   onRestore,
   isSuspended,
 }: DropdownProps) {
+  // Only internal admin roles can have their role updated via this table.
+  // Clients and Vendors are fixed roles.
+  const isInternalAdmin = ["ADMIN", "SUPPORT", "FINANCE"].includes(user.role);
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -327,9 +335,14 @@ function UserActionsDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => onAction("ROLE", user)}>
-          <UserCog className="mr-2 h-4 w-4" /> Update Role
-        </DropdownMenuItem>
+
+        {/* Only show "Update Role" if target user is part of the admin team */}
+        {isInternalAdmin && (
+          <DropdownMenuItem onClick={() => onAction("ROLE", user)}>
+            <UserCog className="mr-2 h-4 w-4" /> Update Role
+          </DropdownMenuItem>
+        )}
+
         {isSuspended ? (
           <DropdownMenuItem onClick={() => onRestore(user.id)}>
             <Undo2 className="mr-2 h-4 w-4" /> Restore Access
