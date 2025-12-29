@@ -40,9 +40,10 @@ export function AdminSidebar({ role }: { role: string }) {
   const { signOut } = useAuth();
 
   return (
-    <div className="flex h-full flex-col justify-between bg-white px-4 py-6">
-      <div className="space-y-8">
-        {/* Brand Logo */}
+    // Outer container: Flex column, full height, no padding here (padding moves to children)
+    <div className="flex h-full flex-col border-r border-gray-100 bg-white">
+      {/* 1. Fixed Header Section */}
+      <div className="px-6 py-6 pb-2">
         <div className="flex items-center gap-3 px-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-600 shadow-md shadow-pink-200">
             <span className="text-lg font-bold text-white">P</span>
@@ -56,8 +57,11 @@ export function AdminSidebar({ role }: { role: string }) {
             </span>
           </div>
         </div>
+      </div>
 
-        {/* Navigation Links */}
+      {/* 2. Scrollable Navigation Section */}
+      {/* flex-1 takes up all available remaining space. overflow-y-auto enables scrolling. */}
+      <div className="scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent flex-1 overflow-y-auto px-4 py-4">
         <nav className="space-y-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
@@ -87,8 +91,8 @@ export function AdminSidebar({ role }: { role: string }) {
         </nav>
       </div>
 
-      {/* User / Logout Section */}
-      <div className="space-y-4">
+      {/* 3. Fixed Footer Section */}
+      <div className="space-y-4 border-t border-gray-50 bg-white px-4 py-6">
         <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm">
@@ -96,7 +100,9 @@ export function AdminSidebar({ role }: { role: string }) {
             </div>
             <div>
               <p className="text-xs font-medium text-gray-400">Signed in as</p>
-              <p className="text-sm font-bold text-gray-900">{role}</p>
+              <p className="max-w-[120px] truncate text-sm font-bold text-gray-900">
+                {role}
+              </p>
             </div>
           </div>
         </div>
