@@ -13,19 +13,20 @@ const PUBLIC_ROUTES = [
   "/privacy-policy",
   "/help-and-support",
   "/frequently-asked-questions",
-  "/forum", // Assuming forum is public read
+  "/forum",
   "/partygeng-business",
   "/partygeng-pro",
 ];
 
-// 2. Routes that match loosely (e.g. /c/user123, /categories/music)
-// We allow these by default, though page-level logic might handle specific data privacy
+// 2. Routes that match loosely
 const PUBLIC_PREFIXES = [
   "/c/",
   "/v/",
   "/post/",
   "/categories",
-  "/quote", // Often accessed via email link without auth initially
+  "/quote",
+  "/api",
+  "/lottiefiles",
 ];
 
 // 3. Role Definitions
@@ -67,11 +68,14 @@ export async function middleware(request: NextRequest) {
   );
 
   // --- 2. GET USER & ROLE ---
-  // getUser() is safer than getSession() in middleware as it validates the token
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const userRole = (user?.user_metadata?.role as string)?.toUpperCase();
+
+  // Safe cast for user role
+  const userRole = (
+    user?.user_metadata?.role as string | undefined
+  )?.toUpperCase();
   const path = request.nextUrl.pathname;
 
   // --- 3. HELPER: REDIRECTS ---
@@ -80,67 +84,49 @@ export async function middleware(request: NextRequest) {
   };
 
   // --- 4. PUBLIC ACCESS CHECK ---
-  // If the path is public, let them pass immediately (avoids unnecessary logic)
   const isPublic =
     PUBLIC_ROUTES.includes(path) ||
     PUBLIC_PREFIXES.some((prefix) => path.startsWith(prefix));
 
+  // --- 5. LOGGED OUT LOGIC ---
   if (!user) {
-    // If not logged in and trying to access protected route -> Login
-    if (!isPublic) {
-      return redirectTo("/login");
+    // If it is a public route (including /api/trpc/...), allow it.
+    // TRPC will handle the specific 'protectedProcedure' checks internally.
+    if (isPublic) {
+      return response;
     }
-    // If guest on public route -> Allow
-    return response;
+    // Otherwise, redirect to login (e.g. attempting to visit /dashboard while logged out)
+    return redirectTo("/login");
   }
 
-  // --- 5. AUTHENTICATED ACCESS CHECKS ---
+  // --- 6. AUTHENTICATED ACCESS CHECKS ---
 
   // A. PREVENT AUTH PAGES FOR LOGGED IN USERS
-  // If user is already logged in, they shouldn't see /login or /join
   if (path === "/login" || path === "/join") {
     if (userRole === ROLES.VENDOR) return redirectTo("/dashboard");
     if (userRole === ROLES.CLIENT) return redirectTo("/manage_events");
-    if (ROLES.ADMIN_GROUP.includes(userRole)) return redirectTo("/admin");
+    if (ROLES.ADMIN_GROUP.includes(userRole ?? "")) return redirectTo("/admin");
     return redirectTo("/");
   }
 
-  // B. SUSPENSION CHECK
-  // (Optional: If you want to enforce Ban at the edge level.
-  // However, usually we let the BanProvider handle UI so they can see "Why" they are banned.
-  // If you strictly want to block all navigation for banned users, uncomment below.)
-
-  /*
-  const status = user.user_metadata?.status; // Assuming status is synced to metadata
-  if ((status === 'BANNED' || status === 'SUSPENDED') && !path.startsWith('/help-and-support')) {
-     // You might want a specific /suspended page instead of BanProvider logic
-     // return redirectTo('/suspended'); 
-  }
-  */
-
-  // --- 6. ROLE BASED ACCESS CONTROL (RBAC) ---
+  // B. ROLE BASED ACCESS CONTROL (RBAC)
 
   // === ADMIN ROUTES ===
   if (path.startsWith("/admin")) {
-    // 1. Global Gate: Must be part of the Admin Group to enter /admin at all
-    if (!ROLES.ADMIN_GROUP.includes(userRole)) {
+    if (!ROLES.ADMIN_GROUP.includes(userRole ?? "")) {
       return redirectTo("/");
     }
 
-    // 2. Super Admin: "ADMIN" role has unrestricted access to everything
     if (userRole === "ADMIN") {
       return response;
     }
 
-    // 3. Universal Paths: Accessible by ALL admin roles (Support & Finance included)
     const universalPaths = ["/admin/users", "/admin/vendors", "/admin/audit"];
 
-    // Allow access if it's the dashboard OR one of the universal pages
     if (path === "/admin" || universalPaths.some((p) => path.startsWith(p))) {
       return response;
     }
 
-    // 4. Role-Specific Whitelists (Exclusive additions)
     const supportAllowed = [
       "/admin/orders",
       "/admin/events",
@@ -150,50 +136,36 @@ export async function middleware(request: NextRequest) {
 
     const financeAllowed = ["/admin/finance"];
 
-    // 5. Check SUPPORT Access
     if (userRole === "SUPPORT") {
       if (supportAllowed.some((p) => path.startsWith(p))) {
         return response;
       }
     }
 
-    // 6. Check FINANCE Access
     if (userRole === "FINANCE") {
       if (financeAllowed.some((p) => path.startsWith(p))) {
         return response;
       }
     }
 
-    // 7. Default Deny (Fallback)
-    // If they try to access a page they don't have permission for (e.g., Finance trying /admin/settings),
-    // redirect them to the main admin dashboard.
     return redirectTo("/admin");
   }
 
   // === VENDOR ROUTES ===
-  // Paths strictly for vendors
   const vendorRoutes = ["/dashboard"];
   if (vendorRoutes.some((route) => path.startsWith(route))) {
     if (userRole !== ROLES.VENDOR) {
-      return redirectTo("/manage_events"); // Redirect clients back to their safe space
+      return redirectTo("/manage_events");
     }
   }
 
   // === CLIENT ROUTES ===
-  // Paths strictly for clients
-  const clientRoutes = ["/manage_events", "/event/"];
-  // Note: /event/[id] might be viewable by vendors if invited, but creation is client only.
-  // We'll stricter check /manage_events
-
+  const clientRoutes = ["/manage_events", "/isave", "/wishlist"];
   if (clientRoutes.some((route) => path.startsWith(route))) {
     if (userRole !== ROLES.CLIENT) {
-      return redirectTo("/dashboard"); // Redirect vendors back to their safe space
+      return redirectTo("/dashboard");
     }
   }
-
-  // === SHARED ROUTES ===
-  // Routes like /orders/[id], /settings, /wallet are usually shared but logic handles data isolation.
-  // We allow authenticated access to these.
 
   return response;
 }
@@ -205,7 +177,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - api (API routes - generally protected by TRPC, but good to check)
+     * * NOTE: We intentionally INCLUDE /api routes in the matcher so the middleware
+     * runs (refreshing the session cookie), but we exclude them from redirects
+     * via PUBLIC_PREFIXES logic above.
      */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
