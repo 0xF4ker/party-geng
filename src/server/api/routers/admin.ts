@@ -161,4 +161,37 @@ export const adminRouter = createTRPCRouter({
         data: { kybStatus: input.approved ? "APPROVED" : "REJECTED" },
       });
     }),
+
+  getGlobalSettings: adminProcedure.query(async ({ ctx }) => {
+    // Upsert ensures we always return a valid object, creating default if missing
+    return ctx.db.globalSettings.upsert({
+      where: { id: 1 },
+      update: {},
+      create: {
+        id: 1,
+        // Defaults are handled by Prisma schema
+      },
+    });
+  }),
+
+  // 2. UPDATE SETTINGS
+  updateGlobalSettings: adminProcedure
+    .input(
+      z.object({
+        serviceFeePercent: z.number().min(0).max(100),
+        minWithdrawalAmount: z.number().min(0),
+        payoutDelayDays: z.number().min(0),
+        maintenanceMode: z.boolean(),
+        allowNewRegistrations: z.boolean(),
+        isKybEnabled: z.boolean(),
+        supportEmail: z.string().email(),
+        supportPhone: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.globalSettings.update({
+        where: { id: 1 },
+        data: input,
+      });
+    }),
 });

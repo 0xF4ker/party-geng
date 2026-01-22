@@ -14,6 +14,7 @@ import {
   Briefcase,
   AlertTriangle,
   Loader2,
+  X,
 } from "lucide-react";
 import {
   Sheet,
@@ -21,6 +22,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
+  SheetClose,
 } from "@/components/ui/sheet";
 import {
   AlertDialog,
@@ -37,28 +39,25 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-
-// --- STRICT TYPE INFERENCE ---
 import { type inferRouterOutputs } from "@trpc/server";
 import { type AppRouter } from "@/server/api/root";
 
+// --- TYPES ---
 type RouterOutputs = inferRouterOutputs<AppRouter>;
-// This extracts the exact array item type returned by your 'adminGetEvents' procedure
 type EventData = RouterOutputs["event"]["adminGetEvents"]["items"][number];
 
-// Helper type for the Location JSON structure
 interface LocationData {
   display_name?: string;
   lat?: string;
   lon?: string;
 }
 
+// --- MAIN COMPONENT ---
 export default function AdminEventsPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null);
 
-  // Simple debounce
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 500);
     return () => clearTimeout(timer);
@@ -72,7 +71,7 @@ export default function AdminEventsPage() {
   const events: EventData[] = data?.items ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 sm:p-6">
       {/* Header & Search */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -82,7 +81,7 @@ export default function AdminEventsPage() {
           </p>
         </div>
         <div className="relative w-full sm:w-72">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+          <Search className="absolute top-2.5 left-2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search events..."
             className="pl-8"
@@ -156,7 +155,7 @@ export default function AdminEventsPage() {
   );
 }
 
-// --- Sub-Components ---
+// --- SUB-COMPONENTS ---
 
 const EventRow = ({
   event,
@@ -165,7 +164,6 @@ const EventRow = ({
   event: EventData;
   onSelect: () => void;
 }) => {
-  // Safe cast for location since Prisma returns JsonValue
   const location = event.location as unknown as LocationData | null;
 
   return (
@@ -273,7 +271,7 @@ const EventCard = ({
   </div>
 );
 
-// --- Details & Actions Sheet ---
+// --- IMPROVED DRAWER COMPONENT ---
 
 function EventDetailsSheet({
   event,
@@ -286,7 +284,7 @@ function EventDetailsSheet({
 }) {
   const [deleteReason, setDeleteReason] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
-  const utils = api.useContext();
+  const utils = api.useUtils();
 
   const deleteMutation = api.event.adminDeleteEvent.useMutation({
     onSuccess: () => {
@@ -310,134 +308,150 @@ function EventDetailsSheet({
 
   if (!event) return null;
 
-  // Safe cast for location display in sheet
   const location = event.location as unknown as LocationData | null;
 
   return (
     <>
       <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <SheetContent className="w-[400px] overflow-y-auto sm:w-[540px]">
-          <SheetHeader>
-            <SheetTitle>Event Details</SheetTitle>
-            <SheetDescription>ID: {event.id}</SheetDescription>
+        {/* CHANGES MADE HERE:
+          1. w-[100%] for mobile, sm:max-w-lg for desktop.
+          2. p-0 initially to allow custom scroll area padding.
+        */}
+        <SheetContent className="flex h-full w-[100%] flex-col gap-0 border-l p-0 sm:max-w-lg">
+          {/* HEADER: Sticky top */}
+          <SheetHeader className="border-b px-6 py-5">
+            <div className="flex items-center justify-between">
+              <SheetTitle>Event Details</SheetTitle>
+              {/* Optional: Add a close button if the Sheet component doesn't auto-include one */}
+            </div>
+            <SheetDescription>
+              Reviewing Event ID:{" "}
+              <span className="font-mono text-xs">
+                {event.id.slice(0, 8)}...
+              </span>
+            </SheetDescription>
           </SheetHeader>
 
-          <div className="space-y-6 py-6">
-            {/* Cover Image */}
-            <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-gray-100">
-              {event.coverImage ? (
-                <Image
-                  src={event.coverImage}
-                  alt={event.title}
-                  fill
-                  className="object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-gray-400">
-                  <Calendar className="h-12 w-12 opacity-20" />
-                </div>
-              )}
-              <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 p-4 text-white">
-                <h2 className="text-xl font-bold">{event.title}</h2>
-                <p className="text-sm opacity-90">
-                  {format(new Date(event.date), "EEEE, MMMM d, yyyy")}
-                </p>
-              </div>
-            </div>
-
-            {/* Client Info */}
-            <div className="flex items-center gap-4 rounded-lg border p-4">
-              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gray-200">
-                {event.client.avatarUrl ? (
+          {/* SCROLLABLE BODY */}
+          <div className="flex-1 overflow-y-auto bg-gray-50/50 px-6 py-6">
+            <div className="flex flex-col gap-6">
+              {/* Cover Image */}
+              <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-gray-100 shadow-sm">
+                {event.coverImage ? (
                   <Image
-                    src={event.client.avatarUrl}
-                    alt=""
+                    src={event.coverImage}
+                    alt={event.title}
                     fill
                     className="object-cover"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center font-bold text-gray-500">
-                    {event.client.name?.charAt(0)}
+                  <div className="flex h-full w-full items-center justify-center text-gray-400">
+                    <Calendar className="h-12 w-12 opacity-20" />
                   </div>
                 )}
-              </div>
-              <div className="grow">
-                <p className="font-semibold text-gray-900">
-                  {event.client.name ?? "Unknown Client"}
-                </p>
-                <p className="text-sm text-gray-500">
-                  @{event.client.user.username}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {event.client.user.email}
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  window.open(`/c/${event.client.user.username}`, "_blank")
-                }
-              >
-                View Profile
-              </Button>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-lg bg-gray-50 p-4">
-                <div className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-500">
-                  <Briefcase className="h-4 w-4" /> Vendors
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                <div className="absolute bottom-0 left-0 p-4 text-white">
+                  <h2 className="text-xl leading-tight font-bold">
+                    {event.title}
+                  </h2>
+                  <p className="text-sm font-medium opacity-90">
+                    {format(new Date(event.date), "EEEE, MMMM d, yyyy")}
+                  </p>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {event._count.hiredVendors}
-                </p>
               </div>
-              <div className="rounded-lg bg-gray-50 p-4">
-                <div className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-500">
-                  <Users className="h-4 w-4" /> Guest Lists
+
+              {/* Client Card */}
+              <div className="flex items-center gap-4 rounded-xl border bg-white p-4 shadow-sm">
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border bg-gray-100">
+                  {event.client.avatarUrl ? (
+                    <Image
+                      src={event.client.avatarUrl}
+                      alt=""
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center font-bold text-gray-500">
+                      {event.client.name?.charAt(0)}
+                    </div>
+                  )}
                 </div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {event._count.guestLists}
-                </p>
-              </div>
-            </div>
-
-            {/* Location */}
-            <div className="rounded-lg border p-4">
-              <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-900">
-                <MapPin className="h-4 w-4 text-pink-500" /> Location
-              </h4>
-              <p className="text-sm text-gray-600">
-                {location?.display_name ?? "No location details provided."}
-              </p>
-            </div>
-
-            {/* Takedown Form */}
-            <div className="rounded-lg border border-red-100 bg-red-50 p-4">
-              <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-red-800">
-                <AlertTriangle className="h-4 w-4" /> Danger Zone
-              </h4>
-              <p className="mb-4 text-xs text-red-600">
-                Removing this event is permanent. It will delete all associated
-                guest lists, budgets, and chats.
-              </p>
-              <div className="space-y-3">
-                <Textarea
-                  placeholder="Reason for takedown (e.g. Spam, Inappropriate content)"
-                  className="bg-white"
-                  value={deleteReason}
-                  onChange={(e) => setDeleteReason(e.target.value)}
-                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold text-gray-900">
+                    {event.client.name ?? "Unknown Client"}
+                  </p>
+                  <p className="truncate text-sm text-gray-500">
+                    @{event.client.user.username}
+                  </p>
+                </div>
                 <Button
-                  variant="destructive"
-                  className="w-full"
-                  onClick={() => setShowConfirm(true)}
-                  disabled={!deleteReason.trim()}
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() =>
+                    window.open(`/c/${event.client.user.username}`, "_blank")
+                  }
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Take Down Event
+                  Profile
                 </Button>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+                  <div className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wider text-gray-500 uppercase">
+                    <Briefcase className="h-3.5 w-3.5" /> Hired Vendors
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {event._count.hiredVendors}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+                  <div className="mb-2 flex items-center gap-2 text-xs font-medium tracking-wider text-gray-500 uppercase">
+                    <Users className="h-3.5 w-3.5" /> Guest Count
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {event._count.guestLists}
+                  </p>
+                </div>
+              </div>
+
+              {/* Location */}
+              <div className="rounded-xl border bg-white p-4 shadow-sm">
+                <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  <MapPin className="h-4 w-4 text-pink-500" /> Location Details
+                </h4>
+                <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
+                  {location?.display_name ??
+                    "No specific location set for this event."}
+                </div>
+              </div>
+
+              {/* Danger Zone */}
+              <div className="rounded-xl border border-red-100 bg-red-50/50 p-4">
+                <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-red-800">
+                  <AlertTriangle className="h-4 w-4" /> Admin Actions
+                </h4>
+                <p className="mb-4 text-xs text-red-600/80">
+                  Removing this event is permanent and cannot be undone.
+                </p>
+                <div className="space-y-3">
+                  <Textarea
+                    placeholder="Reason for takedown (e.g. Spam, Policy violation)..."
+                    className="min-h-[80px] border-red-200 bg-white focus-visible:ring-red-500"
+                    value={deleteReason}
+                    onChange={(e) => setDeleteReason(e.target.value)}
+                  />
+                  <Button
+                    variant="destructive"
+                    className="w-full"
+                    onClick={() => setShowConfirm(true)}
+                    disabled={!deleteReason.trim()}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Take Down Event
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -448,10 +462,11 @@ function EventDetailsSheet({
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the
-              event <strong>&quot;{event.title}&quot;</strong> and all its data.
+              event <strong>&quot;{event.title}&quot;</strong>, including all
+              data associated with it.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -461,10 +476,8 @@ function EventDetailsSheet({
               className="bg-red-600 hover:bg-red-700"
               disabled={deleteMutation.isPending}
             >
-              {deleteMutation.isPending ? (
+              {deleteMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="mr-2 h-4 w-4" />
               )}
               Confirm Takedown
             </AlertDialogAction>

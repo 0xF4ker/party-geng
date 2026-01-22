@@ -768,3 +768,23 @@ model Report {
   @@index([status])
 }
 
+model GlobalSettings {
+  id                    Int      @id @default(1) // Always 1
+  
+  // --- Financials ---
+  serviceFeePercent     Float    @default(5.0)   // e.g. 5.0%
+  minWithdrawalAmount   Float    @default(2000)  // e.g. ₦2,000
+  payoutDelayDays       Int      @default(3)     // Days to hold funds
+  
+  // --- Features & Access ---
+  maintenanceMode       Boolean  @default(false) // Locks the app for users
+  allowNewRegistrations Boolean  @default(true)  // Pause signups
+  isKybEnabled          Boolean  @default(true)  // Master switch for verification
+  
+  // --- Contact ---
+  supportEmail          String   @default("support@partygeng.com")
+  supportPhone          String?
+  
+  updatedAt             DateTime @updatedAt
+}
+
