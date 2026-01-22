@@ -36,7 +36,7 @@ export const KybProvider = ({ children }: { children: React.ReactNode }) => {
     return <>{children}</>;
   }
 
-  const status = profile.vendorProfile?.kycStatus ?? "PENDING";
+  const status = profile.vendorProfile?.kybStatus ?? "PENDING";
 
   if (status === "APPROVED") {
     return <>{children}</>;

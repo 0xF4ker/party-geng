@@ -132,12 +132,12 @@ const SettingsPage = () => {
     switch (activeSection) {
       case "profile":
         return <PublicProfileForm isVendor={profile?.role === "VENDOR"} />;
-      case "verification":
-        return profile?.role === "VENDOR" ? <KycForm /> : null;
+      // case "verification":
+      //   return profile?.role === "VENDOR" ? <KycForm /> : null;
       case "security":
         return <SecuritySettings />;
-      case "payments":
-        return <PaymentSettings />;
+      // case "payments":
+      //   return <PaymentSettings />;
       case "notifications":
         return <NotificationSettings />;
       case "services":
@@ -208,12 +208,12 @@ const SettingsSidebar = ({
       icon: User,
       for: ["client", "vendor"],
     },
-    {
-      id: "verification",
-      name: "Verification (KYC)",
-      icon: ShieldCheck,
-      for: ["vendor"],
-    },
+    // {
+    //   id: "verification",
+    //   name: "Verification (KYC)",
+    //   icon: ShieldCheck,
+    //   for: ["vendor"],
+    // },
     {
       id: "services",
       name: "My Services",
@@ -226,12 +226,12 @@ const SettingsSidebar = ({
       icon: Lock,
       for: ["client", "vendor"],
     },
-    {
-      id: "payments",
-      name: "Payment Methods",
-      icon: CreditCard,
-      for: ["client", "vendor"],
-    },
+    // {
+    //   id: "payments",
+    //   name: "Payment Methods",
+    //   icon: CreditCard,
+    //   for: ["client", "vendor"],
+    // },
     {
       id: "notifications",
       name: "Notifications",
@@ -267,225 +267,225 @@ const SettingsSidebar = ({
   );
 };
 
-// --- VENDOR-ONLY SETTINGS ---
-const KycForm = () => {
-  const { profile } = useAuthStore();
+// // --- VENDOR-ONLY SETTINGS ---
+// const KycForm = () => {
+//   const { profile } = useAuthStore();
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    setValue,
-    reset,
-    formState: { errors, isValid },
-  } = useForm({
-    resolver: zodResolver(kycSchema),
-    mode: "onChange",
-  });
+//   const {
+//     register,
+//     handleSubmit,
+//     control,
+//     setValue,
+//     reset,
+//     formState: { errors, isValid },
+//   } = useForm({
+//     resolver: zodResolver(kycSchema),
+//     mode: "onChange",
+//   });
 
-  const idCardUrl = useWatch({ control, name: "idCardUrl" });
-  const cacDocumentUrl = useWatch({ control, name: "cacDocumentUrl" });
-  const state = useWatch({ control, name: "state" });
+//   const idCardUrl = useWatch({ control, name: "idCardUrl" });
+//   const cacDocumentUrl = useWatch({ control, name: "cacDocumentUrl" });
+//   const state = useWatch({ control, name: "state" });
 
-  useEffect(() => {
-    const kyc = profile?.vendorProfile;
-    if (kyc) {
-      reset({
-        fullName: kyc.fullName ?? "",
-        businessAddress: kyc.businessAddress ?? "",
-        cacNumber: kyc.cacNumber ?? "",
-        meansOfId: kyc.meansOfId ?? "",
-        idNumber: kyc.idNumber ?? "",
-        state: kyc.state ?? "",
-        lga: kyc.lga ?? "",
-        idCardUrl: kyc.idCardUrl ?? undefined,
-        cacDocumentUrl: kyc.cacDocumentUrl ?? undefined,
-      });
-    }
-  }, [profile, reset]);
+//   useEffect(() => {
+//     const kyc = profile?.vendorProfile;
+//     if (kyc) {
+//       reset({
+//         fullName: kyc.fullName ?? "",
+//         businessAddress: kyc.businessAddress ?? "",
+//         cacNumber: kyc.cacNumber ?? "",
+//         meansOfId: kyc.meansOfId ?? "",
+//         idNumber: kyc.idNumber ?? "",
+//         state: kyc.state ?? "",
+//         lga: kyc.lga ?? "",
+//         idCardUrl: kyc.idCardUrl ?? undefined,
+//         cacDocumentUrl: kyc.cacDocumentUrl ?? undefined,
+//       });
+//     }
+//   }, [profile, reset]);
 
-  const { mutate, isPending } = api.settings.submitKyc.useMutation({
-    onSuccess: () => {
-      toast.success("KYC submitted successfully! We'll review shortly.");
-    },
-    onError: (err) => toast.error(err.message),
-  });
+//   const { mutate, isPending } = api.settings.submitKyc.useMutation({
+//     onSuccess: () => {
+//       toast.success("KYC submitted successfully! We'll review shortly.");
+//     },
+//     onError: (err) => toast.error(err.message),
+//   });
 
-  const onSubmit = (data: z.infer<typeof kycSchema>) => {
-    mutate(data);
-  };
+//   const onSubmit = (data: z.infer<typeof kycSchema>) => {
+//     mutate(data);
+//   };
 
-  return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="rounded-lg border border-gray-200 bg-white shadow-sm"
-    >
-      <div className="border-b border-gray-200 p-6">
-        <h2 className="text-xl font-semibold">Verification (KYC)</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          Submit your details to get verified as a Partygeng vendor.
-        </p>
-      </div>
-      <div className="space-y-6 p-6">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div>
-            <FormInput
-              label="Full Name (as on ID)"
-              id="fullName"
-              placeholder="Adebayo Popoola"
-              {...register("fullName")}
-            />
-            {errors.fullName && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.fullName.message!}
-              </p>
-            )}
-          </div>
-          <div>
-            <FormInput
-              label="Business Address"
-              id="address"
-              placeholder="123, Main Street"
-              {...register("businessAddress")}
-            />
-            {errors.businessAddress && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.businessAddress.message!}
-              </p>
-            )}
-          </div>
-        </div>
+//   return (
+//     <form
+//       onSubmit={handleSubmit(onSubmit)}
+//       className="rounded-lg border border-gray-200 bg-white shadow-sm"
+//     >
+//       <div className="border-b border-gray-200 p-6">
+//         <h2 className="text-xl font-semibold">Verification (KYC)</h2>
+//         <p className="mt-1 text-sm text-gray-500">
+//           Submit your details to get verified as a Partygeng vendor.
+//         </p>
+//       </div>
+//       <div className="space-y-6 p-6">
+//         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+//           <div>
+//             <FormInput
+//               label="Full Name (as on ID)"
+//               id="fullName"
+//               placeholder="Adebayo Popoola"
+//               {...register("fullName")}
+//             />
+//             {errors.fullName && (
+//               <p className="mt-1 text-sm text-red-600">
+//                 {errors.fullName.message!}
+//               </p>
+//             )}
+//           </div>
+//           <div>
+//             <FormInput
+//               label="Business Address"
+//               id="address"
+//               placeholder="123, Main Street"
+//               {...register("businessAddress")}
+//             />
+//             {errors.businessAddress && (
+//               <p className="mt-1 text-sm text-red-600">
+//                 {errors.businessAddress.message!}
+//               </p>
+//             )}
+//           </div>
+//         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <div>
-            <FormSelect
-              label="Means of ID"
-              id="meansOfId"
-              options={[
-                "NIN",
-                "BVN",
-                "International Passport",
-                "Driver's License",
-                "Voter's Card",
-              ]}
-              {...register("meansOfId")}
-            />
-            {errors.meansOfId && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.meansOfId.message!}
-              </p>
-            )}
-          </div>
-          <div>
-            <FormInput
-              label="ID Number"
-              id="idNumber"
-              placeholder="Enter ID number"
-              {...register("idNumber")}
-            />
-            {errors.idNumber && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.idNumber.message!}
-              </p>
-            )}
-          </div>
-          <div>
-            <FormInput
-              label="CAC Number (if registered)"
-              id="cacNumber"
-              placeholder="RC123456"
-              {...register("cacNumber")}
-            />
-            {errors.cacNumber && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.cacNumber.message!}
-              </p>
-            )}
-          </div>
-        </div>
+//         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+//           <div>
+//             <FormSelect
+//               label="Means of ID"
+//               id="meansOfId"
+//               options={[
+//                 "NIN",
+//                 "BVN",
+//                 "International Passport",
+//                 "Driver's License",
+//                 "Voter's Card",
+//               ]}
+//               {...register("meansOfId")}
+//             />
+//             {errors.meansOfId && (
+//               <p className="mt-1 text-sm text-red-600">
+//                 {errors.meansOfId.message!}
+//               </p>
+//             )}
+//           </div>
+//           <div>
+//             <FormInput
+//               label="ID Number"
+//               id="idNumber"
+//               placeholder="Enter ID number"
+//               {...register("idNumber")}
+//             />
+//             {errors.idNumber && (
+//               <p className="mt-1 text-sm text-red-600">
+//                 {errors.idNumber.message!}
+//               </p>
+//             )}
+//           </div>
+//           <div>
+//             <FormInput
+//               label="CAC Number (if registered)"
+//               id="cacNumber"
+//               placeholder="RC123456"
+//               {...register("cacNumber")}
+//             />
+//             {errors.cacNumber && (
+//               <p className="mt-1 text-sm text-red-600">
+//                 {errors.cacNumber.message!}
+//               </p>
+//             )}
+//           </div>
+//         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div>
-            <FormSelect
-              label="State"
-              id="state"
-              options={Object.keys(NIGERIA_STATES_LGAS)}
-              {...register("state")}
-              onChange={(e) => {
-                setValue("state", e.target.value);
-                setValue("lga", "");
-              }}
-            />
-            {errors.state && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.state.message!}
-              </p>
-            )}
-          </div>
-          <div>
-            <FormSelect
-              label="LGA"
-              id="lga"
-              options={state ? (NIGERIA_STATES_LGAS[state] ?? []) : []}
-              {...register("lga")}
-            />
-            {errors.lga && (
-              <p className="mt-1 text-sm text-red-600">{errors.lga.message!}</p>
-            )}
-          </div>
-        </div>
+//         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+//           <div>
+//             <FormSelect
+//               label="State"
+//               id="state"
+//               options={Object.keys(NIGERIA_STATES_LGAS)}
+//               {...register("state")}
+//               onChange={(e) => {
+//                 setValue("state", e.target.value);
+//                 setValue("lga", "");
+//               }}
+//             />
+//             {errors.state && (
+//               <p className="mt-1 text-sm text-red-600">
+//                 {errors.state.message!}
+//               </p>
+//             )}
+//           </div>
+//           <div>
+//             <FormSelect
+//               label="LGA"
+//               id="lga"
+//               options={state ? (NIGERIA_STATES_LGAS[state] ?? []) : []}
+//               {...register("lga")}
+//             />
+//             {errors.lga && (
+//               <p className="mt-1 text-sm text-red-600">{errors.lga.message!}</p>
+//             )}
+//           </div>
+//         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div>
-            <ImageUpload
-              label="Upload ID Card"
-              description="PNG, JPG, PDF up to 10MB"
-              bucket="kyc-documents"
-              currentImage={idCardUrl as string | null}
-              accept="image/*,application/pdf"
-              onUploadComplete={(url) => {
-                setValue("idCardUrl", url, { shouldValidate: true });
-              }}
-              fileName={`id_card-${profile?.id}`}
-            />
-            {errors.idCardUrl && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.idCardUrl.message!}
-              </p>
-            )}
-          </div>
-          <div>
-            <ImageUpload
-              label="Upload CAC Document"
-              description="PNG, JPG, PDF up to 10MB"
-              bucket="kyc-documents"
-              currentImage={cacDocumentUrl as string | null}
-              accept="image/*,application/pdf"
-              onUploadComplete={(url) => {
-                setValue("cacDocumentUrl", url, { shouldValidate: true });
-              }}
-              fileName={`cac_document-${profile?.id}`}
-            />
-            {errors.cacDocumentUrl && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.cacDocumentUrl.message!}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-6">
-        <button
-          type="submit"
-          className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50"
-          disabled={!isValid || isPending}
-        >
-          {isPending ? "Submitting..." : "Submit for Verification"}
-        </button>
-      </div>
-    </form>
-  );
-};
+//         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+//           <div>
+//             <ImageUpload
+//               label="Upload ID Card"
+//               description="PNG, JPG, PDF up to 10MB"
+//               bucket="kyc-documents"
+//               currentImage={idCardUrl as string | null}
+//               accept="image/*,application/pdf"
+//               onUploadComplete={(url) => {
+//                 setValue("idCardUrl", url, { shouldValidate: true });
+//               }}
+//               fileName={`id_card-${profile?.id}`}
+//             />
+//             {errors.idCardUrl && (
+//               <p className="mt-1 text-sm text-red-600">
+//                 {errors.idCardUrl.message!}
+//               </p>
+//             )}
+//           </div>
+//           <div>
+//             <ImageUpload
+//               label="Upload CAC Document"
+//               description="PNG, JPG, PDF up to 10MB"
+//               bucket="kyc-documents"
+//               currentImage={cacDocumentUrl as string | null}
+//               accept="image/*,application/pdf"
+//               onUploadComplete={(url) => {
+//                 setValue("cacDocumentUrl", url, { shouldValidate: true });
+//               }}
+//               fileName={`cac_document-${profile?.id}`}
+//             />
+//             {errors.cacDocumentUrl && (
+//               <p className="mt-1 text-sm text-red-600">
+//                 {errors.cacDocumentUrl.message!}
+//               </p>
+//             )}
+//           </div>
+//         </div>
+//       </div>
+//       <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-6">
+//         <button
+//           type="submit"
+//           className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50"
+//           disabled={!isValid || isPending}
+//         >
+//           {isPending ? "Submitting..." : "Submit for Verification"}
+//         </button>
+//       </div>
+//     </form>
+//   );
+// };
 
 // --- SHARED SETTINGS PAGES ---
 
@@ -833,18 +833,18 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
 };
 
 // Placeholder for Payments
-const PaymentSettings = () => (
-  <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-    <div className="border-b border-gray-200 p-6">
-      <h2 className="text-xl font-semibold">Payment Methods</h2>
-    </div>
-    <div className="p-6">
-      <p className="text-gray-600">
-        Manage your payment methods and payout accounts here.
-      </p>
-    </div>
-  </div>
-);
+// const PaymentSettings = () => (
+//   <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+//     <div className="border-b border-gray-200 p-6">
+//       <h2 className="text-xl font-semibold">Payment Methods</h2>
+//     </div>
+//     <div className="p-6">
+//       <p className="text-gray-600">
+//         Manage your payment methods and payout accounts here.
+//       </p>
+//     </div>
+//   </div>
+// );
 
 // --- VENDOR-ONLY SETTINGS ---
 const VendorServicesForm = () => {

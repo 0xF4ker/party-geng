@@ -4,15 +4,19 @@ import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/stores/auth";
 import { redirect, useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function useAuth() {
   const { profile, setProfile, isLoading } = useAuthStore();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const signOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
+
     setProfile(null);
+    queryClient.clear();
     router.push("/");
     router.refresh();
   };

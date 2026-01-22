@@ -40,7 +40,7 @@ const VendorDashboardPage = () => {
     });
   const { data: activeOrders, isLoading: ordersLoading } =
     api.order.getMyActiveOrders.useQuery();
-  
+
   const { data: wallet } = api.payment.getWallet.useQuery();
 
   useEffect(() => {
@@ -62,7 +62,7 @@ const VendorDashboardPage = () => {
       {/* Container */}
       <div className="container mx-auto px-4 py-8 sm:px-8">
         {/* Main Layout Grid */}
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-4 items-start">
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-4">
           {/* Left Column (Sticky Sidebar on Desktop) */}
           <div className="relative lg:col-span-1">
             {/* Mobile View: Static Card */}
@@ -70,7 +70,7 @@ const VendorDashboardPage = () => {
               <VendorSidebar />
             </div>
             {/* Desktop View: Sticky Wrapper - using CSS sticky */}
-            <div className="hidden lg:block lg:sticky lg:top-36">
+            <div className="hidden lg:sticky lg:top-36 lg:block">
               <VendorSidebar />
             </div>
           </div>
@@ -80,7 +80,7 @@ const VendorDashboardPage = () => {
             <h1 className="text-3xl font-bold text-gray-800">Welcome back!</h1>
 
             {/* Alert */}
-            <div className="rounded-md border-l-4 border-yellow-400 bg-yellow-50 p-4 shadow-sm">
+            {/* <div className="rounded-md border-l-4 border-yellow-400 bg-yellow-50 p-4 shadow-sm">
               <div className="flex">
                 <div className="shrink-0">
                   <AlertTriangle className="h-5 w-5 text-yellow-400" />
@@ -98,25 +98,27 @@ const VendorDashboardPage = () => {
                   </button>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* "Our Twist": Key Metric Cards */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               <StatCard
                 title="Total Earnings"
-                value={wallet ? `₦${wallet.totalEarnings.toLocaleString()}` : "..."}
+                value={
+                  wallet ? `₦${wallet.totalEarnings.toLocaleString()}` : "..."
+                }
                 icon={DollarSign}
                 color="text-green-600 bg-green-100"
               />
               <StatCard
                 title="Pending Quotes"
-                value={quotesLoading ? "..." : pendingQuotes?.length ?? 0}
+                value={quotesLoading ? "..." : (pendingQuotes?.length ?? 0)}
                 icon={MessageSquare}
                 color="text-pink-600 bg-pink-100"
               />
               <StatCard
                 title="Active Orders"
-                value={ordersLoading ? "..." : activeOrders?.length ?? 0}
+                value={ordersLoading ? "..." : (activeOrders?.length ?? 0)}
                 icon={TrendingUp}
                 color="text-purple-600 bg-purple-100"
               />
