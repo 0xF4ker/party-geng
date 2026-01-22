@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { adminProcedure, createTRPCRouter } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { type Prisma } from "@prisma/client";
 
 export const kybRouter = createTRPCRouter({
   // 1. Fetch KYB Requests
-  getRequests: protectedProcedure
+  getRequests: adminProcedure
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(50),
@@ -16,12 +16,6 @@ export const kybRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      // Security Check: Ensure user is Admin (Uncomment when ready)
-      /* if (ctx.session.user.role !== "ADMIN") {
-         throw new TRPCError({ code: "FORBIDDEN" });
-      } 
-      */
-
       // --- Strict Type Construction ---
       // We build the vendor profile filter first
       const vendorProfileFilter: Prisma.VendorProfileWhereInput = {};
@@ -48,8 +42,8 @@ export const kybRouter = createTRPCRouter({
       const where: Prisma.UserWhereInput = {
         role: "VENDOR",
         vendorProfile: {
-          isNot: null, // Ensure they actually have a profile
-          is: vendorProfileFilter, // Apply the specific filters defined above
+          isNot: null,
+          is: vendorProfileFilter,
         },
       };
 
@@ -68,7 +62,7 @@ export const kybRouter = createTRPCRouter({
     }),
 
   // 2. Process Decision
-  processDecision: protectedProcedure
+  processDecision: adminProcedure
     .input(
       z.object({
         userId: z.string(),
@@ -77,9 +71,6 @@ export const kybRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Security Check
-      // if (ctx.session.user.role !== "ADMIN") throw new TRPCError({ code: "FORBIDDEN" });
-
       const user = await ctx.db.user.findUnique({
         where: { id: input.userId },
         include: { vendorProfile: true },
@@ -96,7 +87,7 @@ export const kybRouter = createTRPCRouter({
         where: { id: user.vendorProfile.id },
         data: {
           kybStatus: input.decision,
-          // If you add a rejectionReason column later, map it here:
+          // If we add a rejectionReason column later, map it here:
           // rejectionReason: input.decision === "REJECTED" ? input.rejectionReason : null,
         },
       });
