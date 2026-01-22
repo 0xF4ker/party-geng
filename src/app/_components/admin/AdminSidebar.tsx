@@ -65,8 +65,8 @@ const navItems = [
     roles: ["ADMIN", "SUPPORT"],
   },
   {
-    name: "KYC",
-    href: "/admin/kyc",
+    name: "KYB",
+    href: "/admin/kyb",
     icon: FileCheck,
     roles: ["ADMIN", "SUPPORT"],
   },

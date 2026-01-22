@@ -13,7 +13,7 @@ export const adminRouter = createTRPCRouter({
       userCount: undefined as number | undefined,
       vendorCount: undefined as number | undefined,
       orderCount: undefined as number | undefined,
-      pendingKycCount: undefined as number | undefined,
+      pendingKybCount: undefined as number | undefined,
       totalRevenue: undefined as number | undefined,
       totalVolume: undefined as number | undefined, // GMV
       pendingPayoutsVolume: undefined as number | undefined,
@@ -54,7 +54,7 @@ export const adminRouter = createTRPCRouter({
         users,
         vendors,
         orders,
-        pendingKyc,
+        pendingKyb,
         revenue,
         gmv,
         pendingPayoutsAgg,
@@ -63,7 +63,7 @@ export const adminRouter = createTRPCRouter({
         ctx.db.user.count(),
         ctx.db.vendorProfile.count(),
         ctx.db.order.count({ where: { status: "ACTIVE" } }),
-        ctx.db.vendorProfile.count({ where: { kycStatus: "IN_REVIEW" } }),
+        ctx.db.vendorProfile.count({ where: { kybStatus: "IN_REVIEW" } }),
         calculateRevenue(),
         calculateGMV(),
         ctx.db.transaction.aggregate({
@@ -84,7 +84,7 @@ export const adminRouter = createTRPCRouter({
       stats.userCount = users;
       stats.vendorCount = vendors;
       stats.orderCount = orders;
-      stats.pendingKycCount = pendingKyc;
+      stats.pendingKybCount = pendingKyb;
       stats.totalRevenue = revenue;
       stats.totalVolume = gmv; // This is now Transfers + Gifts
       stats.pendingPayoutsVolume = Math.abs(pendingPayoutsAgg._sum.amount ?? 0);
@@ -93,16 +93,16 @@ export const adminRouter = createTRPCRouter({
 
     // --- 2. SUPPORT (Operations View) ---
     else if (role === "SUPPORT") {
-      const [users, vendors, pendingKyc, disputeOrders] = await Promise.all([
+      const [users, vendors, pendingKyb, disputeOrders] = await Promise.all([
         ctx.db.user.count(),
         ctx.db.vendorProfile.count(),
-        ctx.db.vendorProfile.count({ where: { kycStatus: "IN_REVIEW" } }),
+        ctx.db.vendorProfile.count({ where: { kybStatus: "IN_REVIEW" } }),
         ctx.db.order.count({ where: { status: "IN_DISPUTE" } }),
       ]);
 
       stats.userCount = users;
       stats.vendorCount = vendors;
-      stats.pendingKycCount = pendingKyc;
+      stats.pendingKybCount = pendingKyb;
       stats.orderCount = disputeOrders;
     }
 
@@ -146,7 +146,7 @@ export const adminRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       return ctx.db.vendorProfile.findMany({
-        where: { kycStatus: "IN_REVIEW" },
+        where: { kybStatus: "IN_REVIEW" },
         take: input.limit,
         skip: input.offset,
         include: { user: { select: { email: true, username: true } } },
@@ -158,7 +158,7 @@ export const adminRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       return ctx.db.vendorProfile.update({
         where: { id: input.vendorProfileId },
-        data: { kycStatus: input.approved ? "APPROVED" : "REJECTED" },
+        data: { kybStatus: input.approved ? "APPROVED" : "REJECTED" },
       });
     }),
 });

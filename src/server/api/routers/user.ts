@@ -317,7 +317,7 @@ export const userRouter = createTRPCRouter({
           where: { userId: user.id },
           create: {
             userId: user.id,
-            kycStatus: "PENDING",
+            kybStatus: "PENDING",
             rating: 0,
             subscriptionStatus: "INACTIVE",
           },

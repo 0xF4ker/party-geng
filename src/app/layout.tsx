@@ -11,6 +11,8 @@ import { AuthProvider } from "@/providers/auth-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { type Metadata } from "next";
 import { BanProvider } from "@/providers/ban-provider";
+import { KybProvider } from "@/providers/kyb-provider";
+import { GlobalLoader } from "./_components/ui/global-loader";
 
 export const metadata: Metadata = {
   title: "PartyGeng",
@@ -25,7 +27,10 @@ export default function RootLayout({
       <body>
         <TRPCReactProvider>
           <AuthProvider>
-            <BanProvider>{children}</BanProvider>
+            <GlobalLoader />
+            <BanProvider>
+              <KybProvider>{children}</KybProvider>
+            </BanProvider>
           </AuthProvider>
           <Toaster />
         </TRPCReactProvider>

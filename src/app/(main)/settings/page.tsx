@@ -161,7 +161,7 @@ const SettingsPage = () => {
 
           <div className="space-y-8 lg:col-span-3">
             {profile?.role === "VENDOR" &&
-              profile.vendorProfile?.kycStatus !== "APPROVED" &&
+              profile.vendorProfile?.kybStatus !== "APPROVED" &&
               activeSection === "verification" && (
                 <div className="rounded-md border-l-4 border-red-500 bg-red-50 p-4 shadow-sm">
                   <div className="flex">

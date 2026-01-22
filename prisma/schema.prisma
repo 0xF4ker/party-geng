@@ -21,7 +21,7 @@ enum UserRole {
   FINANCE
 }
 
-enum KycStatus {
+enum KybStatus {
   PENDING
   IN_REVIEW
   APPROVED
@@ -199,13 +199,14 @@ model VendorProfile {
   level              String?             @default("Level 0")
   rating             Float               @default(0)
   avgResponseTime    String?             @default("N/A")
-  kycStatus          KycStatus           @default(PENDING)
+  kybStatus          KybStatus           @default(PENDING)
   fullName           String?
   meansOfId          String?
   idNumber           String?
   idCardUrl          String?
-  cacNumber          String?
+  regNumber          String?
   cacDocumentUrl     String?
+  country            String?
   businessAddress    String?
   state              String?
   lga                String?

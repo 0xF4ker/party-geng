@@ -41,6 +41,7 @@ export const vendorRouter = createTRPCRouter({
                 },
               },
             },
+            where: { kybStatus: "APPROVED" },
           },
         },
       });
@@ -83,7 +84,7 @@ export const vendorRouter = createTRPCRouter({
             serviceId: serviceId,
           },
         },
-        // kycStatus: "APPROVED",
+        kybStatus: "APPROVED",
       };
 
       if (filters.minRating) {
@@ -161,7 +162,7 @@ export const vendorRouter = createTRPCRouter({
         // If no serviceIds are provided, return all approved vendors
         const allVendors = await ctx.db.vendorProfile.findMany({
           where: {
-            kycStatus: "APPROVED",
+            kybStatus: "APPROVED",
           },
           include: {
             user: {
@@ -185,7 +186,7 @@ export const vendorRouter = createTRPCRouter({
       // Find vendor profiles that offer ALL specified services
       const vendors = await ctx.db.vendorProfile.findMany({
         where: {
-          kycStatus: "APPROVED",
+          kybStatus: "APPROVED",
           services: {
             every: {
               serviceId: {
@@ -234,7 +235,7 @@ export const vendorRouter = createTRPCRouter({
       const { query, serviceIds, location, limit, offset } = input;
 
       const whereClause: Prisma.VendorProfileWhereInput = {
-        // kycStatus: "APPROVED",
+        kybStatus: "APPROVED",
       };
 
       if (serviceIds && serviceIds.length > 0) {
@@ -344,7 +345,7 @@ export const vendorRouter = createTRPCRouter({
     .input(
       z.object({
         fullName: z.string(),
-        cacNumber: z.string(),
+        regNumber: z.string(),
         businessAddress: z.string(),
       }),
     )
@@ -353,9 +354,9 @@ export const vendorRouter = createTRPCRouter({
         where: { userId: ctx.user.id },
         data: {
           fullName: input.fullName,
-          cacNumber: input.cacNumber,
+          regNumber: input.regNumber,
           businessAddress: input.businessAddress,
-          kycStatus: "IN_REVIEW",
+          kybStatus: "IN_REVIEW",
         },
       });
     }),

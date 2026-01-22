@@ -129,9 +129,9 @@ async function DashboardStats() {
       bg: "bg-indigo-50",
     },
     {
-      key: "pendingKycCount",
-      label: "Pending KYC",
-      value: stats.pendingKycCount?.toString(),
+      key: "pendingKybCount",
+      label: "Pending KYB",
+      value: stats.pendingKybCount?.toString(),
       icon: FileCheck,
       color: "text-orange-600",
       bg: "bg-orange-50",
@@ -199,7 +199,7 @@ async function RecentActivityFeed() {
         color: "text-emerald-500",
         bg: "bg-emerald-50",
       };
-    if (action.includes("KYC") || action.includes("PROFILE"))
+    if (action.includes("KYB") || action.includes("PROFILE"))
       return { icon: FileCheck, color: "text-orange-500", bg: "bg-orange-50" };
     if (action.includes("LOGIN"))
       return { icon: Users, color: "text-gray-500", bg: "bg-gray-50" };
@@ -311,9 +311,9 @@ export default async function AdminDashboard() {
           </h2>
           <div className="grid gap-3">
             <QuickActionLink
-              href="/admin/kyc"
+              href="/admin/kyb"
               icon={FileCheck}
-              label="Review KYC"
+              label="Review KYB"
               color="text-orange-500"
               bg="hover:bg-orange-50 hover:border-orange-200"
             />

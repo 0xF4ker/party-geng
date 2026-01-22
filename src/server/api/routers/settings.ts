@@ -3,20 +3,23 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
 
-const locationSchema = z.object({
-  place_id: z.number(),
-  licence: z.string(),
-  osm_type: z.string(),
-  osm_id: z.number(),
-  boundingbox: z.array(z.string()),
-  lat: z.string(),
-  lon: z.string(),
-  display_name: z.string(),
-  class: z.string(),
-  type: z.string(),
-  importance: z.number(),
-  icon: z.string().optional(),
-}).nullable().optional();
+const locationSchema = z
+  .object({
+    place_id: z.number(),
+    licence: z.string(),
+    osm_type: z.string(),
+    osm_id: z.number(),
+    boundingbox: z.array(z.string()),
+    lat: z.string(),
+    lon: z.string(),
+    display_name: z.string(),
+    class: z.string(),
+    type: z.string(),
+    importance: z.number(),
+    icon: z.string().optional(),
+  })
+  .nullable()
+  .optional();
 
 export const settingsRouter = createTRPCRouter({
   // Update user profile (name, username, avatar)
@@ -74,7 +77,9 @@ export const settingsRouter = createTRPCRouter({
         });
       }
 
-      const locationData = input.location ? input.location as Prisma.JsonObject : Prisma.JsonNull;
+      const locationData = input.location
+        ? (input.location as Prisma.JsonObject)
+        : Prisma.JsonNull;
 
       // Update profile based on role
       if (user.role === "VENDOR") {
@@ -162,7 +167,7 @@ export const settingsRouter = createTRPCRouter({
         meansOfId: z.string().optional(),
         idNumber: z.string().optional(),
         idCardUrl: z.string().url().optional(),
-        cacNumber: z.string().optional(),
+        regNumber: z.string().optional(),
         cacDocumentUrl: z.string().url().optional(),
         businessAddress: z.string().max(500).optional(),
         state: z.string().optional(),
@@ -200,12 +205,60 @@ export const settingsRouter = createTRPCRouter({
           meansOfId: input.meansOfId,
           idNumber: input.idNumber,
           idCardUrl: input.idCardUrl,
-          cacNumber: input.cacNumber,
+          regNumber: input.regNumber,
           cacDocumentUrl: input.cacDocumentUrl,
           businessAddress: input.businessAddress,
           state: input.state,
           lga: input.lga,
-          kycStatus: "IN_REVIEW", // Auto-submit for review
+          kybStatus: "IN_REVIEW", // Auto-submit for review
+        },
+      });
+    }),
+
+  submitKyb: protectedProcedure
+    .input(
+      z.object({
+        // Account Details (Step 1)
+        companyName: z.string().min(2, "Company name is required"),
+        businessAddress: z.string().min(5, "Address is required"), // Manual text input
+        about: z.string().optional(), // Brief description
+
+        // Verification Details (Step 2)
+        country: z.string().min(2, "Country is required"), // e.g. "NG"
+        regNumber: z.string().min(2, "Registration number is required"),
+
+        // Optional: Admin might need contact person details
+        fullName: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.user.id;
+
+      const user = await ctx.db.user.findUnique({
+        where: { id: userId },
+        include: { vendorProfile: true },
+      });
+
+      if (!user || user.role !== "VENDOR" || !user.vendorProfile) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Action restricted to vendors.",
+        });
+      }
+
+      // Update Vendor Profile and set status to IN_REVIEW
+      return ctx.db.vendorProfile.update({
+        where: { id: user.vendorProfile.id },
+        data: {
+          companyName: input.companyName,
+          businessAddress: input.businessAddress,
+          about: input.about,
+
+          country: input.country,
+          regNumber: input.regNumber,
+          fullName: input.fullName,
+
+          kybStatus: "IN_REVIEW", // Locks the gate
         },
       });
     }),

@@ -21,6 +21,7 @@ import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
 import { activityLogRouter } from "./routers/activityLog";
 import { reportRouter } from "./routers/report";
+import { kybRouter } from "./routers/kyb";
 
 /**
  * This is the primary router for your server.
@@ -49,6 +50,7 @@ export const appRouter = createTRPCRouter({
   admin: adminRouter,
   activityLog: activityLogRouter,
   report: reportRouter,
+  kyb: kybRouter,
 });
 
 // export type definition of API
