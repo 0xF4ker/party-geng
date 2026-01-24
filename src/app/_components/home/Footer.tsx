@@ -44,11 +44,15 @@ const footerSections = [
 
 const socialLinks = [
   {
-    href: "https://x.com/partygengng",
+    href: "https://x.com/partygeng",
     icon: siX,
     label: "X (Formerly Twitter)",
   },
-  { href: "#", icon: siFacebook, label: "Facebook" },
+  {
+    href: "https://www.facebook.com/profile.php?id=61585899313473",
+    icon: siFacebook,
+    label: "Facebook",
+  },
   {
     href: "https://www.instagram.com/partygengng",
     icon: siInstagram,

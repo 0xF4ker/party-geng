@@ -19,6 +19,9 @@ import {
   Grid3x3,
   Flame,
   Flag,
+  ChevronDown, // Added
+  LogOut, // Added
+  User as UserIcon, // Added (Aliased to avoid conflict with User type)
 } from "lucide-react";
 import { EnvelopeIcon } from "@heroicons/react/24/solid";
 import { cn } from "@/lib/utils";
@@ -124,9 +127,7 @@ const ProfileHeader = ({
   const { data: searchList } = api.category.getSearchList.useQuery();
 
   // --- Logic for Real Stats ---
-  // Hires Made: Count of completed orders from the user object
-  // Events Hosted: Count from _count.events
-  const completedHires = profileUser.clientOrders?.length ?? 0; // Filtered in TRPC query
+  const completedHires = profileUser.clientOrders?.length ?? 0;
   const eventsHosted = profileUser.clientProfile?._count?.events ?? 0;
 
   // --- Conversation Mutation ---
@@ -186,6 +187,10 @@ const ProfileHeader = ({
     createConversation.mutate({
       otherUserId: profileUser.id,
     });
+  };
+
+  const toggleProfileDropdown = () => {
+    setIsProfileDropdownOpen(!isProfileDropdownOpen);
   };
 
   // --- Scroll Effects ---
@@ -349,14 +354,19 @@ const ProfileHeader = ({
                   className={cn("hidden md:flex", headerIconColor)}
                 />
 
-                <div className="relative ml-2" ref={profileDropdownRef}>
+                {/* --- Profile Dropdown Section --- */}
+                <div
+                  className="relative ml-2 flex items-center gap-1"
+                  ref={profileDropdownRef}
+                >
+                  {/* Avatar Link */}
                   <Link
                     href={
                       isVendor ? `/v/${user?.username}` : `/c/${user?.username}`
                     }
-                    className="flex items-center gap-2 rounded-full hover:ring-2 hover:ring-pink-400"
+                    className="block rounded-full ring-2 ring-transparent transition-all hover:ring-pink-500 focus:outline-none"
                   >
-                    <div className="h-9 w-9 overflow-hidden rounded-full bg-pink-100">
+                    <div className="h-9 w-9 overflow-hidden rounded-full border border-gray-100 bg-pink-100 shadow-sm">
                       {avatarUrl ? (
                         <Image
                           src={avatarUrl}
@@ -372,6 +382,73 @@ const ProfileHeader = ({
                       )}
                     </div>
                   </Link>
+
+                  {/* Caret Trigger */}
+                  <button
+                    onClick={toggleProfileDropdown}
+                    className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-full transition-colors focus:outline-none",
+                      isHeaderSticky
+                        ? "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                        : "text-white/80 hover:bg-white/10 hover:text-white",
+                      isProfileDropdownOpen &&
+                        isHeaderSticky &&
+                        "bg-gray-100 text-gray-900 ring-2 ring-gray-200",
+                      isProfileDropdownOpen &&
+                        !isHeaderSticky &&
+                        "bg-white/20 text-white",
+                    )}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {isProfileDropdownOpen && (
+                    <div className="absolute top-full right-0 z-50 mt-2 w-56 origin-top-right rounded-xl border border-gray-100 bg-white shadow-lg ring-1 ring-black/5 focus:outline-none">
+                      <div className="border-b border-gray-100 px-4 py-3">
+                        <p className="truncate text-sm font-medium text-gray-900">
+                          {displayName}
+                        </p>
+                        <p className="truncate text-xs text-gray-500">
+                          @{user?.username}
+                        </p>
+                      </div>
+
+                      <div className="p-1">
+                        {/* <Link
+                          href={
+                            isVendor
+                              ? `/v/${user?.username}`
+                              : `/c/${user?.username}`
+                          }
+                          className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          onClick={() => setIsProfileDropdownOpen(false)}
+                        >
+                          <UserIcon className="h-4 w-4" /> Profile
+                        </Link> */}
+
+                        <Link
+                          href="/settings"
+                          className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          onClick={() => setIsProfileDropdownOpen(false)}
+                        >
+                          <Settings className="h-4 w-4" /> Settings
+                        </Link>
+                      </div>
+
+                      <div className="border-t border-gray-100 p-1">
+                        <button
+                          onClick={() => {
+                            setIsProfileDropdownOpen(false);
+                            void signOut();
+                          }}
+                          className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          <LogOut className="h-4 w-4" /> Log out
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </nav>
             )}

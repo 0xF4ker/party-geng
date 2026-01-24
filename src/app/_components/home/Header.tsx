@@ -3,7 +3,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Menu, Calendar, Flame } from "lucide-react";
+import {
+  Menu,
+  Calendar,
+  Flame,
+  ChevronDown,
+  LogOut,
+  User,
+  Settings,
+} from "lucide-react";
 import { EnvelopeIcon } from "@heroicons/react/24/solid";
 import LoginJoinComponent from "../LoginJoinComponent";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
@@ -56,7 +64,10 @@ const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalView, setModalView] = useState<"login" | "join">("login");
+
+  // Controls the dropdown menu next to profile
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const { setHeaderHeight } = useUiStore();
@@ -96,6 +107,7 @@ const Header = () => {
   const closeModal = () => setIsModalOpen(false);
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
 
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -109,6 +121,10 @@ const Header = () => {
       document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isProfileDropdownOpen]);
+
+  const toggleProfileDropdown = () => {
+    setIsProfileDropdownOpen(!isProfileDropdownOpen);
+  };
 
   return (
     <>
@@ -238,7 +254,7 @@ const Header = () => {
                     )}
                   </Link>
 
-                  {/* NOTIFICATION BELL: Now visible on Mobile (flex) instead of (hidden md:flex) */}
+                  {/* NOTIFICATION BELL */}
                   <NotificationDropdown className="flex text-gray-600 hover:bg-gray-100 hover:text-pink-600" />
                 </div>
 
@@ -253,8 +269,12 @@ const Header = () => {
                   </div>
                 )}
 
-                {/* Profile Picture */}
-                <div className="relative" ref={profileDropdownRef}>
+                {/* Profile Picture & Dropdown */}
+                <div
+                  className="relative flex items-center gap-1"
+                  ref={profileDropdownRef}
+                >
+                  {/* Avatar Link */}
                   <Link
                     href={
                       isVendor ? `/v/${user?.username}` : `/c/${user?.username}`
@@ -278,6 +298,66 @@ const Header = () => {
                       )}
                     </div>
                   </Link>
+
+                  {/* Caret Dropdown Trigger */}
+                  <button
+                    onClick={toggleProfileDropdown}
+                    className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900 focus:outline-none",
+                      isProfileDropdownOpen &&
+                        "bg-gray-100 text-gray-900 ring-2 ring-gray-200",
+                    )}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {isProfileDropdownOpen && (
+                    <div className="absolute top-full right-0 mt-2 w-56 origin-top-right rounded-xl border border-gray-100 bg-white shadow-lg ring-1 ring-black/5 focus:outline-none">
+                      <div className="border-b border-gray-100 px-4 py-3">
+                        <p className="truncate text-sm font-medium text-gray-900">
+                          {displayName}
+                        </p>
+                        <p className="truncate text-xs text-gray-500">
+                          @{user?.username}
+                        </p>
+                      </div>
+
+                      <div className="p-1">
+                        {/* <Link
+                          href={
+                            isVendor
+                              ? `/v/${user?.username}`
+                              : `/c/${user?.username}`
+                          }
+                          className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          onClick={() => setIsProfileDropdownOpen(false)}
+                        >
+                          <User className="h-4 w-4" /> Profile
+                        </Link> */}
+
+                        <Link
+                          href="/settings"
+                          className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          onClick={() => setIsProfileDropdownOpen(false)}
+                        >
+                          <Settings className="h-4 w-4" /> Settings
+                        </Link>
+                      </div>
+
+                      <div className="border-t border-gray-100 p-1">
+                        <button
+                          onClick={() => {
+                            setIsProfileDropdownOpen(false);
+                            void signOut();
+                          }}
+                          className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          <LogOut className="h-4 w-4" /> Log out
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
