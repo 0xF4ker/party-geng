@@ -1085,6 +1085,8 @@ export const paymentRouter = createTRPCRouter({
     .input(z.object({ reference: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const secret = process.env.PAYSTACK_SECRET_KEY;
+
+      // 1. Verify with Paystack
       const response = await fetch(
         `https://api.paystack.co/transaction/verify/${input.reference}`,
         {
@@ -1095,7 +1097,9 @@ export const paymentRouter = createTRPCRouter({
       const data = (await response.json()) as PaystackResponse<{
         status: string;
         amount: number;
-        metadata: { user_id: string };
+        metadata: {
+          user_id: string;
+        };
       }>;
       if (!data.status || data.data.status !== "success") {
         throw new TRPCError({
@@ -1104,25 +1108,94 @@ export const paymentRouter = createTRPCRouter({
         });
       }
 
-      const amount = data.data.amount / 100;
+      const amountPaid = data.data.amount / 100; // Convert Kobo to NGN
 
-      // Update Vendor Profile
-      await ctx.db.vendorProfile.update({
-        where: { userId: ctx.user.id },
-        data: {
-          subscriptionStatus: "ACTIVE",
-        },
+      // 2. Execute Ledger Logic
+      return ctx.db.$transaction(async (prisma) => {
+        // A. Get Vendor Wallet (Create if missing)
+        let vendorWallet = await prisma.wallet.findUnique({
+          where: { userId: ctx.user.id },
+        });
+        vendorWallet ??= await prisma.wallet.create({
+          data: { userId: ctx.user.id, availableBalance: 0 },
+        });
+
+        // B. Get Superadmin Wallet (The Platform Wallet)
+        // Ensure you have a user with username "superadmin" seeded!
+        const superUser = await prisma.user.findUnique({
+          where: { username: "superadmin" },
+          include: { wallet: true },
+        });
+
+        if (!superUser) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Platform configuration error: Superadmin not found.",
+          });
+        }
+
+        let adminWallet = superUser.wallet;
+        adminWallet ??= await prisma.wallet.create({
+          data: { userId: superUser.id, availableBalance: 0 },
+        });
+
+        // --- STEP 1: RECORD THE PAYMENT (Receipt for Vendor) ---
+        // Credit Vendor (Top-up from Paystack)
+        await prisma.transaction.create({
+          data: {
+            walletId: vendorWallet.id,
+            type: "TOPUP",
+            amount: amountPaid,
+            status: "COMPLETED",
+            description: `Payment via Paystack (Ref: ${input.reference})`,
+          },
+        });
+
+        // Debit Vendor (Pay Subscription)
+        await prisma.transaction.create({
+          data: {
+            walletId: vendorWallet.id,
+            type: "SUBSCRIPTION_FEE",
+            amount: -amountPaid, // Negative
+            status: "COMPLETED",
+            description: "Vendor Activation Fee",
+          },
+        });
+        // Net change to Vendor Balance is 0, so we don't update their availableBalance.
+
+        // --- STEP 2: MOVE MONEY TO PLATFORM (Revenue) ---
+        // Credit Superadmin
+        await prisma.wallet.update({
+          where: { id: adminWallet.id },
+          data: { availableBalance: { increment: amountPaid } },
+        });
+
+        await prisma.transaction.create({
+          data: {
+            walletId: adminWallet.id,
+            type: "SUBSCRIPTION_FEE", // Marking it this way helps your Revenue Charts
+            amount: amountPaid,
+            status: "COMPLETED",
+            description: `Subscription from @${ctx.user.username}`,
+          },
+        });
+
+        // --- STEP 3: ACTIVATE VENDOR ---
+        await prisma.vendorProfile.update({
+          where: { userId: ctx.user.id },
+          data: { subscriptionStatus: "ACTIVE" },
+        });
+
+        // // Log Activity
+        // await logActivity({
+        //   ctx,
+        //   action: "SUBSCRIPTION_ACTIVATED",
+        //   entityType: "USER",
+        //   entityId: ctx.user.id,
+        //   details: { amount: amountPaid, reference: input.reference },
+        // });
+
+        return { success: true };
       });
-
-      // Log Transaction (Platform Revenue)
-      // We don't credit the user's wallet, we credit the platform "System" wallet concept
-      // but we record the transaction for history
-      // Note: Since money didn't enter the user's wallet, we might not want to show it in their wallet history
-      // or we show it as "SUBSCRIPTION_FEE"
-
-      // Optional: Add to transaction log linked to user's wallet just for record keeping?
-      // Or separate system log. For now, let's just mark profile active.
-
-      return { success: true };
     }),
 });

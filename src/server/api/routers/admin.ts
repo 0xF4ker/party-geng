@@ -10,39 +10,44 @@ export const adminRouter = createTRPCRouter({
     // --- SHARED STATS (Base) ---
     const stats = {
       role,
-      userCount: undefined as number | undefined,
-      vendorCount: undefined as number | undefined,
-      orderCount: undefined as number | undefined,
-      pendingKybCount: undefined as number | undefined,
-      totalRevenue: undefined as number | undefined,
-      totalVolume: undefined as number | undefined, // GMV
-      pendingPayoutsVolume: undefined as number | undefined,
-      pendingPayoutsCount: undefined as number | undefined,
+      userCount: 0,
+      vendorCount: 0,
+      orderCount: 0,
+      pendingKybCount: 0,
+      totalRevenue: 0,
+      totalVolume: 0, // GMV
+      pendingPayoutsVolume: 0,
+      pendingPayoutsCount: 0,
     };
 
     // Calculate GMV (Gross Merchandise Value)
-    // Definition: Total money SPENT by users (Transfers + Gifts)
-    // We filter for amount < 0 to count the "Debit" side of the transaction
+    // Total money moving through the system (Transfers + Gifts)
     const calculateGMV = async () => {
       const agg = await ctx.db.transaction.aggregate({
         _sum: { amount: true },
         where: {
           status: TransactionStatus.COMPLETED,
-          amount: { lt: 0 }, // Only count money LEAVING wallets (Spending)
-          type: { in: [TransactionType.TRANSFER, TransactionType.GIFT] }, // Services + Wishlists
+          amount: { lt: 0 }, // Spending (Debits)
+          type: { in: [TransactionType.TRANSFER, TransactionType.GIFT] },
         },
       });
       return Math.abs(agg._sum.amount ?? 0);
     };
 
     // Calculate Revenue (Platform Profit)
-    // Definition: Service fees collected
+    // We sum the Credits (positive amounts) going into the System Wallet
+    // OR we sum the Debits (negative amounts) labeled as Fees from user wallets.
+    // Let's rely on the Type label for simplicity.
     const calculateRevenue = async () => {
       const agg = await ctx.db.transaction.aggregate({
         _sum: { amount: true },
         where: {
           status: TransactionStatus.COMPLETED,
-          type: TransactionType.SERVICE_FEE,
+          // We only count the DEBIT side (negative) from users as revenue generated
+          amount: { lt: 0 },
+          type: {
+            in: [TransactionType.SUBSCRIPTION_FEE, TransactionType.SERVICE_FEE],
+          },
         },
       });
       return Math.abs(agg._sum.amount ?? 0);
@@ -86,7 +91,7 @@ export const adminRouter = createTRPCRouter({
       stats.orderCount = orders;
       stats.pendingKybCount = pendingKyb;
       stats.totalRevenue = revenue;
-      stats.totalVolume = gmv; // This is now Transfers + Gifts
+      stats.totalVolume = gmv;
       stats.pendingPayoutsVolume = Math.abs(pendingPayoutsAgg._sum.amount ?? 0);
       stats.pendingPayoutsCount = pendingPayoutsCnt;
     }

@@ -13,6 +13,7 @@ import {
   Eye,
   Calendar,
   Mail,
+  ShieldCheck,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -41,7 +42,7 @@ interface AdminUsersTableProps {
 
 export function AdminUsersTable({ initialRole }: AdminUsersTableProps) {
   const [search, setSearch] = useState("");
-  const [roleFilter] = useState(initialRole); // Removed setRoleFilter if unused, or keep if you plan to toggle
+  const [roleFilter] = useState(initialRole);
 
   // Modal & Sheet State
   const [modalOpen, setModalOpen] = useState(false);
@@ -275,7 +276,6 @@ function MobileUserCard({ user, onView, onAction, onRestore }: UserRowProps) {
           <Button variant="ghost" size="icon" onClick={() => onView(user.id)}>
             <Eye className="h-4 w-4 text-gray-400" />
           </Button>
-          {/* Added Dropdown here for Mobile */}
           <UserActionsDropdown
             user={user}
             onAction={onAction}
@@ -322,9 +322,23 @@ function UserActionsDropdown({
   onRestore,
   isSuspended,
 }: DropdownProps) {
-  // Only internal admin roles can have their role updated via this table.
-  // Clients and Vendors are fixed roles.
+  // --- PROTECTION LOGIC ---
+  const isSuperAdmin = user.username === "superadmin"; // Or use user.email === "admin@partygeng.com"
   const isInternalAdmin = ["ADMIN", "SUPPORT", "FINANCE"].includes(user.role);
+
+  // If it's the superadmin, render a disabled/empty button or nothing
+  if (isSuperAdmin) {
+    return (
+      <Button
+        variant="ghost"
+        className="h-8 w-8 p-0 text-gray-300"
+        disabled
+        title="Superadmin cannot be modified"
+      >
+        <ShieldCheck className="h-4 w-4" />
+      </Button>
+    );
+  }
 
   return (
     <DropdownMenu>
