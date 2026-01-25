@@ -64,8 +64,10 @@ export const EditEventModal = ({
     setStartDate(newStart);
     
     // If new start date is after current end date, push end date forward
+    if (endDate) {
     if (newStart > endDate) {
       setEndDate(newStart);
+    }
     }
   };
 
