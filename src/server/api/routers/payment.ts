@@ -1014,4 +1014,115 @@ export const paymentRouter = createTRPCRouter({
 
       return { success: true };
     }),
+
+  initializeSubscription: protectedProcedure.mutation(async ({ ctx }) => {
+    const user = await ctx.db.user.findUnique({
+      where: { id: ctx.user.id },
+      include: { vendorProfile: true },
+    });
+
+    if (!user || user.role !== "VENDOR" || !user.vendorProfile) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Only vendors can subscribe.",
+      });
+    }
+
+    if (user.vendorProfile.subscriptionStatus === "ACTIVE") {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "You are already subscribed.",
+      });
+    }
+
+    // Get fee from global settings
+    const settings = await ctx.db.globalSettings.findUnique({
+      where: { id: 1 },
+    });
+    const amount = settings?.vendorSubscriptionFee ?? 5000;
+
+    const secret = process.env.PAYSTACK_SECRET_KEY;
+    const reference = `sub_${Date.now()}_${ctx.user.id}`;
+
+    // Init Paystack
+    const response = await fetch(
+      "https://api.paystack.co/transaction/initialize",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: Math.round(amount * 100),
+          email: user.email,
+          reference,
+          callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard`, // Return to dashboard
+          metadata: {
+            user_id: ctx.user.id,
+            type: "vendor_subscription",
+          },
+        }),
+      },
+    );
+
+    const data = (await response.json()) as PaystackResponse<{
+      authorization_url: string;
+      access_code: string;
+      reference: string;
+    }>;
+    if (!data.status) {
+      throw new TRPCError({
+        code: "BAD_GATEWAY",
+        message: "Payment initialization failed",
+      });
+    }
+
+    return { authorization_url: data.data.authorization_url, reference };
+  }),
+
+  verifySubscription: protectedProcedure
+    .input(z.object({ reference: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const secret = process.env.PAYSTACK_SECRET_KEY;
+      const response = await fetch(
+        `https://api.paystack.co/transaction/verify/${input.reference}`,
+        {
+          headers: { Authorization: `Bearer ${secret}` },
+        },
+      );
+
+      const data = (await response.json()) as PaystackResponse<{
+        status: string;
+        amount: number;
+        metadata: { user_id: string };
+      }>;
+      if (!data.status || data.data.status !== "success") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Payment verification failed",
+        });
+      }
+
+      const amount = data.data.amount / 100;
+
+      // Update Vendor Profile
+      await ctx.db.vendorProfile.update({
+        where: { userId: ctx.user.id },
+        data: {
+          subscriptionStatus: "ACTIVE",
+        },
+      });
+
+      // Log Transaction (Platform Revenue)
+      // We don't credit the user's wallet, we credit the platform "System" wallet concept
+      // but we record the transaction for history
+      // Note: Since money didn't enter the user's wallet, we might not want to show it in their wallet history
+      // or we show it as "SUBSCRIPTION_FEE"
+
+      // Optional: Add to transaction log linked to user's wallet just for record keeping?
+      // Or separate system log. For now, let's just mark profile active.
+
+      return { success: true };
+    }),
 });

@@ -13,6 +13,7 @@ import { type Metadata } from "next";
 import { BanProvider } from "@/providers/ban-provider";
 import { KybProvider } from "@/providers/kyb-provider";
 import { GlobalLoader } from "./_components/ui/global-loader";
+import { SubscriptionProvider } from "@/providers/subscription-provider";
 
 export const metadata: Metadata = {
   title: "PartyGeng",
@@ -29,7 +30,9 @@ export default function RootLayout({
           <AuthProvider>
             <GlobalLoader />
             <BanProvider>
-              <KybProvider>{children}</KybProvider>
+              <KybProvider>
+                <SubscriptionProvider>{children}</SubscriptionProvider>
+              </KybProvider>
             </BanProvider>
           </AuthProvider>
           <Toaster />

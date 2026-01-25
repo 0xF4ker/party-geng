@@ -52,6 +52,7 @@ enum TransactionType {
   TRANSFER // Direct user-to-user transfer
   ISAVE_DEPOSIT // Deposit into iSave plan
   ISAVE_WITHDRAWAL // Withdrawal from iSave plan (break or complete)
+  SUBSCRIPTION_FEE
 }
 
 enum NotificationType {
@@ -785,6 +786,8 @@ model GlobalSettings {
   // --- Contact ---
   supportEmail          String   @default("support@partygeng.com")
   supportPhone          String?
+
+  vendorSubscriptionFee Float @default(5000)
   
   updatedAt             DateTime @updatedAt
 }

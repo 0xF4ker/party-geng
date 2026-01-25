@@ -5,12 +5,12 @@ import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import {
   Save,
-  Settings2,
-  AlertTriangle,
   DollarSign,
   Lock,
   Mail,
   ShieldCheck,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,16 +23,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Loader2 } from "lucide-react";
 
 export default function AdminSettingsPage() {
   const utils = api.useUtils();
 
-  // --- STATE ---
   const [formData, setFormData] = useState({
     serviceFeePercent: 5.0,
     minWithdrawalAmount: 2000,
+    vendorSubscriptionFee: 5000,
     payoutDelayDays: 3,
     maintenanceMode: false,
     allowNewRegistrations: true,
@@ -41,15 +39,14 @@ export default function AdminSettingsPage() {
     supportPhone: "",
   });
 
-  // --- QUERY ---
   const { data: settings, isLoading } = api.admin.getGlobalSettings.useQuery();
 
-  // Sync data when loaded
   useEffect(() => {
     if (settings) {
       setFormData({
         serviceFeePercent: settings.serviceFeePercent,
         minWithdrawalAmount: settings.minWithdrawalAmount,
+        vendorSubscriptionFee: settings.vendorSubscriptionFee ?? 5000,
         payoutDelayDays: settings.payoutDelayDays,
         maintenanceMode: settings.maintenanceMode,
         allowNewRegistrations: settings.allowNewRegistrations,
@@ -60,7 +57,6 @@ export default function AdminSettingsPage() {
     }
   }, [settings]);
 
-  // --- MUTATION ---
   const mutation = api.admin.updateGlobalSettings.useMutation({
     onSuccess: () => {
       toast.success("System settings updated");
@@ -82,7 +78,7 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div className="max-w-4xl space-y-6 p-6">
+    <div className="w-full space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">
@@ -137,6 +133,23 @@ export default function AdminSettingsPage() {
               </div>
               <p className="text-xs text-gray-500">
                 Taken from Vendor earnings per order.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Vendor One-Time Fee (₦)</Label>
+              <Input
+                type="number"
+                value={formData.vendorSubscriptionFee}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    vendorSubscriptionFee: parseFloat(e.target.value),
+                  })
+                }
+              />
+              <p className="text-xs text-gray-500">
+                Fee charged to vendors after KYB verification.
               </p>
             </div>
 

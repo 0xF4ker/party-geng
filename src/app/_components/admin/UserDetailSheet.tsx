@@ -15,10 +15,13 @@ import {
   Mail,
   Loader2,
   Clock,
+  CreditCard,
+  ShieldCheck,
 } from "lucide-react";
 import { format } from "date-fns";
 
-// --- 1. MOVED COMPONENT OUTSIDE ---
+// --- HELPER COMPONENTS ---
+
 const StatusBadge = ({ status }: { status: string }) => {
   const styles: Record<string, string> = {
     ACTIVE: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -34,6 +37,27 @@ const StatusBadge = ({ status }: { status: string }) => {
       {status}
     </span>
   );
+};
+
+// New helper to safely render Nominatim JSON location
+const LocationDisplay = ({ location }: { location: unknown }) => {
+  if (!location) return <span className="text-gray-400 italic">Not set</span>;
+
+  let displayName = "Unknown Location";
+
+  if (
+    typeof location === "object" &&
+    location !== null &&
+    "display_name" in location
+  ) {
+    // Nominatim format
+    displayName = (location as { display_name: string }).display_name;
+  } else if (typeof location === "string") {
+    // Legacy string format
+    displayName = location;
+  }
+
+  return <span>{displayName}</span>;
 };
 
 interface UserDetailSheetProps {
@@ -177,8 +201,11 @@ export function UserDetailSheet({
                     <Store className="h-4 w-4 text-gray-400" /> Vendor Profile
                   </h3>
                   <div className="space-y-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
+                    {/* KYB Status */}
                     <div className="flex items-center justify-between border-b border-gray-200 pb-2">
-                      <span className="text-sm text-gray-500">KYC Status</span>
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <ShieldCheck className="h-3.5 w-3.5" /> KYB Status
+                      </div>
                       <Badge
                         variant={
                           user.vendorProfile.kybStatus === "APPROVED"
@@ -189,6 +216,24 @@ export function UserDetailSheet({
                         {user.vendorProfile.kybStatus}
                       </Badge>
                     </div>
+
+                    {/* Subscription Status (NEW) */}
+                    <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <CreditCard className="h-3.5 w-3.5" /> Subscription
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={
+                          user.vendorProfile.subscriptionStatus === "ACTIVE"
+                            ? "border-green-200 bg-green-50 text-green-700"
+                            : "border-gray-200 bg-gray-100 text-gray-600"
+                        }
+                      >
+                        {user.vendorProfile.subscriptionStatus || "INACTIVE"}
+                      </Badge>
+                    </div>
+
                     <div className="flex items-center justify-between border-b border-gray-200 pb-2">
                       <span className="text-sm text-gray-500">
                         Active Services
@@ -247,21 +292,15 @@ export function UserDetailSheet({
                   )}
                 </div>
 
-                {(user.clientProfile?.location ??
-                  user.vendorProfile?.location) && (
-                  <div className="flex items-center gap-2 pt-2 text-sm text-gray-500">
-                    <MapPin className="h-4 w-4" />
-                    {/* Assuming location is stored as JSON { city: string, state: string } or similar string */}
-                    <span>
-                      {JSON.stringify(
-                        user.clientProfile?.location ??
-                          user.vendorProfile?.location,
-                      )
-                        .replace(/["{}]/g, "")
-                        .replace(/:/g, ": ")}
-                    </span>
-                  </div>
-                )}
+                <div className="flex items-start gap-2 border-t border-gray-100 pt-4 text-sm text-gray-500">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                  <LocationDisplay
+                    location={
+                      user.clientProfile?.location ??
+                      user.vendorProfile?.location
+                    }
+                  />
+                </div>
               </div>
             </div>
 
