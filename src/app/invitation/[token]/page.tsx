@@ -15,6 +15,23 @@ import { Badge } from "@/components/ui/badge";
 import { GuestStatus } from "@prisma/client";
 import { useState } from "react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+
+const formatEventDate = (start: Date | string, end: Date | string) => {
+    const s = new Date(start);
+    const e = new Date(end);
+
+    if (s.toDateString() === e.toDateString()) {
+      // Same day: Show Date + Time
+      return format(s, "EEE, MMM d, yyyy • h:mm a");
+    } else {
+      // Multi-day: Show Date Range (omit time to save space)
+      if (s.getFullYear() === e.getFullYear()) {
+        return `${format(s, "MMM d")} - ${format(e, "MMM d, yyyy")}`;
+      }
+      return `${format(s, "MMM d, yyyy")} - ${format(e, "MMM d, yyyy")}`;
+    }
+  };
 
 const InvitationPage = () => {
   const { token } = useParams<{ token: string }>();
@@ -86,12 +103,7 @@ const InvitationPage = () => {
           <CardTitle className="text-2xl">{event.title}</CardTitle>
           <CardDescription>
             on{" "}
-            {new Date(event.date).toLocaleDateString("en-US", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
+            {formatEventDate(event.startDate, event.endDate)}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
