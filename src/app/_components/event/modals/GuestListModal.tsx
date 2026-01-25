@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { api } from "@/trpc/react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { Button } from "@/components/ui/button";
@@ -24,16 +24,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { GuestRow } from "./GuestRow";
+import { GuestRow } from "./GuestRow"; // You'll need to update GuestRow to accept isPast
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type event = RouterOutput["event"]["getById"];
-// type Guest = NonNullable<event["guestLists"][0]>["guests"][number];
 
 interface GuestListModalProps {
   event: event;
   isOpen: boolean;
   onClose: () => void;
+  isPast?: boolean; // Added Prop
 }
 
 const statusColors: Record<string, string> = {
@@ -52,6 +52,7 @@ const AddGuestRow = ({
   guestListId: string;
   nextAvailableTable: number;
 }) => {
+  // ... (Same logic as before)
   const utils = api.useUtils();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -168,8 +169,9 @@ export const GuestListModal = ({
   event,
   isOpen,
   onClose,
+  isPast = false, // Added Prop
 }: GuestListModalProps) => {
-  const guestList = event.guestLists[0]; // Assuming one guest list for now
+  const guestList = event.guestLists[0];
 
   const guests = useMemo(() => guestList?.guests ?? [], [guestList?.guests]);
 
@@ -190,9 +192,18 @@ export const GuestListModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="flex h-dvh w-screen max-w-none flex-col gap-0 rounded-none border-0 p-0 sm:h-auto sm:max-w-4xl sm:rounded-lg sm:border sm:p-6">
         <DialogHeader className="border-b p-6 pb-4 sm:border-b-0 sm:p-0 sm:pb-4">
-          <DialogTitle>Guest List</DialogTitle>
+          <div className="flex items-center gap-2">
+            <DialogTitle>Guest List</DialogTitle>
+            {isPast && (
+              <Badge variant="secondary">
+                <Lock className="mr-1 h-3 w-3" /> Read Only
+              </Badge>
+            )}
+          </div>
           <DialogDescription>
-            Manage your guests for {event.title}.
+            {isPast
+              ? "View guest list for past event."
+              : `Manage your guests for ${event.title}.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -204,18 +215,30 @@ export const GuestListModal = ({
                 <TableHead>Email</TableHead>
                 <TableHead className="w-24">Table #</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                {/* Hide Actions if Past */}
+                {!isPast && (
+                  <TableHead className="text-right">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {guests.map((guest) => (
-                <GuestRow key={guest.id} guest={guest} eventId={event.id} />
+                // Pass isPast to GuestRow so it disables inputs/actions
+                <GuestRow
+                  key={guest.id}
+                  guest={guest}
+                  eventId={event.id}
+                  isReadOnly={isPast}
+                />
               ))}
-              <AddGuestRow
-                eventId={event.id}
-                guestListId={guestList.id}
-                nextAvailableTable={nextAvailableTable}
-              />
+              {/* Hide Add Row if Past */}
+              {!isPast && (
+                <AddGuestRow
+                  eventId={event.id}
+                  guestListId={guestList.id}
+                  nextAvailableTable={nextAvailableTable}
+                />
+              )}
             </TableBody>
           </Table>
         </div>

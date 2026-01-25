@@ -62,7 +62,11 @@ export const EventInvitationMessageBubble = ({
 
   // Helper to extract location string
   const getLocationString = (location: unknown) => {
-    if (typeof location === "object" && location !== null && "display_name" in location) {
+    if (
+      typeof location === "object" &&
+      location !== null &&
+      "display_name" in location
+    ) {
       // Shorten the display name if it's too long
       const name = (location as { display_name: string }).display_name;
       return name.split(",").slice(0, 2).join(", ");
@@ -70,9 +74,28 @@ export const EventInvitationMessageBubble = ({
     return "TBD";
   };
 
+  // Helper for date range formatting
+  const formatEventDate = (start: Date | string, end: Date | string) => {
+    const s = new Date(start);
+    const e = new Date(end);
+
+    if (s.toDateString() === e.toDateString()) {
+      // Same day: Show Date + Time
+      return format(s, "EEE, MMM d, yyyy • h:mm a");
+    } else {
+      // Multi-day: Show Date Range (omit time to save space)
+      if (s.getFullYear() === e.getFullYear()) {
+        return `${format(s, "MMM d")} - ${format(e, "MMM d, yyyy")}`;
+      }
+      return `${format(s, "MMM d, yyyy")} - ${format(e, "MMM d, yyyy")}`;
+    }
+  };
+
   if (isLoadingEvent) {
     return (
-      <div className={cn("flex w-full", isMe ? "justify-end" : "justify-start")}>
+      <div
+        className={cn("flex w-full", isMe ? "justify-end" : "justify-start")}
+      >
         <div className="flex h-32 w-64 items-center justify-center rounded-2xl bg-gray-100">
           <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
         </div>
@@ -82,7 +105,9 @@ export const EventInvitationMessageBubble = ({
 
   if (!event) {
     return (
-      <div className={cn("flex w-full", isMe ? "justify-end" : "justify-start")}>
+      <div
+        className={cn("flex w-full", isMe ? "justify-end" : "justify-start")}
+      >
         <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-600">
           Event details unavailable.
         </div>
@@ -92,7 +117,7 @@ export const EventInvitationMessageBubble = ({
 
   return (
     <div className={cn("flex w-full", isMe ? "justify-end" : "justify-start")}>
-      <div className="relative max-w-sm overflow-hidden rounded-2xl bg-white shadow-md transition-shadow hover:shadow-lg border border-gray-100">
+      <div className="relative max-w-sm overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-md transition-shadow hover:shadow-lg">
         {/* Decorative Top Bar */}
         <div className="h-2 w-full bg-gradient-to-r from-pink-500 to-purple-600" />
 
@@ -103,10 +128,10 @@ export const EventInvitationMessageBubble = ({
               <CalendarHeart className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
+              <p className="text-xs font-bold tracking-wider text-gray-400 uppercase">
                 {isMe ? "Invitation Sent" : "You're Invited!"}
               </p>
-              <h3 className="text-lg font-bold text-gray-900 leading-tight line-clamp-1">
+              <h3 className="line-clamp-1 text-lg leading-tight font-bold text-gray-900">
                 {event.title}
               </h3>
             </div>
@@ -116,13 +141,14 @@ export const EventInvitationMessageBubble = ({
           <div className="mb-5 space-y-2 rounded-lg bg-gray-50 p-3 text-sm">
             <div className="flex items-center gap-2 text-gray-600">
               <Clock className="h-4 w-4 text-pink-500" />
-              <span>
-                {format(new Date(event.date), "EEE, MMM d, yyyy • h:mm a")}
-              </span>
+              {/* UPDATED DATE DISPLAY */}
+              <span>{formatEventDate(event.startDate, event.endDate)}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-600">
               <MapPin className="h-4 w-4 text-pink-500" />
-              <span className="truncate">{getLocationString(event.location)}</span>
+              <span className="truncate">
+                {getLocationString(event.location)}
+              </span>
             </div>
           </div>
 
@@ -134,7 +160,7 @@ export const EventInvitationMessageBubble = ({
                   <Button
                     onClick={() => handleUpdateStatus("ACCEPTED")}
                     disabled={updateInvitationStatus.isPending}
-                    className="w-full bg-pink-600 hover:bg-pink-700 text-white"
+                    className="w-full bg-pink-600 text-white hover:bg-pink-700"
                   >
                     {updateInvitationStatus.isPending &&
                     updateInvitationStatus.variables?.status === "ACCEPTED" ? (
@@ -165,7 +191,7 @@ export const EventInvitationMessageBubble = ({
                     "flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold",
                     status === "ACCEPTED"
                       ? "bg-green-50 text-green-700"
-                      : "bg-red-50 text-red-700"
+                      : "bg-red-50 text-red-700",
                   )}
                 >
                   {status === "ACCEPTED" ? (
@@ -194,7 +220,7 @@ export const EventInvitationMessageBubble = ({
                     "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold",
                     status === "ACCEPTED"
                       ? "bg-green-100 text-green-800"
-                      : "bg-red-100 text-red-800"
+                      : "bg-red-100 text-red-800",
                   )}
                 >
                   {status === "ACCEPTED" ? "Accepted" : "Declined"}

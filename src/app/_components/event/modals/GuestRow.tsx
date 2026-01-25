@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { TableCell, TableRow } from "@/components/ui/table";
-// import { GuestStatus } from "@prisma/client";
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type event = RouterOutput["event"]["getById"];
@@ -26,9 +25,11 @@ const statusColors: Record<string, string> = {
 export const GuestRow = ({
   guest,
   eventId,
+  isReadOnly = false, // Added prop
 }: {
   guest: Guest;
   eventId: string;
+  isReadOnly?: boolean;
 }) => {
   const utils = api.useUtils();
   const [isEditing, setIsEditing] = useState(false);
@@ -194,43 +195,46 @@ export const GuestRow = ({
           {guest.status}
         </Badge>
       </TableCell>
-      <TableCell className="text-right">
-        <div className="flex justify-end gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsEditing(true)}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleSendInvitation}
-            disabled={sendInvitation.isPending}
-          >
-            {sendInvitation.isPending &&
-            sendInvitation.variables?.guestId === guest.id ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Mail className="h-4 w-4" />
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-red-500 hover:text-red-600"
-            onClick={() => deleteGuest.mutate({ guestId: guest.id })}
-          >
-            {deleteGuest.isPending &&
-            deleteGuest.variables?.guestId === guest.id ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-      </TableCell>
+      {/* If Read Only, hide actions column content entirely */}
+      {!isReadOnly && (
+        <TableCell className="text-right">
+          <div className="flex justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsEditing(true)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSendInvitation}
+              disabled={sendInvitation.isPending}
+            >
+              {sendInvitation.isPending &&
+              sendInvitation.variables?.guestId === guest.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Mail className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-red-500 hover:text-red-600"
+              onClick={() => deleteGuest.mutate({ guestId: guest.id })}
+            >
+              {deleteGuest.isPending &&
+              deleteGuest.variables?.guestId === guest.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </TableCell>
+      )}
     </TableRow>
   );
 };

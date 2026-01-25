@@ -70,7 +70,7 @@ export const eventRouter = createTRPCRouter({
         take: limit + 1,
         cursor: cursor ? { id: cursor } : undefined,
         where,
-        orderBy: { date: "desc" }, // Most recent events first
+        orderBy: { startDate: "desc" }, // UPDATED to startDate
         include: {
           client: {
             include: {
@@ -173,12 +173,18 @@ export const eventRouter = createTRPCRouter({
           },
         },
       },
-      orderBy: { date: "desc" },
+      orderBy: { startDate: "asc" }, // Ascending for user view usually better for upcoming
     });
 
     const now = new Date();
-    const upcoming = events.filter((e) => e.date >= now);
-    const past = events.filter((e) => e.date < now);
+
+    // UPDATED LOGIC:
+    // Upcoming = Event ends in the future (or today)
+    // Past = Event end date has passed
+    const upcoming = events.filter((e) => e.endDate >= now);
+    const past = events
+      .filter((e) => e.endDate < now)
+      .sort((a, b) => b.startDate.getTime() - a.startDate.getTime()); // Sort past events descending
 
     return { upcoming, past };
   }),
@@ -353,7 +359,8 @@ export const eventRouter = createTRPCRouter({
     .input(
       z.object({
         title: z.string(),
-        date: z.date(),
+        startDate: z.date(),
+        endDate: z.date(),
         location: locationSchema,
         coverImage: z.string().optional(),
       }),
@@ -376,7 +383,8 @@ export const eventRouter = createTRPCRouter({
       return ctx.db.clientEvent.create({
         data: {
           title: input.title,
-          date: input.date,
+          startDate: input.startDate,
+          endDate: input.endDate,
           location: locationData,
           coverImage: input.coverImage,
           clientProfileId: clientProfile.id,
@@ -409,7 +417,8 @@ export const eventRouter = createTRPCRouter({
       z.object({
         id: z.string(),
         title: z.string().optional(),
-        date: z.date().optional(),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
         location: locationSchema,
         coverImage: z.string().optional(),
         isPublic: z.boolean().optional(),
@@ -448,7 +457,8 @@ export const eventRouter = createTRPCRouter({
         where: { id: input.id },
         data: {
           title: input.title,
-          date: input.date,
+          startDate: input.startDate,
+          endDate: input.endDate,
           location: locationData,
           coverImage: input.coverImage,
           isPublic: input.isPublic,

@@ -14,7 +14,7 @@ import {
   Briefcase,
   AlertTriangle,
   Loader2,
-  X,
+  CalendarDays,
 } from "lucide-react";
 import {
   Sheet,
@@ -22,7 +22,6 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-  SheetClose,
 } from "@/components/ui/sheet";
 import {
   AlertDialog,
@@ -51,6 +50,25 @@ interface LocationData {
   lat?: string;
   lon?: string;
 }
+
+// --- HELPER: Date Formatter ---
+const formatEventDateRange = (start: Date | string, end: Date | string) => {
+  const s = new Date(start);
+  const e = new Date(end);
+
+  if (s.toDateString() === e.toDateString()) {
+    return format(s, "MMM d, yyyy");
+  } else if (
+    s.getMonth() === e.getMonth() &&
+    s.getFullYear() === e.getFullYear()
+  ) {
+    return `${format(s, "MMM d")} - ${format(e, "d, yyyy")}`;
+  } else if (s.getFullYear() === e.getFullYear()) {
+    return `${format(s, "MMM d")} - ${format(e, "MMM d, yyyy")}`;
+  } else {
+    return `${format(s, "MMM d, yyyy")} - ${format(e, "MMM d, yyyy")}`;
+  }
+};
 
 // --- MAIN COMPONENT ---
 export default function AdminEventsPage() {
@@ -221,8 +239,9 @@ const EventRow = ({
           </div>
         </div>
       </td>
+      {/* UPDATED: Date Range */}
       <td className="px-6 py-4 text-gray-500">
-        {format(new Date(event.date), "MMM d, yyyy")}
+        {formatEventDateRange(event.startDate, event.endDate)}
       </td>
       <td className="px-6 py-4">
         <Badge variant="secondary" className="font-normal">
@@ -261,9 +280,9 @@ const EventCard = ({
       </div>
       <div>
         <h4 className="font-semibold text-gray-900">{event.title}</h4>
+        {/* UPDATED: Date Range */}
         <p className="text-xs text-gray-500">
-          {format(new Date(event.date), "MMM d, yyyy")} • @
-          {event.client.user.username}
+          {formatEventDateRange(event.startDate, event.endDate)}
         </p>
       </div>
     </div>
@@ -313,16 +332,11 @@ function EventDetailsSheet({
   return (
     <>
       <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        {/* CHANGES MADE HERE:
-          1. w-[100%] for mobile, sm:max-w-lg for desktop.
-          2. p-0 initially to allow custom scroll area padding.
-        */}
         <SheetContent className="flex h-full w-[100%] flex-col gap-0 border-l p-0 sm:max-w-lg">
           {/* HEADER: Sticky top */}
           <SheetHeader className="border-b px-6 py-5">
             <div className="flex items-center justify-between">
               <SheetTitle>Event Details</SheetTitle>
-              {/* Optional: Add a close button if the Sheet component doesn't auto-include one */}
             </div>
             <SheetDescription>
               Reviewing Event ID:{" "}
@@ -354,9 +368,11 @@ function EventDetailsSheet({
                   <h2 className="text-xl leading-tight font-bold">
                     {event.title}
                   </h2>
-                  <p className="text-sm font-medium opacity-90">
-                    {format(new Date(event.date), "EEEE, MMMM d, yyyy")}
-                  </p>
+                  {/* UPDATED: Date Range with Icon */}
+                  <div className="mt-1 flex items-center gap-1.5 text-sm font-medium opacity-90">
+                    <CalendarDays className="h-4 w-4" />
+                    {formatEventDateRange(event.startDate, event.endDate)}
+                  </div>
                 </div>
               </div>
 

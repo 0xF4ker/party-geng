@@ -278,7 +278,8 @@ model ServicesOnVendors {
 model ClientEvent {
   id              String           @id @default(uuid())
   title           String
-  date            DateTime
+  startDate       DateTime         @default(now())
+  endDate         DateTime         @default(now())
   coverImage      String?
   isPublic        Boolean          @default(false)
   location        Json?

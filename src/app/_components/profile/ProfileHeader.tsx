@@ -636,12 +636,12 @@ const ProfileHeader = ({
                 isActive={activeTab === "gallery"}
                 onClick={() => setActiveTab("gallery")}
               />
-              <TabButton
+              {/* <TabButton
                 title="Reviews"
                 icon={<Award className="h-5 w-5" />}
                 isActive={activeTab === "reviews"}
                 onClick={() => setActiveTab("reviews")}
-              />
+              /> */}
             </nav>
           </div>
         </div>

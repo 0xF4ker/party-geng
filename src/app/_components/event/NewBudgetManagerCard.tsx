@@ -6,12 +6,12 @@ import type { AppRouter } from "@/server/api/root";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { FaWallet } from "react-icons/fa";
 import { MdFiberManualRecord } from "react-icons/md";
+import { Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
-// ... (Type definitions remain the same)
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type EventDetails = RouterOutput["event"]["getById"];
 type Budget = EventDetails["budget"];
@@ -20,6 +20,7 @@ interface NewBudgetManagerCardProps {
   budget: Budget;
   _eventId: string;
   onManage: () => void;
+  isPast?: boolean;
 }
 
 const COLORS = [
@@ -31,7 +32,6 @@ const COLORS = [
   "#82ca9d",
 ];
 
-// ... (CustomTooltip definition remains the same)
 interface CustomTooltipPayload {
   name: string;
   value: number;
@@ -60,9 +60,9 @@ const CustomTooltip = ({
       const percentage = (firstPayloadItem.value / total) * 100;
 
       return (
-        <div className="bg-background border-border rounded-lg border p-3 text-sm shadow-xl">
-          <p className="text-primary font-bold">{`${firstPayloadItem.name}`}</p>
-          <p className="text-muted-foreground">{`Budgeted: ₦${firstPayloadItem.value.toLocaleString()}`}</p>
+        <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-xl">
+          <p className="font-bold text-gray-900">{`${firstPayloadItem.name}`}</p>
+          <p className="text-gray-500">{`Budgeted: ₦${firstPayloadItem.value.toLocaleString()}`}</p>
           <p className="mt-1 text-xs">{`Share: ${percentage.toFixed(1)}%`}</p>
         </div>
       );
@@ -75,6 +75,7 @@ export const NewBudgetManagerCard = ({
   budget,
   _eventId,
   onManage,
+  isPast = false,
 }: NewBudgetManagerCardProps) => {
   const budgetItems = budget?.items ?? [];
   const totalEstimated = budgetItems.reduce(
@@ -101,9 +102,18 @@ export const NewBudgetManagerCard = ({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Budget Tracker</CardTitle>
-          <Button onClick={onManage} variant="outline" size="sm">
-            <FaWallet className="mr-2 h-4 w-4" /> Manage Budget
+          <CardTitle className="flex items-center gap-2">
+            Budget Tracker
+            {isPast && <Lock className="h-4 w-4 text-gray-400" />}
+          </CardTitle>
+          <Button
+            onClick={onManage}
+            variant="outline"
+            size="sm"
+            disabled={isPast}
+          >
+            <FaWallet className="mr-2 h-4 w-4" />
+            {isPast ? "Final Budget" : "Manage Budget"}
           </Button>
         </div>
       </CardHeader>
@@ -135,19 +145,15 @@ export const NewBudgetManagerCard = ({
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
               </PieChart>
-
-              {/* FIX: This was the missing closing tag for ResponsiveContainer */}
             </ResponsiveContainer>
 
             {/* Center Summary */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-              <p className="text-muted-foreground text-sm font-semibold">
-                Total Spent
-              </p>
-              <p className="text-primary text-2xl font-extrabold">
+              <p className="text-sm font-semibold text-gray-500">Total Spent</p>
+              <p className="text-2xl font-extrabold text-gray-900">
                 ₦{totalActual.toLocaleString()}
               </p>
-              <p className="text-muted-foreground text-xs">
+              <p className="text-xs text-gray-500">
                 of ₦{totalEstimated.toLocaleString()}
               </p>
             </div>
@@ -170,7 +176,7 @@ export const NewBudgetManagerCard = ({
                           className="mr-2 h-4 w-4"
                           style={{ color: COLORS[index % COLORS.length] }}
                         />
-                        <span className="font-medium text-gray-700 dark:text-gray-300">
+                        <span className="font-medium text-gray-700">
                           {entry.name}
                         </span>
                       </div>
@@ -178,7 +184,7 @@ export const NewBudgetManagerCard = ({
                         <span className="font-semibold">
                           {percent.toFixed(1)}%
                         </span>
-                        <span className="text-muted-foreground ml-2 text-xs">
+                        <span className="ml-2 text-xs text-gray-500">
                           (₦{entry.value.toLocaleString()})
                         </span>
                       </div>
@@ -187,24 +193,29 @@ export const NewBudgetManagerCard = ({
                 })}
               </div>
             ) : (
-              <p className="text-muted-foreground text-sm">
-                No estimated budget items added yet.
+              <p className="text-sm text-gray-500">
+                {isPast
+                  ? "No budget data recorded."
+                  : "No estimated budget items added yet."}
               </p>
             )}
           </div>
         </div>
 
-        {/* --- SECTION 2: Global Progress Bar (New Addition) --- */}
+        {/* --- SECTION 2: Global Progress Bar --- */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Total Progress</span>
-            <span className="text-primary text-sm font-bold">
+            <span className="text-sm font-bold text-gray-900">
               {percentageSpent.toFixed(0)}%
             </span>
           </div>
-          <Progress value={Math.min(percentageSpent, 100)} className="h-2" />
+          <Progress
+            value={Math.min(percentageSpent, 100)}
+            className="h-2 bg-gray-100"
+          />
           {percentageSpent > 100 && (
-            <p className="text-destructive mt-1 text-xs font-medium">
+            <p className="mt-1 text-xs font-medium text-red-600">
               Budget Overrun! You have spent{" "}
               {(percentageSpent - 100).toFixed(0)}% more than estimated.
             </p>
@@ -212,7 +223,7 @@ export const NewBudgetManagerCard = ({
         </div>
 
         {/* --- SECTION 3: Detailed Item List --- */}
-        <div className="border-border space-y-3 border-t pt-4">
+        <div className="space-y-3 border-t border-gray-100 pt-4">
           <h3 className="text-lg font-semibold">Detailed Item Spending</h3>
           {budgetItems.length > 0 ? (
             <div className="space-y-4">
@@ -244,16 +255,16 @@ export const NewBudgetManagerCard = ({
                     <div className="col-span-4 sm:col-span-2">
                       <Progress
                         value={Math.min(progress, 100)}
-                        className="h-2"
+                        className="h-2 bg-gray-100"
                       />
                     </div>
 
                     {/* Actual / Estimated Cost */}
                     <div className="col-span-4 text-right sm:col-span-1">
-                      <span className="font-mono text-sm text-gray-800 dark:text-gray-200">
+                      <span className="font-mono text-sm text-gray-800">
                         ₦{(item.actualCost ?? 0).toLocaleString()}
                       </span>
-                      <span className="text-muted-foreground text-xs">
+                      <span className="ml-1 text-xs text-gray-500">
                         / ₦{item.estimatedCost.toLocaleString()}
                       </span>
                     </div>
@@ -262,9 +273,10 @@ export const NewBudgetManagerCard = ({
               })}
             </div>
           ) : (
-            <p className="text-muted-foreground text-sm">
-              Start managing your budget by clicking &quot;Manage Budget&quot;
-              to add items.
+            <p className="text-sm text-gray-500">
+              {isPast
+                ? "No items were added to the budget."
+                : 'Start managing your budget by clicking "Manage Budget" to add items.'}
             </p>
           )}
         </div>

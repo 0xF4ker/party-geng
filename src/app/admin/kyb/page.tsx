@@ -34,7 +34,6 @@ import { type AppRouter } from "@/server/api/root";
 
 // --- TYPES ---
 type RouterOutputs = inferRouterOutputs<AppRouter>;
-// Inferred type from the 'kyb' router we created
 type KybRequest = RouterOutputs["kyb"]["getRequests"][number];
 
 // --- HELPER COMPONENT ---
@@ -67,9 +66,67 @@ const KybStatusBadge = ({ status }: { status: string }) => {
   );
 };
 
+// --- MOBILE CARD COMPONENT ---
+const MobileKybCard = ({
+  vendor,
+  onClick,
+}: {
+  vendor: KybRequest;
+  onClick: () => void;
+}) => {
+  return (
+    <div
+      onClick={onClick}
+      className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm active:bg-gray-50"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
+            <Building2 className="h-4 w-4 text-gray-500" />
+          </div>
+          <span className="font-medium text-gray-900">
+            {vendor.vendorProfile?.companyName ?? "N/A"}
+          </span>
+        </div>
+        <KybStatusBadge status={vendor.vendorProfile?.kybStatus ?? "PENDING"} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-y-2 text-xs text-gray-500">
+        <div>
+          <span className="block font-medium tracking-wider text-gray-400 uppercase">
+            Reg Number
+          </span>
+          <span className="font-mono text-gray-700">
+            {vendor.vendorProfile?.regNumber ?? "N/A"}
+          </span>
+        </div>
+        <div className="text-right">
+          <span className="block font-medium tracking-wider text-gray-400 uppercase">
+            Submitted
+          </span>
+          <span className="text-gray-700">
+            {format(
+              new Date(vendor.vendorProfile?.updatedAt ?? new Date()),
+              "MMM d, yyyy",
+            )}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between border-t border-gray-50 pt-3 text-sm">
+        <span className="text-gray-600">
+          {vendor.vendorProfile?.fullName ?? vendor.username}
+        </span>
+        <div className="flex items-center font-medium text-pink-600">
+          View Details →
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- MAIN PAGE COMPONENT ---
 export default function AdminKybPage() {
-  // State
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<
     "IN_REVIEW" | "APPROVED" | "REJECTED" | undefined
@@ -77,7 +134,6 @@ export default function AdminKybPage() {
   const [selectedVendor, setSelectedVendor] = useState<KybRequest | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
-  // Queries
   const {
     data: vendors,
     isLoading,
@@ -88,7 +144,6 @@ export default function AdminKybPage() {
     status: statusFilter,
   });
 
-  // Mutations
   const processMutation = api.kyb.processDecision.useMutation({
     onSuccess: () => {
       toast.success("Vendor status updated successfully");
@@ -98,7 +153,6 @@ export default function AdminKybPage() {
     onError: (e) => toast.error(e.message),
   });
 
-  // Handlers
   const handleOpenDetail = (vendor: KybRequest) => {
     setSelectedVendor(vendor);
     setIsSheetOpen(true);
@@ -110,7 +164,7 @@ export default function AdminKybPage() {
     let reason = "";
     if (decision === "REJECTED") {
       const input = prompt("Please provide a reason for rejection:");
-      if (input === null) return; // User cancelled
+      if (input === null) return;
       reason = input;
     }
 
@@ -122,7 +176,7 @@ export default function AdminKybPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       {/* 1. HEADER & FILTERS */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
@@ -133,7 +187,6 @@ export default function AdminKybPage() {
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          {/* Search */}
           <div className="relative w-full sm:w-64">
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
@@ -144,7 +197,6 @@ export default function AdminKybPage() {
             />
           </div>
 
-          {/* Status Filter */}
           <div className="relative w-full sm:w-48">
             <Filter className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <select
@@ -175,7 +227,7 @@ export default function AdminKybPage() {
         </div>
       </div>
 
-      {/* 2. DATA TABLE */}
+      {/* 2. DESKTOP DATA TABLE */}
       <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm md:block">
         <table className="w-full text-left text-sm text-gray-600">
           <thead className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
@@ -247,7 +299,28 @@ export default function AdminKybPage() {
         </table>
       </div>
 
-      {/* 3. DETAILS SHEET */}
+      {/* 3. MOBILE CARD GRID (New Section) */}
+      <div className="grid gap-4 md:hidden">
+        {isLoading ? (
+          <div className="flex h-32 items-center justify-center">
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-gray-400" />
+          </div>
+        ) : vendors?.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-gray-400">
+            No requests found.
+          </div>
+        ) : (
+          vendors?.map((vendor) => (
+            <MobileKybCard
+              key={vendor.id}
+              vendor={vendor}
+              onClick={() => handleOpenDetail(vendor)}
+            />
+          ))
+        )}
+      </div>
+
+      {/* 4. DETAILS SHEET */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="flex h-full w-full flex-col border-l border-gray-200 bg-white p-0 shadow-2xl sm:max-w-xl">
           {selectedVendor && selectedVendor.vendorProfile && (

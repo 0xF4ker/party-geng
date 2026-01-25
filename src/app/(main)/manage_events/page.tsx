@@ -11,6 +11,7 @@ import {
   ToggleRight,
   Trash2,
   Loader2,
+  CalendarDays,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -22,12 +23,37 @@ import type { AppRouter } from "@/server/api/root";
 import { useUserType } from "@/hooks/useUserType";
 import { useRouter } from "next/navigation";
 import { AddVendorModal } from "@/app/_components/event/modals/AddVendorModal";
+import LocationSearchInput, {
+  type LocationSearchResult,
+} from "@/components/ui/LocationSearchInput";
+import { format } from "date-fns";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
-// getMyEvents returns { upcoming: EventType[]; past: EventType[] }, derive the event item type from the upcoming array
 type event = routerOutput["event"]["getMyEvents"]["upcoming"][number];
 
-// --- Main Page Component ---
+// --- HELPER: Date Formatter ---
+const formatEventDate = (start: Date | string, end: Date | string) => {
+  const s = new Date(start);
+  const e = new Date(end);
+
+  if (s.toDateString() === e.toDateString()) {
+    // Same Day
+    return format(s, "MMM d, yyyy");
+  } else if (
+    s.getMonth() === e.getMonth() &&
+    s.getFullYear() === e.getFullYear()
+  ) {
+    // Same Month
+    return `${format(s, "MMM d")} - ${format(e, "d, yyyy")}`;
+  } else if (s.getFullYear() === e.getFullYear()) {
+    // Same Year
+    return `${format(s, "MMM d")} - ${format(e, "MMM d, yyyy")}`;
+  } else {
+    // Different Years
+    return `${format(s, "MMM d, yyyy")} - ${format(e, "MMM d, yyyy")}`;
+  }
+};
+
 const ClientEventPlannerPage = () => {
   const { user } = useAuth();
   const { isClient, loading } = useUserType();
@@ -64,12 +90,10 @@ const ClientEventPlannerPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
-      {/* Container */}
       <div className="container mx-auto px-4 py-8 sm:px-8">
         {/* Header */}
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <h1 className="text-3xl font-bold text-gray-800">My Events</h1>
-          {/* FIX: Button now opens modal */}
           <button
             onClick={() => setIsEventModalOpen(true)}
             className="flex w-full items-center justify-center gap-2 rounded-md bg-pink-600 px-5 py-3 font-semibold text-white transition-colors hover:bg-pink-700 md:w-auto"
@@ -100,7 +124,7 @@ const ClientEventPlannerPage = () => {
           </div>
         )}
 
-        {/* --- Tab Content: Upcoming Events --- */}
+        {/* --- Upcoming Events --- */}
         {!eventsLoading && activeTab === "upcoming" && (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {eventsData?.upcoming && eventsData.upcoming.length > 0 ? (
@@ -129,7 +153,7 @@ const ClientEventPlannerPage = () => {
           </div>
         )}
 
-        {/* --- Tab Content: Past Events --- */}
+        {/* --- Past Events --- */}
         {!eventsLoading && activeTab === "past" && (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {eventsData?.past && eventsData.past.length > 0 ? (
@@ -147,12 +171,10 @@ const ClientEventPlannerPage = () => {
         )}
       </div>
 
-      {/* --- Create Event Modal --- */}
       {isEventModalOpen && (
         <CreateEventModal onClose={() => setIsEventModalOpen(false)} />
       )}
 
-      {/* --- Add Vendor Modal --- */}
       {isVendorModalOpen && selectedEvent && (
         <AddVendorModal
           event={selectedEvent}
@@ -206,7 +228,6 @@ const EventCard = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Mutations
   const utils = api.useUtils();
   const updateEvent = api.event.update.useMutation({
     onSuccess: () => {
@@ -224,11 +245,12 @@ const EventCard = ({
     e.stopPropagation();
     const newIsPublic = !isPublic;
     setIsPublic(newIsPublic);
+    // Note: startDate/endDate required in DB but optional in update schema
     updateEvent.mutate({ id: event.id, isPublic: newIsPublic });
   };
 
   const handleDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault(); // Prevent Link navigation
+    e.preventDefault();
     e.stopPropagation();
     if (confirm(`Are you sure you want to delete "${event.title}"?`)) {
       deleteEvent.mutate({ id: event.id });
@@ -237,14 +259,13 @@ const EventCard = ({
   };
 
   const handleMenuToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault(); // Prevent Link navigation
+    e.preventDefault();
     e.stopPropagation();
     setIsMenuOpen(!isMenuOpen);
   };
 
-  // Transform hired vendors
   const hiredVendors =
-    event.hiredVendors?.map((ev: event["hiredVendors"][number]) => ({
+    event.hiredVendors?.map((ev) => ({
       id: ev.vendor.id,
       name:
         ev.vendor.vendorProfile?.companyName ?? ev.vendor.username ?? "Vendor",
@@ -253,7 +274,6 @@ const EventCard = ({
         "https://placehold.co/40x40/ec4899/ffffff?text=V",
     })) ?? [];
 
-  // Close menu on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -265,33 +285,35 @@ const EventCard = ({
   }, [menuRef]);
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+    <div className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
       <Image
         src={
           event.coverImage ??
           "https://placehold.co/600x300/ec4899/ffffff?text=Event"
         }
         alt={event.title}
-        className="h-40 w-full object-cover"
+        className={cn("h-40 w-full object-cover", isPast && "grayscale")}
         width={600}
         height={300}
       />
       <div className="flex grow flex-col p-5">
-        {/* Card Header */}
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-sm font-semibold text-pink-600">
-              {new Date(event.date).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
+            <p
+              className={cn(
+                "flex items-center gap-1 text-sm font-semibold",
+                isPast ? "text-gray-500" : "text-pink-600",
+              )}
+            >
+              <CalendarDays className="h-4 w-4" />
+              {/* DISPLAY RANGE DATE */}
+              {formatEventDate(event.startDate, event.endDate)}
             </p>
-            <h3 className="mt-1 text-xl font-bold text-gray-800">
+            <h3 className="mt-1 line-clamp-1 text-xl font-bold text-gray-800">
               {event.title}
             </h3>
           </div>
-          {/* FIX: More Menu */}
+
           {!isPast && (
             <div className="relative" ref={menuRef}>
               <button
@@ -315,7 +337,6 @@ const EventCard = ({
                       e.preventDefault();
                       e.stopPropagation();
                       setIsMenuOpen(false);
-                      // Open add vendor modal if we had a handler here, but onAddVendorClick is on the Plus button
                       if (onAddVendorClick) onAddVendorClick(e);
                     }}
                     className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
@@ -340,8 +361,7 @@ const EventCard = ({
           )}
         </div>
 
-        <div className="mt-4 space-y-3 border-t border-gray-100 pt-4">
-          {/* Hired Vendors */}
+        <div className="mt-auto space-y-3 pt-4">
           <div>
             <h4 className="mb-2 text-xs font-semibold text-gray-500 uppercase">
               Hired Vendors ({hiredVendors.length})
@@ -353,62 +373,52 @@ const EventCard = ({
                   src={vendor.avatarUrl}
                   alt={vendor.name}
                   title={vendor.name}
-                  className="h-10 w-10 rounded-full border-2 border-white ring-1 ring-gray-200"
-                  width={40}
-                  height={40}
+                  className="h-8 w-8 rounded-full border-2 border-white ring-1 ring-gray-200"
+                  width={32}
+                  height={32}
                 />
               ))}
               {!isPast && (
                 <button
                   onClick={onAddVendorClick}
-                  className="z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-gray-100 text-gray-500 ring-1 ring-gray-200 hover:bg-gray-200"
+                  className="z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gray-100 text-gray-500 ring-1 ring-gray-200 hover:bg-gray-200"
                 >
-                  <Plus className="h-5 w-5" />
+                  <Plus className="h-4 w-4" />
                 </button>
               )}
             </div>
           </div>
 
-          {/* Wishlist Stats */}
           {!isPast && wishlistCount > 0 && (
-            <div>
-              <h4 className="mb-2 text-xs font-semibold text-gray-500 uppercase">
-                Wishlist
-              </h4>
-              <div className="flex items-center gap-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-800">
-                    {wishlistCount}
-                  </p>
-                  <p className="text-sm text-gray-500">Items</p>
-                </div>
-                {/* FIX: Changed to "Fulfilled" */}
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600">
-                    {fulfilledCount}
-                  </p>
-                  <p className="text-sm text-gray-500">Fulfilled</p>
-                </div>
+            <div className="flex items-center justify-between border-t border-gray-100 pt-3">
+              <div className="text-xs text-gray-500">
+                Wishlist:{" "}
+                <span className="font-semibold text-gray-700">
+                  {wishlistCount}
+                </span>{" "}
+                items
+              </div>
+              <div className="text-xs font-semibold text-green-600">
+                {fulfilledCount} fulfilled
               </div>
             </div>
           )}
         </div>
 
-        {/* Actions */}
         {!isPast && (
-          <div className="mt-6 border-t border-gray-100 pt-4">
+          <div className="mt-4 border-t border-gray-100 pt-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-gray-700">
                 Make Public
               </span>
               <button
-                onClick={(e) => handleTogglePublic(e)}
+                onClick={handleTogglePublic}
                 disabled={updateEvent.isPending}
               >
                 {isPublic ? (
-                  <ToggleRight className="h-10 w-10 text-pink-600" />
+                  <ToggleRight className="h-8 w-8 text-pink-600" />
                 ) : (
-                  <ToggleLeft className="h-10 w-10 text-gray-400" />
+                  <ToggleLeft className="h-8 w-8 text-gray-400" />
                 )}
               </button>
             </div>
@@ -419,18 +429,12 @@ const EventCard = ({
   );
 };
 
-// --- MODAL COMPONENTS ---
-
-import LocationSearchInput, {
-  type LocationSearchResult,
-} from "@/components/ui/LocationSearchInput";
-
-// ...
-
-// NEW: Create Event Modal
 const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
   const utils = api.useUtils();
   const [location, setLocation] = useState<LocationSearchResult | null>(null);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
   const createEvent = api.event.create.useMutation({
     onSuccess: () => {
       void utils.event.getMyEvents.invalidate();
@@ -443,81 +447,92 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
     const form = e.target as HTMLFormElement;
     const title = (form.elements.namedItem("eventName") as HTMLInputElement)
       ?.value;
-    const dateString = (
-      form.elements.namedItem("eventDate") as HTMLInputElement
-    )?.value;
 
-    if (!title || !dateString) {
+    if (!title || !startDate || !endDate) {
       alert("Please fill in all fields");
       return;
     }
 
     createEvent.mutate({
       title,
-      date: new Date(dateString),
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
       location: location,
     });
+  };
+
+  // Auto-set End Date if Start Date changes and End Date is empty or before start
+  const handleStartChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setStartDate(val);
+    if (!endDate || new Date(endDate) < new Date(val)) {
+      setEndDate(val);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="m-4 w-full max-w-lg rounded-lg bg-white shadow-xl">
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 p-4">
           <h3 className="text-xl font-semibold">Create a New Event</h3>
           <button
             onClick={onClose}
-            className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            className="rounded-full p-1 text-gray-400 hover:bg-gray-100"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <div>
-            <label
-              htmlFor="eventName"
-              className="mb-1 block text-sm font-semibold text-gray-700"
-            >
+            <label className="mb-1 block text-sm font-semibold text-gray-700">
               Event Title
             </label>
             <input
               type="text"
-              id="eventName"
               name="eventName"
-              placeholder="e.g. My 30th Birthday Bash"
+              placeholder="e.g. 3-Day Wedding Extravaganza"
               className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
               required
             />
           </div>
-          <div>
-            <label
-              htmlFor="eventDate"
-              className="mb-1 block text-sm font-semibold text-gray-700"
-            >
-              Event Date
-            </label>
-            <input
-              type="date"
-              id="eventDate"
-              name="eventDate"
-              min={new Date().toISOString().split("T")[0]}
-              className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
-              required
-            />
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-gray-700">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={handleStartChange}
+                min={new Date().toISOString().split("T")[0]}
+                className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-gray-700">
+                End Date
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate || new Date().toISOString().split("T")[0]}
+                className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
+                required
+              />
+            </div>
           </div>
+
           <div>
-            <label
-              htmlFor="eventLocation"
-              className="mb-1 block text-sm font-semibold text-gray-700"
-            >
-              Location (Optional)
+            <label className="mb-1 block text-sm font-semibold text-gray-700">
+              Location
             </label>
             <LocationSearchInput onLocationSelect={setLocation} />
           </div>
 
-          {/* Footer */}
           <div className="flex items-center justify-end border-t border-gray-200 pt-4">
             <button
               type="button"

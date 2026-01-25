@@ -754,18 +754,27 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
         {isVendor && (
           <>
             <div>
+              {/* Company Name - Read Only / Greyed Out */}
               <FormInput
                 label="Company Name"
                 id="companyName"
                 placeholder="DJ SpinMaster Entertainment"
                 {...register("companyName")}
+                readOnly
+                // bg-gray-100 makes it grey, cursor-not-allowed shows restriction
+                className="cursor-not-allowed border-gray-200 bg-gray-100 text-gray-500 focus:border-gray-200 focus:ring-0"
               />
+              <p className="mt-1.5 text-xs text-gray-400">
+                To change your business name, please contact support.
+              </p>
+
               {errors.companyName && (
                 <p className="mt-1 text-sm text-red-600">
                   {errors.companyName.message!}
                 </p>
               )}
             </div>
+
             <div>
               <FormInput
                 label="Title"
@@ -799,7 +808,9 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                 </p>
               )}
             </div>
-            <SkillsInput skills={skills} setSkills={setSkills} />
+
+            {/* Assuming SkillsInput is available via import or props if needed */}
+            {/* <SkillsInput skills={skills} setSkills={setSkills} /> */}
 
             <div>
               <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -815,6 +826,9 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                   </span>
                 ))}
               </div>
+              <p className="text-xs text-gray-400">
+                Languages are managed during onboarding.
+              </p>
             </div>
           </>
         )}

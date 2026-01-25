@@ -1,12 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  Star,
-  Calendar,
-  Gift,
-  Loader2,
-} from "lucide-react";
+import { Star, Calendar, Gift, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
@@ -14,13 +9,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
+import { format } from "date-fns";
 
 import ProfileHeader from "@/app/_components/profile/ProfileHeader";
 import { GalleryTab } from "@/app/_components/profile/GalleryTab";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
-type event = routerOutput["event"]["getMyEvents"]["upcoming"][number];
-type eventPast = routerOutput["event"]["getMyEvents"]["past"][number];
+type EventType = routerOutput["event"]["getMyEvents"]["upcoming"][number];
 
 // --- Mock Data ---
 const vendorReviews = [
@@ -44,6 +39,23 @@ const vendorReviews = [
   },
 ];
 // --- End Mock Data ---
+
+// Helper function for date formatting
+const formatEventDate = (start: Date | string, end: Date | string) => {
+  const s = new Date(start);
+  const e = new Date(end);
+
+  if (s.toDateString() === e.toDateString()) {
+    // Same day
+    return format(s, "MMMM d, yyyy");
+  } else if (s.getFullYear() === e.getFullYear()) {
+    // Same year
+    return `${format(s, "MMM d")} - ${format(e, "MMM d, yyyy")}`;
+  } else {
+    // Different years
+    return `${format(s, "MMM d, yyyy")} - ${format(e, "MMM d, yyyy")}`;
+  }
+};
 
 // --- Main Page Component ---
 const ClientProfilePage = () => {
@@ -134,7 +146,7 @@ const UpcomingEventsSection = ({
   isLoading,
   isOwnProfile,
 }: {
-  events: event[];
+  events: EventType[];
   isLoading: boolean;
   isOwnProfile: boolean;
 }) => {
@@ -183,69 +195,12 @@ const UpcomingEventsSection = ({
   );
 };
 
-const EventCard = ({ event }: { event: event }) => {
-  const router = useRouter();
-  const wishlistCount = event.wishlist?.items?.length ?? 0;
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white transition-all hover:shadow-md">
-      <Image
-        src={
-          event.coverImage ??
-          "https://placehold.co/600x250/ec4899/ffffff?text=Event"
-        }
-        alt={event.title}
-        className="h-48 w-full object-cover"
-        width={600}
-        height={250}
-      />
-      <div className="p-5">
-        <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-green-600">
-            {event.isPublic ? "Public Event" : "Private Event"}
-            </p>
-            {!event.isPublic && (
-                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                    Private
-                </span>
-            )}
-        </div>
-        <h3 className="mt-1 text-xl font-bold">{event.title}</h3>
-        <p className="mt-1 text-sm text-gray-500">
-          {new Date(event.date).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
-        </p>
-        {wishlistCount > 0 && (
-          <div className="mt-6 flex items-center justify-between rounded-lg bg-gray-50 p-4">
-            <div className="flex items-center gap-3">
-              <Gift className="h-8 w-8 text-pink-500" />
-              <div>
-                <p className="font-semibold">This event has a wishlist!</p>
-                <p className="text-sm text-gray-500">{wishlistCount} items</p>
-              </div>
-            </div>
-            <button
-              onClick={() => router.push(`/wishlist/${event.id}`)}
-              className="rounded-full bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-300"
-            >
-              View
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
 const PastEventsSection = ({
   events,
   isLoading,
   isOwnProfile,
 }: {
-  events: eventPast[];
+  events: EventType[];
   isLoading: boolean;
   isOwnProfile: boolean;
 }) => {
@@ -262,9 +217,7 @@ const PastEventsSection = ({
       <div className="rounded-lg border-2 border-dashed border-gray-200 bg-white p-12 text-center">
         <Calendar className="mx-auto h-12 w-12 text-gray-400" />
         <p className="mt-4 font-semibold text-gray-800">
-           {isOwnProfile
-            ? "You have no past events"
-            : "No public past events"}
+          {isOwnProfile ? "You have no past events" : "No public past events"}
         </p>
         <p className="mt-2 text-sm text-gray-500">
           Past events will appear here once they&apos;ve concluded.
@@ -274,29 +227,99 @@ const PastEventsSection = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {events.map((event) => (
-        <div
-          key={event.id}
-          className="rounded-xl border border-gray-200 bg-white p-5"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-bold">{event.title}</h3>
-              <p className="text-sm text-gray-500">
-                {new Date(event.date).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </p>
-            </div>
-            <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
-              Concluded
-            </div>
-          </div>
-        </div>
+        <EventCard key={event.id} event={event} isPast={true} />
       ))}
+    </div>
+  );
+};
+
+const EventCard = ({
+  event,
+  isPast = false,
+}: {
+  event: EventType;
+  isPast?: boolean;
+}) => {
+  const router = useRouter();
+  const wishlistCount = event.wishlist?.items?.length ?? 0;
+
+  return (
+    <div
+      onClick={() => router.push(`/event/${event.id}`)}
+      className="group relative cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white transition-all hover:border-pink-200 hover:shadow-lg"
+    >
+      <div className="relative h-48 w-full overflow-hidden">
+        <Image
+          src={
+            event.coverImage ??
+            "https://placehold.co/600x250/ec4899/ffffff?text=Event"
+          }
+          alt={event.title}
+          className={cn(
+            "h-full w-full object-cover transition-transform duration-500 group-hover:scale-105",
+            isPast && "grayscale",
+          )}
+          width={600}
+          height={250}
+        />
+        {isPast && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+            <span className="rounded-full border border-white/30 bg-white/20 px-4 py-1 text-sm font-bold text-white backdrop-blur-md">
+              Concluded
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="p-5">
+        <div className="flex items-center justify-between">
+          <p
+            className={cn(
+              "text-sm font-semibold",
+              isPast ? "text-gray-500" : "text-green-600",
+            )}
+          >
+            {event.isPublic ? "Public Event" : "Private Event"}
+          </p>
+          {!event.isPublic && (
+            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+              Private
+            </span>
+          )}
+        </div>
+
+        <h3 className="mt-1 text-xl font-bold transition-colors group-hover:text-pink-600">
+          {event.title}
+        </h3>
+
+        {/* UPDATED DATE DISPLAY */}
+        <p className="mt-1 text-sm text-gray-500">
+          {formatEventDate(event.startDate, event.endDate)}
+        </p>
+
+        {wishlistCount > 0 && (
+          <div className="mt-6 flex items-center justify-between rounded-lg bg-gray-50 p-4 transition-colors group-hover:bg-pink-50/30">
+            <div className="flex items-center gap-3">
+              <Gift className="h-8 w-8 text-pink-500" />
+              <div>
+                <p className="font-semibold">Event Wishlist</p>
+                <p className="text-sm text-gray-500">{wishlistCount} items</p>
+              </div>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/wishlist/${event.id}`);
+              }}
+              className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-800 transition-colors hover:border-pink-600 hover:bg-pink-600 hover:text-white"
+            >
+              View List
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { api } from "@/trpc/react";
 import { Loader2 } from "lucide-react";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -17,10 +17,10 @@ import LocationSearchInput, {
 } from "@/components/ui/LocationSearchInput";
 
 type routerOutput = inferRouterOutputs<AppRouter>;
-type event = routerOutput["event"]["getById"];
+type Event = routerOutput["event"]["getById"];
 
 interface EditEventModalProps {
-  event: event;
+  event: Event;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -35,6 +35,23 @@ export const EditEventModal = ({
     (event.location as unknown as LocationSearchResult) ?? null,
   );
 
+  // Use controlled state for dates to handle validation logic
+  const [startDate, setStartDate] = useState(
+    new Date(event.startDate).toISOString().split("T")[0]
+  );
+  const [endDate, setEndDate] = useState(
+    new Date(event.endDate).toISOString().split("T")[0]
+  );
+
+  // Sync state if event prop changes (e.g. re-opening modal)
+  useEffect(() => {
+    if (isOpen) {
+      setStartDate(new Date(event.startDate).toISOString().split("T")[0]);
+      setEndDate(new Date(event.endDate).toISOString().split("T")[0]);
+      setLocation((event.location as unknown as LocationSearchResult) ?? null);
+    }
+  }, [isOpen, event]);
+
   const updateEvent = api.event.update.useMutation({
     onSuccess: () => {
       void utils.event.getById.invalidate({ id: event.id });
@@ -42,30 +59,42 @@ export const EditEventModal = ({
     },
   });
 
+  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newStart = e.target.value;
+    setStartDate(newStart);
+    
+    // If new start date is after current end date, push end date forward
+    if (newStart > endDate) {
+      setEndDate(newStart);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const title = (form.elements.namedItem("eventName") as HTMLInputElement)
       ?.value;
-    const dateString = (
-      form.elements.namedItem("eventDate") as HTMLInputElement
-    )?.value;
+
+    if (!title || !startDate || !endDate) return;
 
     updateEvent.mutate({
       id: event.id,
       title,
-      date: new Date(dateString),
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
       location,
     });
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Edit Event</DialogTitle>
+          <DialogTitle>Edit Event Details</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
+          
+          {/* Title */}
           <div>
             <label
               htmlFor="eventName"
@@ -82,23 +111,49 @@ export const EditEventModal = ({
               required
             />
           </div>
-          <div>
-            <label
-              htmlFor="eventDate"
-              className="mb-1 block text-sm font-semibold text-gray-700"
-            >
-              Event Date
-            </label>
-            <input
-              type="date"
-              id="eventDate"
-              name="eventDate"
-              defaultValue={new Date(event.date).toISOString().split("T")[0]}
-              min={new Date().toISOString().split("T")[0]}
-              className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
-              required
-            />
+
+          {/* Date Range */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="startDate"
+                className="mb-1 block text-sm font-semibold text-gray-700"
+              >
+                Start Date
+              </label>
+              <input
+                type="date"
+                id="startDate"
+                name="startDate"
+                value={startDate}
+                onChange={handleStartDateChange}
+                // Optional: prevent picking past dates?
+                // min={new Date().toISOString().split("T")[0]} 
+                className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
+                required
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="endDate"
+                className="mb-1 block text-sm font-semibold text-gray-700"
+              >
+                End Date
+              </label>
+              <input
+                type="date"
+                id="endDate"
+                name="endDate"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate} // Constraint: End date cannot be before start date
+                className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
+                required
+              />
+            </div>
           </div>
+
+          {/* Location */}
           <div>
             <label
               htmlFor="eventLocation"
@@ -113,7 +168,7 @@ export const EditEventModal = ({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end border-t border-gray-200 pt-4">
+          <div className="flex items-center justify-end border-t border-gray-200 pt-4 mt-2">
             <Button
               type="button"
               variant="ghost"
@@ -125,7 +180,7 @@ export const EditEventModal = ({
             <Button
               type="submit"
               disabled={updateEvent.isPending}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white"
             >
               {updateEvent.isPending && (
                 <Loader2 className="h-4 w-4 animate-spin" />
