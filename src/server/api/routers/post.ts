@@ -8,31 +8,43 @@ import { AssetType } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 
 export const postRouter = createTRPCRouter({
+  // --- 1. CREATE POST ---
   create: protectedProcedure
     .input(
       z.object({
-        caption: z.string().optional(),
-        assets: z.array(
-          z.object({
-            url: z.string().url(),
-            type: z.nativeEnum(AssetType),
-            order: z.number().int(),
-          }),
-        ),
+        caption: z
+          .string()
+          .max(2200, "Caption cannot exceed 2200 characters")
+          .optional(),
+        assets: z
+          .array(
+            z.object({
+              url: z.string().url(),
+              type: z.nativeEnum(AssetType),
+              order: z.number().int(),
+            }),
+          )
+          .min(1, "A post must have at least one asset.")
+          .max(10, "You cannot upload more than 10 assets per post."),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const { caption, assets } = input;
       const authorId = ctx.user.id;
 
-      if (assets.length === 0) {
+      // Rate Limit: Count existing posts
+      const currentPostCount = await ctx.db.post.count({
+        where: { authorId },
+      });
+
+      if (currentPostCount >= 10) {
         throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "A post must have at least one asset.",
+          code: "FORBIDDEN",
+          message: "You have reached the maximum limit of 10 posts.",
         });
       }
 
-      const post = await ctx.db.post.create({
+      return ctx.db.post.create({
         data: {
           authorId,
           caption,
@@ -43,10 +55,99 @@ export const postRouter = createTRPCRouter({
           },
         },
       });
-
-      return post;
     }),
 
+  // --- 2. GET FEED (Main Timeline) ---
+  getFeed: publicProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        cursor: z.string().nullish(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { limit, cursor } = input;
+      const { user } = ctx;
+
+      // Exclude blocked users
+      let excludedAuthorIds: string[] = [];
+      if (user) {
+        const blocks = await ctx.db.block.findMany({
+          where: {
+            OR: [{ blockerId: user.id }, { blockedId: user.id }],
+          },
+          select: { blockerId: true, blockedId: true },
+        });
+        excludedAuthorIds = blocks
+          .flatMap((b) => [b.blockerId, b.blockedId])
+          .filter((id) => id !== user.id);
+      }
+
+      const posts = await ctx.db.post.findMany({
+        take: limit + 1,
+        cursor: cursor ? { id: cursor } : undefined,
+        orderBy: { createdAt: "desc" },
+        where: {
+          authorId: { notIn: excludedAuthorIds },
+        },
+        include: {
+          assets: { orderBy: { order: "asc" } },
+          author: {
+            select: {
+              id: true,
+              username: true,
+              clientProfile: true,
+              vendorProfile: true,
+              role: true,
+            },
+          },
+          _count: {
+            select: { likes: true, comments: true },
+          },
+        },
+      });
+
+      let nextCursor: string | undefined = undefined;
+      if (posts.length > limit) {
+        const nextItem = posts.pop();
+        nextCursor = nextItem!.id;
+      }
+
+      // Append viewer state (liked/bookmarked)
+      let postsWithState = posts.map((post) => ({
+        ...post,
+        viewer: { hasLiked: false, hasBookmarked: false },
+      }));
+
+      if (user) {
+        const postIds = posts.map((p) => p.id);
+        const [likes, bookmarks] = await Promise.all([
+          ctx.db.postLike.findMany({
+            where: { userId: user.id, postId: { in: postIds } },
+            select: { postId: true },
+          }),
+          ctx.db.postBookmark.findMany({
+            where: { userId: user.id, postId: { in: postIds } },
+            select: { postId: true },
+          }),
+        ]);
+
+        const likedSet = new Set(likes.map((l) => l.postId));
+        const bookmarkedSet = new Set(bookmarks.map((b) => b.postId));
+
+        postsWithState = posts.map((post) => ({
+          ...post,
+          viewer: {
+            hasLiked: likedSet.has(post.id),
+            hasBookmarked: bookmarkedSet.has(post.id),
+          },
+        }));
+      }
+
+      return { items: postsWithState, nextCursor };
+    }),
+
+  // --- 3. GET FOR USER PROFILE ---
   getForUser: publicProcedure
     .input(z.object({ username: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -70,6 +171,7 @@ export const postRouter = createTRPCRouter({
       });
     }),
 
+  // --- 4. GET TRENDING ---
   getTrending: publicProcedure
     .input(z.object({ cursor: z.string().nullish() }).optional())
     .query(async ({ ctx, input }) => {
@@ -94,7 +196,7 @@ export const postRouter = createTRPCRouter({
         where: {
           caption: {
             not: null,
-            contains: "#trending",
+            contains: "#trending", // Simple logic for now
             mode: "insensitive",
           },
           authorId: { notIn: excludedAuthorIds },
@@ -114,6 +216,7 @@ export const postRouter = createTRPCRouter({
           },
         },
       });
+
       let nextCursor: string | undefined = undefined;
       if (posts.length > limit) {
         const nextItem = posts.pop();
@@ -122,6 +225,7 @@ export const postRouter = createTRPCRouter({
       return { posts, nextCursor };
     }),
 
+  // --- 5. GET SINGLE POST (With Viewer State) ---
   getById: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
@@ -184,6 +288,7 @@ export const postRouter = createTRPCRouter({
       return { ...post, viewer };
     }),
 
+  // --- 6. INTERACTIONS ---
   like: protectedProcedure
     .input(z.object({ postId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -239,6 +344,26 @@ export const postRouter = createTRPCRouter({
       });
     }),
 
+  deleteComment: protectedProcedure
+    .input(z.object({ commentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { commentId } = input;
+      const userId = ctx.user.id;
+
+      const comment = await ctx.db.postComment.findUnique({
+        where: { id: commentId },
+      });
+
+      if (!comment) throw new TRPCError({ code: "NOT_FOUND" });
+      if (comment.authorId !== userId) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      return ctx.db.postComment.delete({
+        where: { id: commentId },
+      });
+    }),
+
   bookmark: protectedProcedure
     .input(z.object({ postId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -272,6 +397,7 @@ export const postRouter = createTRPCRouter({
       });
     }),
 
+  // --- 7. MANAGEMENT ---
   delete: protectedProcedure
     .input(z.object({ postId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -319,13 +445,8 @@ export const postRouter = createTRPCRouter({
         select: { authorId: true },
       });
 
-      if (!post) {
-        throw new TRPCError({ code: "NOT_FOUND" });
-      }
-
-      if (post.authorId !== userId) {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
+      if (!post) throw new TRPCError({ code: "NOT_FOUND" });
+      if (post.authorId !== userId) throw new TRPCError({ code: "FORBIDDEN" });
 
       if (assets.length === 0) {
         throw new TRPCError({
@@ -335,6 +456,7 @@ export const postRouter = createTRPCRouter({
       }
 
       return ctx.db.$transaction(async (prisma) => {
+        // Replace assets by deleting old ones and re-creating
         await prisma.postAsset.deleteMany({
           where: { postId },
         });

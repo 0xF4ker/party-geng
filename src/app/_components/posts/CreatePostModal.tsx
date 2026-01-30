@@ -1,312 +1,374 @@
 "use client";
 
-import { useCallback, useState, useRef } from "react";
-import { useDropzone } from "react-dropzone";
-import { Loader2, X, ImagePlus } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
-import Image from "next/image";
-import { toast } from "sonner";
-import type { inferRouterOutputs } from "@trpc/server";
-import type { AppRouter } from "@/server/api/root";
-
+import React, { useEffect, useState } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { api } from "@/trpc/react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { useCreatePostModal, type PostShape } from "@/stores/createPostModal";
-import { useUpload } from "@/hooks/useUpload";
-import { api } from "@/trpc/react";
-import type { AssetType } from "@prisma/client";
-import { useAuth } from "@/hooks/useAuth";
+import { Loader2, ImagePlus, X, AlertCircle } from "lucide-react";
+import Image from "next/image";
+import { toast } from "sonner";
+import { AssetType } from "@prisma/client";
 import { cn } from "@/lib/utils";
+import { useCreatePostModal } from "@/stores/createPostModal";
+import { uploadPostAsset } from "@/lib/supabase-upload";
+import { useAuthStore } from "@/stores/auth";
+import { createClient } from "@/utils/supabase/client";
 
-type Post = inferRouterOutputs<AppRouter>["post"]["getById"];
+// --- VALIDATION SCHEMA ---
+const createPostSchema = z.object({
+  caption: z
+    .string()
+    .max(2200, "Caption cannot exceed 2200 characters")
+    .optional(),
+  assets: z
+    .array(
+      z.object({
+        url: z.string().url(),
+        type: z.nativeEnum(AssetType),
+        order: z.number().int(),
+      }),
+    )
+    .min(1, "Please add at least one photo or video.")
+    .max(10, "You can only upload up to 10 items."),
+});
 
-type AssetPreview = {
-  key: string;
-  url: string;
-  file?: File;
-  isNew: boolean;
-};
+type CreatePostFormValues = z.infer<typeof createPostSchema>;
 
-// --- INNER COMPONENT: Handles Form Logic ---
-const CreatePostForm = ({
-  onClose,
-  postToEdit,
-}: {
-  onClose: () => void;
-  postToEdit: PostShape | null;
-}) => {
-  const { user } = useAuth();
-  const { upload, isLoading: isUploading } = useUpload();
+export const CreatePostModal = () => {
+  const { isOpen, onClose, postToEdit } = useCreatePostModal();
+
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0); // Optional: Track X/Y files
   const utils = api.useUtils();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isEditing = !!postToEdit;
+  const { profile } = useAuthStore();
+  const userId = profile?.id;
 
-  // FIX: Initialize state directly from props.
-  // Because we use a 'key' on the parent, this component re-mounts fresh
-  // whenever postToEdit changes, so we don't need a useEffect to sync.
-  const [caption, setCaption] = useState<string>(postToEdit?.caption ?? "");
+  const supabase = createClient();
 
-  const [assets, setAssets] = useState<AssetPreview[]>(() => {
-    if (postToEdit?.assets) {
-      return postToEdit.assets.map((asset) => ({
-        key: asset.id,
-        url: asset.url,
-        isNew: false,
-      }));
-    }
-    return [];
+  const {
+    register,
+    control,
+    handleSubmit,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<CreatePostFormValues>({
+    resolver: zodResolver(createPostSchema),
+    defaultValues: {
+      caption: "",
+      assets: [],
+    },
   });
 
-  const createPostMutation = api.post.create.useMutation({
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "assets",
+  });
+
+  const captionValue = watch("caption") ?? "";
+
+  // Sync Form with Store
+  useEffect(() => {
+    if (isOpen) {
+      if (postToEdit) {
+        reset({
+          caption: postToEdit.caption ?? "",
+          assets: postToEdit.assets.map((a) => ({
+            url: a.url,
+            type: a.type,
+            order: a.order,
+          })),
+        });
+      } else {
+        reset({ caption: "", assets: [] });
+      }
+    }
+  }, [isOpen, postToEdit, reset]);
+
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
+
+  // --- TRPC MUTATIONS ---
+  const createPost = api.post.create.useMutation({
     onSuccess: () => {
       toast.success("Post created successfully!");
-      onClose();
-      void utils.post.getTrending.invalidate();
-      if (user?.username) {
-        void utils.post.getForUser.invalidate({ username: user.username });
-      }
+      handleClose();
+      void utils.post.getFeed.invalidate();
     },
-    onError: (error) => {
-      toast.error("Failed to create post", { description: error.message });
-    },
+    onError: (err) => toast.error(err.message),
   });
 
-  const updatePostMutation = api.post.update.useMutation({
+  const updatePost = api.post.update.useMutation({
     onSuccess: () => {
       toast.success("Post updated successfully!");
-      onClose();
+      handleClose();
+      void utils.post.getFeed.invalidate();
       if (postToEdit) {
         void utils.post.getById.invalidate({ id: postToEdit.id });
       }
-      void utils.post.getTrending.invalidate();
-      if (user?.username) {
-        void utils.post.getForUser.invalidate({ username: user.username });
-      }
     },
-    onError: (error) => {
-      toast.error("Failed to update post", { description: error.message });
-    },
+    onError: (err) => toast.error(err.message),
   });
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles = acceptedFiles.map((file) => ({
-      key: file.name + Date.now(),
-      file,
-      url: URL.createObjectURL(file),
-      isNew: true,
+  // --- REAL SUPABASE UPLOAD ---
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (!userId) {
+      toast.error("You must be logged in to upload.");
+      return;
+    }
+
+    if (fields.length + files.length > 10) {
+      toast.error("You can only have up to 10 items in a post.");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const fileArray = Array.from(files);
+      const uploadPromises = fileArray.map(async (file, index) => {
+        try {
+          const result = await uploadPostAsset(file, userId, supabase);
+          // Update progress purely for visual feedback logic if needed
+          setUploadProgress((prev) => prev + 1);
+          return {
+            ...result,
+            order: fields.length + index,
+          };
+        } catch (error) {
+          toast.error(`Failed to upload ${file.name}`);
+          return null;
+        }
+      });
+
+      const results = await Promise.all(uploadPromises);
+
+      // Filter out failed uploads (nulls)
+      const successfulUploads = results.filter(
+        (res): res is NonNullable<typeof res> => res !== null,
+      );
+
+      if (successfulUploads.length > 0) {
+        append(successfulUploads);
+      }
+    } catch (error) {
+      toast.error("An error occurred during upload.");
+    } finally {
+      setIsUploading(false);
+      e.target.value = ""; // Reset input
+    }
+  };
+
+  const onSubmit = (data: CreatePostFormValues) => {
+    const orderedAssets = data.assets.map((asset, index) => ({
+      ...asset,
+      order: index,
     }));
-    setAssets((prev) => [...prev, ...newFiles].slice(0, 4));
-  }, []);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp"],
-      "video/*": [".mp4", ".webm"],
-    },
-    noClick: true,
-    noKeyboard: true,
-  });
-
-  const removeAsset = (keyToRemove: string) => {
-    setAssets((prev) => prev.filter((a) => a.key !== keyToRemove));
-  };
-
-  const handleIconClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleSubmit = async () => {
-    if (assets.length === 0 && !caption.trim()) {
-      toast.error("Please add some content to your post.");
-      return;
-    }
-
-    const finalAssets: { url: string; type: AssetType; order: number }[] = [];
-    let order = 0;
-
-    for (const asset of assets) {
-      if (asset.isNew && asset.file) {
-        const publicUrl = await upload(asset.file, "posts");
-        if (publicUrl) {
-          finalAssets.push({
-            url: publicUrl,
-            type: asset.file.type.startsWith("image") ? "IMAGE" : "VIDEO",
-            order: order++,
-          });
-        } else {
-          toast.error(`Failed to upload ${asset.file.name}`);
-          return;
-        }
-      } else if (!asset.isNew) {
-        const originalAsset = postToEdit?.assets.find(
-          (a) => a.id === asset.key,
-        );
-        if (originalAsset) {
-          finalAssets.push({
-            url: asset.url,
-            type: originalAsset.type,
-            order: order++,
-          });
-        }
-      }
-    }
-
-    if (finalAssets.length === 0 && !caption.trim()) {
-      toast.error("Cannot create an empty post.");
-      return;
-    }
-
-    if (isEditing && postToEdit) {
-      updatePostMutation.mutate({
+    if (postToEdit) {
+      updatePost.mutate({
         postId: postToEdit.id,
-        caption,
-        assets: finalAssets,
+        caption: data.caption,
+        assets: orderedAssets,
       });
     } else {
-      createPostMutation.mutate({ caption, assets: finalAssets });
+      createPost.mutate({
+        caption: data.caption,
+        assets: orderedAssets,
+      });
     }
   };
 
   const isLoading =
-    isUploading || createPostMutation.isPending || updatePostMutation.isPending;
+    createPost.isPending || updatePost.isPending || isSubmitting;
 
   return (
-    <div
-      {...getRootProps()}
-      className={cn(
-        "rounded-lg border-2 border-dashed p-4",
-        isDragActive ? "border-pink-500" : "border-transparent",
-      )}
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => !open && !isLoading && handleClose()}
     >
-      <input {...getInputProps()} ref={fileInputRef} />
-      <div className="flex gap-4">
-        <Image
-          src={
-            user?.clientProfile?.avatarUrl ??
-            user?.vendorProfile?.avatarUrl ??
-            "/default-avatar.png"
-          }
-          alt="author"
-          width={40}
-          height={40}
-          className="h-10 w-10 rounded-full"
-        />
-        <Textarea
-          placeholder="What's happening?"
-          value={caption}
-          onChange={(e) => setCaption(e.target.value)}
-          className="h-24 resize-none border-none text-lg shadow-none focus-visible:ring-0"
-          maxLength={280}
-        />
-      </div>
-
-      <AnimatePresence>
-        {assets.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className={cn("mt-4 grid gap-2", {
-              "grid-cols-2": assets.length > 1,
-              "grid-cols-1": assets.length === 1,
-            })}
-          >
-            {assets.map((asset) => (
-              <div
-                key={asset.key}
-                className="relative aspect-video overflow-hidden rounded-lg"
-              >
-                {asset.url.startsWith("blob:") ||
-                (asset.file?.type.startsWith("image") ??
-                  (!asset.file &&
-                    /\.(jpeg|jpg|gif|png|webp)$/i.test(asset.url))) ? (
-                  <Image
-                    src={asset.url}
-                    alt="preview"
-                    fill
-                    className="object-cover"
-                  />
-                ) : (
-                  <video
-                    src={asset.url}
-                    controls
-                    className="h-full w-full object-cover"
-                  />
-                )}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeAsset(asset.key);
-                  }}
-                  className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="mt-4 flex items-center justify-between">
-        <Button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleIconClick();
-          }}
-          variant="ghost"
-          size="icon"
-          className="text-pink-500 hover:text-pink-600"
-        >
-          <ImagePlus />
-        </Button>
-        <div className="flex items-center gap-4">
-          <p className="text-sm text-gray-500">{caption.length} / 280</p>
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              void handleSubmit();
-            }}
-            disabled={isLoading || (!caption.trim() && assets.length === 0)}
-          >
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEditing ? "Save Changes" : "Post"}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- MAIN COMPONENT: Wrapper ---
-export const CreatePostModal = () => {
-  const { isOpen, onClose, postToEdit } = useCreatePostModal();
-
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="z-100 max-h-[90vh] w-full max-w-xl overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>
-            {postToEdit ? "Edit Post" : "Create a new post"}
+          <DialogTitle className="text-center text-xl font-bold">
+            {postToEdit ? "Edit Post" : "Create New Post"}
           </DialogTitle>
         </DialogHeader>
-        {/* FIX: The 'key' prop here forces React to destroy and recreate the form 
-          whenever we switch between creating a new post or editing a different one.
-          This cleanly resets the state inside CreatePostForm without useEffects.
-        */}
-        <CreatePostForm
-          key={postToEdit?.id ?? "create-new"}
-          onClose={onClose}
-          postToEdit={postToEdit}
-        />
+
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-6">
+          {/* --- ASSET GRID --- */}
+          <div className="space-y-2">
+            <div
+              className={cn(
+                "grid gap-4 transition-all",
+                fields.length === 0
+                  ? "grid-cols-1"
+                  : fields.length === 1
+                    ? "grid-cols-1"
+                    : "grid-cols-2 sm:grid-cols-3",
+              )}
+            >
+              {fields.map((field, index) => (
+                <div
+                  key={field.id}
+                  className="group relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
+                >
+                  {field.type === "IMAGE" ? (
+                    <Image
+                      src={field.url}
+                      alt={`Upload ${index + 1}`}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <video
+                      src={field.url}
+                      className="h-full w-full object-cover"
+                      controls={false} // Hide native controls for preview
+                      muted
+                      playsInline
+                    />
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => remove(index)}
+                    className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white opacity-0 backdrop-blur-sm transition-colors group-hover:opacity-100 hover:bg-red-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+
+                  <div className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
+                    {index + 1}
+                  </div>
+                </div>
+              ))}
+
+              {/* UPLOAD BUTTON / DROPZONE */}
+              {fields.length < 10 && (
+                <label
+                  className={cn(
+                    "flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 text-gray-500 transition-colors hover:border-gray-400 hover:bg-gray-100 hover:text-gray-600",
+                    fields.length === 0
+                      ? "aspect-video w-full py-12"
+                      : "aspect-square",
+                    isUploading && "cursor-not-allowed opacity-75",
+                  )}
+                >
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    {isUploading ? (
+                      <div className="flex flex-col items-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+                        <p className="mt-2 text-xs font-medium text-gray-500">
+                          Uploading...
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="mb-3 rounded-full bg-gray-200 p-3 transition-colors group-hover:bg-gray-300">
+                          <ImagePlus className="h-6 w-6 text-gray-600" />
+                        </div>
+                        <p className="text-sm font-semibold">
+                          {fields.length === 0
+                            ? "Add Photos/Video"
+                            : "Add More"}
+                        </p>
+                        {fields.length === 0 && (
+                          <p className="mt-1 text-xs text-gray-400">
+                            Max 10 files
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    multiple
+                    accept="image/*,video/*"
+                    onChange={handleFileSelect}
+                    disabled={isUploading}
+                  />
+                </label>
+              )}
+            </div>
+            {errors.assets && (
+              <div className="flex items-center gap-2 text-sm font-medium text-red-500">
+                <AlertCircle className="h-4 w-4" />
+                {errors.assets.message}
+              </div>
+            )}
+          </div>
+
+          {/* --- CAPTION --- */}
+          <div className="space-y-2">
+            <div className="relative">
+              <Textarea
+                {...register("caption")}
+                placeholder="Write a caption..."
+                className="scrollbar-thin min-h-[120px] resize-y border-gray-200 pr-2 pb-8 text-base leading-relaxed focus:ring-pink-500"
+                disabled={isLoading}
+              />
+              <div className="pointer-events-none absolute right-3 bottom-2 bg-white px-1 text-xs font-medium text-gray-400">
+                <span
+                  className={cn(
+                    captionValue.length > 2200
+                      ? "font-bold text-red-500"
+                      : "text-gray-600",
+                  )}
+                >
+                  {captionValue.length.toLocaleString()}
+                </span>
+                /2,200
+              </div>
+            </div>
+            {errors.caption && (
+              <p className="text-sm text-red-500">{errors.caption.message}</p>
+            )}
+          </div>
+
+          {/* --- FOOTER --- */}
+          <div className="flex items-center justify-end border-t border-gray-100 pt-4">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleClose}
+              disabled={isLoading}
+              className="mr-2"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isLoading || isUploading || fields.length === 0}
+              className="w-full min-w-[120px] bg-pink-600 font-semibold text-white hover:bg-pink-700 sm:w-auto"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
+                  {postToEdit ? "Updating..." : "Posting..."}
+                </>
+              ) : (
+                <>{postToEdit ? "Save Changes" : "Share"}</>
+              )}
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
