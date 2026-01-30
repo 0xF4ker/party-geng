@@ -546,6 +546,22 @@ const VendorProfileHeader = ({
             </div>
           </div>
 
+          {/* ABOUT DISPLAY */}
+          <div className="mt-6 border-t border-gray-100 pt-6">
+            <h3 className="mb-2 text-lg font-semibold text-gray-900">About</h3>
+            {vendorProfile?.about ? (
+              <p className="max-w-3xl text-sm leading-relaxed whitespace-pre-wrap text-gray-700">
+                {vendorProfile.about}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-400 italic">
+                {isOwnProfile
+                  ? "Describe your business in settings to help clients find you."
+                  : "This vendor hasn't provided a description yet."}
+              </p>
+            )}
+          </div>
+
           {/* Stats */}
           <div className="mt-6 border-t border-gray-200 pt-4">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-500">

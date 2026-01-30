@@ -553,14 +553,21 @@ const ProfileHeader = ({
               {clientProfile?.name ?? profileUser.username ?? "Client"}
             </h1>
             <p className="text-sm text-gray-500">@{profileUser.username}</p>
-            {/* Removed Verified Client Badge */}
           </div>
 
-          <div className="mt-4 max-w-2xl text-sm text-gray-800">
-            <p>
-              {clientProfile?.bio ??
-                "Event enthusiast and planner. Creating memorable experiences since 2020. Let's connect and make magic happen!"}
-            </p>
+          {/* BIO DISPLAY */}
+          <div className="mt-4 max-w-2xl">
+            {clientProfile?.bio ? (
+              <p className="text-sm leading-relaxed whitespace-pre-wrap text-gray-800">
+                {clientProfile.bio}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-400 italic">
+                {isOwnProfile
+                  ? "You haven't written a bio yet. Go to settings to add one!"
+                  : "No bio provided."}
+              </p>
+            )}
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">

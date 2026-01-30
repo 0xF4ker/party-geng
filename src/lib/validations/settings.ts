@@ -8,26 +8,52 @@ export const profileUpdateSchema = z.object({
     .max(30, "Username must be less than 30 characters")
     .regex(
       /^[a-zA-Z0-9_]+$/,
-      "Username can only contain letters, numbers, and underscores"
+      "Username can only contain letters, numbers, and underscores",
     ),
   // Client fields
-  name: z.string().min(2, "Name must be at least 2 characters").max(100).optional(),
+  name: z
+    .string()
+    .min(2, "Name must be at least 2 characters")
+    .max(100)
+    .optional(),
+  bio: z.string().max(500, "Bio must be less than 500 characters").optional(),
   // Vendor fields
-  companyName: z.string().min(2, "Company name must be at least 2 characters").max(100).optional(),
-  title: z.string().max(200, "Title must be less than 200 characters").optional(),
-  about: z.string().max(5000, "About must be less than 5000 characters").optional(),
+  companyName: z
+    .string()
+    .min(2, "Company name must be at least 2 characters")
+    .max(100)
+    .optional(),
+  title: z
+    .string()
+    .max(200, "Title must be less than 200 characters")
+    .optional(),
+  about: z
+    .string()
+    .max(5000, "About must be less than 5000 characters")
+    .optional(),
   location: z.any().optional(),
   skills: z.array(z.string()).optional(),
   languages: z.array(z.string()).optional(),
-  avatarUrl: z.union([z.string().url("Invalid image URL"), z.literal(""), z.null(), z.undefined()]).optional(),
+  avatarUrl: z
+    .union([
+      z.string().url("Invalid image URL"),
+      z.literal(""),
+      z.null(),
+      z.undefined(),
+    ])
+    .optional(),
 });
 
 // Password update schema
 export const passwordUpdateSchema = z
   .object({
-    currentPassword: z.string().min(6, "Password must be at least 6 characters"),
+    currentPassword: z
+      .string()
+      .min(6, "Password must be at least 6 characters"),
     newPassword: z.string().min(6, "Password must be at least 6 characters"),
-    confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z
+      .string()
+      .min(6, "Password must be at least 6 characters"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords do not match",

@@ -34,6 +34,8 @@ import AccountActions from "./_components/AccountActions";
 import LocationSearchInput, {
   type LocationSearchResult,
 } from "@/components/ui/LocationSearchInput";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 // Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
@@ -572,9 +574,6 @@ const SkillsInput: React.FC<{
 
 const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   const { profile } = useAuthStore();
-  const [skills, setSkills] = useState<string[]>(
-    profile?.vendorProfile?.skills ?? ["Wedding DJ", "MC"],
-  );
 
   const [selectedLocation, setSelectedLocation] =
     useState<LocationSearchResult | null>(() => {
@@ -615,7 +614,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
         ? vendorProfile?.location
         : clientProfile?.location;
 
-      const commonData: Partial<z.infer<typeof profileUpdateSchema>> = {
+      const commonData = {
         username: profile.username ?? "",
         avatarUrl: isVendor
           ? (vendorProfile?.avatarUrl ?? null)
@@ -634,14 +633,10 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
           }
         : {
             name: clientProfile?.name ?? "",
+            bio: clientProfile?.bio ?? "", // Load Client Bio
           };
 
-      const data: Partial<z.infer<typeof profileUpdateSchema>> = {
-        ...commonData,
-        ...specificData,
-      };
-
-      reset(data);
+      reset({ ...commonData, ...specificData });
     }
   }, [profile, isVendor, reset]);
 
@@ -655,7 +650,8 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   });
 
   const onSubmit = (data: z.infer<typeof profileUpdateSchema>) => {
-    const filteredData = isVendor
+    // Filter data based on role to avoid sending empty fields for the wrong profile type
+    const payload = isVendor
       ? {
           username: data.username,
           avatarUrl: data.avatarUrl,
@@ -669,11 +665,12 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
       : {
           username: data.username,
           name: data.name,
+          bio: data.bio,
           avatarUrl: data.avatarUrl,
           location: selectedLocation,
         };
 
-    updateProfile.mutate(filteredData);
+    updateProfile.mutate(payload);
   };
 
   return (
@@ -684,7 +681,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
       <div className="border-b border-gray-200 p-6">
         <h2 className="text-xl font-semibold">Public Profile</h2>
         <p className="mt-1 text-sm text-gray-500">
-          This information will be visible on your public profile.
+          This information will be visible on your public profile page.
         </p>
       </div>
       <div className="space-y-6 p-6">
@@ -712,22 +709,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
           )}
         </div>
 
-        {!isVendor && (
-          <div>
-            <FormInput
-              label="Full Name"
-              id="clientName"
-              placeholder="Adebayo Popoola"
-              {...register("name")}
-            />
-            {errors.name && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.name.message!}
-              </p>
-            )}
-          </div>
-        )}
-
         <div>
           <label
             htmlFor="location"
@@ -742,80 +723,90 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
               setValue("location", loc.display_name, { shouldValidate: true });
             }}
           />
-          {errors.location && (
-            <p className="mt-1 text-sm text-red-600">
-              {typeof errors.location.message === "string"
-                ? errors.location.message
-                : "Invalid Location Data"}
-            </p>
-          )}
         </div>
 
+        {/* --- CLIENT FIELDS --- */}
+        {!isVendor && (
+          <>
+            <div>
+              <FormInput
+                label="Full Name"
+                id="clientName"
+                placeholder="Adebayo Popoola"
+                {...register("name")}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="bio"
+                className="text-sm font-semibold text-gray-700"
+              >
+                Bio
+              </Label>
+              <Textarea
+                id="bio"
+                placeholder="Tell vendors a bit about yourself (e.g., 'Event enthusiast', 'Music lover')..."
+                className="h-32 resize-none"
+                {...register("bio")}
+              />
+              <p className="text-right text-xs text-gray-500">Max 500 chars</p>
+              {errors.bio && (
+                <p className="text-sm text-red-600">{errors.bio.message!}</p>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* --- VENDOR FIELDS --- */}
         {isVendor && (
           <>
             <div>
-              {/* Company Name - Read Only / Greyed Out */}
               <FormInput
                 label="Company Name"
                 id="companyName"
                 placeholder="DJ SpinMaster Entertainment"
                 {...register("companyName")}
                 readOnly
-                // bg-gray-100 makes it grey, cursor-not-allowed shows restriction
-                className="cursor-not-allowed border-gray-200 bg-gray-100 text-gray-500 focus:border-gray-200 focus:ring-0"
+                className="cursor-not-allowed border-gray-200 bg-gray-100 text-gray-500 focus:ring-0"
               />
               <p className="mt-1.5 text-xs text-gray-400">
-                To change your business name, please contact support.
+                Verified business name. Contact support to change.
               </p>
-
-              {errors.companyName && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.companyName.message!}
-                </p>
-              )}
             </div>
 
             <div>
               <FormInput
-                label="Title"
+                label="Professional Title"
                 id="title"
                 placeholder="Professional Wedding & Event DJ"
                 {...register("title")}
               />
-              {errors.title && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.title.message!}
-                </p>
-              )}
             </div>
-            <div>
-              <label
-                htmlFor="aboutMe"
-                className="mb-2 block text-sm font-semibold text-gray-700"
+
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="about"
+                className="text-sm font-semibold text-gray-700"
               >
-                About Me
-              </label>
-              <textarea
-                id="aboutMe"
-                rows={5}
-                className="w-full rounded-md border border-gray-300 p-3 focus:ring-1 focus:ring-pink-500 focus:outline-pink-500"
-                placeholder="Tell clients a bit about yourself and your services..."
+                About Business
+              </Label>
+              <Textarea
+                id="about"
+                placeholder="Describe your services, experience, and what makes you unique..."
+                className="h-40"
                 {...register("about")}
-              ></textarea>
+              />
+              <p className="text-right text-xs text-gray-500">Max 1000 chars</p>
               {errors.about && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.about.message!}
-                </p>
+                <p className="text-sm text-red-600">{errors.about.message!}</p>
               )}
             </div>
 
-            {/* Assuming SkillsInput is available via import or props if needed */}
-            {/* <SkillsInput skills={skills} setSkills={setSkills} /> */}
-
             <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">
-                Languages
-              </label>
+              <Label className="mb-2 block text-sm font-semibold text-gray-700">
+                Languages Spoken
+              </Label>
               <div className="mb-2 flex flex-wrap gap-2">
                 {(profile?.vendorProfile?.languages ?? []).map((lang) => (
                   <span

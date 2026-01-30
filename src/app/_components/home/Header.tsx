@@ -313,7 +313,7 @@ const Header = () => {
 
                   {/* Dropdown Menu */}
                   {isProfileDropdownOpen && (
-                    <div className="absolute top-full right-0 mt-2 w-56 origin-top-right rounded-xl border border-gray-100 bg-white shadow-lg ring-1 ring-black/5 focus:outline-none">
+                    <div className="absolute top-full right-0 z-50 mt-2 w-56 origin-top-right rounded-xl border border-gray-100 bg-white shadow-lg ring-1 ring-black/5 focus:outline-none">
                       <div className="border-b border-gray-100 px-4 py-3">
                         <p className="truncate text-sm font-medium text-gray-900">
                           {displayName}
