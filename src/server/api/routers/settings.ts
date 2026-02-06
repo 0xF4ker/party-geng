@@ -29,6 +29,7 @@ export const settingsRouter = createTRPCRouter({
         name: z.string().min(2).max(100).optional(),
         username: z.string().min(3).max(30).optional(),
         avatarUrl: z.string().url().optional().nullable(),
+        bio: z.string().max(500).optional(),
         // Vendor-specific fields
         companyName: z.string().min(2).max(100).optional(),
         title: z.string().max(200).optional(),
@@ -102,6 +103,7 @@ export const settingsRouter = createTRPCRouter({
             name: input.name,
             avatarUrl: input.avatarUrl,
             location: locationData,
+            bio: input.bio,
           },
         });
       }
