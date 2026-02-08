@@ -6,13 +6,11 @@ import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // FIX: Use selectors to get actions.
-  // This prevents the component from re-rendering when the store state changes.
   const setProfile = useAuthStore((state) => state.setProfile);
   const setIsLoading = useAuthStore((state) => state.setIsLoading);
 
-  // Optional: We can read the current ID to prevent redundant updates
-  const storedProfileId = useAuthStore((state) => state.profile?.id);
+  // FIX 1: Fetch the full stored profile object, not just the ID, for comparison
+  const storedProfile = useAuthStore((state) => state.profile);
 
   const [isSessionChecked, setIsSessionChecked] = useState(false);
   const [hasSession, setHasSession] = useState(false);
@@ -65,33 +63,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setHasSession(!!session);
       if (!session) {
         setProfile(null);
+        // Clear TRPC cache on logout
+        void utils.user.getProfile.reset();
+      } else {
+        // Force refresh on login/session restore to ensure fresh data
+        void utils.user.getProfile.invalidate();
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [setProfile]);
+  }, [setProfile, utils]);
 
-  // 4. Update Store & Detect Orphans (or Incomplete Profiles)
+  // 4. Update Store & Detect Orphans
   useEffect(() => {
     // Sync store
-    // Only sync if we have a session. This prevents cached/stale profile data
-    // from re-populating the store after logout.
-    if (hasSession && profile && profile.id !== storedProfileId) {
-      setProfile(profile);
+    if (hasSession && profile) {
+      // FIX 2: Compare stringified objects.
+      // This ensures that if ANY field changes (bio, subscriptionStatus, etc.),
+      // the store updates, triggering re-renders in components listening to those fields.
+      const isProfileChanged =
+        JSON.stringify(profile) !== JSON.stringify(storedProfile);
+
+      if (isProfileChanged) {
+        setProfile(profile);
+      }
     }
 
-    // Define what "Incomplete" means
-    // We check if the user exists, but is missing role-specific data
+    // Define Incomplete Profile
     const isProfileIncomplete =
       profile &&
       ((profile.role === "VENDOR" && !profile.vendorProfile) ||
         (profile.role === "CLIENT" && !profile.clientProfile));
-    // Add !profile.wallet here if your getProfile query includes the wallet
 
-    // Trigger Heal if:
-    // 1. Session exists
-    // 2. Loading finished
-    // 3. Profile is MISSING (!profile) ... OR ... Profile is INCOMPLETE (isProfileIncomplete)
+    // Trigger Heal
     if (
       hasSession &&
       !isProfileLoading &&
@@ -105,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [
     profile,
-    storedProfileId,
+    storedProfile, // Dependency updated from storedProfileId to storedProfile
     setProfile,
     hasSession,
     isProfileLoading,

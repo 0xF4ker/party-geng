@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { UploadCloud, X, Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
@@ -8,13 +8,11 @@ import { toast } from "sonner";
 interface ImageUploadProps {
   currentImage?: string | null;
   onUploadComplete: (url: string) => void;
-  bucket: "profile-images" | "kyc-documents" | "wishlist-images" | "posts"; // You can add "avatars", "gigs" etc.
+  bucket: "profile-images" | "kyc-documents" | "wishlist-images" | "posts";
   accept?: string;
   maxSizeMB?: number;
   label?: string;
   description?: string;
-  // FIX: Added a stable file path, e.g., "avatar" or "cac_document"
-  // This will be combined with the user's ID.
   fileName: string;
 }
 
@@ -22,7 +20,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   currentImage,
   onUploadComplete,
   bucket,
-  fileName, // Use the new prop
+  fileName,
   accept = "image/*",
   maxSizeMB = 5,
   label = "Upload Image",
@@ -31,10 +29,17 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [preview, setPreview] = useState<string | null>(currentImage ?? null);
-  // FIX: State to hold the actual file path for deletion
   const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
+
+  // --- FIX: Sync preview with currentImage prop ---
+  useEffect(() => {
+    // Only update if we aren't currently uploading (to avoid jitter)
+    if (!uploading && currentImage !== undefined) {
+      setPreview(currentImage);
+    }
+  }, [currentImage, uploading]);
 
   // Parse the file path from an existing URL (for removal)
   const getPathFromUrl = (url: string) => {
@@ -53,13 +58,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file size
     if (file.size > maxSizeMB * 1024 * 1024) {
       toast.error(`File size must be less than ${maxSizeMB}MB`);
       return;
     }
 
-    // Validate file type
     if (accept === "image/*" && !file.type.startsWith("image/")) {
       toast.error("Please upload an image file");
       return;
@@ -68,12 +71,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     setUploading(true);
     setUploadProgress(0);
 
-    // Create local preview immediately
     const localPreview = URL.createObjectURL(file);
     setPreview(localPreview);
 
     try {
-      // Get current user
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -84,12 +85,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         return;
       }
 
-      // FIX: Generate stable file path using the prop
       const fileExt = file.name.split(".").pop();
       const stableFilePath = `${user.id}/${fileName}.${fileExt}`;
-      setUploadedFilePath(stableFilePath); // Save path for removal
+      setUploadedFilePath(stableFilePath);
 
-      // Simulate progress (Supabase doesn't provide real-time progress)
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
           if (prev >= 90) return prev;
@@ -97,12 +96,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         });
       }, 200);
 
-      // Upload to Supabase Storage
       const { error } = await supabase.storage
         .from(bucket)
         .upload(stableFilePath, file, {
           cacheControl: "3600",
-          // FIX: Set upsert to true to overwrite existing file
           upsert: true,
         });
 
@@ -113,7 +110,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         throw error;
       }
 
-      // Get public URL
       let publicUrl: string;
 
       if (bucket === "profile-images") {
@@ -121,10 +117,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           .from(bucket)
           .getPublicUrl(stableFilePath);
 
-        // FIX: Add cache-busting timestamp
         publicUrl = `${urlData.publicUrl}?t=${new Date().getTime()}`;
       } else {
-        // For private buckets, create signed URL (valid for 1 year)
         const { data: urlData, error: urlError } = await supabase.storage
           .from(bucket)
           .createSignedUrl(stableFilePath, 60 * 60 * 24 * 365);
@@ -133,11 +127,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         publicUrl = urlData.signedUrl;
       }
 
-      // Revoke local preview and set remote URL
       URL.revokeObjectURL(localPreview);
       setPreview(publicUrl);
-
-      // Call callback with URL
       onUploadComplete(publicUrl);
 
       toast.success("File uploaded successfully!");
@@ -146,7 +137,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       const errorMessage =
         error instanceof Error ? error.message : "Failed to upload file";
       toast.error(errorMessage);
-      setPreview(currentImage ?? null); // Revert to original image on fail
+      setPreview(currentImage ?? null);
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -154,10 +145,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   };
 
   const handleRemove = async () => {
-    // FIX: Remove from Supabase Storage
     let fileToRemove = uploadedFilePath;
 
-    // If file path isn't in state (e.g., it was an existing `currentImage`)
     if (!fileToRemove && (currentImage || preview)) {
       fileToRemove = getPathFromUrl(preview ?? currentImage!);
     }
@@ -172,7 +161,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       } catch (error) {
         console.error("Remove error:", error);
         toast.error("Could not remove file from storage.");
-        return; // Don't clear UI if server-side removal fails
+        return;
       }
     }
 
@@ -181,7 +170,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-    onUploadComplete(""); // Pass empty string up
+    onUploadComplete("");
   };
 
   return (
@@ -191,7 +180,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       </label>
 
       {preview ? (
-        // Preview with remove button
         <div className="relative inline-block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -220,7 +208,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           )}
         </div>
       ) : (
-        // Upload button
         <div
           className="flex cursor-pointer justify-center rounded-md border-2 border-dashed border-gray-300 px-6 pt-5 pb-6 transition-colors hover:border-gray-400"
           onClick={() => fileInputRef.current?.click()}
