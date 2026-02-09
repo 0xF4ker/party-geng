@@ -6,7 +6,11 @@ import { createTRPCReact } from "@trpc/react-query";
 import { useState } from "react";
 import SuperJSON from "superjson";
 
-import { type AppRouter, type RouterInputs, type RouterOutputs } from "@/server/api/root";
+import {
+  type AppRouter,
+  type RouterInputs,
+  type RouterOutputs,
+} from "@/server/api/root";
 import { createQueryClient } from "./query-client";
 
 let clientQueryClientSingleton: QueryClient | undefined = undefined;
@@ -60,6 +64,7 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
 
 function getBaseUrl() {
   if (typeof window !== "undefined") return window.location.origin;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  if (process.env.NEXT_PUBLIC_BASE_URL)
+    return `https://${process.env.NEXT_PUBLIC_BASE_URL}`;
   return `http://localhost:${process.env.PORT ?? 3000}`;
 }
