@@ -5,9 +5,52 @@ import {
 } from "@/server/api/trpc";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { unstable_cache, revalidateTag } from "next/cache";
+import { db } from "@/server/db";
+
+// --- 1. CACHED QUERIES ---
+
+// Cache: Vendor Profile by Username (Public View)
+// This is the "Profile Page" query - critical to cache.
+const getCachedVendorByUsername = unstable_cache(
+  async (username: string) => {
+    const user = await db.user.findUnique({
+      where: { username },
+      include: {
+        vendorProfile: {
+          where: { kybStatus: "APPROVED" }, // Only show if approved
+          include: {
+            services: {
+              include: {
+                service: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user || !user.vendorProfile) {
+      return null;
+    }
+
+    // Return a flattened object to match the procedure's expected output
+    return {
+      ...user.vendorProfile,
+      username: user.username,
+    };
+  },
+  ["vendor-by-username"], // Cache Key Base
+  {
+    revalidate: 3600, // 1 hour
+    tags: ["vendors"], // We can invalidate all vendors or specific ones
+  },
+);
+
+// --- 2. ROUTER ---
 
 export const vendorRouter = createTRPCRouter({
-  // Get current vendor's profile
+  // Get current vendor's profile (Session sensitive - DO NOT CACHE SERVER SIDE)
   getMyProfile: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.vendorProfile.findUnique({
       where: { userId: ctx.user.id },
@@ -26,37 +69,20 @@ export const vendorRouter = createTRPCRouter({
     });
   }),
 
-  // Get vendor by username (public)
+  // Get vendor by username (Uses Cache)
   getByUsername: publicProcedure
     .input(z.object({ username: z.string() }))
     .query(async ({ ctx, input }) => {
-      const user = await ctx.db.user.findUnique({
-        where: { username: input.username },
-        include: {
-          vendorProfile: {
-            include: {
-              services: {
-                include: {
-                  service: true,
-                },
-              },
-            },
-            where: { kybStatus: "APPROVED" },
-          },
-        },
-      });
+      const vendor = await getCachedVendorByUsername(input.username);
 
-      if (!user || !user.vendorProfile) {
+      if (!vendor) {
         throw new Error("Vendor not found");
       }
 
-      return {
-        ...user.vendorProfile,
-        username: user.username,
-      };
+      return vendor;
     }),
 
-  // Get vendors by service ID
+  // Get vendors by service ID (Complex Filter - Keep Dynamic)
   getVendorsByService: publicProcedure
     .input(
       z.object({
@@ -93,14 +119,13 @@ export const vendorRouter = createTRPCRouter({
         };
       }
 
+      // Geo-spatial Logic
       if (filters.location) {
         const { lat, lon, radius } = filters.location;
-
-        // Convert radius from meters to approximate degrees for ST_DWithin on geometry.
-        // This is a simplification and is less accurate than using geography, but more resilient.
-        // 1 degree of latitude is approx. 111.1km.
+        // 1 degree approx 111.1km
         const radiusInDegrees = radius / 111111.0;
 
+        // Raw query for IDs is efficient
         const vendorsInRadius = await ctx.db.$queryRaw<Array<{ id: string }>>`
             SELECT id FROM "VendorProfile"
             WHERE "location" IS NOT NULL
@@ -159,7 +184,8 @@ export const vendorRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       if (!input.serviceIds || input.serviceIds.length === 0) {
-        // If no serviceIds are provided, return all approved vendors
+        // If no serviceIds, return all approved vendors
+        // Note: For large datasets, you might want to limit this or cache it if it's a common "Browse All" view
         const allVendors = await ctx.db.vendorProfile.findMany({
           where: {
             kybStatus: "APPROVED",
@@ -176,6 +202,7 @@ export const vendorRouter = createTRPCRouter({
               },
             },
           },
+          take: 50, // Added safety limit for shared hosting
         });
         return allVendors.map((vendor) => ({
           ...vendor,
@@ -333,7 +360,6 @@ export const vendorRouter = createTRPCRouter({
       return {
         vendors: vendors.map((vendor) => ({
           ...vendor,
-          // simplify services for the client
           username: vendor.user.username,
           services: vendor.services.map((s) => s.service.name),
         })),
@@ -350,7 +376,7 @@ export const vendorRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.vendorProfile.update({
+      const updated = await ctx.db.vendorProfile.update({
         where: { userId: ctx.user.id },
         data: {
           fullName: input.fullName,
@@ -359,5 +385,12 @@ export const vendorRouter = createTRPCRouter({
           kybStatus: "IN_REVIEW",
         },
       });
+
+      // INVALIDATE CACHE
+      // If a vendor updates their details or status changes,
+      // their public profile (getByUsername) needs to reflect that (or disappear if no longer approved)
+      revalidateTag("vendors", { expire: 0 });
+
+      return updated;
     }),
 });

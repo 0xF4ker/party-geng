@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
+import { revalidateTag } from "next/cache"; // 1. Import revalidateTag
 
 const locationSchema = z
   .object({
@@ -84,7 +85,7 @@ export const settingsRouter = createTRPCRouter({
 
       // Update profile based on role
       if (user.role === "VENDOR") {
-        return await ctx.db.vendorProfile.update({
+        await ctx.db.vendorProfile.update({
           where: { userId },
           data: {
             companyName: input.companyName,
@@ -96,8 +97,12 @@ export const settingsRouter = createTRPCRouter({
             languages: input.languages,
           },
         });
+
+        // INVALIDATE: Vendor public profile changed
+        revalidateTag("vendors", "default");
+        revalidateTag("users", "default"); // Vendors are also users
       } else {
-        return await ctx.db.clientProfile.update({
+        await ctx.db.clientProfile.update({
           where: { userId },
           data: {
             name: input.name,
@@ -106,7 +111,12 @@ export const settingsRouter = createTRPCRouter({
             bio: input.bio,
           },
         });
+
+        // INVALIDATE: Client public profile changed
+        revalidateTag("users", "default");
       }
+
+      return { success: true };
     }),
 
   // Update password
@@ -120,7 +130,6 @@ export const settingsRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.user.id;
 
-      // Get user's email
       const user = await ctx.db.user.findUnique({
         where: { id: userId },
         select: { email: true },
@@ -133,7 +142,6 @@ export const settingsRouter = createTRPCRouter({
         });
       }
 
-      // Reauthenticate with current password to verify it's correct
       const authResult = await ctx.supabase.auth.signInWithPassword({
         email: user.email,
         password: input.currentPassword,
@@ -146,7 +154,6 @@ export const settingsRouter = createTRPCRouter({
         });
       }
 
-      // Update password
       const updateResult = await ctx.supabase.auth.updateUser({
         password: input.newPassword,
       });
@@ -179,7 +186,6 @@ export const settingsRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.user.id;
 
-      // Verify user is a vendor
       const user = await ctx.db.user.findUnique({
         where: { id: userId },
         select: { role: true, vendorProfile: true },
@@ -199,8 +205,7 @@ export const settingsRouter = createTRPCRouter({
         });
       }
 
-      // Update vendor profile with KYC info
-      return await ctx.db.vendorProfile.update({
+      const updated = await ctx.db.vendorProfile.update({
         where: { userId },
         data: {
           fullName: input.fullName,
@@ -212,24 +217,24 @@ export const settingsRouter = createTRPCRouter({
           businessAddress: input.businessAddress,
           state: input.state,
           lga: input.lga,
-          kybStatus: "IN_REVIEW", // Auto-submit for review
+          kybStatus: "IN_REVIEW",
         },
       });
+
+      // INVALIDATE: Status changed, remove from public lists if needed
+      revalidateTag("vendors", "default");
+
+      return updated;
     }),
 
   submitKyb: protectedProcedure
     .input(
       z.object({
-        // Account Details (Step 1)
         companyName: z.string().min(2, "Company name is required"),
-        businessAddress: z.string().min(5, "Address is required"), // Manual text input
-        about: z.string().optional(), // Brief description
-
-        // Verification Details (Step 2)
-        country: z.string().min(2, "Country is required"), // e.g. "NG"
+        businessAddress: z.string().min(5, "Address is required"),
+        about: z.string().optional(),
+        country: z.string().min(2, "Country is required"),
         regNumber: z.string().min(2, "Registration number is required"),
-
-        // Optional: Admin might need contact person details
         fullName: z.string().optional(),
       }),
     )
@@ -248,24 +253,25 @@ export const settingsRouter = createTRPCRouter({
         });
       }
 
-      // Update Vendor Profile and set status to IN_REVIEW
-      return ctx.db.vendorProfile.update({
+      const updated = await ctx.db.vendorProfile.update({
         where: { id: user.vendorProfile.id },
         data: {
           companyName: input.companyName,
           businessAddress: input.businessAddress,
           about: input.about,
-
           country: input.country,
           regNumber: input.regNumber,
           fullName: input.fullName,
-
-          kybStatus: "IN_REVIEW", // Locks the gate
+          kybStatus: "IN_REVIEW",
         },
       });
+
+      // INVALIDATE: Status changed to IN_REVIEW, potentially hide from public
+      revalidateTag("vendors", "default");
+
+      return updated;
     }),
 
-  // Get upload URL for Supabase Storage (used by client to upload files)
   getUploadUrl: protectedProcedure
     .input(
       z.object({
@@ -278,7 +284,6 @@ export const settingsRouter = createTRPCRouter({
       const bucket =
         input.fileType === "profile-image" ? "profile-images" : "kyc-documents";
 
-      // Generate unique file path: userId/timestamp-filename
       const timestamp = Date.now();
       const filePath = `${userId}/${timestamp}-${input.fileName}`;
 
@@ -288,11 +293,10 @@ export const settingsRouter = createTRPCRouter({
         publicUrl:
           input.fileType === "profile-image"
             ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucket}/${filePath}`
-            : null, // KYC documents are private
+            : null,
       };
     }),
 
-  // New procedure to update vendor's services
   updateVendorServices: protectedProcedure
     .input(
       z.object({
@@ -302,7 +306,6 @@ export const settingsRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.user.id;
 
-      // Verify user is a vendor
       const user = await ctx.db.user.findUnique({
         where: { id: userId },
         select: { role: true, vendorProfile: true },
@@ -317,13 +320,10 @@ export const settingsRouter = createTRPCRouter({
 
       const vendorProfileId = user.vendorProfile.id;
 
-      // Start a transaction to ensure atomicity
       await ctx.db.$transaction([
-        // Delete all existing services for this vendor
         ctx.db.servicesOnVendors.deleteMany({
           where: { vendorProfileId: vendorProfileId },
         }),
-        // Create new entries for the selected services
         ctx.db.servicesOnVendors.createMany({
           data: input.serviceIds.map((serviceId) => ({
             vendorProfileId: vendorProfileId,
@@ -331,6 +331,14 @@ export const settingsRouter = createTRPCRouter({
           })),
         }),
       ]);
+
+      // INVALIDATE:
+      // 1. "vendors" (This specific vendor now shows up in different searches)
+      // 2. "services" (Service vendor counts have changed)
+      // 3. "categories" (Category service counts might have changed)
+      revalidateTag("vendors", "default");
+      revalidateTag("services", "default");
+      revalidateTag("categories", "default");
 
       return { success: true };
     }),

@@ -7,17 +7,21 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { slugify } from "@/lib/utils";
 import { logActivity } from "../services/activityLogger";
+import { revalidateTag, unstable_cache } from "next/cache";
+import { db } from "@/server/db";
 
-export const categoryRouter = createTRPCRouter({
-  // Get all categories with their services
-  getAll: publicProcedure.query(async ({ ctx }) => {
-    return ctx.db.category.findMany({
+// --- 1. CACHED QUERIES (Defined outside the router) ---
+
+// Cache: All Categories (Heavy query with includes)
+const getCachedAllCategories = unstable_cache(
+  async () => {
+    return await db.category.findMany({
       include: {
         services: {
           include: {
             _count: {
               select: {
-                vendors: true, // Count vendors instead of gigs
+                vendors: true,
               },
             },
           },
@@ -27,10 +31,18 @@ export const categoryRouter = createTRPCRouter({
         name: "asc",
       },
     });
-  }),
+  },
+  ["all-categories-full"], // Cache Key
+  {
+    revalidate: 3600, // Default 1 hour
+    tags: ["categories"], // Tag for invalidation
+  },
+);
 
-  getPopularServices: publicProcedure.query(async ({ ctx }) => {
-    const popularServices = await ctx.db.service.findMany({
+// Cache: Popular Services (Computationally expensive sorting)
+const getCachedPopularServices = unstable_cache(
+  async () => {
+    const popularServices = await db.service.findMany({
       select: {
         name: true,
         slug: true,
@@ -59,29 +71,30 @@ export const categoryRouter = createTRPCRouter({
       categorySlug: service.category.slug,
       type: "service" as const,
     }));
-  }),
+  },
+  ["popular-services"],
+  {
+    revalidate: 3600,
+    tags: ["services", "categories"],
+  },
+);
 
-  getSearchList: publicProcedure.query(async ({ ctx }) => {
-    const categories = await ctx.db.category.findMany({
+// Cache: Search List (Combines two tables)
+const getCachedSearchList = unstable_cache(
+  async () => {
+    const categories = await db.category.findMany({
+      select: { name: true, slug: true },
+    });
+
+    const services = await db.service.findMany({
       select: {
         name: true,
         slug: true,
+        category: { select: { slug: true } },
       },
     });
 
-    const services = await ctx.db.service.findMany({
-      select: {
-        name: true,
-        slug: true,
-        category: {
-          select: {
-            slug: true,
-          },
-        },
-      },
-    });
-
-    const searchList = [
+    return [
       ...categories.map((category) => ({
         label: category.name,
         value: category.slug,
@@ -94,11 +107,33 @@ export const categoryRouter = createTRPCRouter({
         type: "service" as const,
       })),
     ];
+  },
+  ["global-search-list"],
+  {
+    revalidate: 3600,
+    tags: ["search-list", "categories", "services"],
+  },
+);
 
-    return searchList;
+// --- 2. ROUTER IMPLEMENTATION ---
+
+export const categoryRouter = createTRPCRouter({
+  // Get all categories (Uses Cache)
+  getAll: publicProcedure.query(async () => {
+    return await getCachedAllCategories();
   }),
 
-  // Get category by slug with services and popular gigs
+  // Get popular services (Uses Cache)
+  getPopularServices: publicProcedure.query(async () => {
+    return await getCachedPopularServices();
+  }),
+
+  // Get search list (Uses Cache)
+  getSearchList: publicProcedure.query(async () => {
+    return await getCachedSearchList();
+  }),
+
+  // Get category by slug (Direct DB - Cursors/Slugs are hard to cache efficiently)
   getBySlug: publicProcedure
     .input(z.object({ slug: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -112,7 +147,7 @@ export const categoryRouter = createTRPCRouter({
             include: {
               _count: {
                 select: {
-                  vendors: true, // Count vendors instead of gigs
+                  vendors: true,
                 },
               },
             },
@@ -130,7 +165,6 @@ export const categoryRouter = createTRPCRouter({
       return category;
     }),
 
-  // Get a single category by ID
   getById: publicProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ ctx, input }) => {
@@ -142,7 +176,6 @@ export const categoryRouter = createTRPCRouter({
       });
     }),
 
-  // Get services by category ID
   getServicesByCategory: publicProcedure
     .input(z.object({ categoryId: z.number() }))
     .query(async ({ ctx, input }) => {
@@ -154,7 +187,6 @@ export const categoryRouter = createTRPCRouter({
       });
     }),
 
-  // Get a single service by slug
   getServiceBySlug: publicProcedure
     .input(z.object({ slug: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -179,13 +211,13 @@ export const categoryRouter = createTRPCRouter({
       return service;
     }),
 
-  // --- NEW ADMIN MUTATIONS ---
+  // --- NEW ADMIN MUTATIONS (With Cache Invalidation) ---
 
   // 1. Manage Categories
   upsertCategory: adminProcedure
     .input(
       z.object({
-        id: z.number().optional(), // If present, update. If null, create.
+        id: z.number().optional(),
         name: z.string().min(1),
         slug: z.string().optional(),
       }),
@@ -195,7 +227,6 @@ export const categoryRouter = createTRPCRouter({
 
       const slug = input.slug ?? slugify(input.name);
 
-      // Check for slug collision
       const existing = await ctx.db.category.findFirst({
         where: {
           slug,
@@ -210,9 +241,10 @@ export const categoryRouter = createTRPCRouter({
         });
       }
 
+      let result;
       if (input.id) {
         // UPDATE
-        const updated = await ctx.db.category.update({
+        result = await ctx.db.category.update({
           where: { id: input.id },
           data: { name: input.name, slug },
         });
@@ -220,24 +252,29 @@ export const categoryRouter = createTRPCRouter({
           ctx,
           action: "CATEGORY_UPDATE",
           entityType: "CATEGORY",
-          entityId: String(updated.id),
+          entityId: String(result.id),
           details: { name: input.name },
         });
-        return updated;
       } else {
         // CREATE
-        const created = await ctx.db.category.create({
+        result = await ctx.db.category.create({
           data: { name: input.name, slug },
         });
         await logActivity({
           ctx,
           action: "CATEGORY_CREATE",
           entityType: "CATEGORY",
-          entityId: String(created.id),
+          entityId: String(result.id),
           details: { name: input.name },
         });
-        return created;
       }
+
+      // INVALIDATE CACHE
+      // We pass { expire: 0 } to force immediate expiration (Standard in Next.js 15+ for Admin actions)
+      revalidateTag("categories", { expire: 0 });
+      revalidateTag("search-list", { expire: 0 });
+
+      return result;
     }),
 
   deleteCategory: adminProcedure
@@ -245,7 +282,6 @@ export const categoryRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       ctx.auditFlags.disabled = true;
 
-      // Check if it has services
       const count = await ctx.db.service.count({
         where: { categoryId: input.id },
       });
@@ -268,6 +304,10 @@ export const categoryRouter = createTRPCRouter({
         entityId: String(input.id),
         details: { name: deleted.name },
       });
+
+      // INVALIDATE CACHE
+      revalidateTag("categories", { expire: 0 });
+      revalidateTag("search-list", { expire: 0 });
 
       return deleted;
     }),
@@ -301,9 +341,10 @@ export const categoryRouter = createTRPCRouter({
         });
       }
 
+      let result;
       if (input.id) {
         // UPDATE
-        const updated = await ctx.db.service.update({
+        result = await ctx.db.service.update({
           where: { id: input.id },
           data: {
             name: input.name,
@@ -315,13 +356,12 @@ export const categoryRouter = createTRPCRouter({
           ctx,
           action: "SERVICE_UPDATE",
           entityType: "SERVICE",
-          entityId: String(updated.id),
+          entityId: String(result.id),
           details: { name: input.name, categoryId: input.categoryId },
         });
-        return updated;
       } else {
         // CREATE
-        const created = await ctx.db.service.create({
+        result = await ctx.db.service.create({
           data: {
             name: input.name,
             slug,
@@ -332,11 +372,18 @@ export const categoryRouter = createTRPCRouter({
           ctx,
           action: "SERVICE_CREATE",
           entityType: "SERVICE",
-          entityId: String(created.id),
+          entityId: String(result.id),
           details: { name: input.name, categoryId: input.categoryId },
         });
-        return created;
       }
+
+      // INVALIDATE CACHE
+      // Services affect "services", "categories" (via counts), and "search-list"
+      revalidateTag("services", { expire: 0 });
+      revalidateTag("categories", { expire: 0 });
+      revalidateTag("search-list", { expire: 0 });
+
+      return result;
     }),
 
   deleteService: adminProcedure
@@ -344,7 +391,6 @@ export const categoryRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       ctx.auditFlags.disabled = true;
 
-      // Check for vendor usage
       const vendorCount = await ctx.db.servicesOnVendors.count({
         where: { serviceId: input.id },
       });
@@ -367,6 +413,11 @@ export const categoryRouter = createTRPCRouter({
         entityId: String(input.id),
         details: { name: deleted.name },
       });
+
+      // INVALIDATE CACHE
+      revalidateTag("services", { expire: 0 });
+      revalidateTag("categories", { expire: 0 });
+      revalidateTag("search-list", { expire: 0 });
 
       return deleted;
     }),

@@ -8,9 +8,80 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { logActivity } from "../services/activityLogger";
 import type { Prisma } from "@prisma/client";
+import { unstable_cache, revalidateTag } from "next/cache";
+import { db } from "@/server/db";
+
+// --- 1. CACHED PROFILE FETCHERS ---
+
+// Cache the heavy profile lookup by Username
+const getCachedUserByUsername = unstable_cache(
+  async (username: string) => {
+    return await db.user.findUnique({
+      where: { username },
+      include: {
+        vendorProfile: {
+          include: {
+            services: true,
+          },
+        },
+        clientProfile: {
+          include: {
+            _count: {
+              select: { events: true },
+            },
+          },
+        },
+        clientOrders: {
+          where: { status: "COMPLETED" },
+          select: { id: true, status: true },
+        },
+      },
+    });
+  },
+  ["user-profile-by-username"],
+  {
+    revalidate: 3600,
+    tags: ["users"],
+  }
+);
+
+// Cache the heavy profile lookup by ID
+const getCachedUserById = unstable_cache(
+  async (userId: string) => {
+    return await db.user.findUnique({
+      where: { id: userId },
+      include: {
+        vendorProfile: {
+          include: {
+            services: true,
+          },
+        },
+        clientProfile: {
+          include: {
+            _count: {
+              select: { events: true },
+            },
+          },
+        },
+        clientOrders: {
+          where: { status: "COMPLETED" },
+          select: { id: true, status: true },
+        },
+      },
+    });
+  },
+  ["user-profile-by-id"],
+  {
+    revalidate: 3600,
+    tags: ["users"],
+  }
+);
+
+// --- 2. ROUTER ---
 
 export const userRouter = createTRPCRouter({
   getProfile: protectedProcedure.query(({ ctx }) => {
+    // Session data - Do not cache server-side
     return ctx.db.user.findUnique({
       where: { id: ctx.user.id },
       include: {
@@ -21,14 +92,12 @@ export const userRouter = createTRPCRouter({
         },
         clientProfile: {
           include: {
-            // Count events hosted by this client
             _count: {
               select: { events: true },
             },
           },
         },
         adminProfile: true,
-        // Fetch ONLY completed orders to calculate "Hires Made" efficiently
         clientOrders: {
           where: { status: "COMPLETED" },
           select: { id: true, status: true },
@@ -37,7 +106,7 @@ export const userRouter = createTRPCRouter({
     });
   }),
 
-  // Get user by ID (public - for viewing profiles)
+  // Get user by ID (Uses Cache)
   getById: publicProcedure
     .input(z.object({ userId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -59,29 +128,7 @@ export const userRouter = createTRPCRouter({
         }
       }
 
-      const user = await ctx.db.user.findUnique({
-        where: { id: input.userId },
-        include: {
-          vendorProfile: {
-            include: {
-              services: true,
-            },
-          },
-          clientProfile: {
-            include: {
-              // Include event count for public profile
-              _count: {
-                select: { events: true },
-              },
-            },
-          },
-          // Include completed orders count for public profile
-          clientOrders: {
-            where: { status: "COMPLETED" },
-            select: { id: true, status: true },
-          },
-        },
-      });
+      const user = await getCachedUserById(input.userId);
 
       if (!user) {
         throw new TRPCError({
@@ -93,33 +140,11 @@ export const userRouter = createTRPCRouter({
       return user;
     }),
 
-  // Get user by username (public - for viewing profiles)
+  // Get user by Username (Uses Cache)
   getByUsername: publicProcedure
     .input(z.object({ username: z.string() }))
     .query(async ({ ctx, input }) => {
-      const user = await ctx.db.user.findUnique({
-        where: { username: input.username },
-        include: {
-          vendorProfile: {
-            include: {
-              services: true,
-            },
-          },
-          clientProfile: {
-            include: {
-              // Include event count
-              _count: {
-                select: { events: true },
-              },
-            },
-          },
-          // Include completed orders
-          clientOrders: {
-            where: { status: "COMPLETED" },
-            select: { id: true, status: true },
-          },
-        },
-      });
+      const user = await getCachedUserByUsername(input.username);
 
       if (!user) {
         throw new TRPCError({
@@ -161,7 +186,6 @@ export const userRouter = createTRPCRouter({
         });
       }
 
-      // Check if already blocked
       const existingBlock = await ctx.db.block.findUnique({
         where: {
           blockerId_blockedId: {
@@ -219,12 +243,9 @@ export const userRouter = createTRPCRouter({
       },
     });
   }),
+
   // --- ADMIN MANAGEMENT PROCEDURES ---
 
-  /**
-   * Get Users with Pagination & Filtering
-   * Industry Standard: Never fetch all records. Always paginate.
-   */
   getUsers: adminProcedure
     .input(
       z.object({
@@ -268,27 +289,22 @@ export const userRouter = createTRPCRouter({
       return { items, nextCursor };
     }),
 
-  /**
-   * Create User in database after Supabase signup
-   * (Your provided code)
-   */
   createUser: publicProcedure
     .input(
       z.object({
         id: z.string(),
         email: z.string().email(),
         username: z.string().min(3).max(30),
-        role: z.enum(["CLIENT", "VENDOR"]), // We restrict public creation to these roles
+        role: z.enum(["CLIENT", "VENDOR"]),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // 1. Upsert User (Safe against Trigger race conditions)
       const user = await ctx.db.user.upsert({
         where: { id: input.id },
         update: {
           email: input.email,
           username: input.username,
-          role: input.role, // Authoritative source from signup form
+          role: input.role,
         },
         create: {
           id: input.id,
@@ -298,14 +314,12 @@ export const userRouter = createTRPCRouter({
         },
       });
 
-      // 2. Ensure Wallet exists
       await ctx.db.wallet.upsert({
         where: { userId: user.id },
         create: { userId: user.id },
         update: {},
       });
 
-      // 3. Ensure Profile exists based on Role
       if (input.role === "CLIENT") {
         await ctx.db.clientProfile.upsert({
           where: { userId: user.id },
@@ -325,15 +339,12 @@ export const userRouter = createTRPCRouter({
         });
       }
 
-      // Log the creation (System level or new user action)
-      // We pass 'ctx' even though user might not be fully session-hydrated yet,
-      // but usually 'publicProcedure' implies we assume success if no error thrown.
+      // INVALIDATE CACHE (FIXED: Using 'default' string)
+      revalidateTag("users", "default");
+
       return user;
     }),
 
-  /**
-   * Admin Create User (For Admins creating other Admins)
-   */
   adminCreateUser: adminProcedure
     .input(
       z.object({
@@ -355,7 +366,6 @@ export const userRouter = createTRPCRouter({
         },
       });
 
-      // Log it
       await logActivity({
         ctx,
         action: "USER_CREATE_ADMIN",
@@ -363,6 +373,9 @@ export const userRouter = createTRPCRouter({
         entityId: user.id,
         details: { role: input.role },
       });
+
+      // INVALIDATE CACHE (FIXED)
+      revalidateTag("users", "default");
 
       return user;
     }),
@@ -372,7 +385,7 @@ export const userRouter = createTRPCRouter({
       z.object({
         userId: z.string(),
         reason: z.string(),
-        durationDays: z.number().optional(), // If undefined = Permanent Ban
+        durationDays: z.number().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -409,10 +422,12 @@ export const userRouter = createTRPCRouter({
         },
       });
 
+      // INVALIDATE CACHE (FIXED)
+      revalidateTag("users", "default");
+
       return updated;
     }),
 
-  // 3. Restore User
   restoreUser: adminProcedure
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -434,19 +449,17 @@ export const userRouter = createTRPCRouter({
         entityId: input.userId,
       });
 
+      // INVALIDATE CACHE (FIXED)
+      revalidateTag("users", "default");
+
       return updated;
     }),
 
-  /**
-   * Delete User (Admin Only)
-   * Hard delete per schema.
-   */
   deleteUser: adminProcedure
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       ctx.auditFlags.disabled = true;
 
-      // Prevent deleting self
       if (input.userId === ctx.user.id) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -466,12 +479,12 @@ export const userRouter = createTRPCRouter({
         details: { email: deleted.email, role: deleted.role },
       });
 
+      // INVALIDATE CACHE (FIXED)
+      revalidateTag("users", "default");
+
       return deleted;
     }),
 
-  /**
-   * Update Role (Admin Only)
-   */
   updateUserRole: adminProcedure
     .input(
       z.object({
@@ -495,8 +508,12 @@ export const userRouter = createTRPCRouter({
         details: { newRole: input.newRole },
       });
 
+      // INVALIDATE CACHE (FIXED)
+      revalidateTag("users", "default");
+
       return updated;
     }),
+
   adminGetUser: adminProcedure
     .input(z.object({ userId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -507,22 +524,22 @@ export const userRouter = createTRPCRouter({
           clientProfile: {
             include: {
               _count: {
-                select: { events: true }, // Count events created
+                select: { events: true },
               },
             },
           },
           vendorProfile: {
             include: {
               _count: {
-                select: { services: true }, // Count services offered
+                select: { services: true },
               },
             },
           },
           adminProfile: true,
           _count: {
             select: {
-              clientOrders: true, // Orders placed
-              vendorOrders: true, // Orders received
+              clientOrders: true,
+              vendorOrders: true,
               authoredReviews: true,
             },
           },

@@ -5,15 +5,21 @@ import {
 } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { ContributionType, WishlistItemType, NotificationType } from "@prisma/client";
+import {
+  ContributionType,
+  WishlistItemType,
+  NotificationType,
+} from "@prisma/client";
+import { unstable_cache, revalidateTag } from "next/cache";
+import { db } from "@/server/db";
 
-export const wishlistRouter = createTRPCRouter({
-  // Get wishlist by event ID (public - for guests)
-  getByEventId: publicProcedure
-    .input(z.object({ eventId: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const event = await ctx.db.clientEvent.findUnique({
-        where: { id: input.eventId },
+// --- 1. CACHED QUERY ---
+
+const getCachedWishlist = async (eventId: string) => {
+  return unstable_cache(
+    async () => {
+      return await db.clientEvent.findUnique({
+        where: { id: eventId },
         include: {
           client: {
             include: {
@@ -43,6 +49,23 @@ export const wishlistRouter = createTRPCRouter({
           },
         },
       });
+    },
+    [`wishlist-${eventId}`], // Specific Cache Key
+    {
+      tags: [`wishlist-${eventId}`], // Specific Invalidation Tag
+      revalidate: 3600,
+    },
+  )();
+};
+
+// --- 2. ROUTER ---
+
+export const wishlistRouter = createTRPCRouter({
+  // Get wishlist by event ID (public - for guests)
+  getByEventId: publicProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const event = await getCachedWishlist(input.eventId);
 
       if (!event) {
         throw new TRPCError({
@@ -51,7 +74,6 @@ export const wishlistRouter = createTRPCRouter({
         });
       }
 
-      // Only show public events to non-owners
       if (
         !event.isPublic &&
         (!ctx.user || ctx.user.id !== event.client.userId)
@@ -89,7 +111,6 @@ export const wishlistRouter = createTRPCRouter({
         });
       }
 
-      // Create wishlist if it doesn't exist
       let wishlist = event.wishlist;
       wishlist ??= await ctx.db.wishlist.create({
         data: {
@@ -97,7 +118,7 @@ export const wishlistRouter = createTRPCRouter({
         },
       });
 
-      return ctx.db.wishlistItem.create({
+      const result = await ctx.db.wishlistItem.create({
         data: {
           wishlistId: wishlist.id,
           name: input.name,
@@ -106,6 +127,11 @@ export const wishlistRouter = createTRPCRouter({
           imageUrl: input.imageUrl,
         },
       });
+
+      // FIX: Added "default"
+      revalidateTag(`wishlist-${input.eventId}`, "default");
+
+      return result;
     }),
 
   // Update item
@@ -127,9 +153,7 @@ export const wishlistRouter = createTRPCRouter({
           wishlist: {
             include: {
               event: {
-                include: {
-                  client: true,
-                },
+                include: { client: true },
               },
             },
           },
@@ -145,10 +169,15 @@ export const wishlistRouter = createTRPCRouter({
 
       const { ...data } = input;
 
-      return ctx.db.wishlistItem.update({
+      const result = await ctx.db.wishlistItem.update({
         where: { id: input.itemId },
         data: data,
       });
+
+      // FIX: Added "default"
+      revalidateTag(`wishlist-${item.wishlist.event.id}`, "default");
+
+      return result;
     }),
 
   // Delete item
@@ -161,9 +190,7 @@ export const wishlistRouter = createTRPCRouter({
           wishlist: {
             include: {
               event: {
-                include: {
-                  client: true,
-                },
+                include: { client: true },
               },
             },
           },
@@ -181,17 +208,20 @@ export const wishlistRouter = createTRPCRouter({
         where: { id: input.itemId },
       });
 
+      // FIX: Added "default"
+      revalidateTag(`wishlist-${item.wishlist.event.id}`, "default");
+
       return { success: true };
     }),
 
-  // Contribute to item (replaces promiseItem)
-  contributeToItem: publicProcedure // public for guests
+  // Contribute to item
+  contributeToItem: publicProcedure
     .input(
       z.object({
         itemId: z.string(),
         guestName: z.string(),
         type: z.nativeEnum(ContributionType),
-        amount: z.number().optional(), // For cash contributions
+        amount: z.number().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -203,11 +233,7 @@ export const wishlistRouter = createTRPCRouter({
             include: {
               event: {
                 include: {
-                  client: {
-                    select: {
-                      userId: true,
-                    },
-                  },
+                  client: { select: { userId: true } },
                 },
               },
             },
@@ -232,11 +258,12 @@ export const wishlistRouter = createTRPCRouter({
         });
       }
 
-      // Check if user already promised this item (if it's a promise)
       if (input.type === ContributionType.PROMISE && ctx.user) {
         if (
           item.contributions.some(
-            (c) => c.guestUserId === ctx.user?.id && c.type === ContributionType.PROMISE,
+            (c) =>
+              c.guestUserId === ctx.user?.id &&
+              c.type === ContributionType.PROMISE,
           )
         ) {
           throw new TRPCError({
@@ -249,7 +276,7 @@ export const wishlistRouter = createTRPCRouter({
       const contribution = await ctx.db.wishlistContribution.create({
         data: {
           wishlistItemId: input.itemId,
-          guestUserId: ctx.user?.id, // Can be null for anonymous guests
+          guestUserId: ctx.user?.id,
           guestName: input.guestName,
           type: input.type,
           amount: input.amount,
@@ -258,19 +285,22 @@ export const wishlistRouter = createTRPCRouter({
 
       if (item?.wishlist.event.client.userId) {
         await ctx.db.notification.create({
-            data: {
-                userId: item.wishlist.event.client.userId,
-                type: NotificationType.WISHLIST_CONTRIBUTION,
-                message: `${input.guestName} has contributed to your wishlist item "${item.name}"`,
-                link: `/event/${item.wishlist.event.id}`, // or maybe a link to the wishlist modal
-            },
+          data: {
+            userId: item.wishlist.event.client.userId,
+            type: NotificationType.WISHLIST_CONTRIBUTION,
+            message: `${input.guestName} has contributed to your wishlist item "${item.name}"`,
+            link: `/event/${item.wishlist.event.id}`,
+          },
         });
       }
+
+      // FIX: Added "default"
+      revalidateTag(`wishlist-${item.wishlist.event.id}`, "default");
 
       return contribution;
     }),
 
-  // Remove contribution (replaces removePromise)
+  // Remove contribution
   removeContribution: protectedProcedure
     .input(z.object({ contributionId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -282,9 +312,7 @@ export const wishlistRouter = createTRPCRouter({
               wishlist: {
                 include: {
                   event: {
-                    include: {
-                      client: true,
-                    },
+                    include: { client: true },
                   },
                 },
               },
@@ -293,7 +321,6 @@ export const wishlistRouter = createTRPCRouter({
         },
       });
 
-      // Only owner of wishlist or guest who made contribution can remove
       if (
         !contribution ||
         (contribution.guestUserId !== ctx.user.id &&
@@ -308,6 +335,12 @@ export const wishlistRouter = createTRPCRouter({
       await ctx.db.wishlistContribution.delete({
         where: { id: input.contributionId },
       });
+
+      // FIX: Added "default"
+      revalidateTag(
+        `wishlist-${contribution.item.wishlist.event.id}`,
+        "default",
+      );
 
       return { success: true };
     }),
