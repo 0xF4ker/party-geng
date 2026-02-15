@@ -10,20 +10,17 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { api } from "@/trpc/react";
 
 const CATEGORY_IMAGES: Record<string, string> = {
-  "Music & DJs":
-    "https://placehold.co/250x350/ec4899/ffffff?text=Music+%26+DJs",
-  "Food & Beverage":
-    "https://placehold.co/250x350/7c3aed/ffffff?text=Food+%26+Beverage",
-  Media: "https://placehold.co/250x350/3b82f6/ffffff?text=Media",
-  Planning: "https://placehold.co/250x350/ef4444/ffffff?text=Planning",
-  "Decor & Design":
-    "https://placehold.co/250x350/10b981/ffffff?text=Decor+%26+Design",
-  Entertainment:
-    "https://placehold.co/250x350/f59e0b/ffffff?text=Entertainment",
-  "Equipment Rental":
-    "https://placehold.co/250x350/6366f1/ffffff?text=Equipment+Rental",
-  Transportation:
-    "https://placehold.co/250x350/8b5cf6/ffffff?text=Transportation",
+  "Music & DJs": "/event-assets/e1599dd5-b393-4698-96b1-da811cc17065.jpg",
+  "Food & Beverage": "/event-assets/7559b777-a27c-4ef8-9f71-9f8413c135f8.jpg",
+  Media: "/event-assets/9643dd1a-54f9-42e6-8545-3d33ac2fa109.jpg",
+  Planning: "/event-assets/ee4dcf92-748c-4995-839d-f00d502abc31.jpg",
+  "Decor & Design": "/event-assets/e07c8405-3ec3-48ac-bc60-f2f9dc61d72c.jpg",
+  Entertainment: "/event-assets/a9b65768-b894-44db-bb63-332a631fdebe.jpg",
+  "Equipment Rental": "/event-assets/00f63a28-6006-42af-9a69-c064a333977a.jpg",
+  Transportation: "/event-assets/6adc089e-464b-481b-8087-29bc9b331ee3.jpg",
+  "Personal Style": "/event-assets/5ec493b6-99b3-48ca-bfdd-92a35801eaeb.jpg",
+  "Event Staffing": "/event-assets/a3e3fa3e-41fd-4827-8a79-d9e954497c1f.jpg",
+  "Event Venue": "/event-assets/5a132bcc-0437-4c5f-a5f9-ff7518f7b50a.jpg",
 };
 
 const DEFAULT_IMAGE = "https://placehold.co/250x350/9ca3af/ffffff?text=Service";
