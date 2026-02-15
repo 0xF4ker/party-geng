@@ -10,6 +10,7 @@ import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import type { EmblaPluginType } from "embla-carousel";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import LoginJoinComponent from "../LoginJoinComponent";
 
 const HERO_SLIDES = [
   {
@@ -38,8 +39,44 @@ const HERO_SLIDES = [
   },
 ];
 
+const Modal = ({
+  children,
+  onClose,
+}: {
+  children: React.ReactNode;
+  onClose: () => void;
+}) => {
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  useEffect(() => {
+    const originalOverflow = window.getComputedStyle(document.body).overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 sm:items-center sm:p-4"
+      onClick={handleBackdropClick}
+    >
+      <div
+        className="relative h-full w-full sm:h-auto sm:w-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+
 const Hero = () => {
   const [animationData, setAnimationData] = useState<object | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalView, setModalView] = useState<"login" | "join">("login");
   const { profile } = useAuthStore();
   const { headerHeight } = useUiStore();
 
@@ -83,6 +120,12 @@ const Hero = () => {
 
   const planEventHref = profile ? "/manage_events" : "/login";
 
+  const openModal = (view: "login" | "join") => {
+    setModalView(view);
+    setIsModalOpen(true);
+  };
+  const closeModal = () => setIsModalOpen(false);
+
   return (
     <section
       className="relative overflow-hidden bg-pink-50/50"
@@ -119,18 +162,18 @@ const Hero = () => {
               corporate galas in Abuja, bring your vision to life.
             </p>
             <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row lg:justify-start">
-              <Link
-                href="/categories/food-&-beverage"
+              <button
+                onClick={() => openModal("login")}
                 className="transform rounded-xl bg-pink-600 px-8 py-3.5 font-bold text-white shadow-lg transition-all hover:-translate-y-1 hover:bg-pink-700 hover:shadow-xl"
               >
                 Find Vendors
-              </Link>
-              <Link
-                href={planEventHref}
+              </button>
+              <button
+                onClick={() => openModal("login")}
                 className="transform rounded-xl border-2 border-purple-600 bg-transparent px-8 py-3.5 font-bold text-purple-600 transition-all hover:-translate-y-1 hover:bg-purple-50"
               >
                 Plan an Event
-              </Link>
+              </button>
             </div>
             <div className="mt-16 flex flex-wrap justify-center gap-8 lg:justify-start">
               <div className="text-center lg:text-left">
@@ -211,6 +254,15 @@ const Hero = () => {
           </div>
         </div>
       </div>
+      {isModalOpen && (
+        <Modal onClose={closeModal}>
+          <LoginJoinComponent
+            isModal={true}
+            initialView={modalView}
+            onClose={closeModal}
+          />
+        </Modal>
+      )}
     </section>
   );
 };
