@@ -20,13 +20,25 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
-# 2. Rebuild the source code only when needed
+# 2. Rebuild the source code when needed
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Next.js telemetry is enabled by default. Uncomment if you want to disable it.
+# ==========================================
+# 👇 ADD FRONTEND BUILD VARIABLES HERE
+# ==========================================
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG NEXT_PUBLIC_BASE_URL
+
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_BASE_URL=$NEXT_PUBLIC_BASE_URL
+# ==========================================
+
+# Next.js telemetry is enabled by default. Uncomment to disable it.
 # ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN \
@@ -51,18 +63,3 @@ COPY --from=builder /app/public ./public
 # Set the correct permission for prerender cache
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
-
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
-
-EXPOSE 3000
-
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-
-# server.js is created by next build from the standalone output
-CMD ["node", "server.js"]
