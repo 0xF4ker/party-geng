@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  partygengweb:
+    image: partygeng/partygengweb:latest
+    container_name: partygengweb
+    restart: unless-stopped
+    # Internal port only - keeps your app safe from direct public access
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - partygeng-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: partygeng-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"  # REQUIRED: Opens the door for Cloudflare's HTTPS connection
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro  # Mounts your Cloudflare Origin Certificate files
+    depends_on:
+      - partygengweb
+    networks:
+      - partygeng-network
+
+networks:
+  partygeng-network:
+    driver: bridge
