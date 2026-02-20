@@ -42,7 +42,7 @@ const getCachedUserByUsername = unstable_cache(
   {
     revalidate: 3600,
     tags: ["users"],
-  }
+  },
 );
 
 // Cache the heavy profile lookup by ID
@@ -74,7 +74,7 @@ const getCachedUserById = unstable_cache(
   {
     revalidate: 3600,
     tags: ["users"],
-  }
+  },
 );
 
 // --- 2. ROUTER ---
@@ -299,6 +299,17 @@ export const userRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const existingUser = await ctx.db.user.findUnique({
+        where: { username: input.username },
+      });
+
+      if (existingUser && existingUser.id !== input.id) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Username is already taken.",
+        });
+      }
+
       const user = await ctx.db.user.upsert({
         where: { id: input.id },
         update: {
