@@ -49,6 +49,7 @@ yarn-error.log*
 /.playwright-mcp/
 
 # template files
-/public/template/env.production.template
+env.production.template
 nginx.conf
 deploy.sh
+docker-compose.yml
