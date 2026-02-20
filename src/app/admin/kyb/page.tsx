@@ -16,6 +16,7 @@ import {
   MapPin,
   Globe,
   AlertTriangle,
+  Play,
   type LucideIcon,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -35,6 +36,7 @@ import { type AppRouter } from "@/server/api/root";
 // --- TYPES ---
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type KybRequest = RouterOutputs["kyb"]["getRequests"][number];
+type RegistryData = NonNullable<RouterOutputs["kyb"]["verifyRegistry"]>;
 
 // --- HELPER COMPONENT ---
 const KybStatusBadge = ({ status }: { status: string }) => {
@@ -134,6 +136,9 @@ export default function AdminKybPage() {
   const [selectedVendor, setSelectedVendor] = useState<KybRequest | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
+  // Verification State
+  const [registryData, setRegistryData] = useState<RegistryData | null>(null);
+
   const {
     data: vendors,
     isLoading,
@@ -148,9 +153,20 @@ export default function AdminKybPage() {
     onSuccess: () => {
       toast.success("Vendor status updated successfully");
       void refetch();
-      setIsSheetOpen(false);
+      handleCloseSheet();
     },
     onError: (e) => toast.error(e.message),
+  });
+
+  // New Verification Mutation
+  const verifyMutation = api.kyb.verifyRegistry.useMutation({
+    onSuccess: (data) => {
+      setRegistryData(data ?? null);
+      toast.success("Registry fetch successful!");
+    },
+    onError: (e) => {
+      toast.error(e.message || "Failed to fetch from registry.");
+    },
   });
 
   const handleOpenDetail = (vendor: KybRequest) => {
@@ -160,19 +176,33 @@ export default function AdminKybPage() {
 
   const handleDecision = (decision: "APPROVED" | "REJECTED") => {
     if (!selectedVendor) return;
-
     let reason = "";
     if (decision === "REJECTED") {
       const input = prompt("Please provide a reason for rejection:");
       if (input === null) return;
       reason = input;
     }
-
     processMutation.mutate({
       userId: selectedVendor.id,
       decision,
       rejectionReason: reason,
     });
+  };
+
+  const handleRunVerification = () => {
+    if (selectedVendor) {
+      verifyMutation.mutate({ userId: selectedVendor.id });
+    }
+  };
+
+  const handleCloseSheet = () => {
+    setIsSheetOpen(false);
+
+    setTimeout(() => {
+      setRegistryData(null);
+      verifyMutation.reset();
+      // setSelectedVendor(null);
+    }, 300);
   };
 
   return (
@@ -299,7 +329,7 @@ export default function AdminKybPage() {
         </table>
       </div>
 
-      {/* 3. MOBILE CARD GRID (New Section) */}
+      {/* 3. MOBILE CARD GRID */}
       <div className="grid gap-4 md:hidden">
         {isLoading ? (
           <div className="flex h-32 items-center justify-center">
@@ -321,7 +351,16 @@ export default function AdminKybPage() {
       </div>
 
       {/* 4. DETAILS SHEET */}
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+      <Sheet
+        open={isSheetOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseSheet();
+          } else {
+            setIsSheetOpen(true);
+          }
+        }}
+      >
         <SheetContent className="flex h-full w-full flex-col border-l border-gray-200 bg-white p-0 shadow-2xl sm:max-w-xl">
           {selectedVendor && selectedVendor.vendorProfile && (
             <>
@@ -343,7 +382,7 @@ export default function AdminKybPage() {
                     {selectedVendor.vendorProfile.companyName}
                   </SheetTitle>
                   <SheetDescription className="mt-1 flex items-center gap-2 text-sm text-gray-500">
-                    <Globe className="h-3.5 w-3.5" />
+                    <Globe className="h-3.5 w-3.5" />{" "}
                     {selectedVendor.vendorProfile.country ?? "Nigeria"}
                   </SheetDescription>
                 </div>
@@ -357,7 +396,6 @@ export default function AdminKybPage() {
                     <h4 className="flex items-center gap-2 text-xs font-semibold tracking-wider text-gray-900 uppercase">
                       <FileText className="h-3.5 w-3.5" /> Submitted Details
                     </h4>
-
                     <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                       <div className="grid grid-cols-2 gap-y-4 text-sm">
                         <div>
@@ -387,63 +425,133 @@ export default function AdminKybPage() {
                             </span>
                           </div>
                         </div>
-                        <div className="col-span-2">
-                          <span className="block text-xs text-gray-500">
-                            Business Description
-                          </span>
-                          <p className="mt-1 text-gray-900">
-                            {selectedVendor.vendorProfile.about ??
-                              "No description provided."}
-                          </p>
-                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Section B: Automated Check Simulation */}
+                  {/* Section B: Manual Check Execution */}
                   <div className="space-y-4">
                     <h4 className="flex items-center gap-2 text-xs font-semibold tracking-wider text-gray-900 uppercase">
-                      <ShieldCheck className="h-3.5 w-3.5" /> Registry
-                      Verification
+                      <ShieldCheck className="h-3.5 w-3.5" /> Live Registry
+                      Check
                     </h4>
 
-                    <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="mt-0.5">
-                          <CheckCircle className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <h5 className="font-medium text-blue-900">
-                            Automated Match
-                          </h5>
-                          <p className="mt-1 text-xs leading-relaxed text-blue-700">
-                            The submitted Registration Number{" "}
-                            <strong>
-                              {selectedVendor.vendorProfile.regNumber}
-                            </strong>{" "}
-                            appears to exist in the registry for{" "}
-                            <strong>
-                              {selectedVendor.vendorProfile.country}
-                            </strong>
-                            .
+                    {!registryData &&
+                      !verifyMutation.isPending &&
+                      !verifyMutation.isError && (
+                        <div className="rounded-xl border border-dashed border-blue-200 bg-blue-50/30 p-6 text-center">
+                          <p className="mb-4 text-sm text-blue-800">
+                            Run a live verification check against the corporate
+                            registry to confirm this business exists.
                           </p>
-                          <div className="mt-3 flex gap-2">
-                            <Badge
-                              variant="outline"
-                              className="border-blue-200 bg-white text-blue-700"
-                            >
-                              Status: Active
-                            </Badge>
-                            <Badge
-                              variant="outline"
-                              className="border-blue-200 bg-white text-blue-700"
-                            >
-                              Score: 98%
-                            </Badge>
+                          <Button
+                            onClick={handleRunVerification}
+                            className="bg-blue-600 text-white hover:bg-blue-700"
+                          >
+                            <Play className="mr-2 h-4 w-4" />
+                            Run Verification
+                          </Button>
+                        </div>
+                      )}
+
+                    {verifyMutation.isPending && (
+                      <div className="flex flex-col items-center justify-center rounded-xl border border-blue-100 bg-blue-50 p-8">
+                        <Loader2 className="mb-2 h-8 w-8 animate-spin text-blue-600" />
+                        <p className="text-sm font-medium text-blue-800">
+                          Querying registry database...
+                        </p>
+                      </div>
+                    )}
+
+                    {verifyMutation.isError && (
+                      <div className="rounded-xl border border-red-100 bg-red-50 p-6 text-center">
+                        <XCircle className="mx-auto mb-2 h-8 w-8 text-red-500" />
+                        <p className="mb-1 text-sm font-medium text-red-800">
+                          Verification Request Failed
+                        </p>
+                        <p className="mb-4 text-xs text-red-600">
+                          {verifyMutation.error.message}
+                        </p>
+                        <Button
+                          onClick={handleRunVerification}
+                          variant="outline"
+                          className="border-red-200 text-red-700 hover:bg-red-100"
+                        >
+                          Try Again
+                        </Button>
+                      </div>
+                    )}
+
+                    {registryData && (
+                      <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5">
+                            <CheckCircle className="h-5 w-5 text-emerald-600" />
+                          </div>
+                          <div className="w-full">
+                            <h5 className="flex items-center justify-between font-semibold text-emerald-900">
+                              Registry Match Found
+                              <Badge
+                                variant="outline"
+                                className="border-emerald-200 bg-white text-emerald-700"
+                              >
+                                Verified
+                              </Badge>
+                            </h5>
+
+                            <div className="mt-4 grid grid-cols-1 gap-y-3 border-t border-emerald-100 pt-3 text-sm">
+                              <div>
+                                <span className="block text-xs font-medium text-emerald-700/70">
+                                  Entity Name
+                                </span>
+                                <span className="font-medium text-emerald-900">
+                                  {registryData.entity_name}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <span className="block text-xs font-medium text-emerald-700/70">
+                                    Entity Type
+                                  </span>
+                                  <span className="text-emerald-900">
+                                    {registryData.entity_type}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="block text-xs font-medium text-emerald-700/70">
+                                    RC Number
+                                  </span>
+                                  <span className="font-mono text-emerald-900">
+                                    {registryData.rc_number}
+                                  </span>
+                                </div>
+                              </div>
+                              <div>
+                                <span className="block text-xs font-medium text-emerald-700/70">
+                                  Registration Date
+                                </span>
+                                <span className="text-emerald-900">
+                                  {registryData.registration_date}
+                                </span>
+                              </div>
+                              {registryData.objectives &&
+                                registryData.objectives.length > 0 && (
+                                  <div>
+                                    <span className="mb-1 block text-xs font-medium text-emerald-700/70">
+                                      Objectives
+                                    </span>
+                                    <ul className="list-disc space-y-1 pl-4 text-xs text-emerald-800">
+                                      {registryData.objectives.map((obj, i) => (
+                                        <li key={i}>{obj}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Section C: Admin Actions */}
@@ -455,9 +563,8 @@ export default function AdminKybPage() {
 
                       <div className="flex flex-col gap-3 rounded-xl border border-orange-100 bg-orange-50/30 p-5">
                         <p className="text-sm text-gray-600">
-                          Please verify the details above match the official
-                          registry response. This action cannot be easily
-                          undone.
+                          Please ensure the submitted details match the official
+                          registry response before approving.
                         </p>
                         <div className="grid grid-cols-2 gap-3">
                           <Button
@@ -489,7 +596,8 @@ export default function AdminKybPage() {
 
               {/* Sheet Footer */}
               <SheetFooter className="flex-none border-t border-gray-100 bg-gray-50/50 px-8 py-4">
-                <Button variant="ghost" onClick={() => setIsSheetOpen(false)}>
+                {/* Update the onClick handler */}
+                <Button variant="ghost" onClick={handleCloseSheet}>
                   Close Panel
                 </Button>
               </SheetFooter>
