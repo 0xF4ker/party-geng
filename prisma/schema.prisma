@@ -125,10 +125,10 @@ enum ReportStatus {
 // --- 2. AUTH & USER MODELS ---
 
 model User {
-  id       String   @id @default(uuid()) // Links to auth.users.id
-  email    String   @unique
-  username String   @unique 
-  role     UserRole // Set at sign-up (CLIENT or VENDOR)
+  id               String     @id @default(uuid()) // Links to auth.users.id
+  email            String     @unique
+  username         String     @unique 
+  role             UserRole // Set at sign-up (CLIENT or VENDOR)
   status           UserStatus @default(ACTIVE)
   suspensionReason String?
   suspendedUntil   DateTime?
@@ -137,48 +137,48 @@ model User {
   updatedAt DateTime @updatedAt
 
   // --- Relations ---
-  clientProfile      ClientProfile?      // One-to-one
-  vendorProfile      VendorProfile?      // One-to-one
-  adminProfile       AdminProfile?       // One-to-one
-  wallet             Wallet?             // One-to-one
-  chatSettings       ChatSettings?       // One-to-one
-  participations     ConversationParticipant[]
-  messages           Message[]           @relation("Sender")
-  clientQuotes       Quote[]             @relation("ClientQuotes")
-  vendorQuotes       Quote[]             @relation("VendorQuotes")
-  clientEventInvitations EventInvitation[] @relation("ClientEventInvitations")
-  vendorEventInvitations EventInvitation[] @relation("VendorEventInvitations")
-  clientOrders       Order[]             @relation("ClientOrders")
-  vendorOrders       Order[]             @relation("VendorOrders")
-  hiredGigs          EventVendor[]       @relation("HiredVendor")
-  authoredReviews    Review[]            @relation("AuthoredReviews")
-  receivedReviews    Review[]            @relation("ReceivedReviews")
-  guestContributions WishlistContribution[] @relation("GuestContributions")
-  notifications      Notification[]
-  posts              Post[]              @relation("Author")
-  postLikes          PostLike[]
-  postComments       PostComment[]
-  postBookmarks      PostBookmark[]
-  boardPosts         BoardPost[]
-  savePlans          SavePlan[]
+  clientProfile          ClientProfile?      // One-to-one
+  vendorProfile          VendorProfile?      // One-to-one
+  adminProfile           AdminProfile?       // One-to-one
+  wallet                 Wallet?             // One-to-one
+  chatSettings           ChatSettings?       // One-to-one
+  participations         ConversationParticipant[]
+  messages               Message[]           @relation("Sender")
+  clientQuotes           Quote[]             @relation("ClientQuotes")
+  vendorQuotes           Quote[]             @relation("VendorQuotes")
+  clientEventInvitations EventInvitation[]   @relation("ClientEventInvitations")
+  vendorEventInvitations EventInvitation[]   @relation("VendorEventInvitations")
+  clientOrders           Order[]             @relation("ClientOrders")
+  vendorOrders           Order[]             @relation("VendorOrders")
+  hiredGigs              EventVendor[]       @relation("HiredVendor")
+  authoredReviews        Review[]            @relation("AuthoredReviews")
+  receivedReviews        Review[]            @relation("ReceivedReviews")
+  guestContributions     WishlistContribution[] @relation("GuestContributions")
+  notifications          Notification[]
+  posts                  Post[]              @relation("Author")
+  postLikes              PostLike[]
+  postComments           PostComment[]
+  postBookmarks          PostBookmark[]
+  boardPosts             BoardPost[]
+  savePlans              SavePlan[]
   
-  blockedUsers       Block[]             @relation("Blocker")
-  blockedBy          Block[]             @relation("Blocked")
-  messageDeletions   MessageDeletion[]
-  activityLogs       ActivityLog[]
+  blockedUsers           Block[]             @relation("Blocker")
+  blockedBy              Block[]             @relation("Blocked")
+  messageDeletions       MessageDeletion[]
+  activityLogs           ActivityLog[]
 
   reportsMade     Report[] @relation("Reporter")
   reportsReceived Report[] @relation("ReportedUser")
 }
 
 model ClientProfile {
-  id        String @id @default(uuid())
-  user      User   @relation(fields: [userId], references: [id])
-  userId    String @unique // One-to-one
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @unique // One-to-one
   name      String?
   avatarUrl String?
   bannerUrl String?
-  bio       String? @db.Text
+  bio       String?  @db.Text
   location  Json?
   events    ClientEvent[] @relation("EventOwner")
   createdAt DateTime      @default(now())
@@ -187,7 +187,7 @@ model ClientProfile {
 
 model VendorProfile {
   id                 String              @id @default(uuid())
-  user               User                @relation(fields: [userId], references: [id])
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId             String              @unique // One-to-one
   companyName        String?
   title              String?
@@ -297,14 +297,14 @@ model ClientEvent {
 }
 
 model EventPersonalTodo {
-  id          String    @id @default(uuid())
+  id          String      @id @default(uuid())
   content     String
   dueDate     DateTime?
-  isCompleted Boolean   @default(false)
+  isCompleted Boolean     @default(false)
   event       ClientEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   eventId     String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   @@index([eventId])
 }
@@ -321,52 +321,52 @@ model EventVendor {
 }
 
 model Wishlist {
-  id            String       @id @default(uuid())
-  event         ClientEvent  @relation(fields: [clientEventId], references: [id], onDelete: Cascade)
-  clientEventId String       @unique
+  id            String         @id @default(uuid())
+  event         ClientEvent    @relation(fields: [clientEventId], references: [id], onDelete: Cascade)
+  clientEventId String         @unique
   items         WishlistItem[]
 }
 
 model WishlistItem {
-  id              String             @id @default(uuid())
+  id              String                 @id @default(uuid())
   name            String
-  itemType        WishlistItemType   @default(ITEM_REQUEST)
+  itemType        WishlistItemType       @default(ITEM_REQUEST)
   requestedAmount Float?
   imageUrl        String?
-  isFulfilled     Boolean            @default(false)
-  wishlist        Wishlist           @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  isFulfilled     Boolean                @default(false)
+  wishlist        Wishlist               @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
   wishlistId      String
   contributions   WishlistContribution[]
 }
 
 model WishlistContribution {
-  id             String         @id @default(uuid())
-  item           WishlistItem   @relation(fields: [wishlistItemId], references: [id], onDelete: Cascade)
+  id             String           @id @default(uuid())
+  item           WishlistItem     @relation(fields: [wishlistItemId], references: [id], onDelete: Cascade)
   wishlistItemId String
   type           ContributionType
   amount         Float?
-  guestUser      User?          @relation("GuestContributions", fields: [guestUserId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+  guestUser      User?            @relation("GuestContributions", fields: [guestUserId], references: [id], onDelete: SetNull)
   guestUserId    String?
   guestName      String
-  createdAt      DateTime       @default(now())
+  createdAt      DateTime         @default(now())
 }
 
 
 // --- 5. CHAT, QUOTE & ORDER FLOW ---
 
 model Conversation {
-  id                     String              @id @default(uuid())
-  participants           ConversationParticipant[]
-  messages               Message[]
-  quotes                 Quote[]
-  eventInvitations       EventInvitation[]
-  createdAt              DateTime            @default(now())
-  updatedAt              DateTime            @updatedAt
-  notifications          Notification[]
-  isGroup                Boolean             @default(false)
-  groupAdminId           String?
-  clientEvent            ClientEvent?        @relation("EventConversation", fields: [clientEventId], references: [id], onDelete: Cascade)
-  clientEventId          String?             @unique
+  id               String                    @id @default(uuid())
+  participants     ConversationParticipant[]
+  messages         Message[]
+  quotes           Quote[]
+  eventInvitations EventInvitation[]
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  notifications    Notification[]
+  isGroup          Boolean                   @default(false)
+  groupAdminId     String?
+  clientEvent      ClientEvent?              @relation("EventConversation", fields: [clientEventId], references: [id], onDelete: Cascade)
+  clientEventId    String?                   @unique
 }
 
 model ConversationParticipant {
@@ -386,19 +386,19 @@ model ConversationParticipant {
 }
 
 model Message {
-  id                     String              @id @default(uuid())
-  text                   String              @db.Text
-  conversation           Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  conversationId         String
-  sender                 User                @relation("Sender", fields: [senderId], references: [id])
-  senderId               String
-  quote                  Quote?
-  eventInvitation        EventInvitation?
-  createdAt              DateTime            @default(now())
+  id                   String            @id @default(uuid())
+  text                 String            @db.Text
+  conversation         Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId       String
+  sender               User              @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId             String
+  quote                Quote?
+  eventInvitation      EventInvitation?
+  createdAt            DateTime          @default(now())
   
   // New chat features
-  isDeletedForEveryone   Boolean             @default(false)
-  deletions              MessageDeletion[]
+  isDeletedForEveryone Boolean           @default(false)
+  deletions            MessageDeletion[]
 }
 
 model MessageDeletion {
@@ -416,9 +416,9 @@ model MessageDeletion {
 
 model Quote {
   id             String       @id @default(uuid())
-  vendor         User         @relation("VendorQuotes", fields: [vendorId], references: [id])
+  vendor         User         @relation("VendorQuotes", fields: [vendorId], references: [id], onDelete: Cascade)
   vendorId       String
-  client         User         @relation("ClientQuotes", fields: [clientId], references: [id])
+  client         User         @relation("ClientQuotes", fields: [clientId], references: [id], onDelete: Cascade)
   clientId       String
   conversation   Conversation @relation(fields: [conversationId], references: [id])
   conversationId String
@@ -437,9 +437,9 @@ model Quote {
 
 model EventInvitation {
   id             String       @id @default(uuid())
-  vendor         User         @relation("VendorEventInvitations", fields: [vendorId], references: [id])
+  vendor         User         @relation("VendorEventInvitations", fields: [vendorId], references: [id], onDelete: Cascade)
   vendorId       String
-  client         User         @relation("ClientEventInvitations", fields: [clientId], references: [id])
+  client         User         @relation("ClientEventInvitations", fields: [clientId], references: [id], onDelete: Cascade)
   clientId       String
   event          ClientEvent  @relation(fields: [eventId], references: [id])
   eventId        String
@@ -454,9 +454,9 @@ model EventInvitation {
 
 model Order {
   id            String          @id @default(uuid())
-  vendor        User            @relation("VendorOrders", fields: [vendorId], references: [id])
+  vendor        User            @relation("VendorOrders", fields: [vendorId], references: [id], onDelete: Cascade)
   vendorId      String
-  client        User            @relation("ClientOrders", fields: [clientId], references: [id])
+  client        User            @relation("ClientOrders", fields: [clientId], references: [id], onDelete: Cascade)
   clientId      String
   quote         Quote           @relation(fields: [quoteId], references: [id])
   quoteId       String          @unique
@@ -475,7 +475,7 @@ model Order {
 
 model Wallet {
   id                 String        @id @default(uuid())
-  user               User          @relation(fields: [userId], references: [id])
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId             String        @unique
   availableBalance   Float         @default(0)
   clearingBalance    Float         @default(0)
@@ -495,7 +495,7 @@ enum TransactionStatus {
 
 model Transaction {
   id          String            @id @default(uuid())
-  wallet      Wallet            @relation(fields: [walletId], references: [id])
+  wallet      Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
   walletId    String
   type        TransactionType
   amount      Float
@@ -510,13 +510,13 @@ model Transaction {
 
 model Review {
   id        String   @id @default(uuid())
-  order     Order    @relation(fields: [orderId], references: [id])
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderId   String   @unique
   rating    Int
   comment   String   @db.Text
-  author    User     @relation("AuthoredReviews", fields: [authorId], references: [id])
+  author    User     @relation("AuthoredReviews", fields: [authorId], references: [id], onDelete: Cascade)
   authorId  String
-  subject   User     @relation("ReceivedReviews", fields: [subjectId], references: [id])
+  subject   User     @relation("ReceivedReviews", fields: [subjectId], references: [id], onDelete: Cascade)
   subjectId String
   createdAt DateTime @default(now())
 }
@@ -622,20 +622,20 @@ model PostBookmark {
 // --- 9. EVENT MANAGEMENT MODELS ---
 
 model BoardPost {
-  id          String        @id @default(uuid())
-  type        BoardPostType
-  content     String        @db.Text
-  author      User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId    String
-  authorName  String
-  rotation    Float
-  colorIndex  Int
-  x           Float
-  y           Float
-  zIndex      Int
-  event       ClientEvent   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  eventId     String
-  createdAt   DateTime      @default(now())
+  id         String        @id @default(uuid())
+  type       BoardPostType
+  content    String        @db.Text
+  author     User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId   String
+  authorName String
+  rotation   Float
+  colorIndex Int
+  x          Float
+  y          Float
+  zIndex     Int
+  event      ClientEvent   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId    String
+  createdAt  DateTime      @default(now())
 
   @@index([eventId])
 }
@@ -670,16 +670,16 @@ model EventGuestList {
 }
 
 model EventGuest {
-  id     String         @id @default(uuid())
-  name   String
-  email  String?
-  status GuestStatus    @default(PENDING)
-  tableNumber Int?
-  invitationToken String? @unique
-  list   EventGuestList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  listId String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String         @id @default(uuid())
+  name            String
+  email           String?
+  status          GuestStatus    @default(PENDING)
+  tableNumber     Int?
+  invitationToken String?        @unique
+  list            EventGuestList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  listId          String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@index([listId])
 }
@@ -709,28 +709,28 @@ model SavePlan {
 
 
 model AdminProfile {
-  id        String   @id @default(uuid())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String   @unique
-  fullName  String
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String   @unique
+  fullName   String
   department String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 // --- 11. AUDIT & LOGGING ---
 
 model ActivityLog {
-  id          String   @id @default(uuid())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId      String
-  action      String   // e.g., "LOGIN", "CREATE_GIG", "UPDATE_PROFILE"
-  entityType  String?  // e.g., "ORDER", "USER", "GIG"
-  entityId    String?  // ID of the affected entity
-  details     Json?    // Extra metadata (diffs, snapshots)
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  action     String   // e.g., "LOGIN", "CREATE_GIG", "UPDATE_PROFILE"
+  entityType String?  // e.g., "ORDER", "USER", "GIG"
+  entityId   String?  // ID of the affected entity
+  details    Json?    // Extra metadata (diffs, snapshots)
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 
   @@index([userId])
   @@index([action])
@@ -738,25 +738,25 @@ model ActivityLog {
 }
 
 model Report {
-  id        String       @id @default(uuid())
+  id                String       @id @default(uuid())
   
   // Who is reporting?
-  reporter   User        @relation("Reporter", fields: [reporterId], references: [id])
-  reporterId String
+  reporter          User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reporterId        String
 
   // Why?
-  reason    ReportReason
-  details   String?      @db.Text
-  status    ReportStatus @default(PENDING)
+  reason            ReportReason
+  details           String?      @db.Text
+  status            ReportStatus @default(PENDING)
 
   // What is being reported? (Polymorphic-ish)
   // 1. Account Report
-  targetUser   User?     @relation("ReportedUser", fields: [targetUserId], references: [id])
-  targetUserId String?
+  targetUser        User?        @relation("ReportedUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  targetUserId      String?
 
   // 2. Post Report
-  targetPost   Post?     @relation(fields: [targetPostId], references: [id])
-  targetPostId String?
+  targetPost        Post?        @relation(fields: [targetPostId], references: [id])
+  targetPostId      String?
 
   // Admin Resolution details
   resolvedByAdminId String?
@@ -791,4 +791,3 @@ model GlobalSettings {
   
   updatedAt             DateTime @updatedAt
 }
-
