@@ -27,6 +27,7 @@ const PUBLIC_PREFIXES = [
   "/quote",
   "/api",
   "/lottiefiles",
+  "/auth", // <-- ADDED: Crucial for /auth/confirm to process the email token
 ];
 
 // 3. Role Definitions
@@ -90,12 +91,9 @@ export async function middleware(request: NextRequest) {
 
   // --- 5. LOGGED OUT LOGIC ---
   if (!user) {
-    // If it is a public route (including /api/trpc/...), allow it.
-    // TRPC will handle the specific 'protectedProcedure' checks internally.
     if (isPublic) {
       return response;
     }
-    // Otherwise, redirect to login (e.g. attempting to visit /dashboard while logged out)
     return redirectTo("/login");
   }
 
@@ -103,8 +101,8 @@ export async function middleware(request: NextRequest) {
 
   // A. PREVENT AUTH PAGES FOR LOGGED IN USERS
   if (path === "/login" || path === "/join") {
-    if (userRole === ROLES.VENDOR) return redirectTo("/dashboard");
-    if (userRole === ROLES.CLIENT) return redirectTo("/manage_events");
+    if (userRole === ROLES.VENDOR) return redirectTo("/vendor/dashboard");
+    if (userRole === ROLES.CLIENT) return redirectTo("/dashboard");
     if (ROLES.ADMIN_GROUP.includes(userRole ?? "")) return redirectTo("/admin");
     return redirectTo("/");
   }
@@ -152,19 +150,27 @@ export async function middleware(request: NextRequest) {
   }
 
   // === VENDOR ROUTES ===
-  const vendorRoutes = ["/dashboard"];
+  const vendorRoutes = ["/vendor/dashboard"]; // Updated to match your new routing
   if (vendorRoutes.some((route) => path.startsWith(route))) {
     if (userRole !== ROLES.VENDOR) {
-      return redirectTo("/manage_events");
+      return redirectTo("/dashboard");
     }
   }
 
   // === CLIENT ROUTES ===
-  const clientRoutes = ["/manage_events", "/isave", "/wishlist"];
+  const clientRoutes = ["/dashboard", "/isave", "/wishlist"]; // Updated to match your new routing
   if (clientRoutes.some((route) => path.startsWith(route))) {
     if (userRole !== ROLES.CLIENT) {
-      return redirectTo("/dashboard");
+      return redirectTo("/vendor/dashboard");
     }
+  }
+
+  // === ONBOARDING ROUTE ===
+  // We explicitly allow /onboarding to pass through without redirects
+  // Your /onboarding page component should handle redirecting the user away
+  // if they have already synced their profile to Prisma.
+  if (path === "/onboarding") {
+    return response;
   }
 
   return response;
@@ -172,15 +178,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * * NOTE: We intentionally INCLUDE /api routes in the matcher so the middleware
-     * runs (refreshing the session cookie), but we exclude them from redirects
-     * via PUBLIC_PREFIXES logic above.
-     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

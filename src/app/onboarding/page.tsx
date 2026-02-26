@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-// import { useAuthStore } from "@/stores/auth";
 
 // --- VALIDATION SCHEMA ---
 const onboardingSchema = z.object({
@@ -31,15 +30,16 @@ type OnboardingValues = z.infer<typeof onboardingSchema>;
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const supabase = createClient();
+  const utils = api.useUtils();
+
   const [authUser, setAuthUser] = useState<{
     id: string;
     email: string;
   } | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const supabase = createClient();
-  const utils = api.useUtils();
-  //   const setProfile = useAuthStore((state) => state.setProfile);
 
+  // --- HOOK FORM ---
   const {
     register,
     handleSubmit,
@@ -49,7 +49,7 @@ export default function OnboardingPage() {
   } = useForm<OnboardingValues>({
     resolver: zodResolver(onboardingSchema),
     defaultValues: {
-      role: "CLIENT", // Default selection
+      role: "CLIENT",
     },
   });
 
@@ -57,6 +57,14 @@ export default function OnboardingPage() {
     control,
     name: "role",
   });
+
+  // --- PRISMA PROFILE CHECK ---
+  // If the user already exists in Prisma, this will fetch their data.
+  const { data: profile, isLoading: isProfileLoading } =
+    api.user.getProfile.useQuery(undefined, {
+      enabled: !!authUser, // Only run this query AFTER we confirm they are logged into Supabase
+      retry: false, // Don't retry if it fails (404 means they need to onboard)
+    });
 
   // 1. CHECK SUPABASE SESSION ON MOUNT
   useEffect(() => {
@@ -66,14 +74,8 @@ export default function OnboardingPage() {
         error,
       } = await supabase.auth.getSession();
 
-      if (error || !session?.user) {
+      if (error || !session?.user?.email) {
         toast.error("Please log in to continue.");
-        router.push("/login");
-        return;
-      }
-
-      if (!session.user.email) {
-        toast.error("Email is required.");
         router.push("/login");
         return;
       }
@@ -82,28 +84,52 @@ export default function OnboardingPage() {
         id: session.user.id,
         email: session.user.email,
       });
+
+      // 🔥 STRICT TYPE DEFINITION FOR METADATA
+      interface UserMetadata {
+        username?: string;
+        role?: string;
+      }
+
+      // Safely cast the metadata payload
+      const metadata = session.user.user_metadata as UserMetadata | undefined;
+
+      // Safely check and assign values
+      if (metadata?.username && typeof metadata.username === "string") {
+        setValue("username", metadata.username);
+      }
+
+      if (metadata?.role === "CLIENT" || metadata?.role === "VENDOR") {
+        setValue("role", metadata.role);
+      }
+
       setIsCheckingSession(false);
     };
 
     void checkUser();
-  }, [router, supabase.auth]);
+  }, [router, supabase.auth, setValue]);
 
-  // 2. THE MUTATION
+  // 2. REDIRECT IF ALREADY ONBOARDED
+  useEffect(() => {
+    if (profile) {
+      if (profile.role === "VENDOR") router.push("/vendor/dashboard");
+      else router.push("/dashboard");
+    }
+  }, [profile, router]);
+
+  // 3. THE MUTATION
   const createUser = api.user.createUser.useMutation({
     onSuccess: async (data) => {
       toast.success("Account setup complete!");
-      // Force the AuthProvider to fetch the new profile
       await utils.user.getProfile.invalidate();
 
-      // Redirect based on role
       if (data.role === "VENDOR") {
-        router.push("/vendor/dashboard"); // Or wherever vendors go first
+        router.push("/vendor/dashboard");
       } else {
-        router.push("/dashboard"); // Clients
+        router.push("/dashboard");
       }
     },
     onError: (err) => {
-      // Handle Unique Constraint error for Usernames (Prisma)
       if (
         err.message.includes("Unique constraint") ||
         err.message.includes("already taken")
@@ -126,7 +152,8 @@ export default function OnboardingPage() {
     });
   };
 
-  if (isCheckingSession) {
+  // Wait until we confirm session AND confirm they don't already have a DB profile
+  if (isCheckingSession || isProfileLoading || profile) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <Loader2 className="h-8 w-8 animate-spin text-pink-600" />
@@ -142,7 +169,7 @@ export default function OnboardingPage() {
             Welcome to PartyGeng! 🎉
           </h2>
           <p className="mt-2 text-sm text-gray-500">
-            Let&apos;s finish setting up your account.
+            Review your details to finish setting up your account.
           </p>
         </div>
 
@@ -150,7 +177,7 @@ export default function OnboardingPage() {
           {/* --- USERNAME INPUT --- */}
           <div>
             <Label htmlFor="username" className="font-semibold text-gray-700">
-              Choose a Username
+              Confirm your Username
             </Label>
             <div className="relative mt-2">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
@@ -175,7 +202,7 @@ export default function OnboardingPage() {
           {/* --- ROLE SELECTION --- */}
           <div className="space-y-3">
             <Label className="font-semibold text-gray-700">
-              How will you use PartyGeng?
+              Confirm your account type
             </Label>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
