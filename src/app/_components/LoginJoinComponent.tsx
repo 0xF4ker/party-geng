@@ -1,11 +1,19 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Check, ArrowLeft, Mail, Loader2, MailCheck } from "lucide-react";
+import {
+  X,
+  Check,
+  ArrowLeft,
+  Mail,
+  Loader2,
+  MailCheck,
+  CheckCircle,
+} from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { api } from "@/trpc/react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth";
 import { cn } from "@/lib/utils";
@@ -47,6 +55,8 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [step, setStep] = useState<"options" | "email">("options");
   const utils = api.useUtils();
+  const searchParams = useSearchParams();
+  const isVerified = searchParams.get("verified") === "true";
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -62,18 +72,37 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
       if (error) throw error;
 
       toast.success("Welcome back!");
-      const profile = await utils.user.getProfile.fetch();
-      useAuthStore.getState().setProfile(profile);
 
-      if (onClose) onClose();
+      try {
+        // Try to fetch the Prisma profile
+        const profile = await utils.user.getProfile.fetch();
+        useAuthStore.getState().setProfile(profile);
 
-      if (profile?.status === "BANNED" || profile?.status === "SUSPENDED")
-        return;
-      if (profile?.role === "VENDOR") router.push("/vendor/dashboard");
-      else if (profile?.role === "CLIENT") router.push("/dashboard");
-      else if (["ADMIN", "SUPPORT", "FINANCE"].includes(profile?.role ?? ""))
-        router.push("/admin");
-      else router.push("/");
+        if (onClose) onClose();
+
+        // Standard routing for existing users
+        if (profile?.status === "BANNED" || profile?.status === "SUSPENDED")
+          return;
+        if (profile?.role === "VENDOR") router.push("/vendor/dashboard");
+        else if (profile?.role === "CLIENT") router.push("/dashboard");
+        else if (["ADMIN", "SUPPORT", "FINANCE"].includes(profile?.role ?? ""))
+          router.push("/admin");
+        else router.push("/");
+      } catch (profileError: unknown) {
+        // 🔥 THE MAGIC SAUCE (Strictly Typed):
+        // Narrow the unknown error down to a standard JS Error
+        if (profileError instanceof Error) {
+          // tRPC typically embeds the error code or your custom message in the Error.message string
+          if (
+            profileError.message.includes("NOT_FOUND") ||
+            profileError.message.includes("No profile found")
+          ) {
+            if (onClose) onClose();
+            router.push("/onboarding");
+            return;
+          }
+        }
+      }
     } catch (error: unknown) {
       if (error instanceof Error || (error as AuthError).message) {
         toast.error((error as AuthError).message || "Failed to sign in.");
@@ -115,6 +144,12 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
       onSubmit={handleLogin}
       className="animate-in fade-in slide-in-from-right-4 flex flex-col gap-4"
     >
+      {isVerified && (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+          <CheckCircle className="h-4 w-4 text-emerald-600" />
+          Email verified! Please sign in to complete your setup.
+        </div>
+      )}
       <button
         type="button"
         onClick={() => setStep("options")}
@@ -181,7 +216,7 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
         password,
         options: {
           data: { username, role },
-          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/onboarding`,
+          emailRedirectTo: `${window.location.origin}/login?verified=true`,
         },
       });
 

@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-// --- VALIDATION SCHEMA ---
 const onboardingSchema = z.object({
   username: z
     .string()
@@ -37,9 +36,8 @@ export default function OnboardingPage() {
     id: string;
     email: string;
   } | null>(null);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [isCheckingSession, setIsCheckingSession] = useState<boolean>(true);
 
-  // --- HOOK FORM ---
   const {
     register,
     handleSubmit,
@@ -59,14 +57,14 @@ export default function OnboardingPage() {
   });
 
   // --- PRISMA PROFILE CHECK ---
-  // If the user already exists in Prisma, this will fetch their data.
+  // 🔥 CRITICAL: retry: false prevents tRPC from endlessly retrying a 404 NOT_FOUND
   const { data: profile, isLoading: isProfileLoading } =
     api.user.getProfile.useQuery(undefined, {
-      enabled: !!authUser, // Only run this query AFTER we confirm they are logged into Supabase
-      retry: false, // Don't retry if it fails (404 means they need to onboard)
+      enabled: !!authUser,
+      retry: false,
     });
 
-  // 1. CHECK SUPABASE SESSION ON MOUNT
+  // 1. CHECK SUPABASE SESSION & PRE-FILL METADATA
   useEffect(() => {
     const checkUser = async () => {
       const {
@@ -85,16 +83,13 @@ export default function OnboardingPage() {
         email: session.user.email,
       });
 
-      // 🔥 STRICT TYPE DEFINITION FOR METADATA
       interface UserMetadata {
         username?: string;
         role?: string;
       }
 
-      // Safely cast the metadata payload
       const metadata = session.user.user_metadata as UserMetadata | undefined;
 
-      // Safely check and assign values
       if (metadata?.username && typeof metadata.username === "string") {
         setValue("username", metadata.username);
       }
@@ -129,14 +124,18 @@ export default function OnboardingPage() {
         router.push("/dashboard");
       }
     },
-    onError: (err) => {
-      if (
-        err.message.includes("Unique constraint") ||
-        err.message.includes("already taken")
-      ) {
-        toast.error("This username is already taken. Please try another.");
+    onError: (err: unknown) => {
+      if (err instanceof Error) {
+        if (
+          err.message.includes("Unique constraint") ||
+          err.message.includes("already taken")
+        ) {
+          toast.error("This username is already taken. Please try another.");
+        } else {
+          toast.error(err.message || "Failed to create account.");
+        }
       } else {
-        toast.error(err.message || "Failed to create account.");
+        toast.error("An unexpected error occurred.");
       }
     },
   });
@@ -152,7 +151,6 @@ export default function OnboardingPage() {
     });
   };
 
-  // Wait until we confirm session AND confirm they don't already have a DB profile
   if (isCheckingSession || isProfileLoading || profile) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
@@ -174,7 +172,6 @@ export default function OnboardingPage() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
-          {/* --- USERNAME INPUT --- */}
           <div>
             <Label htmlFor="username" className="font-semibold text-gray-700">
               Confirm your Username
@@ -199,14 +196,12 @@ export default function OnboardingPage() {
             )}
           </div>
 
-          {/* --- ROLE SELECTION --- */}
           <div className="space-y-3">
             <Label className="font-semibold text-gray-700">
               Confirm your account type
             </Label>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {/* Client Card */}
               <div
                 onClick={() =>
                   !createUser.isPending && setValue("role", "CLIENT")
@@ -226,7 +221,6 @@ export default function OnboardingPage() {
                 </span>
               </div>
 
-              {/* Vendor Card */}
               <div
                 onClick={() =>
                   !createUser.isPending && setValue("role", "VENDOR")
@@ -253,7 +247,6 @@ export default function OnboardingPage() {
             )}
           </div>
 
-          {/* --- SUBMIT --- */}
           <Button
             type="submit"
             disabled={createUser.isPending}

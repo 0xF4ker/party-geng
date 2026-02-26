@@ -2,8 +2,6 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 // --- CONFIGURATION ---
-
-// 1. Routes accessible to everyone (Guests + Logged in)
 const PUBLIC_ROUTES = [
   "/",
   "/login",
@@ -18,7 +16,6 @@ const PUBLIC_ROUTES = [
   "/partygeng-pro",
 ];
 
-// 2. Routes that match loosely
 const PUBLIC_PREFIXES = [
   "/c/",
   "/v/",
@@ -27,10 +24,8 @@ const PUBLIC_PREFIXES = [
   "/quote",
   "/api",
   "/lottiefiles",
-  "/auth", // <-- ADDED: Crucial for /auth/confirm to process the email token
 ];
 
-// 3. Role Definitions
 const ROLES = {
   ADMIN_GROUP: ["ADMIN", "SUPPORT", "FINANCE"],
   VENDOR: "VENDOR",
@@ -54,7 +49,7 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
+          cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
           response = NextResponse.next({
@@ -73,31 +68,29 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Safe cast for user role
   const userRole = (
     user?.user_metadata?.role as string | undefined
   )?.toUpperCase();
   const path = request.nextUrl.pathname;
 
-  // --- 3. HELPER: REDIRECTS ---
   const redirectTo = (url: string) => {
     return NextResponse.redirect(new URL(url, request.url));
   };
 
-  // --- 4. PUBLIC ACCESS CHECK ---
   const isPublic =
     PUBLIC_ROUTES.includes(path) ||
     PUBLIC_PREFIXES.some((prefix) => path.startsWith(prefix));
 
-  // --- 5. LOGGED OUT LOGIC ---
+  // --- 3. LOGGED OUT LOGIC ---
   if (!user) {
     if (isPublic) {
       return response;
     }
+    // If a logged-out user tries to go to /onboarding, they get sent here.
     return redirectTo("/login");
   }
 
-  // --- 6. AUTHENTICATED ACCESS CHECKS ---
+  // --- 4. AUTHENTICATED ACCESS CHECKS ---
 
   // A. PREVENT AUTH PAGES FOR LOGGED IN USERS
   if (path === "/login" || path === "/join") {
@@ -107,23 +100,21 @@ export async function middleware(request: NextRequest) {
     return redirectTo("/");
   }
 
-  // B. ROLE BASED ACCESS CONTROL (RBAC)
+  // B. ALLOW ONBOARDING
+  // If they are logged in and hit /onboarding, let them through.
+  // The Onboarding page itself will kick them out if they already have a Prisma profile.
+  if (path === "/onboarding") {
+    return response;
+  }
 
-  // === ADMIN ROUTES ===
+  // C. ROLE BASED ACCESS CONTROL (RBAC)
   if (path.startsWith("/admin")) {
-    if (!ROLES.ADMIN_GROUP.includes(userRole ?? "")) {
-      return redirectTo("/");
-    }
-
-    if (userRole === "ADMIN") {
-      return response;
-    }
+    if (!ROLES.ADMIN_GROUP.includes(userRole ?? "")) return redirectTo("/");
+    if (userRole === "ADMIN") return response;
 
     const universalPaths = ["/admin/users", "/admin/vendors", "/admin/audit"];
-
-    if (path === "/admin" || universalPaths.some((p) => path.startsWith(p))) {
+    if (path === "/admin" || universalPaths.some((p) => path.startsWith(p)))
       return response;
-    }
 
     const supportAllowed = [
       "/admin/orders",
@@ -131,46 +122,36 @@ export async function middleware(request: NextRequest) {
       "/admin/kyc",
       "/admin/reports",
     ];
-
     const financeAllowed = ["/admin/finance"];
 
-    if (userRole === "SUPPORT") {
-      if (supportAllowed.some((p) => path.startsWith(p))) {
-        return response;
-      }
-    }
-
-    if (userRole === "FINANCE") {
-      if (financeAllowed.some((p) => path.startsWith(p))) {
-        return response;
-      }
-    }
+    if (
+      userRole === "SUPPORT" &&
+      supportAllowed.some((p) => path.startsWith(p))
+    )
+      return response;
+    if (
+      userRole === "FINANCE" &&
+      financeAllowed.some((p) => path.startsWith(p))
+    )
+      return response;
 
     return redirectTo("/admin");
   }
 
-  // === VENDOR ROUTES ===
-  const vendorRoutes = ["/vendor/dashboard"]; // Updated to match your new routing
-  if (vendorRoutes.some((route) => path.startsWith(route))) {
-    if (userRole !== ROLES.VENDOR) {
-      return redirectTo("/dashboard");
-    }
+  const vendorRoutes = ["/vendor/dashboard"];
+  if (
+    vendorRoutes.some((route) => path.startsWith(route)) &&
+    userRole !== ROLES.VENDOR
+  ) {
+    return redirectTo("/dashboard");
   }
 
-  // === CLIENT ROUTES ===
-  const clientRoutes = ["/dashboard", "/isave", "/wishlist"]; // Updated to match your new routing
-  if (clientRoutes.some((route) => path.startsWith(route))) {
-    if (userRole !== ROLES.CLIENT) {
-      return redirectTo("/vendor/dashboard");
-    }
-  }
-
-  // === ONBOARDING ROUTE ===
-  // We explicitly allow /onboarding to pass through without redirects
-  // Your /onboarding page component should handle redirecting the user away
-  // if they have already synced their profile to Prisma.
-  if (path === "/onboarding") {
-    return response;
+  const clientRoutes = ["/dashboard", "/isave", "/wishlist"];
+  if (
+    clientRoutes.some((route) => path.startsWith(route)) &&
+    userRole !== ROLES.CLIENT
+  ) {
+    return redirectTo("/vendor/dashboard");
   }
 
   return response;
