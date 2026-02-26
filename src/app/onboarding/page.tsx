@@ -8,7 +8,14 @@ import { z } from "zod";
 import { api } from "@/trpc/react";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
-import { Loader2, User, Store, ArrowRight } from "lucide-react";
+import {
+  Loader2,
+  User,
+  Store,
+  ArrowRight,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,14 +63,45 @@ export default function OnboardingPage() {
   });
 
   // --- PRISMA PROFILE CHECK ---
-  // 🔥 CRITICAL: retry: false prevents tRPC from endlessly retrying a 404 NOT_FOUND
   const { data: profile, isLoading: isProfileLoading } =
     api.user.getProfile.useQuery(undefined, {
       enabled: !!authUser,
       retry: false,
     });
 
-  // 1. CHECK SUPABASE SESSION & PRE-FILL METADATA
+  // Username validation state
+  const usernameValue = useWatch({ control, name: "username" });
+  const [usernameStatus, setUsernameStatus] = useState<
+    "idle" | "checking" | "available" | "taken"
+  >("idle");
+
+  // Real-time Debounced Username Check
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (!usernameValue || usernameValue.length < 3) {
+        setUsernameStatus("idle");
+        return;
+      }
+
+      setUsernameStatus("checking");
+
+      const performCheck = async () => {
+        try {
+          const isAvailable = await utils.user.checkUsername.fetch({
+            username: usernameValue.toLowerCase(),
+          });
+          setUsernameStatus(isAvailable ? "available" : "taken");
+        } catch {
+          setUsernameStatus("idle");
+        }
+      };
+
+      void performCheck();
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [usernameValue, utils.user.checkUsername]);
+
   useEffect(() => {
     const checkUser = async () => {
       const supabase = createClient();
@@ -90,10 +128,7 @@ export default function OnboardingPage() {
 
       const metadata = session.user.user_metadata as UserMetadata | undefined;
 
-      if (metadata?.username && typeof metadata.username === "string") {
-        setValue("username", metadata.username);
-      }
-
+      if (metadata?.username) setValue("username", metadata.username);
       if (metadata?.role === "CLIENT" || metadata?.role === "VENDOR") {
         setValue("role", metadata.role);
       }
@@ -102,19 +137,18 @@ export default function OnboardingPage() {
     };
 
     void checkUser();
-    // 👇 FIX: Removed supabase.auth to stop the infinite loop
   }, [router, setValue]);
 
   // 2. REDIRECT IF ALREADY ONBOARDED
   useEffect(() => {
-    if (profile && profile.isOnboarded) {
+    if (profile?.isOnboarded) {
       if (profile.role === "VENDOR") router.push("/vendor/dashboard");
       else router.push("/dashboard");
     }
   }, [profile, router]);
 
   // 3. THE MUTATION
-  const createUser = api.user.updateOnboarding.useMutation({
+  const updateOnboarding = api.user.updateOnboarding.useMutation({
     onSuccess: async (data) => {
       toast.success("Account setup complete!");
       await utils.user.getProfile.invalidate();
@@ -127,13 +161,11 @@ export default function OnboardingPage() {
     },
     onError: (err: unknown) => {
       if (err instanceof Error) {
-        if (
-          err.message.includes("Unique constraint") ||
-          err.message.includes("already taken")
-        ) {
-          toast.error("This username is already taken. Please try another.");
+        // tRPC errors usually contain the message string
+        if (err.message.toLowerCase().includes("taken")) {
+          toast.error("This username is already taken.");
         } else {
-          toast.error(err.message || "Failed to create account.");
+          toast.error(err.message);
         }
       } else {
         toast.error("An unexpected error occurred.");
@@ -143,16 +175,19 @@ export default function OnboardingPage() {
 
   const onSubmit = (data: OnboardingValues) => {
     if (!authUser) return;
+    if (usernameStatus === "taken") {
+      toast.error("Please choose an available username.");
+      return;
+    }
 
-    createUser.mutate({
-      id: authUser.id,
-      email: authUser.email,
+    updateOnboarding.mutate({
       username: data.username.toLowerCase(),
       role: data.role,
     });
   };
 
-  if (isCheckingSession || isProfileLoading) {
+  // Guard against render loop: Only show loader if we are actually checking or if they are already onboarded and waiting for redirect
+  if (isCheckingSession || isProfileLoading || profile?.isOnboarded) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <Loader2 className="h-8 w-8 animate-spin text-pink-600" />
@@ -185,14 +220,36 @@ export default function OnboardingPage() {
                 id="username"
                 type="text"
                 placeholder="partyanimal99"
-                className="pl-8 focus-visible:ring-pink-500"
+                className={cn(
+                  "pl-8 focus-visible:ring-pink-500",
+                  usernameStatus === "taken" &&
+                    "border-red-500 focus-visible:ring-red-500",
+                  usernameStatus === "available" &&
+                    "border-green-500 focus-visible:ring-green-500",
+                )}
                 {...register("username")}
-                disabled={createUser.isPending}
+                disabled={updateOnboarding.isPending}
               />
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                {usernameStatus === "checking" && (
+                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                )}
+                {usernameStatus === "available" && (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                )}
+                {usernameStatus === "taken" && (
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                )}
+              </div>
             </div>
             {errors.username && (
               <p className="mt-1 text-sm font-medium text-red-600">
                 {errors.username.message}
+              </p>
+            )}
+            {usernameStatus === "taken" && (
+              <p className="mt-1 text-sm font-medium text-red-600">
+                This username is taken.
               </p>
             )}
           </div>
@@ -205,38 +262,38 @@ export default function OnboardingPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div
                 onClick={() =>
-                  !createUser.isPending && setValue("role", "CLIENT")
+                  !updateOnboarding.isPending && setValue("role", "CLIENT")
                 }
                 className={cn(
                   "relative flex cursor-pointer flex-col items-center rounded-xl border-2 p-4 text-center transition-all duration-200",
                   selectedRole === "CLIENT"
                     ? "border-pink-600 bg-pink-50 text-pink-700"
                     : "border-gray-200 bg-white text-gray-600 hover:border-pink-200 hover:bg-gray-50",
-                  createUser.isPending && "cursor-not-allowed opacity-50",
+                  updateOnboarding.isPending && "cursor-not-allowed opacity-50",
                 )}
               >
                 <User className="mb-2 h-8 w-8" />
                 <span className="font-bold">Client</span>
-                <span className="mt-1 text-xs font-medium opacity-80">
+                <span className="mt-1 text-xs font-medium text-gray-500 opacity-80">
                   I want to plan events and hire vendors.
                 </span>
               </div>
 
               <div
                 onClick={() =>
-                  !createUser.isPending && setValue("role", "VENDOR")
+                  !updateOnboarding.isPending && setValue("role", "VENDOR")
                 }
                 className={cn(
                   "relative flex cursor-pointer flex-col items-center rounded-xl border-2 p-4 text-center transition-all duration-200",
                   selectedRole === "VENDOR"
                     ? "border-pink-600 bg-pink-50 text-pink-700"
                     : "border-gray-200 bg-white text-gray-600 hover:border-pink-200 hover:bg-gray-50",
-                  createUser.isPending && "cursor-not-allowed opacity-50",
+                  updateOnboarding.isPending && "cursor-not-allowed opacity-50",
                 )}
               >
                 <Store className="mb-2 h-8 w-8" />
                 <span className="font-bold">Vendor</span>
-                <span className="mt-1 text-xs font-medium opacity-80">
+                <span className="mt-1 text-xs font-medium text-gray-500 opacity-80">
                   I want to offer my services to clients.
                 </span>
               </div>
@@ -250,12 +307,16 @@ export default function OnboardingPage() {
 
           <Button
             type="submit"
-            disabled={createUser.isPending}
+            disabled={
+              updateOnboarding.isPending ||
+              usernameStatus === "checking" ||
+              usernameStatus === "taken"
+            }
             className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-pink-600 text-lg font-bold text-white hover:bg-pink-700"
           >
-            {createUser.isPending ? (
+            {updateOnboarding.isPending ? (
               <>
-                <Loader2 className="h-5 w-5 animate-spin" /> Creating Account...
+                <Loader2 className="h-5 w-5 animate-spin" /> Saving...
               </>
             ) : (
               <>

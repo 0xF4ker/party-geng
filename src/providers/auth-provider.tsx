@@ -61,7 +61,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     void checkSession();
 
-    // 👇 FIX 1: Only invalidate on specific events to stop the network spam loop!
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
@@ -77,6 +76,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [setProfile, utils]);
 
+  const { mutate: healAccount, isPending: isHealPending } = healAccountMutation;
+
   // 4. Update Store, Enforce Onboarding & Detect Orphans
   useEffect(() => {
     if (hasSession && profile) {
@@ -89,16 +90,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (hasSession && !isProfileLoading) {
-      // 👇 FIX 2: Safely handle null profiles AND check the onboarded flag
       if (!profile || !profile.isOnboarded) {
         if (!pathname.startsWith("/onboarding")) {
           console.warn("User has not completed onboarding. Redirecting...");
           router.push("/onboarding");
         }
-        return; // Halt execution so we don't run the healer
+        return;
       }
 
-      // 👇 FIX 3: If they ARE onboarded but somehow landed back on the login page, get them out!
       if (pathname.startsWith("/login") || pathname.startsWith("/join")) {
         router.push(
           profile.role === "VENDOR" ? "/vendor/dashboard" : "/dashboard",
@@ -113,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (isProfileIncomplete && !isHealPending) {
         console.warn("User account incomplete. Attempting to repair...");
-        healAccountMutation.mutate();
+        healAccount();
       }
     }
   }, [
@@ -123,9 +122,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     hasSession,
     isProfileLoading,
     isHealPending,
+    healAccount,
     pathname,
     router,
-    // 👇 FIX 4: healAccountMutation is officially BANNED from this array!
   ]);
 
   // 5. Global Loading State

@@ -612,7 +612,6 @@ export const userRouter = createTRPCRouter({
 
       // 3. SCENARIO B: Role has changed. We need an atomic transaction.
       return db.$transaction(async (tx) => {
-        // Update the base user row
         const updatedUser = await tx.user.update({
           where: { id: userId },
           data: {
@@ -622,23 +621,30 @@ export const userRouter = createTRPCRouter({
           },
         });
 
-        // Swap the sub-profiles safely
         if (input.role === "VENDOR") {
-          await tx.clientProfile.delete({ where: { userId } }).catch(() => {});
+          try {
+            await tx.clientProfile.delete({ where: { userId } });
+          } catch {
+            console.log("No ClientProfile found to delete; skipping.");
+          }
+
           await tx.vendorProfile.create({
             data: {
-              userId: userId,
+              userId,
               kybStatus: "PENDING",
               rating: 0,
               subscriptionStatus: "INACTIVE",
             },
           });
-        } else if (input.role === "CLIENT") {
-          await tx.vendorProfile.delete({ where: { userId } }).catch(() => {});
+        } else {
+          try {
+            await tx.vendorProfile.delete({ where: { userId } });
+          } catch {
+            console.log("No VendorProfile found to delete; skipping.");
+          }
+
           await tx.clientProfile.create({
-            data: {
-              userId: userId,
-            },
+            data: { userId },
           });
         }
 
