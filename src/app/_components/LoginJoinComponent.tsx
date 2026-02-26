@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   Check,
@@ -9,6 +9,7 @@ import {
   Loader2,
   MailCheck,
   CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { api } from "@/trpc/react";
@@ -223,8 +224,59 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
   const [username, setUsername] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
 
+  const utils = api.useUtils();
+
+  // Username validation state
+  const [usernameStatus, setUsernameStatus] = useState<
+    "idle" | "checking" | "available" | "taken"
+  >("idle");
+  const [usernameError, setUsernameError] = useState<string>("");
+
+  // Real-time Debounced Username Check
+  useEffect(() => {
+    if (username.length === 0) {
+      setUsernameStatus("idle");
+      setUsernameError("");
+      return;
+    }
+
+    if (username.length < 3) {
+      setUsernameStatus("idle");
+      setUsernameError("Username must be at least 3 characters");
+      return;
+    }
+
+    const checkAvailability = async () => {
+      setUsernameStatus("checking");
+      try {
+        const isAvailable = await utils.user.checkUsername.fetch({
+          username: username.toLowerCase(),
+        });
+
+        if (isAvailable) {
+          setUsernameStatus("available");
+          setUsernameError("");
+        } else {
+          setUsernameStatus("taken");
+          setUsernameError("This username is already taken");
+        }
+      } catch {
+        setUsernameStatus("idle");
+      }
+    };
+
+    // Wait 500ms after the user stops typing to fire the request
+    const delayDebounceFn = setTimeout(() => {
+      void checkAvailability();
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [username, utils.user.checkUsername]);
+
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (usernameStatus !== "available") return;
+
     setLoading(true);
 
     try {
@@ -233,8 +285,9 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
         email,
         password,
         options: {
-          data: { username, role },
-          emailRedirectTo: `https://partygeng.com/login?verified=true`,
+          data: { username: username.toLowerCase(), role },
+          // Dynamically grab the origin so it works flawlessly in dev and production
+          emailRedirectTo: `${window.location.origin}/login?verified=true`,
         },
       });
 
@@ -407,19 +460,48 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
         <p className="mt-1 mb-4 text-sm text-gray-600">
           This is how you&apos;ll appear to others on PartyGeng.
         </p>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="e.g. djspinmaster"
-          className="mt-1 w-full rounded-md border border-gray-300 p-3 outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500"
-          required
-        />
+
+        <div className="relative mt-1">
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value.replace(/\s+/g, ""))} // Prevent spaces
+            placeholder="e.g. djspinmaster"
+            className={cn(
+              "w-full rounded-md border p-3 outline-none focus:ring-1",
+              usernameStatus === "taken"
+                ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                : usernameStatus === "available"
+                  ? "border-green-300 focus:border-green-500 focus:ring-green-500"
+                  : "border-gray-300 focus:border-pink-500 focus:ring-pink-500",
+            )}
+            required
+          />
+          {/* Status Indicators inside the input field */}
+          <div className="absolute top-3.5 right-3">
+            {usernameStatus === "checking" && (
+              <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+            )}
+            {usernameStatus === "available" && (
+              <CheckCircle className="h-5 w-5 text-green-500" />
+            )}
+            {usernameStatus === "taken" && (
+              <AlertCircle className="h-5 w-5 text-red-500" />
+            )}
+          </div>
+        </div>
+
+        {/* Error message text */}
+        {usernameError && (
+          <p className="mt-2 flex items-center gap-1 text-sm text-red-500">
+            <AlertCircle className="h-4 w-4" /> {usernameError}
+          </p>
+        )}
       </div>
       <button
         type="submit"
-        disabled={loading}
-        className="flex w-full justify-center rounded-lg bg-pink-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50"
+        disabled={loading || usernameStatus !== "available"}
+        className="mt-2 flex w-full justify-center rounded-lg bg-pink-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? (
           <Loader2 className="h-5 w-5 animate-spin" />

@@ -566,17 +566,94 @@ export const userRouter = createTRPCRouter({
 
       return user;
     }),
-  updateOnboarding: protectedProcedure
+
+  updateOnboarding: onboardingProcedure
     .input(
-      z.object({ username: z.string(), role: z.enum(["CLIENT", "VENDOR"]) }),
+      z.object({
+        username: z.string().min(3),
+        role: z.enum(["CLIENT", "VENDOR"]),
+      }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.user.update({
-        where: { id: ctx.user.id },
-        data: {
-          username: input.username,
-          isOnboarded: true,
-        },
+      const { db, authUser } = ctx;
+      const userId = authUser.id;
+
+      // 1. Fetch current user
+      const currentUser = await db.user.findUnique({
+        where: { id: userId },
+        select: { role: true, isOnboarded: true },
       });
+
+      if (!currentUser) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User record not found in database.",
+        });
+      }
+
+      if (currentUser.isOnboarded) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "User has already completed onboarding. Role cannot be changed here.",
+        });
+      }
+
+      // 2. SCENARIO A: Role is unchanged. Simple update.
+      if (currentUser.role === input.role) {
+        return db.user.update({
+          where: { id: userId },
+          data: {
+            username: input.username,
+            isOnboarded: true,
+          },
+        });
+      }
+
+      // 3. SCENARIO B: Role has changed. We need an atomic transaction.
+      return db.$transaction(async (tx) => {
+        // Update the base user row
+        const updatedUser = await tx.user.update({
+          where: { id: userId },
+          data: {
+            username: input.username,
+            role: input.role,
+            isOnboarded: true,
+          },
+        });
+
+        // Swap the sub-profiles safely
+        if (input.role === "VENDOR") {
+          await tx.clientProfile.delete({ where: { userId } }).catch(() => {});
+          await tx.vendorProfile.create({
+            data: {
+              userId: userId,
+              kybStatus: "PENDING",
+              rating: 0,
+              subscriptionStatus: "INACTIVE",
+            },
+          });
+        } else if (input.role === "CLIENT") {
+          await tx.vendorProfile.delete({ where: { userId } }).catch(() => {});
+          await tx.clientProfile.create({
+            data: {
+              userId: userId,
+            },
+          });
+        }
+
+        return updatedUser;
+      });
+    }),
+
+  checkUsername: publicProcedure
+    .input(z.object({ username: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const existingUser = await ctx.db.user.findUnique({
+        where: { username: input.username },
+        select: { id: true },
+      });
+
+      return !existingUser;
     }),
 });
