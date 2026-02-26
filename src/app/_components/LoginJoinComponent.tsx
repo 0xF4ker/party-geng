@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   X,
   Check,
@@ -50,13 +50,32 @@ interface FlowProps {
 // --- COMPONENT: LOGIN FLOW ---
 const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [isVerified, setIsVerified] = useState(false);
+  const [step, setStep] = useState<"options" | "email">("options");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
-  const [step, setStep] = useState<"options" | "email">("options");
+
   const utils = api.useUtils();
-  const searchParams = useSearchParams();
-  const isVerified = searchParams.get("verified") === "true";
+
+  // 👇 FIX: Auto-advance to email step and fire toast
+  useEffect(() => {
+    if (
+      searchParams.get("verified") === "true" ||
+      window.location.href.includes("verified=true")
+    ) {
+      setIsVerified(true);
+      setStep("email"); // Automatically skip the options menu!
+
+      // Clean up the URL so it doesn't stay there if they refresh
+      window.history.replaceState(null, "", "/login");
+
+      // Fire a toast as an extra visual cue
+      toast.success("Email verified! Please sign in.");
+    }
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -74,34 +93,32 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
       toast.success("Welcome back!");
 
       try {
-        // Try to fetch the Prisma profile
         const profile = await utils.user.getProfile.fetch();
-        useAuthStore.getState().setProfile(profile);
 
+        // --- THE ONBOARDING CHECK ---
+        if (!profile || !profile.isOnboarded) {
+          if (onClose) onClose();
+          router.push("/onboarding");
+          return;
+        }
+
+        useAuthStore.getState().setProfile(profile);
         if (onClose) onClose();
 
         // Standard routing for existing users
-        if (profile?.status === "BANNED" || profile?.status === "SUSPENDED")
+        if (profile?.status === "BANNED" || profile?.status === "SUSPENDED") {
+          toast.error("This account has been suspended.");
           return;
+        }
+
         if (profile?.role === "VENDOR") router.push("/vendor/dashboard");
         else if (profile?.role === "CLIENT") router.push("/dashboard");
         else if (["ADMIN", "SUPPORT", "FINANCE"].includes(profile?.role ?? ""))
           router.push("/admin");
         else router.push("/");
       } catch (profileError: unknown) {
-        // 🔥 THE MAGIC SAUCE (Strictly Typed):
-        // Narrow the unknown error down to a standard JS Error
-        if (profileError instanceof Error) {
-          // tRPC typically embeds the error code or your custom message in the Error.message string
-          if (
-            profileError.message.includes("NOT_FOUND") ||
-            profileError.message.includes("No profile found")
-          ) {
-            if (onClose) onClose();
-            router.push("/onboarding");
-            return;
-          }
-        }
+        console.error("Profile fetch error:", profileError);
+        toast.error("Could not fetch user profile details.");
       }
     } catch (error: unknown) {
       if (error instanceof Error || (error as AuthError).message) {
@@ -144,6 +161,7 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
       onSubmit={handleLogin}
       className="animate-in fade-in slide-in-from-right-4 flex flex-col gap-4"
     >
+      {/* Banner is now instantly visible because step defaults to "email" on verify! */}
       {isVerified && (
         <div className="mb-2 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
           <CheckCircle className="h-4 w-4 text-emerald-600" />
@@ -159,13 +177,13 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
       </button>
       <div>
         <label className="block text-sm font-medium text-gray-700">
-          Email or Username
+          Email Address
         </label>
         <input
-          type="text"
+          type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Enter email or username"
+          placeholder="name@example.com"
           className="mt-1 w-full rounded-md border border-gray-300 p-3 outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500"
           required
         />
@@ -216,7 +234,7 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
         password,
         options: {
           data: { username, role },
-          emailRedirectTo: `${window.location.origin}/login?verified=true`,
+          emailRedirectTo: `https://partygeng.com/login?verified=true`,
         },
       });
 
@@ -428,18 +446,17 @@ export default function AuthModal({
   return (
     <div
       className={cn(
-        "flex items-center justify-center",
         isModal
-          ? "fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
-          : "min-h-screen bg-gray-50",
+          ? "fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          : "flex w-full items-center justify-center",
       )}
     >
       <div
         className={cn(
-          "relative flex overflow-hidden bg-white shadow-2xl",
+          "relative flex w-full overflow-hidden rounded-2xl bg-white shadow-2xl",
           isModal
-            ? "m-4 h-full w-full sm:h-auto sm:max-h-[90vh] sm:max-w-4xl sm:rounded-2xl"
-            : "w-full sm:my-12 sm:max-w-4xl sm:rounded-2xl",
+            ? "max-h-[90vh] max-w-4xl"
+            : "max-w-4xl border border-gray-100",
         )}
       >
         {/* Left Side (Branding) */}

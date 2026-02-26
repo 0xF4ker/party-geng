@@ -54,6 +54,7 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
     db,
     supabase,
     user: profile,
+    authUser: user,
     auditFlags: { disabled: false },
     ...opts,
   };
@@ -180,6 +181,25 @@ const activityLoggerMiddleware = t.middleware(async (opts) => {
  * Public procedure
  */
 export const publicProcedure = t.procedure.use(timingMiddleware);
+
+export const onboardingProcedure = t.procedure
+  .use(timingMiddleware)
+  .use(({ ctx, next }) => {
+    // Check if they have a valid Supabase session
+    if (!ctx.authUser) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "Not logged in to Supabase",
+      });
+    }
+
+    return next({
+      ctx: {
+        authUser: ctx.authUser,
+        user: ctx.user,
+      },
+    });
+  });
 
 /**
  * Protected procedure

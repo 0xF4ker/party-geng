@@ -1,6 +1,7 @@
 import {
   adminProcedure,
   createTRPCRouter,
+  onboardingProcedure,
   protectedProcedure,
   publicProcedure,
 } from "@/server/api/trpc";
@@ -80,10 +81,10 @@ const getCachedUserById = unstable_cache(
 // --- 2. ROUTER ---
 
 export const userRouter = createTRPCRouter({
-  getProfile: protectedProcedure.query(({ ctx }) => {
-    // Session data - Do not cache server-side
-    return ctx.db.user.findUnique({
-      where: { id: ctx.user.id },
+  getProfile: onboardingProcedure.query(async ({ ctx }) => {
+    // 1. Query using the Supabase auth ID, not the Prisma user object
+    const profile = await ctx.db.user.findUnique({
+      where: { id: ctx.authUser.id },
       include: {
         vendorProfile: {
           include: {
@@ -104,6 +105,8 @@ export const userRouter = createTRPCRouter({
         },
       },
     });
+    // 3. Otherwise, return their fully populated profile
+    return profile;
   }),
 
   // Get user by ID (Uses Cache)
@@ -289,7 +292,7 @@ export const userRouter = createTRPCRouter({
       return { items, nextCursor };
     }),
 
-  createUser: publicProcedure
+  createUser: onboardingProcedure
     .input(
       z.object({
         id: z.string(),
@@ -562,5 +565,18 @@ export const userRouter = createTRPCRouter({
       }
 
       return user;
+    }),
+  updateOnboarding: protectedProcedure
+    .input(
+      z.object({ username: z.string(), role: z.enum(["CLIENT", "VENDOR"]) }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.user.update({
+        where: { id: ctx.user.id },
+        data: {
+          username: input.username,
+          isOnboarded: true,
+        },
+      });
     }),
 });

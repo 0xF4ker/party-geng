@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     api.user.getProfile.useQuery(undefined, {
       enabled: hasSession,
       staleTime: 1000 * 60 * 5,
-      retry: false,
+      retry: 2,
     });
 
   // 2. THE HEALER
@@ -40,6 +40,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       toast.error("Account error. Please log in again.");
     },
   });
+
+  const isHealPending = healAccountMutation.isPending;
 
   // 3. Check session on mount
   useEffect(() => {
@@ -59,14 +61,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     void checkSession();
 
+    // 👇 FIX 1: Only invalidate on specific events to stop the network spam loop!
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setHasSession(!!session);
       if (!session) {
         setProfile(null);
         void utils.user.getProfile.reset();
-      } else {
+      } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         void utils.user.getProfile.invalidate();
       }
     });
@@ -74,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [setProfile, utils]);
 
+  // 4. Update Store, Enforce Onboarding & Detect Orphans
   useEffect(() => {
     if (hasSession && profile) {
       const isProfileChanged =
@@ -84,26 +88,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Define Incomplete Profile (Corrupted data: User exists but sub-profile is missing)
-    const isProfileIncomplete =
-      profile &&
-      ((profile.role === "VENDOR" && !profile.vendorProfile) ||
-        (profile.role === "CLIENT" && !profile.clientProfile));
-
     if (hasSession && !isProfileLoading) {
-      // SCENARIO A: Brand new user (No Prisma profile exists yet)
-      if (!profile) {
-        if (
-          !pathname.startsWith("/onboarding") &&
-          !pathname.startsWith("/login") &&
-          !pathname.startsWith("/join")
-        ) {
-          console.warn("No profile found. Redirecting to onboarding...");
+      // 👇 FIX 2: Safely handle null profiles AND check the onboarded flag
+      if (!profile || !profile.isOnboarded) {
+        if (!pathname.startsWith("/onboarding")) {
+          console.warn("User has not completed onboarding. Redirecting...");
           router.push("/onboarding");
         }
+        return; // Halt execution so we don't run the healer
       }
-      // SCENARIO B: Corrupted User (Profile exists, but missing sub-tables)
-      else if (isProfileIncomplete && !healAccountMutation.isPending) {
+
+      // 👇 FIX 3: If they ARE onboarded but somehow landed back on the login page, get them out!
+      if (pathname.startsWith("/login") || pathname.startsWith("/join")) {
+        router.push(
+          profile.role === "VENDOR" ? "/vendor/dashboard" : "/dashboard",
+        );
+        return;
+      }
+
+      // --- THE HEALER LOGIC ---
+      const isProfileIncomplete =
+        (profile.role === "VENDOR" && !profile.vendorProfile) ||
+        (profile.role === "CLIENT" && !profile.clientProfile);
+
+      if (isProfileIncomplete && !isHealPending) {
         console.warn("User account incomplete. Attempting to repair...");
         healAccountMutation.mutate();
       }
@@ -114,9 +122,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile,
     hasSession,
     isProfileLoading,
-    healAccountMutation,
+    isHealPending,
     pathname,
     router,
+    // 👇 FIX 4: healAccountMutation is officially BANNED from this array!
   ]);
 
   // 5. Global Loading State

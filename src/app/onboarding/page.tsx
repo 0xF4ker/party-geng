@@ -29,7 +29,6 @@ type OnboardingValues = z.infer<typeof onboardingSchema>;
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const supabase = createClient();
   const utils = api.useUtils();
 
   const [authUser, setAuthUser] = useState<{
@@ -67,6 +66,7 @@ export default function OnboardingPage() {
   // 1. CHECK SUPABASE SESSION & PRE-FILL METADATA
   useEffect(() => {
     const checkUser = async () => {
+      const supabase = createClient();
       const {
         data: { session },
         error,
@@ -102,18 +102,19 @@ export default function OnboardingPage() {
     };
 
     void checkUser();
-  }, [router, supabase.auth, setValue]);
+    // 👇 FIX: Removed supabase.auth to stop the infinite loop
+  }, [router, setValue]);
 
   // 2. REDIRECT IF ALREADY ONBOARDED
   useEffect(() => {
-    if (profile) {
+    if (profile && profile.isOnboarded) {
       if (profile.role === "VENDOR") router.push("/vendor/dashboard");
       else router.push("/dashboard");
     }
   }, [profile, router]);
 
   // 3. THE MUTATION
-  const createUser = api.user.createUser.useMutation({
+  const createUser = api.user.updateOnboarding.useMutation({
     onSuccess: async (data) => {
       toast.success("Account setup complete!");
       await utils.user.getProfile.invalidate();
@@ -151,7 +152,7 @@ export default function OnboardingPage() {
     });
   };
 
-  if (isCheckingSession || isProfileLoading || profile) {
+  if (isCheckingSession || isProfileLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <Loader2 className="h-8 w-8 animate-spin text-pink-600" />

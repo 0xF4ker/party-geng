@@ -169,6 +169,8 @@ model User {
 
   reportsMade     Report[] @relation("Reporter")
   reportsReceived Report[] @relation("ReportedUser")
+
+  isOnboarded      Boolean    @default(false)
 }
 
 model ClientProfile {
