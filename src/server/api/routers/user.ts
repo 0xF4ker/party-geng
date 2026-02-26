@@ -653,13 +653,26 @@ export const userRouter = createTRPCRouter({
     }),
 
   checkUsername: publicProcedure
-    .input(z.object({ username: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const existingUser = await ctx.db.user.findUnique({
-        where: { username: input.username },
+    .input(
+      z.object({
+        username: z.string().min(3),
+        excludeUserId: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }): Promise<boolean> => {
+      const { db } = ctx;
+
+      const existingUser = await db.user.findUnique({
+        where: { username: input.username.toLowerCase() },
         select: { id: true },
       });
 
-      return !existingUser;
+      if (!existingUser) return true;
+
+      if (input.excludeUserId && existingUser.id === input.excludeUserId) {
+        return true;
+      }
+
+      return false;
     }),
 });

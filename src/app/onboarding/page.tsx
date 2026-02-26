@@ -89,6 +89,7 @@ export default function OnboardingPage() {
         try {
           const isAvailable = await utils.user.checkUsername.fetch({
             username: usernameValue.toLowerCase(),
+            excludeUserId: authUser?.id,
           });
           setUsernameStatus(isAvailable ? "available" : "taken");
         } catch {
@@ -100,7 +101,7 @@ export default function OnboardingPage() {
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [usernameValue, utils.user.checkUsername]);
+  }, [usernameValue, utils.user.checkUsername, authUser?.id]);
 
   useEffect(() => {
     const checkUser = async () => {
