@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
   });
 
-  const isHealPending = healAccountMutation.isPending;
+  const { mutate: healAccount, isPending: isHealPending } = healAccountMutation;
 
   // 3. Check session on mount
   useEffect(() => {
@@ -75,8 +75,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, [setProfile, utils]);
-
-  const { mutate: healAccount, isPending: isHealPending } = healAccountMutation;
 
   // 4. Update Store, Enforce Onboarding & Detect Orphans
   useEffect(() => {
