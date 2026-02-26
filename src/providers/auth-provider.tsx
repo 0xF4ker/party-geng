@@ -4,24 +4,26 @@ import { useAuthStore } from "@/stores/auth";
 import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
+import { useRouter, usePathname } from "next/navigation";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setProfile = useAuthStore((state) => state.setProfile);
   const setIsLoading = useAuthStore((state) => state.setIsLoading);
-
-  // FIX 1: Fetch the full stored profile object, not just the ID, for comparison
   const storedProfile = useAuthStore((state) => state.profile);
 
   const [isSessionChecked, setIsSessionChecked] = useState(false);
   const [hasSession, setHasSession] = useState(false);
   const utils = api.useUtils();
 
+  const router = useRouter();
+  const pathname = usePathname();
+
   // 1. Fetch Profile
   const { data: profile, isLoading: isProfileLoading } =
     api.user.getProfile.useQuery(undefined, {
       enabled: hasSession,
       staleTime: 1000 * 60 * 5,
-      retry: 1,
+      retry: false,
     });
 
   // 2. THE HEALER
@@ -63,10 +65,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setHasSession(!!session);
       if (!session) {
         setProfile(null);
-        // Clear TRPC cache on logout
         void utils.user.getProfile.reset();
       } else {
-        // Force refresh on login/session restore to ensure fresh data
         void utils.user.getProfile.invalidate();
       }
     });
@@ -74,13 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [setProfile, utils]);
 
-  // 4. Update Store & Detect Orphans
   useEffect(() => {
-    // Sync store
     if (hasSession && profile) {
-      // FIX 2: Compare stringified objects.
-      // This ensures that if ANY field changes (bio, subscriptionStatus, etc.),
-      // the store updates, triggering re-renders in components listening to those fields.
       const isProfileChanged =
         JSON.stringify(profile) !== JSON.stringify(storedProfile);
 
@@ -89,31 +84,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Define Incomplete Profile
+    // Define Incomplete Profile (Corrupted data: User exists but sub-profile is missing)
     const isProfileIncomplete =
       profile &&
       ((profile.role === "VENDOR" && !profile.vendorProfile) ||
         (profile.role === "CLIENT" && !profile.clientProfile));
 
-    // Trigger Heal
-    if (
-      hasSession &&
-      !isProfileLoading &&
-      (!profile || isProfileIncomplete) &&
-      !healAccountMutation.isPending
-    ) {
-      console.warn(
-        "User account incomplete or missing. Attempting to repair...",
-      );
-      healAccountMutation.mutate();
+    if (hasSession && !isProfileLoading) {
+      // SCENARIO A: Brand new user (No Prisma profile exists yet)
+      if (!profile) {
+        if (
+          !pathname.startsWith("/onboarding") &&
+          !pathname.startsWith("/login") &&
+          !pathname.startsWith("/join")
+        ) {
+          console.warn("No profile found. Redirecting to onboarding...");
+          router.push("/onboarding");
+        }
+      }
+      // SCENARIO B: Corrupted User (Profile exists, but missing sub-tables)
+      else if (isProfileIncomplete && !healAccountMutation.isPending) {
+        console.warn("User account incomplete. Attempting to repair...");
+        healAccountMutation.mutate();
+      }
     }
   }, [
     profile,
-    storedProfile, // Dependency updated from storedProfileId to storedProfile
+    storedProfile,
     setProfile,
     hasSession,
     isProfileLoading,
     healAccountMutation,
+    pathname,
+    router,
   ]);
 
   // 5. Global Loading State
