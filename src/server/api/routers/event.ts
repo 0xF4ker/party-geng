@@ -13,7 +13,8 @@ import {
   QuoteStatus,
 } from "@prisma/client";
 import { createId } from "@paralleldrive/cuid2";
-import { logActivity } from "../services/activityLogger"; // Import logger
+import { logActivity } from "../services/activityLogger";
+import { emailService } from "@/server/services/emailService";
 
 const locationSchema = z
   .object({
@@ -773,8 +774,16 @@ export const eventRouter = createTRPCRouter({
 
       const invitationLink = `${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/invitation/${invitationToken}`;
 
-      console.log(`Sending invitation to ${guest.email}: ${invitationLink}`);
-      // TODO: Email sending logic
+      await emailService.send({
+        to: guest.email!,
+        subject: `Exclusive Invite: ${guest.list.event.title}`,
+        template: "GUEST_INVITATION",
+        data: {
+          name: guest.name,
+          eventTitle: guest.list.event.title,
+          link: invitationLink,
+        },
+      });
 
       return { success: true };
     }),
