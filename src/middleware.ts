@@ -24,6 +24,7 @@ const PUBLIC_PREFIXES = [
   "/quote",
   "/api",
   "/lottiefiles",
+  "/invitation",
 ];
 
 const ROLES = {

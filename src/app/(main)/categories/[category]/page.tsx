@@ -3,7 +3,7 @@
 import { notFound } from "next/navigation";
 import PopularServiceCarousel from "../../../_components/category/PopularServiceCarousel";
 import React, { use } from "react";
-import LoopingCardAnimation from "@/app/_components/category/LoopingCardAnimation";
+// import LoopingCardAnimation from "@/app/_components/category/LoopingCardAnimation";
 import { slugify } from "@/lib/utils";
 import { api } from "@/trpc/react";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -126,7 +126,7 @@ export default function CategoryPage({
       )}
 
       {/* 3. Replaced "Big Project" Block */}
-      <LoopingCardAnimation />
+      {/* <LoopingCardAnimation /> */}
 
       {/* 4. UPDATED: Explore Services Section (with conditional logic) */}
       <div className="container mx-auto px-4 py-10">
