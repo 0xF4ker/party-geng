@@ -1,12 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-
 const PopularServiceCarousel = ({ services }: { services: string[] }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
-
   const handleScroll = () => {
     if (scrollRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
@@ -14,7 +12,6 @@ const PopularServiceCarousel = ({ services }: { services: string[] }) => {
       setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 1);
     }
   };
-
   const scroll = (direction: "left" | "right") => {
     if (scrollRef.current) {
       const scrollAmount =
@@ -24,11 +21,9 @@ const PopularServiceCarousel = ({ services }: { services: string[] }) => {
       scrollRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
     }
   };
-
   useEffect(() => {
-    handleScroll(); // Initial check
+    handleScroll();
   }, [services]);
-
   return (
     <div className="relative">
       {/* Left Arrow */}
@@ -41,7 +36,6 @@ const PopularServiceCarousel = ({ services }: { services: string[] }) => {
       >
         <ChevronLeft className="h-5 w-5" />
       </button>
-
       {/* Services List */}
       <div
         ref={scrollRef}
@@ -59,7 +53,6 @@ const PopularServiceCarousel = ({ services }: { services: string[] }) => {
           </a>
         ))}
       </div>
-
       {/* Right Arrow */}
       <button
         onClick={() => scroll("right")}
@@ -73,5 +66,4 @@ const PopularServiceCarousel = ({ services }: { services: string[] }) => {
     </div>
   );
 };
-
 export default PopularServiceCarousel;

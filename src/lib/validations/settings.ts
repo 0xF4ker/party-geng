@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// Profile update schema
 export const profileUpdateSchema = z.object({
   username: z
     .string()
@@ -10,14 +9,12 @@ export const profileUpdateSchema = z.object({
       /^[a-zA-Z0-9_]+$/,
       "Username can only contain letters, numbers, and underscores",
     ),
-  // Client fields
   name: z
     .string()
     .min(2, "Name must be at least 2 characters")
     .max(100)
     .optional(),
   bio: z.string().max(500, "Bio must be less than 500 characters").optional(),
-  // Vendor fields
   companyName: z
     .string()
     .min(2, "Company name must be at least 2 characters")
@@ -44,7 +41,6 @@ export const profileUpdateSchema = z.object({
     .optional(),
 });
 
-// Password update schema
 export const passwordUpdateSchema = z
   .object({
     currentPassword: z
@@ -60,7 +56,6 @@ export const passwordUpdateSchema = z
     path: ["confirmPassword"],
   });
 
-// KYC submission schema
 export const kycSchema = z.object({
   fullName: z.string().min(2, "Full name is required").max(100),
   businessAddress: z.string().max(500, "Address is too long").optional(),

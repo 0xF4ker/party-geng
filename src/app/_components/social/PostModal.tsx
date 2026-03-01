@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -30,17 +29,12 @@ import {
 } from "@/components/ui/popover";
 import { useCreatePostModal } from "@/stores/createPostModal";
 import { formatDistanceToNow } from "date-fns";
-
 import { type inferRouterOutputs } from "@trpc/server";
 import { type AppRouter } from "@/server/api/root";
-
 import { ReportModal } from "@/app/_components/modals/ReportModal";
-
 type RouterOutputs = inferRouterOutputs<AppRouter>;
-
 export type PostSnapshot =
   RouterOutputs["post"]["getTrending"]["posts"][number];
-
 const PostModal = ({
   posts,
   initialIndex,
@@ -52,30 +46,24 @@ const PostModal = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isReportOpen, setIsReportOpen] = useState(false);
-
   const safeIndex =
     currentIndex >= 0 && currentIndex < posts.length ? currentIndex : 0;
   const postStub = posts[safeIndex];
   const postId = postStub?.id;
-
   const { user } = useAuth();
   const utils = api.useUtils();
   const createPostModal = useCreatePostModal();
-
   const {
     data: post,
     isLoading,
     isError,
   } = api.post.getById.useQuery({ id: postId ?? "" }, { enabled: !!postId });
-
   const handleNext = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % posts.length);
   }, [posts.length]);
-
   const handlePrev = useCallback(() => {
     setCurrentIndex((prev) => (prev - 1 + posts.length) % posts.length);
   }, [posts.length]);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") handleNext();
@@ -85,7 +73,6 @@ const PostModal = ({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleNext, handlePrev, onClose]);
-
   const handleShare = async () => {
     if (!postId) return;
     const url = `${window.location.origin}/post/${postId}`;
@@ -97,7 +84,6 @@ const PostModal = ({
       toast.error("Failed to copy link.");
     }
   };
-
   const deletePostMutation = api.post.delete.useMutation({
     onSuccess: () => {
       toast.success("Post deleted");
@@ -109,13 +95,11 @@ const PostModal = ({
     },
     onError: (err) => toast.error(err.message),
   });
-
   const handleDelete = () => {
     if (!post) return;
     if (confirm("Delete this post?"))
       deletePostMutation.mutate({ postId: post.id });
   };
-
   const likeMutation = api.post.like.useMutation({
     onMutate: async ({ postId }) => {
       await utils.post.getById.cancel({ id: postId });
@@ -137,7 +121,6 @@ const PostModal = ({
     onSettled: (d, e, { postId }) =>
       void utils.post.getById.invalidate({ id: postId }),
   });
-
   const unlikeMutation = api.post.unlike.useMutation({
     onMutate: async ({ postId }) => {
       await utils.post.getById.cancel({ id: postId });
@@ -159,27 +142,22 @@ const PostModal = ({
     onSettled: (d, e, { postId }) =>
       void utils.post.getById.invalidate({ id: postId }),
   });
-
   const isLiked = post?.viewer?.hasLiked ?? false;
   const isBookmarked = post?.viewer?.hasBookmarked ?? false;
-
   const handleLike = () => {
     if (!user) {
       toast.error("Login required");
       return;
     }
     if (!postId) return;
-
     if (isLiked) {
       unlikeMutation.mutate({ postId });
     } else {
       likeMutation.mutate({ postId });
     }
   };
-
   const activePost = post ?? postStub;
   if (!activePost) return null;
-
   const author = activePost.author;
   const isVendor = author.role === "VENDOR";
   const avatarUrl = isVendor
@@ -191,7 +169,6 @@ const PostModal = ({
       : author.clientProfile?.name) ?? author.username;
   const profileUrl = `/${isVendor ? "v" : "c"}/${author.username}`;
   const isAuthor = user?.id === author.id;
-
   return (
     <>
       {/* FIX: Wrapped in Fragment so ReportModal is a sibling, not a child.
@@ -208,7 +185,6 @@ const PostModal = ({
         >
           <X className="h-5 w-5 sm:h-6 sm:w-6" />
         </button>
-
         <div
           className="flex h-full w-full max-w-7xl flex-col overflow-hidden bg-white shadow-2xl md:h-[85vh] md:rounded-2xl lg:flex-row"
           onClick={(e) => e.stopPropagation()}
@@ -226,7 +202,6 @@ const PostModal = ({
                 />
               </div>
             )}
-
             {posts.length > 1 && (
               <>
                 <button
@@ -250,7 +225,6 @@ const PostModal = ({
               </>
             )}
           </div>
-
           {/* --- RIGHT: SIDEBAR --- */}
           <div className="flex flex-1 flex-col border-l border-gray-100 bg-white lg:w-[35%] xl:w-[30%]">
             {/* Header */}
@@ -282,7 +256,6 @@ const PostModal = ({
                   <p className="text-xs text-gray-500">@{author.username}</p>
                 </div>
               </Link>
-
               {user && (
                 <Popover>
                   <PopoverTrigger asChild>
@@ -331,7 +304,6 @@ const PostModal = ({
                 </Popover>
               )}
             </div>
-
             {/* Body */}
             <div className="scrollbar-thin scrollbar-thumb-gray-200 flex-1 overflow-y-auto p-5">
               <div className="mb-6">
@@ -354,7 +326,6 @@ const PostModal = ({
                   </div>
                 </div>
               </div>
-
               {isLoading ? (
                 <div className="flex justify-center py-4">
                   <Loader2 className="animate-spin text-gray-300" />
@@ -379,7 +350,6 @@ const PostModal = ({
                       (cAuthor.role === "VENDOR"
                         ? cAuthor.vendorProfile?.companyName
                         : cAuthor.clientProfile?.name) ?? cAuthor.username;
-
                     return (
                       <div key={comment.id} className="flex gap-3">
                         <Link
@@ -428,7 +398,6 @@ const PostModal = ({
                 </div>
               )}
             </div>
-
             {/* Footer */}
             <div className="border-t border-gray-100 bg-gray-50/50 p-4">
               <div className="mb-4 flex items-center justify-between">
@@ -472,7 +441,6 @@ const PostModal = ({
           </div>
         </div>
       </div>
-
       {/* --- REPORT MODAL SIBLING --- */}
       <ReportModal
         isOpen={isReportOpen}
@@ -482,12 +450,9 @@ const PostModal = ({
     </>
   );
 };
-
-// --- COMMENT FORM ---
 const AddCommentForm = ({ postId }: { postId: string }) => {
   const [text, setText] = useState("");
   const utils = api.useUtils();
-
   const addCommentMutation = api.post.addComment.useMutation({
     onSuccess: () => {
       setText("");
@@ -495,13 +460,11 @@ const AddCommentForm = ({ postId }: { postId: string }) => {
     },
     onError: () => toast.error("Failed to post comment"),
   });
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
     addCommentMutation.mutate({ postId, text });
   };
-
   return (
     <form onSubmit={handleSubmit} className="relative flex items-center">
       <input
@@ -526,5 +489,4 @@ const AddCommentForm = ({ postId }: { postId: string }) => {
     </form>
   );
 };
-
 export default PostModal;

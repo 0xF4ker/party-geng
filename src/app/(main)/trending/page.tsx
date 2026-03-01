@@ -1,5 +1,4 @@
 "use client";
-
 import { api } from "@/trpc/react";
 import {
   Loader2,
@@ -13,7 +12,7 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import PostModal from "@/app/_components/social/PostModal";
 import { useUiStore } from "@/stores/ui";
-import { useInView } from "react-intersection-observer"; // Optional: simplified hook, but I'll write raw observer to keep dependencies low if you prefer.
+import { useInView } from "react-intersection-observer"; 
 import { useIntersectionObserver } from "usehooks-ts";
 export default function TrendingPage() {
   const {
@@ -29,25 +28,19 @@ export default function TrendingPage() {
       getNextPageParam: (lastPage) => lastPage.nextCursor,
     },
   );
-
   const [selectedPostIndex, setSelectedPostIndex] = useState<number | null>(
     null,
   );
   const { headerHeight } = useUiStore();
-
-  // --- Infinite Scroll Setup ---
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
   const { ref, inView } = useInView({
     threshold: 0,
     rootMargin: "200px",
   }) as { ref: (node?: Element | null) => void; inView: boolean };
-
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) {
       void fetchNextPage();
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
-
   if (isLoading) {
     return (
       <div className="flex h-[calc(100vh-200px)] items-center justify-center">
@@ -55,7 +48,6 @@ export default function TrendingPage() {
       </div>
     );
   }
-
   if (isError) {
     return (
       <div className="flex h-[calc(100vh-200px)] items-center justify-center text-red-500">
@@ -63,9 +55,7 @@ export default function TrendingPage() {
       </div>
     );
   }
-
   const allPosts = data?.pages.flatMap((page) => page.posts);
-
   if (!allPosts || allPosts.length === 0) {
     return (
       <div className="mt-20 flex flex-col items-center justify-center text-center">
@@ -79,7 +69,6 @@ export default function TrendingPage() {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gray-50/50">
       {/* Header Section */}
@@ -96,26 +85,20 @@ export default function TrendingPage() {
           </p>
         </div>
       </section>
-
       {/* Masonry Grid */}
       <section className="container mx-auto px-4 py-6 md:px-6">
         <div className="columns-2 gap-4 space-y-4 md:columns-3 lg:columns-4 xl:columns-5">
           {allPosts.map((post, index) => {
             const author = post.author;
             const isVendor = author.role === "VENDOR";
-
-            // Resolve Author Details
             const avatarUrl = isVendor
               ? author.vendorProfile?.avatarUrl
               : author.clientProfile?.avatarUrl;
-
             const displayName =
               (isVendor
                 ? author.vendorProfile?.companyName
                 : author.clientProfile?.name) ?? author.username;
-
             const profileUrl = `/${isVendor ? "v" : "c"}/${author.username}`;
-
             return (
               <div
                 key={post.id}
@@ -133,7 +116,7 @@ export default function TrendingPage() {
                         width={500}
                         height={500}
                         className="h-auto w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        priority={index < 4} // Load top images first
+                        priority={index < 4}
                       />
                     ) : (
                       <div className="flex aspect-[4/5] w-full items-center justify-center bg-gray-100 text-gray-300">
@@ -141,7 +124,6 @@ export default function TrendingPage() {
                       </div>
                     )}
                   </div>
-
                   {/* OVERLAY: Top Badges */}
                   <div className="absolute top-2 left-2 flex flex-col gap-1 opacity-90">
                     {isVendor && (
@@ -152,7 +134,6 @@ export default function TrendingPage() {
                     {/* Placeholder for future logic (e.g. Waitlist) */}
                     {/* <span className="bg-teal-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">WAITLIST</span> */}
                   </div>
-
                   {/* OVERLAY: Bottom Actions (Like/Comment) */}
                   {/* Hidden by default, visible on hover */}
                   <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 via-transparent to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
@@ -166,7 +147,6 @@ export default function TrendingPage() {
                     </div>
                   </div>
                 </div>
-
                 {/* --- CARD FOOTER (User Info) --- */}
                 <div className="px-1">
                   {/* Caption Truncated */}
@@ -175,7 +155,6 @@ export default function TrendingPage() {
                       {post.caption}
                     </p>
                   )}
-
                   {/* User Row */}
                   <div className="flex items-center justify-between">
                     <Link
@@ -198,7 +177,6 @@ export default function TrendingPage() {
                           </div>
                         )}
                       </div>
-
                       {/* Name + Verified Badge */}
                       <div className="flex min-w-0 items-center gap-1">
                         <span className="truncate text-xs text-gray-500 transition-colors group-hover/author:text-gray-900">
@@ -209,7 +187,6 @@ export default function TrendingPage() {
                         )}
                       </div>
                     </Link>
-
                     {/* Like Count (Subtle) */}
                     <div className="flex items-center gap-1 text-[10px] text-gray-400">
                       <Heart className="h-3 w-3" />
@@ -221,7 +198,6 @@ export default function TrendingPage() {
             );
           })}
         </div>
-
         {/* Infinite Scroll Loader */}
         <div ref={ref} className="flex w-full justify-center py-8">
           {isFetchingNextPage && (
@@ -229,7 +205,6 @@ export default function TrendingPage() {
           )}
         </div>
       </section>
-
       {/* Post Modal */}
       {selectedPostIndex !== null && (
         <div className="relative z-[100]">

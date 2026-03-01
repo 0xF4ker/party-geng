@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { api } from "@/trpc/react";
 import { Loader2, Trash2, Edit, Mail, Check, X } from "lucide-react";
@@ -10,22 +9,19 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { TableCell, TableRow } from "@/components/ui/table";
-
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type event = RouterOutput["event"]["getById"];
 type Guest = NonNullable<event["guestLists"][0]>["guests"][number];
-
 const statusColors: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100/80",
   ATTENDING: "bg-green-100 text-green-800 hover:bg-green-100/80",
   MAYBE: "bg-blue-100 text-blue-800 hover:bg-blue-100/80",
   DECLINED: "bg-red-100 text-red-800 hover:bg-red-100/80",
 };
-
 export const GuestRow = ({
   guest,
   eventId,
-  isReadOnly = false, // Added prop
+  isReadOnly = false,
 }: {
   guest: Guest;
   eventId: string;
@@ -38,7 +34,6 @@ export const GuestRow = ({
   const [tableNumber, setTableNumber] = useState<number | "">(
     guest.tableNumber ?? "",
   );
-
   const updateGuest = api.event.updateGuest.useMutation({
     onMutate: async (updatedGuest) => {
       await utils.event.getById.cancel({ id: eventId });
@@ -72,7 +67,6 @@ export const GuestRow = ({
       void utils.event.getById.invalidate({ id: eventId });
     },
   });
-
   const deleteGuest = api.event.deleteGuest.useMutation({
     onMutate: async ({ guestId }) => {
       await utils.event.getById.cancel({ id: eventId });
@@ -105,7 +99,6 @@ export const GuestRow = ({
       void utils.event.getById.invalidate({ id: eventId });
     },
   });
-
   const sendInvitation = api.event.sendGuestInvitation.useMutation({
     onSuccess: () => {
       toast.success("Invitation sent!");
@@ -114,7 +107,6 @@ export const GuestRow = ({
       toast.error(error.message);
     },
   });
-
   const handleUpdate = () => {
     updateGuest.mutate({
       guestId: guest.id,
@@ -123,7 +115,6 @@ export const GuestRow = ({
       tableNumber: tableNumber === "" ? undefined : Number(tableNumber),
     });
   };
-
   const handleSendInvitation = () => {
     if (!guest.email) {
       toast.error("Guest email is required to send an invitation.");
@@ -131,7 +122,6 @@ export const GuestRow = ({
     }
     sendInvitation.mutate({ guestId: guest.id });
   };
-
   if (isEditing) {
     return (
       <TableRow>
@@ -182,7 +172,6 @@ export const GuestRow = ({
       </TableRow>
     );
   }
-
   return (
     <TableRow key={guest.id}>
       <TableCell className="font-medium">{guest.name}</TableCell>

@@ -1,5 +1,4 @@
 "use client";
-
 import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/trpc/react';
@@ -8,25 +7,22 @@ import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-
 const QuoteDetailPage = () => {
     const params = useParams();
     const router = useRouter();
     const { user } = useAuth();
     const quoteId = params.quoteId as string;
-
     const { data: quote, isLoading, isError, error, refetch } = api.quote.getById.useQuery({ id: quoteId });
     
     const acceptQuote = api.quote.accept.useMutation({
         onSuccess: (data) => {
             toast.success("Quote accepted and order created!");
-            router.push(`/orders/${data.order.id}`); // Redirect to order details
+            router.push(`/orders/${data.order.id}`);
         },
         onError: (error) => {
             toast.error(error.message ?? "Failed to accept quote.");
         }
     });
-
     const updateQuoteStatus = api.quote.updateStatus.useMutation({
         onSuccess: () => {
             toast.success("Quote status updated.");
@@ -46,24 +42,19 @@ const QuoteDetailPage = () => {
             toast.error(error.message ?? "Failed to delete quote.");
         }
     });
-
     if (isLoading) {
         return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
-
     if (isError) {
         return <div className="flex h-screen items-center justify-center text-red-500">{error.message}</div>;
     }
-
     if (!quote || !user) {
         return <div className="flex h-screen items-center justify-center">Quote not found or you are not logged in.</div>;
     }
-
     const isClient = user.id === quote.clientId;
     const isVendor = user.id === quote.vendorId;
     
     const services = quote.services as {id: number, name: string}[];
-
     return (
         <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
             <div className="container mx-auto max-w-4xl px-4 py-8 sm:px-8">
@@ -71,14 +62,12 @@ const QuoteDetailPage = () => {
                     <ArrowLeft className="h-4 w-4" />
                     Back
                 </button>
-
                 <div className="bg-white shadow-lg rounded-xl border border-gray-200">
                     {/* Header */}
                     <div className="p-6 border-b">
                         <h1 className="text-3xl font-bold">{quote.title}</h1>
                         <p className="text-gray-500">Quote ID #{quote.id.substring(0, 8)}</p>
                     </div>
-
                     {/* Body */}
                     <div className="p-6 grid md:grid-cols-3 gap-8">
                         {/* Left Column */}
@@ -98,7 +87,6 @@ const QuoteDetailPage = () => {
                                 </div>
                             </div>
                         </div>
-
                         {/* Right Column */}
                         <div className="space-y-6">
                             <div>
@@ -165,10 +153,7 @@ const QuoteDetailPage = () => {
         </div>
     );
 }
-
 export default QuoteDetailPage;
-
-// A simple button component to avoid repetition
 const Button = ({ children, ...props }: React.ComponentPropsWithoutRef<'button'> & {variant?: 'outline' | 'destructive' | 'default'}) => {
     return (
         <button {...props} className={cn("px-4 py-2 rounded-md font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center", {

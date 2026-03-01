@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
@@ -20,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-
 const onboardingSchema = z.object({
   username: z
     .string()
@@ -31,19 +29,15 @@ const onboardingSchema = z.object({
     required_error: "Please select an account type",
   }),
 });
-
 type OnboardingValues = z.infer<typeof onboardingSchema>;
-
 export default function OnboardingPage() {
   const router = useRouter();
   const utils = api.useUtils();
-
   const [authUser, setAuthUser] = useState<{
     id: string;
     email: string;
   } | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState<boolean>(true);
-
   const {
     register,
     handleSubmit,
@@ -56,35 +50,26 @@ export default function OnboardingPage() {
       role: "CLIENT",
     },
   });
-
   const selectedRole = useWatch({
     control,
     name: "role",
   });
-
-  // --- PRISMA PROFILE CHECK ---
   const { data: profile, isLoading: isProfileLoading } =
     api.user.getProfile.useQuery(undefined, {
       enabled: !!authUser,
       retry: false,
     });
-
-  // Username validation state
   const usernameValue = useWatch({ control, name: "username" });
   const [usernameStatus, setUsernameStatus] = useState<
     "idle" | "checking" | "available" | "taken"
   >("idle");
-
-  // Real-time Debounced Username Check
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       if (!usernameValue || usernameValue.length < 3) {
         setUsernameStatus("idle");
         return;
       }
-
       setUsernameStatus("checking");
-
       const performCheck = async () => {
         try {
           const isAvailable = await utils.user.checkUsername.fetch({
@@ -96,13 +81,10 @@ export default function OnboardingPage() {
           setUsernameStatus("idle");
         }
       };
-
       void performCheck();
     }, 500);
-
     return () => clearTimeout(delayDebounceFn);
   }, [usernameValue, utils.user.checkUsername, authUser?.id]);
-
   useEffect(() => {
     const checkUser = async () => {
       const supabase = createClient();
@@ -110,50 +92,38 @@ export default function OnboardingPage() {
         data: { session },
         error,
       } = await supabase.auth.getSession();
-
       if (error || !session?.user?.email) {
         toast.error("Please log in to continue.");
         router.push("/login");
         return;
       }
-
       setAuthUser({
         id: session.user.id,
         email: session.user.email,
       });
-
       interface UserMetadata {
         username?: string;
         role?: string;
       }
-
       const metadata = session.user.user_metadata as UserMetadata | undefined;
-
       if (metadata?.username) setValue("username", metadata.username);
       if (metadata?.role === "CLIENT" || metadata?.role === "VENDOR") {
         setValue("role", metadata.role);
       }
-
       setIsCheckingSession(false);
     };
-
     void checkUser();
   }, [router, setValue]);
-
-  // 2. REDIRECT IF ALREADY ONBOARDED
   useEffect(() => {
     if (profile?.isOnboarded) {
       if (profile.role === "VENDOR") router.push("/vendor/dashboard");
       else router.push("/dashboard");
     }
   }, [profile, router]);
-
-  // 3. THE MUTATION
   const updateOnboarding = api.user.updateOnboarding.useMutation({
     onSuccess: async (data) => {
       toast.success("Account setup complete!");
       await utils.user.getProfile.invalidate();
-
       if (data.role === "VENDOR") {
         router.push("/vendor/dashboard");
       } else {
@@ -162,7 +132,6 @@ export default function OnboardingPage() {
     },
     onError: (err: unknown) => {
       if (err instanceof Error) {
-        // tRPC errors usually contain the message string
         if (err.message.toLowerCase().includes("taken")) {
           toast.error("This username is already taken.");
         } else {
@@ -173,21 +142,17 @@ export default function OnboardingPage() {
       }
     },
   });
-
   const onSubmit = (data: OnboardingValues) => {
     if (!authUser) return;
     if (usernameStatus === "taken") {
       toast.error("Please choose an available username.");
       return;
     }
-
     updateOnboarding.mutate({
       username: data.username.toLowerCase(),
       role: data.role,
     });
   };
-
-  // Guard against render loop: Only show loader if we are actually checking or if they are already onboarded and waiting for redirect
   if (isCheckingSession || isProfileLoading || profile?.isOnboarded) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
@@ -195,7 +160,6 @@ export default function OnboardingPage() {
       </div>
     );
   }
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8 rounded-2xl border border-gray-100 bg-white p-8 shadow-xl">
@@ -207,7 +171,6 @@ export default function OnboardingPage() {
             Review your details to finish setting up your account.
           </p>
         </div>
-
         <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
           <div>
             <Label htmlFor="username" className="font-semibold text-gray-700">
@@ -254,12 +217,10 @@ export default function OnboardingPage() {
               </p>
             )}
           </div>
-
           <div className="space-y-3">
             <Label className="font-semibold text-gray-700">
               Confirm your account type
             </Label>
-
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div
                 onClick={() =>
@@ -279,7 +240,6 @@ export default function OnboardingPage() {
                   I want to plan events and hire vendors.
                 </span>
               </div>
-
               <div
                 onClick={() =>
                   !updateOnboarding.isPending && setValue("role", "VENDOR")
@@ -305,7 +265,6 @@ export default function OnboardingPage() {
               </p>
             )}
           </div>
-
           <Button
             type="submit"
             disabled={

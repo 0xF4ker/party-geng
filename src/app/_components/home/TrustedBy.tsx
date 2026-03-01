@@ -1,6 +1,5 @@
 import React from "react";
 import Image from "next/image";
-
 const TrustedBy = () => {
   return (
     <section className="bg-gray-50 py-8">
@@ -41,5 +40,4 @@ const TrustedBy = () => {
     </section>
   );
 };
-
 export default TrustedBy;

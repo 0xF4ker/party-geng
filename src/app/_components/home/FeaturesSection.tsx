@@ -1,6 +1,5 @@
 import React from "react";
 import { Search, Calendar, Users, Heart, Camera, Star } from "lucide-react";
-
 const FeaturesSection = () => {
   const features = [
     {
@@ -46,7 +45,6 @@ const FeaturesSection = () => {
       color: "text-yellow-600 bg-yellow-100",
     },
   ];
-
   return (
     <section className="bg-gray-50/50 py-24">
       <div className="container mx-auto px-6">
@@ -60,7 +58,6 @@ const FeaturesSection = () => {
             celebrate without the hassle.
           </p>
         </div>
-
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
           {features.map((feature, index) => (
             <div
@@ -69,7 +66,6 @@ const FeaturesSection = () => {
             >
               {/* Hover Gradient Overlay */}
               <div className="absolute inset-0 bg-linear-to-br from-white via-white to-pink-50 opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
-
               <div className="relative z-10">
                 <div
                   className={`feature-icon mb-6 ${feature.color} transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}
@@ -90,5 +86,4 @@ const FeaturesSection = () => {
     </section>
   );
 };
-
 export default FeaturesSection;

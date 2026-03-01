@@ -2,11 +2,8 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { QuoteStatus } from "@prisma/client";
-
 export const chatRouter = createTRPCRouter({
-  // Get all conversations for current user
   getConversations: protectedProcedure.query(async ({ ctx }) => {
-    // Fetch blocked user IDs to filter them out or handle them
     const blockedUsers = await ctx.db.block.findMany({
       where: {
         OR: [{ blockerId: ctx.user.id }, { blockedId: ctx.user.id }],
@@ -16,13 +13,11 @@ export const chatRouter = createTRPCRouter({
         blockedId: true,
       },
     });
-
     const blockedUserIds = new Set(
       blockedUsers
         .flatMap((b) => [b.blockerId, b.blockedId])
         .filter((id) => id !== ctx.user.id),
     );
-
     const conversations = await ctx.db.conversation.findMany({
       where: {
         participants: {
@@ -71,7 +66,6 @@ export const chatRouter = createTRPCRouter({
           orderBy: { createdAt: "desc" },
           take: 1,
           where: {
-            // Ensure the preview message isn't one deleted by the user
             deletions: {
               none: {
                 userId: ctx.user.id,
@@ -91,28 +85,20 @@ export const chatRouter = createTRPCRouter({
         updatedAt: "desc",
       },
     });
-
-    // Post-processing to filter and format
     const processedConversations = await Promise.all(
       conversations.map(async (c) => {
         const myParticipant = c.participants.find(
           (p) => p.userId === ctx.user.id,
         );
         if (!myParticipant) return null;
-
-        // Check if conversation should be hidden due to "delete conversation" action
-        // If the latest message is older than clearedAt, hide the conversation
         const latestMessage = c.messages[0];
         if (
           myParticipant.clearedAt &&
           latestMessage &&
           latestMessage.createdAt <= myParticipant.clearedAt
         ) {
-          // Effectively hidden until new message
           return null;
         }
-
-        // Calculate unread count
         const unreadCount = await ctx.db.message.count({
           where: {
             conversationId: c.id,
@@ -122,7 +108,6 @@ export const chatRouter = createTRPCRouter({
             senderId: {
               not: ctx.user.id,
             },
-            // Don't count messages deleted for everyone or for me
             isDeletedForEveryone: false,
             deletions: {
               none: {
@@ -131,37 +116,30 @@ export const chatRouter = createTRPCRouter({
             },
           },
         });
-
-        // Add blocked status to other participants
         const participants = c.participants.map((p) => ({
           ...p,
           isBlocked: blockedUserIds.has(p.userId),
         }));
-
         return {
           ...c,
           participants,
           unreadCount,
-          // Add my settings to the top level for easier access
           isPinned: myParticipant.isPinned,
           isArchived: myParticipant.isArchived,
           isMuted: myParticipant.isMuted,
         };
       }),
     );
-
     return processedConversations.filter(
       (c): c is NonNullable<typeof c> => c !== null,
     );
   }),
-
-  // Get messages for a specific conversation
   getMessages: protectedProcedure
     .input(
       z.object({
         conversationId: z.string(),
         limit: z.number().min(1).max(100).default(50),
-        cursor: z.string().optional(), // For pagination
+        cursor: z.string().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -169,28 +147,23 @@ export const chatRouter = createTRPCRouter({
         where: { id: input.conversationId },
         include: { participants: true },
       });
-
       if (
         !conversation ||
         !conversation.participants.some((p) => p.userId === ctx.user.id)
       ) {
         throw new Error("Unauthorized");
       }
-
       const participant = conversation.participants.find(
         (p) => p.userId === ctx.user.id,
       );
-
       const messages = await ctx.db.message.findMany({
         where: {
           conversationId: input.conversationId,
-          // Filter out messages deleted for me
           deletions: {
             none: {
               userId: ctx.user.id,
             },
           },
-          // Filter out messages cleared by "delete conversation"
           ...(participant?.clearedAt
             ? {
                 createdAt: {
@@ -215,27 +188,22 @@ export const chatRouter = createTRPCRouter({
           eventInvitation: true,
         },
       });
-
       let nextCursor: string | undefined = undefined;
       if (messages.length > input.limit) {
         const nextItem = messages.pop();
         nextCursor = nextItem!.id;
       }
-
       const firstUnread = messages.find(
         (m) =>
           m.createdAt > (participant?.lastReadAt ?? new Date(0)) &&
           m.senderId !== ctx.user.id,
       );
-
       return {
         messages: messages.reverse(),
         nextCursor,
         firstUnreadTimestamp: firstUnread?.createdAt ?? null,
       };
     }),
-
-  // Send a text message
   sendMessage: protectedProcedure
     .input(
       z.object({
@@ -249,16 +217,12 @@ export const chatRouter = createTRPCRouter({
         where: { id: input.conversationId },
         include: { participants: { include: { user: true } } },
       });
-
       if (
         !conversation ||
         !conversation.participants.some((p) => p.userId === ctx.user.id)
       ) {
         throw new Error("Unauthorized");
       }
-
-      // Check for blocked users
-      // If 1-on-1, check if the other user has blocked me or I blocked them
       if (!conversation.isGroup) {
         const otherParticipant = conversation.participants.find(
           (p) => p.userId !== ctx.user.id,
@@ -272,7 +236,6 @@ export const chatRouter = createTRPCRouter({
               ],
             },
           });
-
           if (block) {
             throw new TRPCError({
               code: "FORBIDDEN",
@@ -281,7 +244,6 @@ export const chatRouter = createTRPCRouter({
           }
         }
       }
-
       const [message] = await ctx.db.$transaction([
         ctx.db.message.create({
           data: {
@@ -309,10 +271,8 @@ export const chatRouter = createTRPCRouter({
           data: { updatedAt: new Date() },
         }),
       ]);
-
       return message;
     }),
-
   markConversationAsRead: protectedProcedure
     .input(z.object({ conversationId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -328,8 +288,6 @@ export const chatRouter = createTRPCRouter({
         },
       });
     }),
-
-  // Get or create a conversation between two users
   getOrCreateConversation: protectedProcedure
     .input(
       z.object({
@@ -337,7 +295,6 @@ export const chatRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Check block status first
       const block = await ctx.db.block.findFirst({
         where: {
           OR: [
@@ -346,16 +303,13 @@ export const chatRouter = createTRPCRouter({
           ],
         },
       });
-
       if (block) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Cannot create conversation with this user.",
         });
       }
-
       const users = [ctx.user.id, input.otherUserId];
-
       const existing = await ctx.db.conversation.findFirst({
         where: {
           isGroup: false,
@@ -366,11 +320,9 @@ export const chatRouter = createTRPCRouter({
           ],
         },
       });
-
       if (existing) {
         return existing;
       }
-
       return ctx.db.conversation.create({
         data: {
           participants: {
@@ -381,7 +333,6 @@ export const chatRouter = createTRPCRouter({
         },
       });
     }),
-
   getUnreadConversationCount: protectedProcedure.query(async ({ ctx }) => {
     const participations = await ctx.db.conversationParticipant.findMany({
       where: { userId: ctx.user.id },
@@ -405,7 +356,6 @@ export const chatRouter = createTRPCRouter({
         },
       },
     });
-
     let unreadCount = 0;
     for (const p of participations) {
       const latestMsg = p.conversation.messages[0];
@@ -420,7 +370,6 @@ export const chatRouter = createTRPCRouter({
     }
     return unreadCount;
   }),
-
   createEventGroupChat: protectedProcedure
     .input(
       z.object({
@@ -431,18 +380,13 @@ export const chatRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { eventId, memberIds } = input;
       const userId = ctx.user.id;
-
-      // 1. Find the event
       const event = await ctx.db.clientEvent.findUnique({
         where: { id: eventId },
         include: { client: true },
       });
-
       if (!event) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
       }
-
-      // 2. Authorize action
       const isOwner = event.client.userId === userId;
       if (!isOwner) {
         const invitations = await ctx.db.eventInvitation.findMany({
@@ -452,7 +396,6 @@ export const chatRouter = createTRPCRouter({
             status: QuoteStatus.ACCEPTED,
           },
         });
-
         if (invitations.length !== input.memberIds.length) {
           throw new TRPCError({
             code: "FORBIDDEN",
@@ -461,15 +404,11 @@ export const chatRouter = createTRPCRouter({
           });
         }
       }
-
-      // 3. Check if a group chat already exists for this event
       let conversation = await ctx.db.conversation.findUnique({
         where: { clientEventId: eventId },
         include: { participants: true },
       });
-
       if (conversation) {
-        // 4a. If it exists, add new members
         const existingParticipantIds = new Set(
           conversation.participants.map((p) => p.userId),
         );
@@ -479,7 +418,6 @@ export const chatRouter = createTRPCRouter({
         const newMemberIds = allPotentialMembers.filter(
           (id) => !existingParticipantIds.has(id),
         );
-
         if (newMemberIds.length > 0) {
           await ctx.db.conversation.update({
             where: { id: conversation.id },
@@ -491,7 +429,6 @@ export const chatRouter = createTRPCRouter({
           });
         }
       } else {
-        // 4b. If it doesn't exist, create it
         const allParticipantIds = [
           ...new Set([event.client.userId, ...memberIds]),
         ];
@@ -509,10 +446,8 @@ export const chatRouter = createTRPCRouter({
           },
         });
       }
-
       return conversation;
     }),
-
   deleteMessage: protectedProcedure
     .input(
       z.object({
@@ -525,18 +460,15 @@ export const chatRouter = createTRPCRouter({
         where: { id: input.messageId },
         include: { conversation: true },
       });
-
       if (!message) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Message not found",
         });
       }
-
       if (input.deleteType === "EVERYONE") {
         const isSender = message.senderId === ctx.user.id;
         const isGroupAdmin = message.conversation.groupAdminId === ctx.user.id;
-
         if (!isSender && !isGroupAdmin) {
           throw new TRPCError({
             code: "FORBIDDEN",
@@ -544,13 +476,11 @@ export const chatRouter = createTRPCRouter({
               "You can only delete your own messages for everyone, unless you are the group admin.",
           });
         }
-
         return ctx.db.message.update({
           where: { id: input.messageId },
           data: { isDeletedForEveryone: true },
         });
       } else {
-        // Delete for ME: Create a MessageDeletion record
         return ctx.db.messageDeletion.create({
           data: {
             userId: ctx.user.id,
@@ -559,7 +489,6 @@ export const chatRouter = createTRPCRouter({
         });
       }
     }),
-
   updateConversationSettings: protectedProcedure
     .input(
       z.object({
@@ -584,7 +513,6 @@ export const chatRouter = createTRPCRouter({
         },
       });
     }),
-
   deleteConversation: protectedProcedure
     .input(z.object({ conversationId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -600,7 +528,6 @@ export const chatRouter = createTRPCRouter({
         },
       });
     }),
-
   removeParticipant: protectedProcedure
     .input(
       z.object({
@@ -612,21 +539,18 @@ export const chatRouter = createTRPCRouter({
       const conversation = await ctx.db.conversation.findUnique({
         where: { id: input.conversationId },
       });
-
       if (!conversation?.isGroup) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Invalid conversation",
         });
       }
-
       if (conversation.groupAdminId !== ctx.user.id) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Only the group admin can remove members.",
         });
       }
-
       return ctx.db.conversationParticipant.delete({
         where: {
           userId_conversationId: {
@@ -636,21 +560,18 @@ export const chatRouter = createTRPCRouter({
         },
       });
     }),
-
   leaveGroup: protectedProcedure
     .input(z.object({ conversationId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const conversation = await ctx.db.conversation.findUnique({
         where: { id: input.conversationId },
       });
-
       if (!conversation?.isGroup) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Invalid conversation",
         });
       }
-
       await ctx.db.conversationParticipant.delete({
         where: {
           userId_conversationId: {
@@ -659,7 +580,6 @@ export const chatRouter = createTRPCRouter({
           },
         },
       });
-
       if (conversation.clientEventId) {
         const eventVendor = await ctx.db.eventVendor.findFirst({
           where: {
@@ -667,30 +587,23 @@ export const chatRouter = createTRPCRouter({
             vendorId: ctx.user.id,
           },
         });
-
         if (eventVendor) {
           await ctx.db.eventVendor.delete({
             where: { id: eventVendor.id },
           });
         }
       }
-
       return { success: true };
     }),
-
-  // --- SETTINGS ---
   getSettings: protectedProcedure.query(async ({ ctx }) => {
     let settings = await ctx.db.chatSettings.findUnique({
       where: { userId: ctx.user.id },
     });
-
     settings ??= await ctx.db.chatSettings.create({
       data: { userId: ctx.user.id },
     });
-
     return settings;
   }),
-
   updateSettings: protectedProcedure
     .input(
       z.object({

@@ -1,17 +1,13 @@
 "use client";
-
 import React from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { MessageSquare, ShoppingBag, Heart, CreditCard, Mail, FileText, CheckCircle } from "lucide-react";
-
 import { api } from "@/trpc/react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { cn } from "@/lib/utils";
-
 type Notification = inferRouterOutputs<AppRouter>["notification"]["getAll"][number];
-
 export const NotificationItem = ({
   notification,
   onClose,
@@ -21,20 +17,16 @@ export const NotificationItem = ({
 }) => {
   const router = useRouter();
   const utils = api.useUtils();
-
   const markAsRead = api.notification.markAsRead.useMutation({
     onMutate: async ({ id }) => {
         await utils.notification.getAll.cancel();
         await utils.notification.getUnreadCount.cancel();
-
         const previousNotifications = utils.notification.getAll.getData();
         const previousUnreadCount = utils.notification.getUnreadCount.getData();
-
         utils.notification.getAll.setData(undefined, (old) =>
             old?.map(n => n.id === id ? { ...n, read: true } : n) ?? []
         );
         utils.notification.getUnreadCount.setData(undefined, (old) => (old ?? 0) > 0 ? old! - 1 : 0);
-
         return { previousNotifications, previousUnreadCount };
     },
     onError: (err, newTodo, context) => {
@@ -46,7 +38,6 @@ export const NotificationItem = ({
         void utils.notification.getUnreadCount.invalidate();
     },
   });
-
   const handleClick = () => {
     if (!notification.read) {
       markAsRead.mutate({ id: notification.id });
@@ -56,7 +47,6 @@ export const NotificationItem = ({
     }
     onClose();
   };
-
   const getIcon = () => {
     switch (notification.type) {
       case "NEW_MESSAGE":
@@ -77,7 +67,6 @@ export const NotificationItem = ({
         return <MessageSquare className="h-5 w-5 text-gray-500" />;
     }
   };
-
   return (
     <button
       onClick={handleClick}

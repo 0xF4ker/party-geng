@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { api } from "@/trpc/react";
 import {
@@ -24,38 +23,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-// --- 1. STRICT TYPE INFERENCE ---
 import { type inferRouterOutputs } from "@trpc/server";
 import { type AppRouter } from "@/server/api/root";
-
 type RouterOutputs = inferRouterOutputs<AppRouter>;
-
-// Extract the exact shape of a Category from the 'getAll' query
 type CategoryItem = RouterOutputs["category"]["getAll"][number];
-
-// Extract the exact shape of a Service (which is nested inside Category)
 type ServiceItem = CategoryItem["services"][number];
-
 export default function CategoryManagementPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
     null,
   );
   const [searchTerm, setSearchTerm] = useState("");
-
-  // --- QUERIES ---
   const {
     data: categories,
     isLoading,
     refetch,
   } = api.category.getAll.useQuery();
-
-  // Derived state
   const selectedCategory = categories?.find((c) => c.id === selectedCategoryId);
   const filteredCategories = categories?.filter((c) =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
-
   return (
     <div className="relative flex h-[calc(100vh-8rem)] flex-col gap-6 md:flex-row">
       {/* --- LEFT COLUMN: CATEGORIES --- */}
@@ -77,7 +63,6 @@ export default function CategoryManagementPage() {
             />
           </div>
         </div>
-
         <div className="flex-1 space-y-1 overflow-y-auto p-2">
           {isLoading ? (
             <div className="flex justify-center p-8">
@@ -113,7 +98,6 @@ export default function CategoryManagementPage() {
           )}
         </div>
       </div>
-
       {/* --- RIGHT COLUMN: SERVICES --- */}
       <div
         className={`w-full flex-col rounded-2xl border border-gray-100 bg-white shadow-sm md:flex md:flex-1 ${selectedCategoryId ? "flex" : "hidden"} `}
@@ -130,7 +114,6 @@ export default function CategoryManagementPage() {
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
-
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <h2 className="truncate text-lg font-bold text-gray-900 sm:text-xl">
@@ -146,7 +129,6 @@ export default function CategoryManagementPage() {
                     /{selectedCategory.slug ?? "no-slug"}
                   </p>
                 </div>
-
                 <div className="flex gap-1 sm:gap-2">
                   <DeleteCategoryButton
                     categoryId={selectedCategory.id}
@@ -163,12 +145,10 @@ export default function CategoryManagementPage() {
                 </div>
               </div>
             </div>
-
             <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               <h3 className="mb-4 text-xs font-semibold tracking-wider text-gray-400 uppercase">
                 Services in {selectedCategory.name}
               </h3>
-
               {selectedCategory.services.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 py-12 text-center">
                   <Briefcase className="mx-auto mb-3 h-10 w-10 text-gray-300" />
@@ -192,7 +172,6 @@ export default function CategoryManagementPage() {
                           </span>
                         </p>
                       </div>
-
                       <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                         <ServiceModal
                           categoryId={selectedCategory.id}
@@ -229,21 +208,15 @@ export default function CategoryManagementPage() {
     </div>
   );
 }
-
-// --- SUB-COMPONENTS (Modals) ---
-
-// Correctly typed props
 interface CategoryModalProps {
   category?: CategoryItem;
   onSuccess: () => void;
   isEdit?: boolean;
 }
-
 function CategoryModal({ category, onSuccess, isEdit }: CategoryModalProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(category?.name ?? "");
   const [slug, setSlug] = useState(category?.slug ?? "");
-
   const mutation = api.category.upsertCategory.useMutation({
     onSuccess: () => {
       setOpen(false);
@@ -256,7 +229,6 @@ function CategoryModal({ category, onSuccess, isEdit }: CategoryModalProps) {
     },
     onError: (err) => toast.error(err.message),
   });
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {isEdit ? (
@@ -277,7 +249,6 @@ function CategoryModal({ category, onSuccess, isEdit }: CategoryModalProps) {
           <Plus className="mr-1 h-3.5 w-3.5" /> New
         </Button>
       )}
-
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Category" : "New Category"}</DialogTitle>
@@ -318,15 +289,12 @@ function CategoryModal({ category, onSuccess, isEdit }: CategoryModalProps) {
     </Dialog>
   );
 }
-
-// Correctly typed props
 interface ServiceModalProps {
   categoryId: number;
   service?: ServiceItem;
   onSuccess: () => void;
   isEdit?: boolean;
 }
-
 function ServiceModal({
   categoryId,
   service,
@@ -336,7 +304,6 @@ function ServiceModal({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(service?.name ?? "");
   const [slug, setSlug] = useState(service?.slug ?? "");
-
   const mutation = api.category.upsertService.useMutation({
     onSuccess: () => {
       setOpen(false);
@@ -349,7 +316,6 @@ function ServiceModal({
     },
     onError: (err) => toast.error(err.message),
   });
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {isEdit ? (
@@ -372,7 +338,6 @@ function ServiceModal({
           <span className="hidden sm:inline">Add Service</span>
         </Button>
       )}
-
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Service" : "New Service"}</DialogTitle>
@@ -415,7 +380,6 @@ function ServiceModal({
     </Dialog>
   );
 }
-
 function DeleteCategoryButton({
   categoryId,
   categoryName,
@@ -432,13 +396,11 @@ function DeleteCategoryButton({
     },
     onError: (err) => toast.error(err.message),
   });
-
   const handleDelete = () => {
     if (confirm(`Delete category "${categoryName}"? This cannot be undone.`)) {
       mutation.mutate({ id: categoryId });
     }
   };
-
   return (
     <Button
       variant="ghost"
@@ -455,7 +417,6 @@ function DeleteCategoryButton({
     </Button>
   );
 }
-
 function DeleteServiceButton({
   serviceId,
   serviceName,
@@ -472,13 +433,11 @@ function DeleteServiceButton({
     },
     onError: (err) => toast.error(err.message),
   });
-
   const handleDelete = () => {
     if (confirm(`Delete service "${serviceName}"?`)) {
       mutation.mutate({ id: serviceId });
     }
   };
-
   return (
     <Button
       variant="ghost"

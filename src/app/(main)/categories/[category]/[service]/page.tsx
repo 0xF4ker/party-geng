@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   ChevronRight,
@@ -27,8 +26,6 @@ import type { AppRouter } from "@/server/api/root";
 import LocationSearchInput, {
   type LocationSearchResult,
 } from "@/components/ui/LocationSearchInput";
-
-// --- Types ---
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type VendorListOutput = RouterOutput["vendor"]["getVendorsByService"];
 type vendorProfileWithUser = VendorListOutput["vendors"][number];
@@ -41,14 +38,10 @@ type FilterState = {
   minRating?: number;
   location?: LocationFilterType;
 };
-
-// --- Main Page Component ---
 const ServiceListingPage = () => {
   const params = useParams();
   const categorySlug = params?.category as string;
   const serviceSlug = params?.service as string;
-
-  // Fetch service details to get serviceId
   const { data: serviceData, isLoading: isLoadingService } =
     api.category.getServiceBySlug.useQuery(
       { slug: serviceSlug },
@@ -56,21 +49,16 @@ const ServiceListingPage = () => {
         enabled: !!serviceSlug,
       },
     );
-
   const serviceId = serviceData?.id;
   const serviceName = serviceData?.name;
-
-  // Filter state
   const [filters, setFilters] = useState<FilterState>({});
   const [page, setPage] = useState(1);
   const limit = 20;
   const offset = (page - 1) * limit;
-
-  // Fetch vendors with filters
   const { data, isLoading: isLoadingVendors } =
     api.vendor.getVendorsByService.useQuery(
       {
-        serviceId: serviceId!, // Use the fetched serviceId
+        serviceId: serviceId!,
         filters: {
           minRating: filters.minRating,
           location: filters.location,
@@ -79,30 +67,23 @@ const ServiceListingPage = () => {
         offset,
       },
       {
-        enabled: !!serviceId, // Only run query if serviceId is available
+        enabled: !!serviceId,
       },
     );
-
   const vendors = data?.vendors ?? [];
   const totalCount = data?.totalCount ?? 0;
   const totalPages = Math.ceil(totalCount / limit);
-
-  // Apply filters handler
   const handleApplyFilters = (newFilters: Partial<FilterState>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
-    setPage(1); // Reset to first page when filters change
+    setPage(1); 
   };
-
-  // Clear filters handler
+ 
   const handleClearFilters = () => {
     setFilters({});
     setPage(1);
   };
-
-  // Overall loading state
   const isLoading = isLoadingService || isLoadingVendors;
-
-  // Loading state
+ 
   if (isLoading && !serviceData) {
     return (
       <div className="min-h-screen bg-white pt-[122px] text-gray-900 lg:pt-[127px]">
@@ -114,13 +95,9 @@ const ServiceListingPage = () => {
       </div>
     );
   }
-
   return (
-    // FIX: Use specific pixel values for header padding
     <div className="min-h-screen bg-white pt-[122px] text-gray-900 lg:pt-[127px]">
-      {/* Container */}
       <div className="container mx-auto px-4 py-8 sm:px-8">
-        {/* Breadcrumbs */}
         <div className="mb-4 flex items-center text-sm text-gray-500">
           <Link href="/" className="hover:text-pink-600">
             <Home className="h-4 w-4" />
@@ -136,15 +113,11 @@ const ServiceListingPage = () => {
               .join(" ")}
           </Link>
         </div>
-
-        {/* Title */}
         <h1 className="mb-4 text-3xl font-bold md:text-4xl">{serviceName}</h1>
         <p className="mb-6 max-w-3xl text-lg text-gray-600">
           Find the best {serviceName?.toLowerCase()} for your event. Book
           verified, professional vendors on Party-Geng.
         </p>
-
-        {/* Filter Bar */}
         <div className="z-10 bg-white">
           <div className="container mx-auto px-4 sm:px-8">
             <div className="flex flex-wrap items-center gap-2 py-4">
@@ -177,7 +150,6 @@ const ServiceListingPage = () => {
                   />
                 )}
               </FilterDropdown>
-
               {filters.minRating || filters.location ? (
                 <button
                   onClick={handleClearFilters}
@@ -186,14 +158,12 @@ const ServiceListingPage = () => {
                   Clear all filters
                 </button>
               ) : null}
-
               <button className="ml-auto rounded-md border p-2 hover:bg-gray-100 lg:hidden">
                 <SlidersHorizontal className="h-5 w-5" />
               </button>
             </div>
           </div>
         </div>
-
         {/* Results Info */}
         <div className="my-6 flex items-center justify-between">
           <span className="text-sm text-gray-600">
@@ -204,7 +174,6 @@ const ServiceListingPage = () => {
             )}
           </span>
         </div>
-
         {/* Vendors Grid */}
         {isLoading && vendors.length === 0 ? (
           <div className="flex h-96 items-center justify-center">
@@ -234,7 +203,6 @@ const ServiceListingPage = () => {
             ))}
           </div>
         )}
-
         {/* Pagination */}
         {totalPages > 1 && (
           <Pagination
@@ -247,15 +215,11 @@ const ServiceListingPage = () => {
     </div>
   );
 };
-
-// --- Sub-Components ---
-
 interface FilterDropdownProps {
   title: string;
   align?: "left" | "right";
   children: (props: { close: () => void }) => React.ReactNode;
 }
-
 const FilterDropdown = ({
   title,
   align = "left",
@@ -263,11 +227,8 @@ const FilterDropdown = ({
 }: FilterDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Only run this logic on desktop (when it's not a modal)
       if (window.innerWidth >= 640) {
         if (
           dropdownRef.current &&
@@ -277,21 +238,16 @@ const FilterDropdown = ({
         }
       }
     };
-
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-      // Lock body scroll on mobile when open
       if (window.innerWidth < 640) document.body.style.overflow = "hidden";
     }
-
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.body.style.overflow = "unset";
     };
   }, [isOpen]);
-
   const close = () => setIsOpen(false);
-
   return (
     <div className="relative inline-block text-left" ref={dropdownRef}>
       <button
@@ -312,7 +268,6 @@ const FilterDropdown = ({
           )}
         />
       </button>
-
       {/* This is the "Out of the Box" Magic:
         We render an overlay AND the menu. 
         On mobile, the menu breaks free from the button and centers itself on screen.
@@ -324,32 +279,19 @@ const FilterDropdown = ({
             className="animate-in fade-in fixed inset-0 z-40 bg-black/30 backdrop-blur-sm duration-200 sm:hidden"
             onClick={close}
           />
-
           <div
             className={cn(
-              // --- BASE STYLES ---
               "z-50 border border-gray-100 bg-white p-1 shadow-xl transition-all duration-200 ease-out",
-
-              // --- MOBILE STYLES (The Modal) ---
-              // Fixed to viewport, centered, 90% width.
               "fixed top-1/2 left-1/2 w-[90vw] max-w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-2xl",
-
-              // --- DESKTOP STYLES (The Dropdown) ---
-              // Reset fixed positioning, go back to absolute relative to button
               "sm:absolute sm:top-full sm:left-auto sm:mt-2 sm:w-[380px] sm:translate-x-0 sm:translate-y-0 sm:rounded-xl",
-
-              // Desktop Alignment
               align === "right"
                 ? "sm:right-0 sm:origin-top-right"
                 : "sm:left-0 sm:origin-top-left",
-
-              // Animation
               isOpen
                 ? "scale-100 opacity-100"
                 : "pointer-events-none scale-95 opacity-0",
             )}
           >
-            {/* Mobile Close Button (Optional UX improvement) */}
             <div className="mb-2 flex justify-end border-b border-gray-50 p-2 sm:hidden">
               <button
                 onClick={close}
@@ -358,7 +300,6 @@ const FilterDropdown = ({
                 <X size={16} />
               </button>
             </div>
-
             <div className="p-1">{children({ close })}</div>
           </div>
         </>
@@ -366,7 +307,6 @@ const FilterDropdown = ({
     </div>
   );
 };
-
 const RatingFilter = ({
   selectedRating,
   onApply,
@@ -380,23 +320,17 @@ const RatingFilter = ({
     selectedRating,
   );
   const [hoverRating, setHoverRating] = useState<number>(0);
-
   const handleApply = () => {
     onApply(localRating);
   };
-
   const handleClear = () => {
     setLocalRating(undefined);
     onClear();
   };
-
-  // Helper to determine star styling
   const getStarState = (index: number) => {
-    // If hovering, use hover state. Otherwise use selected state.
     const activeValue = hoverRating ?? localRating ?? 0;
     return index <= activeValue;
   };
-
   return (
     <div className="w-full max-w-sm rounded-xl bg-white">
       {/* Header */}
@@ -406,12 +340,11 @@ const RatingFilter = ({
           Minimum Rating
         </h3>
       </div>
-
       {/* Interactive Star Section */}
       <div className="px-5 py-6">
         <div
           className="flex justify-between gap-1"
-          onMouseLeave={() => setHoverRating(0)} // Reset hover on leave
+          onMouseLeave={() => setHoverRating(0)} 
         >
           {[1, 2, 3, 4, 5].map((star) => (
             <button
@@ -436,7 +369,6 @@ const RatingFilter = ({
             </button>
           ))}
         </div>
-
         {/* Text Feedback */}
         <div className="mt-4 text-center">
           <p className="text-sm font-medium text-gray-600">
@@ -450,7 +382,6 @@ const RatingFilter = ({
           </p>
         </div>
       </div>
-
       {/* Footer / Actions */}
       <div className="flex items-center justify-between rounded-b-xl border-t border-gray-50 bg-gray-50/50 px-5 py-4">
         <button
@@ -461,7 +392,6 @@ const RatingFilter = ({
           <X className="h-3.5 w-3.5 transition-transform group-hover:scale-110" />
           Reset
         </button>
-
         <button
           onClick={handleApply}
           className="flex items-center gap-2 rounded-lg bg-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-pink-200 transition-all hover:bg-pink-700 hover:shadow-md active:scale-95 active:transform"
@@ -473,7 +403,6 @@ const RatingFilter = ({
     </div>
   );
 };
-
 const LocationFilter = ({
   onApply,
   onClear,
@@ -482,8 +411,7 @@ const LocationFilter = ({
   onClear: () => void;
 }) => {
   const [location, setLocation] = useState<LocationSearchResult | null>(null);
-  const [radius, setRadius] = useState(5000); // Default 5km in meters
-
+  const [radius, setRadius] = useState(5000);
   const handleApply = () => {
     if (location) {
       onApply({
@@ -493,13 +421,11 @@ const LocationFilter = ({
       });
     }
   };
-
   const handleClear = () => {
     setLocation(null);
-    setRadius(5000); // Reset radius
+    setRadius(5000); 
     onClear();
   };
-
   return (
     <div className="w-full max-w-sm rounded-xl border border-gray-100 bg-white shadow-sm">
       {/* Header Section */}
@@ -509,7 +435,6 @@ const LocationFilter = ({
           Location & Distance
         </h3>
       </div>
-
       <div className="space-y-6 px-5 py-5">
         {/* Search Input Section */}
         <div className="space-y-2">
@@ -520,12 +445,9 @@ const LocationFilter = ({
             <LocationSearchInput
               onLocationSelect={setLocation}
               initialValue={location?.display_name}
-              // You might need to pass styling props to your input to make it match
-              // className="w-full rounded-lg border-gray-200 pl-10 focus:border-pink-500 focus:ring-pink-500"
             />
           </div>
         </div>
-
         {/* Radius Slider Section - Only shows when location is selected */}
         <div
           className={`transition-all duration-300 ease-in-out ${
@@ -543,7 +465,6 @@ const LocationFilter = ({
               {(radius / 1000).toFixed(1)} km
             </span>
           </div>
-
           <div className="relative flex h-6 w-full items-center">
             {/* Custom Range Slider */}
             <input
@@ -564,7 +485,6 @@ const LocationFilter = ({
           </div>
         </div>
       </div>
-
       {/* Footer / Actions */}
       <div className="flex items-center justify-between rounded-b-xl border-t border-gray-50 bg-gray-50/50 px-5 py-4">
         <button
@@ -575,7 +495,6 @@ const LocationFilter = ({
           <X className="h-3.5 w-3.5 transition-transform group-hover:scale-110" />
           Reset
         </button>
-
         <button
           onClick={handleApply}
           disabled={!location}
@@ -588,7 +507,6 @@ const LocationFilter = ({
     </div>
   );
 };
-
 const VendorCard = ({
   vendor,
   categorySlug: _categorySlug,
@@ -602,8 +520,7 @@ const VendorCard = ({
   const rating = vendor.rating;
   const imageUrl =
     vendor.bannerUrl ??
-    "https://placehold.co/400x300/ec4899/ffffff?text=Vendor"; // Use bannerUrl for vendor card
-
+    "https://placehold.co/400x300/ec4899/ffffff?text=Vendor";
   return (
     <div className="w-full">
       <Link href={`/v/${vendor.user.username}`} className="group">
@@ -620,12 +537,10 @@ const VendorCard = ({
             <Heart className="h-5 w-5 text-gray-800" />
           </button>
         </div>
-
         {/* Title */}
         <p className="mb-1.5 text-base text-gray-800 transition-colors hover:text-pink-600">
           {vendor.companyName ?? "Unnamed Vendor"}
         </p>
-
         {/* Rating */}
         <div className="mb-2 flex items-center gap-1 text-sm text-gray-700">
           <Star className="h-4 w-4 fill-current text-yellow-400" />
@@ -635,7 +550,6 @@ const VendorCard = ({
     </div>
   );
 };
-
 const Pagination = ({
   currentPage,
   totalPages,
@@ -647,7 +561,6 @@ const Pagination = ({
 }) => {
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
-
     if (totalPages <= 7) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
@@ -667,10 +580,8 @@ const Pagination = ({
       }
       pages.push(totalPages);
     }
-
     return pages;
   };
-
   return (
     <nav
       className="mt-16 flex items-center justify-center space-x-2"
@@ -684,7 +595,6 @@ const Pagination = ({
       >
         <ChevronLeft className="h-5 w-5" />
       </button>
-
       {getPageNumbers().map((page, idx) =>
         typeof page === "number" ? (
           <button
@@ -709,7 +619,6 @@ const Pagination = ({
           </span>
         ),
       )}
-
       <button
         onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
         disabled={currentPage === totalPages}
@@ -721,5 +630,4 @@ const Pagination = ({
     </nav>
   );
 };
-
 export default ServiceListingPage;

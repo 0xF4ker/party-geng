@@ -14,5 +14,4 @@ const categories = [
   "Digital Marketing",
   "Video & Animation",
 ];
-
 export default categories;

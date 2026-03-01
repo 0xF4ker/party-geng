@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   Users,
@@ -27,33 +26,24 @@ import LocationSearchInput, {
   type LocationSearchResult,
 } from "@/components/ui/LocationSearchInput";
 import { format } from "date-fns";
-
 type routerOutput = inferRouterOutputs<AppRouter>;
 type event = routerOutput["event"]["getMyEvents"]["upcoming"][number];
-
-// --- HELPER: Date Formatter ---
 const formatEventDate = (start: Date | string, end: Date | string) => {
   const s = new Date(start);
   const e = new Date(end);
-
   if (s.toDateString() === e.toDateString()) {
-    // Same Day
     return format(s, "MMM d, yyyy");
   } else if (
     s.getMonth() === e.getMonth() &&
     s.getFullYear() === e.getFullYear()
   ) {
-    // Same Month
     return `${format(s, "MMM d")} - ${format(e, "d, yyyy")}`;
   } else if (s.getFullYear() === e.getFullYear()) {
-    // Same Year
     return `${format(s, "MMM d")} - ${format(e, "MMM d, yyyy")}`;
   } else {
-    // Different Years
     return `${format(s, "MMM d, yyyy")} - ${format(e, "MMM d, yyyy")}`;
   }
 };
-
 const ClientEventPlannerPage = () => {
   const { user } = useAuth();
   const { isClient, loading } = useUserType();
@@ -62,24 +52,19 @@ const ClientEventPlannerPage = () => {
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<event | null>(null);
-
-  // Fetch events from API
   const { data: eventsData, isLoading: eventsLoading } =
     api.event.getMyEvents.useQuery(undefined, {
       enabled: !!user,
     });
-
   useEffect(() => {
     if (!loading && !isClient) {
       router.push("/");
     }
   }, [loading, isClient, router]);
-
   const openAddVendor = (event: event) => {
     setSelectedEvent(event);
     setIsVendorModalOpen(true);
   };
-
   if (loading || !isClient) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -87,7 +72,6 @@ const ClientEventPlannerPage = () => {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
       <div className="container mx-auto px-4 py-8 sm:px-8">
@@ -102,7 +86,6 @@ const ClientEventPlannerPage = () => {
             Create New Event
           </button>
         </div>
-
         {/* Tab Navigation */}
         <div className="mb-6 flex items-center border-b border-gray-200">
           <TabButton
@@ -116,14 +99,12 @@ const ClientEventPlannerPage = () => {
             onClick={() => setActiveTab("past")}
           />
         </div>
-
         {/* Loading State */}
         {eventsLoading && (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-12 w-12 animate-spin text-pink-600" />
           </div>
         )}
-
         {/* --- Upcoming Events --- */}
         {!eventsLoading && activeTab === "upcoming" && (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -152,7 +133,6 @@ const ClientEventPlannerPage = () => {
             )}
           </div>
         )}
-
         {/* --- Past Events --- */}
         {!eventsLoading && activeTab === "past" && (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -170,11 +150,9 @@ const ClientEventPlannerPage = () => {
           </div>
         )}
       </div>
-
       {isEventModalOpen && (
         <CreateEventModal onClose={() => setIsEventModalOpen(false)} />
       )}
-
       {isVendorModalOpen && selectedEvent && (
         <AddVendorModal
           event={selectedEvent}
@@ -185,9 +163,6 @@ const ClientEventPlannerPage = () => {
     </div>
   );
 };
-
-// --- Sub-Components ---
-
 const TabButton = ({
   title,
   isActive,
@@ -209,7 +184,6 @@ const TabButton = ({
     {title}
   </button>
 );
-
 const EventCard = ({
   event,
   onAddVendorClick,
@@ -227,7 +201,6 @@ const EventCard = ({
   const [isPublic, setIsPublic] = useState(event.isPublic);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
   const utils = api.useUtils();
   const updateEvent = api.event.update.useMutation({
     onSuccess: () => {
@@ -239,16 +212,13 @@ const EventCard = ({
       void utils.event.getMyEvents.invalidate();
     },
   });
-
   const handleTogglePublic = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
     const newIsPublic = !isPublic;
     setIsPublic(newIsPublic);
-    // Note: startDate/endDate required in DB but optional in update schema
     updateEvent.mutate({ id: event.id, isPublic: newIsPublic });
   };
-
   const handleDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -257,13 +227,11 @@ const EventCard = ({
       setIsMenuOpen(false);
     }
   };
-
   const handleMenuToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsMenuOpen(!isMenuOpen);
   };
-
   const hiredVendors =
     event.hiredVendors?.map((ev) => ({
       id: ev.vendor.id,
@@ -273,7 +241,6 @@ const EventCard = ({
         ev.vendor.vendorProfile?.avatarUrl ??
         "https://placehold.co/40x40/ec4899/ffffff?text=V",
     })) ?? [];
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -283,7 +250,6 @@ const EventCard = ({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuRef]);
-
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
       <Image
@@ -313,7 +279,6 @@ const EventCard = ({
               {event.title}
             </h3>
           </div>
-
           {!isPast && (
             <div className="relative" ref={menuRef}>
               <button
@@ -360,7 +325,6 @@ const EventCard = ({
             </div>
           )}
         </div>
-
         <div className="mt-auto space-y-3 pt-4">
           <div>
             <h4 className="mb-2 text-xs font-semibold text-gray-500 uppercase">
@@ -388,7 +352,6 @@ const EventCard = ({
               )}
             </div>
           </div>
-
           {!isPast && wishlistCount > 0 && (
             <div className="flex items-center justify-between border-t border-gray-100 pt-3">
               <div className="text-xs text-gray-500">
@@ -404,7 +367,6 @@ const EventCard = ({
             </div>
           )}
         </div>
-
         {!isPast && (
           <div className="mt-4 border-t border-gray-100 pt-4">
             <div className="flex items-center justify-between">
@@ -428,31 +390,26 @@ const EventCard = ({
     </div>
   );
 };
-
 const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
   const utils = api.useUtils();
   const [location, setLocation] = useState<LocationSearchResult | null>(null);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-
   const createEvent = api.event.create.useMutation({
     onSuccess: () => {
       void utils.event.getMyEvents.invalidate();
       onClose();
     },
   });
-
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const title = (form.elements.namedItem("eventName") as HTMLInputElement)
       ?.value;
-
     if (!title || !startDate || !endDate) {
       alert("Please fill in all fields");
       return;
     }
-
     createEvent.mutate({
       title,
       startDate: new Date(startDate),
@@ -460,8 +417,6 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
       location: location,
     });
   };
-
-  // Auto-set End Date if Start Date changes and End Date is empty or before start
   const handleStartChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setStartDate(val);
@@ -469,7 +424,6 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
       setEndDate(val);
     }
   };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="m-4 w-full max-w-lg rounded-lg bg-white shadow-xl">
@@ -482,7 +436,6 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
             <X className="h-5 w-5" />
           </button>
         </div>
-
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <div>
             <label className="mb-1 block text-sm font-semibold text-gray-700">
@@ -496,7 +449,6 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
               required
             />
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-sm font-semibold text-gray-700">
@@ -525,14 +477,12 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
               />
             </div>
           </div>
-
           <div>
             <label className="mb-1 block text-sm font-semibold text-gray-700">
               Location
             </label>
             <LocationSearchInput onLocationSelect={setLocation} />
           </div>
-
           <div className="flex items-center justify-end border-t border-gray-200 pt-4">
             <button
               type="button"
@@ -557,5 +507,4 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
     </div>
   );
 };
-
 export default ClientEventPlannerPage;

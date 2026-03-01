@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { api } from "@/trpc/react";
-
 interface ContributeCashModalProps {
   itemId: string;
   eventName: string;
@@ -25,7 +23,6 @@ interface ContributeCashModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
-
 export const ContributeCashModal = ({
   itemId,
   eventName,
@@ -40,7 +37,6 @@ export const ContributeCashModal = ({
   const { data: wallet, isLoading: isWalletLoading } = api.payment.getWallet.useQuery(undefined, {
       enabled: !!user,
   });
-
   const contribute = api.payment.contributeToWishlist.useMutation({
       onSuccess: () => {
           toast.success("Contribution successful!");
@@ -51,7 +47,6 @@ export const ContributeCashModal = ({
           toast.error(error.message ?? "Contribution failed.");
       }
   });
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
@@ -66,14 +61,12 @@ export const ContributeCashModal = ({
         toast.error("Insufficient wallet balance.");
         return;
     }
-
     contribute.mutate({
       wishlistItemId: itemId,
       amount: amount,
       guestName: user.username,
     });
   };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>

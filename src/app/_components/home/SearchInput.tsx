@@ -2,7 +2,6 @@ import React, { useRef } from "react";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { popularSearches } from "@/app/local/categoryv2";
-
 interface SearchInputProps {
   placeholder: string;
   isFocused: boolean;
@@ -13,7 +12,6 @@ interface SearchInputProps {
   onClear: () => void;
   className?: string;
 }
-
 const SearchInput: React.FC<SearchInputProps> = ({
   placeholder,
   isFocused,
@@ -25,27 +23,23 @@ const SearchInput: React.FC<SearchInputProps> = ({
   className = "",
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
-
   const handleClear = () => {
     onClear();
     inputRef.current?.focus();
   };
-
   const handleSelectSuggestion = (suggestion: string) => {
     setQuery(suggestion);
     setIsFocused(false);
-    // Here you would typically trigger the search
     console.log("Searching for:", suggestion);
   };
-
   return (
     <div
       className={cn(
         "relative w-full",
         className,
-        isFocused ? "z-50" : "z-auto", // Elevate search when focused
+        isFocused ? "z-50" : "z-auto",
       )}
-      onClick={(e) => e.stopPropagation()} // Prevent clicks from closing overlay
+      onClick={(e) => e.stopPropagation()}
     >
       <div className="relative flex w-full items-center">
         <input
@@ -79,7 +73,6 @@ const SearchInput: React.FC<SearchInputProps> = ({
           <Search className="h-5 w-5" />
         </button>
       </div>
-
       {/* --- Suggestions Dropdown --- */}
       {isFocused && (query.length > 0 || popularSearches.length > 0) && (
         <div className="absolute top-full right-0 left-0 mt-2 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
@@ -104,7 +97,6 @@ const SearchInput: React.FC<SearchInputProps> = ({
               ))}
             </ul>
           )}
-
           {/* Popular Searches */}
           {results.length === 0 && query.length === 0 && (
             <div className="py-2">
@@ -130,5 +122,4 @@ const SearchInput: React.FC<SearchInputProps> = ({
     </div>
   );
 };
-
 export default SearchInput;

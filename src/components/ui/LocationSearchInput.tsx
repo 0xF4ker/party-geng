@@ -1,9 +1,7 @@
 "use client";
-
 import React, { useState, useEffect, useRef } from "react";
 import { Loader2, MapPin } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
-
 export interface LocationSearchResult {
   place_id: number;
   licence: string;
@@ -18,12 +16,10 @@ export interface LocationSearchResult {
   importance: number;
   icon?: string;
 }
-
 interface LocationSearchInputProps {
   onLocationSelect: (location: LocationSearchResult) => void;
   initialValue?: string;
 }
-
 const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
   onLocationSelect,
   initialValue = "",
@@ -35,14 +31,11 @@ const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
   const debouncedQuery = useDebounce(query, 300);
   const containerRef = useRef<HTMLDivElement>(null);
   const isInitialMount = useRef(true);
-
-  // Sync initial value if it changes
   useEffect(() => {
     if (initialValue) {
       setQuery(initialValue);
     }
   }, [initialValue]);
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -52,20 +45,16 @@ const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
         setIsOpen(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
   useEffect(() => {
-    // Skip the first render
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
     }
-
     const fetchLocations = async () => {
       if (debouncedQuery.length > 2) {
         setIsLoading(true);
@@ -73,7 +62,6 @@ const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
           const res = await fetch(
             `https://nominatim.openstreetmap.org/search?q=${debouncedQuery}&format=json&countrycodes=ng`,
           );
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           const data: LocationSearchResult[] = await res.json();
           setResults(data);
           setIsOpen(true);
@@ -87,16 +75,13 @@ const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
         setIsOpen(false);
       }
     };
-
     void fetchLocations();
   }, [debouncedQuery]);
-
   const handleSelect = (location: LocationSearchResult) => {
     setQuery(location.display_name);
     onLocationSelect(location);
     setIsOpen(false);
   };
-
   return (
     <div className="relative" ref={containerRef}>
       <div className="relative">
@@ -131,5 +116,4 @@ const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
     </div>
   );
 };
-
 export default LocationSearchInput;

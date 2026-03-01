@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { Star, Calendar, Gift, Loader2 } from "lucide-react";
 import Image from "next/image";
@@ -10,14 +9,10 @@ import { cn } from "@/lib/utils";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { format } from "date-fns";
-
 import ProfileHeader from "@/app/_components/profile/ProfileHeader";
 import { GalleryTab } from "@/app/_components/profile/GalleryTab";
-
 type routerOutput = inferRouterOutputs<AppRouter>;
 type EventType = routerOutput["event"]["getMyEvents"]["upcoming"][number];
-
-// --- Mock Data ---
 const vendorReviews = [
   {
     id: 1,
@@ -38,45 +33,32 @@ const vendorReviews = [
       "A true professional. Adebayo knew exactly what he wanted for his corporate event photography. Clear brief and respectful of our time. Highly recommend working with him.",
   },
 ];
-// --- End Mock Data ---
-
-// Helper function for date formatting
 const formatEventDate = (start: Date | string, end: Date | string) => {
   const s = new Date(start);
   const e = new Date(end);
-
   if (s.toDateString() === e.toDateString()) {
-    // Same day
     return format(s, "MMMM d, yyyy");
   } else if (s.getFullYear() === e.getFullYear()) {
-    // Same year
     return `${format(s, "MMM d")} - ${format(e, "MMM d, yyyy")}`;
   } else {
-    // Different years
     return `${format(s, "MMM d, yyyy")} - ${format(e, "MMM d, yyyy")}`;
   }
 };
-
-// --- Main Page Component ---
 const ClientProfilePage = () => {
   const params = useParams();
   const username = params.user as string;
   const { user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState("upcoming");
-
   const {
     data: profileUser,
     isLoading: profileLoading,
     error: profileError,
   } = api.user.getByUsername.useQuery({ username });
-
   const { data: eventsData, isLoading: eventsLoading } =
     api.event.getMyEvents.useQuery(undefined, {
       enabled: !!profileUser && currentUser?.id === profileUser.id,
     });
-
   const isOwnProfile = currentUser?.id === profileUser?.id;
-
   if (profileLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -84,7 +66,6 @@ const ClientProfilePage = () => {
       </div>
     );
   }
-
   if (profileError || !profileUser?.clientProfile) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -97,13 +78,11 @@ const ClientProfilePage = () => {
       </div>
     );
   }
-
   const clientProfile = profileUser.clientProfile;
   const upcomingEvents =
     eventsData?.upcoming?.filter((e) => e.isPublic || isOwnProfile) ?? [];
   const pastEvents =
     eventsData?.past?.filter((e) => e.isPublic || isOwnProfile) ?? [];
-
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <ProfileHeader
@@ -113,7 +92,6 @@ const ClientProfilePage = () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
       />
-
       <div className="container mx-auto max-w-4xl px-4">
         {/* Tab Content */}
         <div className="py-8">
@@ -138,9 +116,6 @@ const ClientProfilePage = () => {
     </div>
   );
 };
-
-// --- Sub-Components ---
-
 const UpcomingEventsSection = ({
   events,
   isLoading,
@@ -151,7 +126,6 @@ const UpcomingEventsSection = ({
   isOwnProfile: boolean;
 }) => {
   const router = useRouter();
-
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
@@ -159,7 +133,6 @@ const UpcomingEventsSection = ({
       </div>
     );
   }
-
   if (events.length === 0) {
     return (
       <div className="rounded-lg border-2 border-dashed border-gray-200 bg-white p-12 text-center">
@@ -185,7 +158,6 @@ const UpcomingEventsSection = ({
       </div>
     );
   }
-
   return (
     <div className="space-y-6">
       {events.map((event) => (
@@ -194,7 +166,6 @@ const UpcomingEventsSection = ({
     </div>
   );
 };
-
 const PastEventsSection = ({
   events,
   isLoading,
@@ -211,7 +182,6 @@ const PastEventsSection = ({
       </div>
     );
   }
-
   if (events.length === 0) {
     return (
       <div className="rounded-lg border-2 border-dashed border-gray-200 bg-white p-12 text-center">
@@ -225,7 +195,6 @@ const PastEventsSection = ({
       </div>
     );
   }
-
   return (
     <div className="space-y-6">
       {events.map((event) => (
@@ -234,7 +203,6 @@ const PastEventsSection = ({
     </div>
   );
 };
-
 const EventCard = ({
   event,
   isPast = false,
@@ -244,7 +212,6 @@ const EventCard = ({
 }) => {
   const router = useRouter();
   const wishlistCount = event.wishlist?.items?.length ?? 0;
-
   return (
     <div
       onClick={() => router.push(`/event/${event.id}`)}
@@ -272,7 +239,6 @@ const EventCard = ({
           </div>
         )}
       </div>
-
       <div className="p-5">
         <div className="flex items-center justify-between">
           <p
@@ -289,16 +255,13 @@ const EventCard = ({
             </span>
           )}
         </div>
-
         <h3 className="mt-1 text-xl font-bold transition-colors group-hover:text-pink-600">
           {event.title}
         </h3>
-
         {/* UPDATED DATE DISPLAY */}
         <p className="mt-1 text-sm text-gray-500">
           {formatEventDate(event.startDate, event.endDate)}
         </p>
-
         {wishlistCount > 0 && (
           <div className="mt-6 flex items-center justify-between rounded-lg bg-gray-50 p-4 transition-colors group-hover:bg-pink-50/30">
             <div className="flex items-center gap-3">
@@ -323,7 +286,6 @@ const EventCard = ({
     </div>
   );
 };
-
 const ReviewsFromVendorsSection = () => (
   <div className="space-y-6">
     {vendorReviews.map((review) => (
@@ -331,7 +293,6 @@ const ReviewsFromVendorsSection = () => (
     ))}
   </div>
 );
-
 const ReviewCard = ({ review }: { review: (typeof vendorReviews)[0] }) => (
   <div className="rounded-xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-md">
     <div className="flex items-start justify-between">
@@ -367,5 +328,4 @@ const ReviewCard = ({ review }: { review: (typeof vendorReviews)[0] }) => (
     <p className="mt-4 text-gray-600">&quot;{review.comment}&quot;</p>
   </div>
 );
-
 export default ClientProfilePage;

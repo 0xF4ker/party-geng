@@ -1,30 +1,25 @@
 import { transporter } from "../mailer";
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import type { Address } from "nodemailer/lib/mailer";
-
 interface GuestInvitationData {
   name: string;
   eventTitle: string;
   link: string;
 }
-
 interface WelcomeData {
   username: string;
   role: "CLIENT" | "VENDOR";
 }
-
 type TemplateDataMap = {
   GUEST_INVITATION: GuestInvitationData;
   WELCOME_ONBOARDING: WelcomeData;
 };
-
 interface MailOptions<T extends keyof TemplateDataMap> {
   to: string | Address | (string | Address)[];
   subject: string;
   template: T;
   data: TemplateDataMap[T];
 }
-
 export const emailService = {
   async send<T extends keyof TemplateDataMap>({
     to,
@@ -33,7 +28,6 @@ export const emailService = {
     data,
   }: MailOptions<T>): Promise<SMTPTransport.SentMessageInfo> {
     const html = this.generateHtml(template, data);
-
     try {
       return await transporter.sendMail({
         from: `"Partygeng" <${process.env.SMTP_USER}>`,
@@ -48,14 +42,12 @@ export const emailService = {
       throw new Error("MAIL_DISPATCH_FAILURE");
     }
   },
-
   generateHtml<T extends keyof TemplateDataMap>(
     template: T,
     data: TemplateDataMap[T],
   ): string {
     const logoUrl =
       "https://raw.githubusercontent.com/0xF4ker/party-geng/main/public/logo.png";
-
     const header = `
       <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 12px;">
         <div style="text-align: center; margin-bottom: 20px;">
@@ -69,7 +61,6 @@ export const emailService = {
         </p>
       </div>
     `;
-
     if (template === "GUEST_INVITATION") {
       const d = data as GuestInvitationData;
       return `${header}
@@ -81,7 +72,6 @@ export const emailService = {
         </div>
         ${footer}`;
     }
-
     if (template === "WELCOME_ONBOARDING") {
       const d = data as WelcomeData;
       return `${header}
@@ -89,7 +79,6 @@ export const emailService = {
         <p>Hi ${d.username}, your account as a <strong>${d.role}</strong> is now verified and active.</p>
         ${footer}`;
     }
-
     return "";
   },
 };

@@ -16,8 +16,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-
-// --- 1. SKELETONS ---
 function StatsSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -36,7 +34,6 @@ function StatsSkeleton() {
     </div>
   );
 }
-
 function ActivitySkeleton() {
   return (
     <div className="space-y-4">
@@ -55,9 +52,6 @@ function ActivitySkeleton() {
     </div>
   );
 }
-
-// --- 2. DYNAMIC STATS COMPONENT ---
-
 async function DashboardStats() {
   let stats;
   try {
@@ -70,7 +64,6 @@ async function DashboardStats() {
       </div>
     );
   }
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
@@ -78,10 +71,7 @@ async function DashboardStats() {
       maximumFractionDigits: 0,
     }).format(amount);
   };
-
-  // Define all possible cards
   const allCards = [
-    // FINANCE / ADMIN CARDS
     {
       key: "totalRevenue",
       label: "Platform Revenue",
@@ -118,8 +108,6 @@ async function DashboardStats() {
         ? `${stats.pendingPayoutsCount} requests`
         : undefined,
     },
-
-    // SUPPORT / ADMIN CARDS
     {
       key: "userCount",
       label: "Total Users",
@@ -138,7 +126,6 @@ async function DashboardStats() {
     },
     {
       key: "orderCount",
-      // Label changes based on role context
       label: stats.role === "SUPPORT" ? "Active Disputes" : "Active Orders",
       value: stats.orderCount?.toString(),
       icon: stats.role === "SUPPORT" ? AlertOctagon : ShoppingBag,
@@ -146,12 +133,9 @@ async function DashboardStats() {
       bg: stats.role === "SUPPORT" ? "bg-red-50" : "bg-purple-50",
     },
   ];
-
-  // Filter out cards that have no data (undefined)
   const visibleCards = allCards.filter(
     (c) => c.value !== null && c.value !== undefined,
   );
-
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {visibleCards.map((stat, i) => (
@@ -176,20 +160,14 @@ async function DashboardStats() {
     </div>
   );
 }
-
-// --- 3. RECENT ACTIVITY COMPONENT ---
-
 async function RecentActivityFeed() {
-  // We fetch a small batch for the dashboard
   const { logs } = await api.activityLog.getAllLogs({ limit: 6 });
-
   const formatAction = (action: string) => {
     return action
       .replace(/_/g, " ")
       .toLowerCase()
       .replace(/\b\w/g, (c) => c.toUpperCase());
   };
-
   const getActionStyle = (action: string) => {
     if (action.includes("ORDER"))
       return { icon: ShoppingBag, color: "text-blue-500", bg: "bg-blue-50" };
@@ -205,7 +183,6 @@ async function RecentActivityFeed() {
       return { icon: Users, color: "text-gray-500", bg: "bg-gray-50" };
     return { icon: Activity, color: "text-indigo-500", bg: "bg-indigo-50" };
   };
-
   if (!logs || logs.length === 0) {
     return (
       <div className="p-8 text-center text-gray-500">
@@ -213,13 +190,11 @@ async function RecentActivityFeed() {
       </div>
     );
   }
-
   return (
     <div className="divide-y divide-gray-100">
       {logs.map((log) => {
         const style = getActionStyle(log.action);
         const Icon = style.icon;
-
         return (
           <div
             key={log.id}
@@ -245,7 +220,6 @@ async function RecentActivityFeed() {
                 {formatDistanceToNow(new Date(log.createdAt), {
                   addSuffix: true,
                 })}
-
                 {log.entityType && (
                   <span className="inline-flex items-center rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
                     {log.entityType}
@@ -267,9 +241,6 @@ async function RecentActivityFeed() {
     </div>
   );
 }
-
-// --- 4. MAIN PAGE ---
-
 export default async function AdminDashboard() {
   return (
     <div className="space-y-8 p-6 md:p-8">
@@ -284,12 +255,10 @@ export default async function AdminDashboard() {
           </p>
         </div>
       </div>
-
       {/* Stats Grid */}
       <Suspense fallback={<StatsSkeleton />}>
         <DashboardStats />
       </Suspense>
-
       <div className="grid gap-8 lg:grid-cols-3">
         {/* Recent Activity (Left 2 cols) */}
         <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-2">
@@ -303,7 +272,6 @@ export default async function AdminDashboard() {
             <RecentActivityFeed />
           </Suspense>
         </div>
-
         {/* Quick Actions (Right 1 col) */}
         <div className="h-fit rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-base font-semibold text-gray-900">
@@ -337,8 +305,6 @@ export default async function AdminDashboard() {
     </div>
   );
 }
-
-// Helper for Quick Action Links
 interface QuickActionLinkProps {
   href: string;
   icon: LucideIcon;
@@ -346,7 +312,6 @@ interface QuickActionLinkProps {
   color: string;
   bg: string;
 }
-
 function QuickActionLink({
   href,
   icon: Icon,

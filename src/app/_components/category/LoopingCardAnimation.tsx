@@ -1,6 +1,5 @@
 import { Check } from "lucide-react";
 import Image from "next/image";
-
 const LoopingCardAnimation = () => {
   return (
     <>
@@ -37,7 +36,6 @@ const LoopingCardAnimation = () => {
               z-index: 1;
             }
           }
-
           .card-container-wrapper {
             position: relative;
             width: 300px;
@@ -47,7 +45,6 @@ const LoopingCardAnimation = () => {
             justify-content: center;
             margin: 0 auto; /* Center the container */
           }
-
           .animated-profile-card {
             position: absolute;
             width: 200px;
@@ -64,7 +61,6 @@ const LoopingCardAnimation = () => {
             animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Bounce effect */
             animation-duration: 4s; /* Faster 4-second loop */
           }
-
           .animated-card-1 {
             animation-name: card-peek-1;
           }
@@ -76,7 +72,6 @@ const LoopingCardAnimation = () => {
           }
         `}
       </style>
-
       <div className="container mx-auto px-4 py-10">
         <div className="relative flex min-h-[400px] flex-col items-center justify-between overflow-hidden rounded-lg bg-yellow-50 p-6 md:flex-row md:p-8">
           {/* Left Side: Text Content */}
@@ -106,7 +101,6 @@ const LoopingCardAnimation = () => {
               Book a free consultation
             </button>
           </div>
-
           {/* Right Side: Looping Card Animation */}
           <div className="relative flex min-h-[320px] w-full items-center justify-center md:absolute md:inset-y-0 md:right-0 md:h-full md:w-1/2">
             <div className="card-container-wrapper">
@@ -129,7 +123,6 @@ const LoopingCardAnimation = () => {
                 <div className="mb-1 h-2 w-full rounded-sm bg-gray-200"></div>
                 <div className="h-2 w-3/4 rounded-sm bg-gray-200"></div>
               </div>
-
               <div className="animated-profile-card animated-card-2">
                 <div className="relative mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-red-100">
                   <Image
@@ -149,7 +142,6 @@ const LoopingCardAnimation = () => {
                 <div className="mb-1 h-2 w-full rounded-sm bg-gray-200"></div>
                 <div className="h-2 w-3/4 rounded-sm bg-gray-200"></div>
               </div>
-
               <div className="animated-profile-card animated-card-3">
                 <div className="relative mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-yellow-100">
                   <Image
@@ -176,5 +168,4 @@ const LoopingCardAnimation = () => {
     </>
   );
 };
-
 export default LoopingCardAnimation;

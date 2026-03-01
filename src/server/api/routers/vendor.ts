@@ -7,18 +7,13 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { unstable_cache, revalidateTag } from "next/cache";
 import { db } from "@/server/db";
-
-// --- 1. CACHED QUERIES ---
-
-// Cache: Vendor Profile by Username (Public View)
-// This is the "Profile Page" query - critical to cache.
 const getCachedVendorByUsername = unstable_cache(
   async (username: string) => {
     const user = await db.user.findUnique({
       where: { username },
       include: {
         vendorProfile: {
-          where: { kybStatus: "APPROVED" }, // Only show if approved
+          where: { kybStatus: "APPROVED" },
           include: {
             services: {
               include: {
@@ -29,28 +24,21 @@ const getCachedVendorByUsername = unstable_cache(
         },
       },
     });
-
     if (!user || !user.vendorProfile) {
       return null;
     }
-
-    // Return a flattened object to match the procedure's expected output
     return {
       ...user.vendorProfile,
       username: user.username,
     };
   },
-  ["vendor-by-username"], // Cache Key Base
+  ["vendor-by-username"],
   {
-    revalidate: 3600, // 1 hour
-    tags: ["vendors"], // We can invalidate all vendors or specific ones
+    revalidate: 3600,
+    tags: ["vendors"],
   },
 );
-
-// --- 2. ROUTER ---
-
 export const vendorRouter = createTRPCRouter({
-  // Get current vendor's profile (Session sensitive - DO NOT CACHE SERVER SIDE)
   getMyProfile: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.vendorProfile.findUnique({
       where: { userId: ctx.user.id },
@@ -68,21 +56,15 @@ export const vendorRouter = createTRPCRouter({
       },
     });
   }),
-
-  // Get vendor by username (Uses Cache)
   getByUsername: publicProcedure
     .input(z.object({ username: z.string() }))
     .query(async ({ ctx, input }) => {
       const vendor = await getCachedVendorByUsername(input.username);
-
       if (!vendor) {
         throw new Error("Vendor not found");
       }
-
       return vendor;
     }),
-
-  // Get vendors by service ID (Complex Filter - Keep Dynamic)
   getVendorsByService: publicProcedure
     .input(
       z.object({
@@ -103,7 +85,6 @@ export const vendorRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { serviceId, filters, limit, offset } = input;
-
       const whereClause: Prisma.VendorProfileWhereInput = {
         services: {
           some: {
@@ -112,20 +93,14 @@ export const vendorRouter = createTRPCRouter({
         },
         kybStatus: "APPROVED",
       };
-
       if (filters.minRating) {
         whereClause.rating = {
           gte: filters.minRating,
         };
       }
-
-      // Geo-spatial Logic
       if (filters.location) {
         const { lat, lon, radius } = filters.location;
-        // 1 degree approx 111.1km
         const radiusInDegrees = radius / 111111.0;
-
-        // Raw query for IDs is efficient
         const vendorsInRadius = await ctx.db.$queryRaw<Array<{ id: string }>>`
             SELECT id FROM "VendorProfile"
             WHERE "location" IS NOT NULL
@@ -137,22 +112,17 @@ export const vendorRouter = createTRPCRouter({
                 ${radiusInDegrees}
             )
         `;
-
         const vendorIds = vendorsInRadius.map((v) => v.id);
-
         if (vendorIds.length === 0) {
           return { vendors: [], totalCount: 0 };
         }
-
         whereClause.id = {
           in: vendorIds,
         };
       }
-
       const totalCount = await ctx.db.vendorProfile.count({
         where: whereClause,
       });
-
       const vendors = await ctx.db.vendorProfile.findMany({
         where: whereClause,
         take: limit,
@@ -168,14 +138,11 @@ export const vendorRouter = createTRPCRouter({
           rating: "desc",
         },
       });
-
       return {
         vendors,
         totalCount,
       };
     }),
-
-  // Find vendors by multiple service IDs
   findVendors: publicProcedure
     .input(
       z.object({
@@ -184,8 +151,6 @@ export const vendorRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       if (!input.serviceIds || input.serviceIds.length === 0) {
-        // If no serviceIds, return all approved vendors
-        // Note: For large datasets, you might want to limit this or cache it if it's a common "Browse All" view
         const allVendors = await ctx.db.vendorProfile.findMany({
           where: {
             kybStatus: "APPROVED",
@@ -202,15 +167,13 @@ export const vendorRouter = createTRPCRouter({
               },
             },
           },
-          take: 50, // Added safety limit for shared hosting
+          take: 50,
         });
         return allVendors.map((vendor) => ({
           ...vendor,
           username: vendor.user.username,
         }));
       }
-
-      // Find vendor profiles that offer ALL specified services
       const vendors = await ctx.db.vendorProfile.findMany({
         where: {
           kybStatus: "APPROVED",
@@ -235,13 +198,11 @@ export const vendorRouter = createTRPCRouter({
           },
         },
       });
-
       return vendors.map((vendor) => ({
         ...vendor,
         username: vendor.user.username,
       }));
     }),
-
   searchVendors: publicProcedure
     .input(
       z.object({
@@ -260,11 +221,9 @@ export const vendorRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { query, serviceIds, location, limit, offset } = input;
-
       const whereClause: Prisma.VendorProfileWhereInput = {
         kybStatus: "APPROVED",
       };
-
       if (serviceIds && serviceIds.length > 0) {
         whereClause.services = {
           some: {
@@ -274,7 +233,6 @@ export const vendorRouter = createTRPCRouter({
           },
         };
       }
-
       if (query) {
         whereClause.OR = [
           {
@@ -299,11 +257,9 @@ export const vendorRouter = createTRPCRouter({
           },
         ];
       }
-
       if (location) {
         const { lat, lon, radius } = location;
         const radiusInDegrees = radius / 111111.0;
-
         const vendorsInRadius = await ctx.db.$queryRaw<Array<{ id: string }>>`
             SELECT id FROM "VendorProfile"
             WHERE "location" IS NOT NULL
@@ -315,22 +271,17 @@ export const vendorRouter = createTRPCRouter({
                 ${radiusInDegrees}
             )
         `;
-
         const vendorIds = vendorsInRadius.map((v) => v.id);
-
         if (vendorIds.length === 0) {
           return { vendors: [], totalCount: 0 };
         }
-
         whereClause.id = {
           in: vendorIds,
         };
       }
-
       const totalCount = await ctx.db.vendorProfile.count({
         where: whereClause,
       });
-
       const vendors = await ctx.db.vendorProfile.findMany({
         where: whereClause,
         take: limit,
@@ -356,7 +307,6 @@ export const vendorRouter = createTRPCRouter({
           rating: "desc",
         },
       });
-
       return {
         vendors: vendors.map((vendor) => ({
           ...vendor,
@@ -366,7 +316,6 @@ export const vendorRouter = createTRPCRouter({
         totalCount,
       };
     }),
-
   submitKyc: protectedProcedure
     .input(
       z.object({
@@ -385,12 +334,7 @@ export const vendorRouter = createTRPCRouter({
           kybStatus: "IN_REVIEW",
         },
       });
-
-      // INVALIDATE CACHE
-      // If a vendor updates their details or status changes,
-      // their public profile (getByUsername) needs to reflect that (or disappear if no longer approved)
       revalidateTag("vendors", { expire: 0 });
-
       return updated;
     }),
 });

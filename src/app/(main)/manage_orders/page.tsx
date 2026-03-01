@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useMemo } from "react";
 import {
   Briefcase,
@@ -28,22 +27,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
-
-// --- 1. STRICT TYPES ---
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type Order = RouterOutputs["order"]["getMyOrders"][number];
 type Quote = RouterOutputs["order"]["getMyQuotes"][number];
 type NextRouter = ReturnType<typeof useRouter>;
 type UserType = "vendor" | "client";
-
 interface Tab {
   id: string;
   title: string;
   count: number;
   icon: React.ElementType;
 }
-
-// --- Helpers ---
 const StatusBadge = ({ status }: { status: string }) => {
   const styles: Record<string, string> = {
     ACTIVE: "bg-blue-100 text-blue-700 border-blue-200",
@@ -52,7 +46,6 @@ const StatusBadge = ({ status }: { status: string }) => {
     PENDING: "bg-orange-100 text-orange-700 border-orange-200",
     IN_DISPUTE: "bg-purple-100 text-purple-700 border-purple-200",
   };
-
   return (
     <span
       className={cn(
@@ -64,43 +57,34 @@ const StatusBadge = ({ status }: { status: string }) => {
     </span>
   );
 };
-
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(
     amount,
   );
-
 const formatDate = (date: Date | string) =>
   new Date(date).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
-
-// --- Main Page ---
 const OrdersPage = () => {
   const { profile } = useAuthStore();
   const router = useRouter();
   const isVendor = profile?.role === "VENDOR";
-
   const initialTab = useMemo(
     () => (isVendor ? "newLeads" : "pending"),
     [isVendor],
   );
   const [activeTab, setActiveTab] = useState(initialTab);
-
   const { data: quotes, isLoading: quotesLoading } =
     api.order.getMyQuotes.useQuery();
   const { data: orders, isLoading: ordersLoading } =
     api.order.getMyOrders.useQuery();
-
-  // Filter Data
   const newLeads = quotes?.filter((q) => q.status === "PENDING") ?? [];
   const pendingQuotes = quotes?.filter((q) => q.status === "PENDING") ?? [];
   const activeOrders = orders?.filter((o) => o.status === "ACTIVE") ?? [];
   const completedOrders = orders?.filter((o) => o.status === "COMPLETED") ?? [];
   const cancelledOrders = orders?.filter((o) => o.status === "CANCELLED") ?? [];
-
   const vendorTabs: Tab[] = [
     {
       id: "newLeads",
@@ -127,7 +111,6 @@ const OrdersPage = () => {
       icon: XCircle,
     },
   ];
-
   const clientTabs: Tab[] = [
     {
       id: "pending",
@@ -154,10 +137,8 @@ const OrdersPage = () => {
       icon: XCircle,
     },
   ];
-
   const tabs = isVendor ? vendorTabs : clientTabs;
   const isLoading = quotesLoading || ordersLoading;
-
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 pt-[120px]">
@@ -165,9 +146,7 @@ const OrdersPage = () => {
       </div>
     );
   }
-
   const userType: UserType = isVendor ? "vendor" : "client";
-
   return (
     <div className="min-h-screen bg-gray-50 pt-[100px] pb-20 text-gray-900">
       <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
@@ -179,7 +158,6 @@ const OrdersPage = () => {
             </p>
           </div>
         </div>
-
         {/* Tabs */}
         <div className="mb-6 flex space-x-1 overflow-x-auto rounded-xl bg-gray-100 p-1">
           {tabs.map((tab) => (
@@ -215,7 +193,6 @@ const OrdersPage = () => {
             </button>
           ))}
         </div>
-
         {/* Content */}
         <div className="space-y-4">
           {isVendor ? (
@@ -286,19 +263,14 @@ const OrdersPage = () => {
     </div>
   );
 };
-
-// --- QUOTE COMPONENTS ---
-
 interface QuoteListProps {
   quotes: Quote[];
   userType: UserType;
   router: NextRouter;
 }
-
 const QuoteList = ({ quotes, userType, router }: QuoteListProps) => {
   if (quotes.length === 0)
     return <EmptyState label="No pending quotes found." />;
-
   return (
     <>
       {/* Desktop Table */}
@@ -325,7 +297,6 @@ const QuoteList = ({ quotes, userType, router }: QuoteListProps) => {
           </tbody>
         </table>
       </div>
-
       {/* Mobile Grid */}
       <div className="grid gap-4 md:hidden">
         {quotes.map((quote) => (
@@ -340,13 +311,11 @@ const QuoteList = ({ quotes, userType, router }: QuoteListProps) => {
     </>
   );
 };
-
 interface QuoteItemProps {
   quote: Quote;
   userType: UserType;
   router: NextRouter;
 }
-
 const QuoteRow = ({ quote, userType, router }: QuoteItemProps) => {
   const isVendor = userType === "vendor";
   const profile = isVendor
@@ -356,12 +325,10 @@ const QuoteRow = ({ quote, userType, router }: QuoteItemProps) => {
     ? quote.client.clientProfile?.name
     : quote.vendor.vendorProfile?.companyName;
   const username = isVendor ? quote.client.username : quote.vendor.username;
-
   const displayName = name ?? username;
   const avatar =
     profile?.avatarUrl ??
     `https://placehold.co/40x40/f3f4f6/6b7280?text=${displayName.charAt(0)}`;
-
   return (
     <tr className="group hover:bg-gray-50/50">
       <td className="px-6 py-4 font-medium text-gray-900">{quote.title}</td>
@@ -393,7 +360,6 @@ const QuoteRow = ({ quote, userType, router }: QuoteItemProps) => {
     </tr>
   );
 };
-
 const QuoteCard = ({ quote, userType, router }: QuoteItemProps) => {
   const isVendor = userType === "vendor";
   const name = isVendor
@@ -401,7 +367,6 @@ const QuoteCard = ({ quote, userType, router }: QuoteItemProps) => {
     : quote.vendor.vendorProfile?.companyName;
   const username = isVendor ? quote.client.username : quote.vendor.username;
   const displayName = name ?? username;
-
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between">
@@ -414,7 +379,6 @@ const QuoteCard = ({ quote, userType, router }: QuoteItemProps) => {
         </div>
         <StatusBadge status="PENDING" />
       </div>
-
       <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-gray-100 text-xs font-bold text-gray-500">
@@ -435,7 +399,6 @@ const QuoteCard = ({ quote, userType, router }: QuoteItemProps) => {
           </p>
         </div>
       </div>
-
       <Button
         onClick={() => router.push(`/quote/${quote.id}`)}
         className="mt-4 w-full bg-gray-900 text-white hover:bg-gray-800"
@@ -445,18 +408,13 @@ const QuoteCard = ({ quote, userType, router }: QuoteItemProps) => {
     </div>
   );
 };
-
-// --- ORDER COMPONENTS ---
-
 interface OrderListProps {
   orders: Order[];
   userType: UserType;
   router: NextRouter;
 }
-
 const OrderList = ({ orders, userType, router }: OrderListProps) => {
   if (orders.length === 0) return <EmptyState label="No orders found." />;
-
   return (
     <>
       {/* Desktop Table */}
@@ -484,7 +442,6 @@ const OrderList = ({ orders, userType, router }: OrderListProps) => {
           </tbody>
         </table>
       </div>
-
       {/* Mobile Grid */}
       <div className="grid gap-4 md:hidden">
         {orders.map((order) => (
@@ -499,13 +456,11 @@ const OrderList = ({ orders, userType, router }: OrderListProps) => {
     </>
   );
 };
-
 interface OrderItemProps {
   order: Order;
   userType: UserType;
   router: NextRouter;
 }
-
 const OrderRow = ({ order, userType, router }: OrderItemProps) => {
   const isVendor = userType === "vendor";
   const profile = isVendor
@@ -516,11 +471,9 @@ const OrderRow = ({ order, userType, router }: OrderItemProps) => {
     : order.vendor.vendorProfile?.companyName;
   const username = isVendor ? order.client.username : order.vendor.username;
   const displayName = name ?? username;
-
   const avatar =
     profile?.avatarUrl ??
     `https://placehold.co/40x40?text=${displayName.charAt(0)}`;
-
   const completeOrder = api.order.completeOrder.useMutation({
     onSuccess: () => {
       toast.success("Marked as complete!");
@@ -528,7 +481,6 @@ const OrderRow = ({ order, userType, router }: OrderItemProps) => {
     },
     onError: (e) => toast.error(e.message),
   });
-
   return (
     <tr className="group hover:bg-gray-50/50">
       <td className="px-6 py-4 font-mono text-xs text-gray-500">
@@ -591,7 +543,6 @@ const OrderRow = ({ order, userType, router }: OrderItemProps) => {
     </tr>
   );
 };
-
 const OrderCard = ({ order, userType, router }: OrderItemProps) => {
   const isVendor = userType === "vendor";
   const name = isVendor
@@ -599,7 +550,6 @@ const OrderCard = ({ order, userType, router }: OrderItemProps) => {
     : order.vendor.vendorProfile?.companyName;
   const username = isVendor ? order.client.username : order.vendor.username;
   const displayName = name ?? username;
-
   const completeOrder = api.order.completeOrder.useMutation({
     onSuccess: () => {
       toast.success("Marked as complete!");
@@ -607,7 +557,6 @@ const OrderCard = ({ order, userType, router }: OrderItemProps) => {
     },
     onError: (e) => toast.error(e.message),
   });
-
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between">
@@ -619,7 +568,6 @@ const OrderCard = ({ order, userType, router }: OrderItemProps) => {
         </div>
         <StatusBadge status={order.status} />
       </div>
-
       <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">
@@ -632,7 +580,6 @@ const OrderCard = ({ order, userType, router }: OrderItemProps) => {
             </p>
           </div>
         </div>
-
         {/* Mobile Actions */}
         <div className="flex gap-2">
           <Button
@@ -660,7 +607,6 @@ const OrderCard = ({ order, userType, router }: OrderItemProps) => {
     </div>
   );
 };
-
 const EmptyState = ({ label }: { label: string }) => (
   <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 text-center">
     <div className="mb-3 rounded-full bg-white p-4 shadow-sm">
@@ -669,5 +615,4 @@ const EmptyState = ({ label }: { label: string }) => (
     <p className="text-gray-500">{label}</p>
   </div>
 );
-
 export default OrdersPage;

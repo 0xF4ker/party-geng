@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -11,7 +10,6 @@ import Autoplay from "embla-carousel-autoplay";
 import type { EmblaPluginType } from "embla-carousel";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import LoginJoinComponent from "../LoginJoinComponent";
-
 const HERO_SLIDES = [
   {
     id: 1,
@@ -38,7 +36,6 @@ const HERO_SLIDES = [
     subtitle: "Intimate gatherings & Celebrations",
   },
 ];
-
 const Modal = ({
   children,
   onClose,
@@ -49,7 +46,6 @@ const Modal = ({
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) onClose();
   };
-
   useEffect(() => {
     const originalOverflow = window.getComputedStyle(document.body).overflow;
     document.body.style.overflow = "hidden";
@@ -57,7 +53,6 @@ const Modal = ({
       document.body.style.overflow = originalOverflow;
     };
   }, []);
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 sm:items-center sm:p-4"
@@ -72,41 +67,33 @@ const Modal = ({
     </div>
   );
 };
-
 const Hero = () => {
   const [animationData, setAnimationData] = useState<object | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalView, setModalView] = useState<"login" | "join">("login");
   const { profile } = useAuthStore();
   const { headerHeight } = useUiStore();
-
-  // Embla Carousel Setup
   const [autoplayPlugin] = useState(() => {
     const AutoplayPlugin = Autoplay as unknown as (opts?: {
       delay?: number;
       stopOnInteraction?: boolean;
       stopOnMouseEnter?: boolean;
     }) => EmblaPluginType;
-
     return AutoplayPlugin({
       delay: 5000,
       stopOnInteraction: false,
       stopOnMouseEnter: true,
     });
   });
-
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [
     autoplayPlugin,
   ]);
-
   const scrollPrev = useCallback(() => {
     if (emblaApi) emblaApi.scrollPrev();
   }, [emblaApi]);
-
   const scrollNext = useCallback(() => {
     if (emblaApi) emblaApi.scrollNext();
   }, [emblaApi]);
-
   useEffect(() => {
     fetch("/lottiefiles/Fireworks.json")
       .then((response) => response.json())
@@ -117,15 +104,12 @@ const Hero = () => {
         console.error("Error loading Lottie animation:", error),
       );
   }, []);
-
   const planEventHref = profile ? "/manage_events" : "/login";
-
   const openModal = (view: "login" | "join") => {
     setModalView(view);
     setIsModalOpen(true);
   };
   const closeModal = () => setIsModalOpen(false);
-
   return (
     <section
       className="relative overflow-hidden bg-pink-50/50"
@@ -145,7 +129,6 @@ const Hero = () => {
           />
         )}
       </div>
-
       <div className="relative z-20 container mx-auto px-6 py-20 md:py-32">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           {/* Left Column */}
@@ -194,13 +177,11 @@ const Hero = () => {
               </div>
             </div>
           </div>
-
           {/* Right Column (Carousel) */}
           <div className="relative mx-auto w-full max-w-xl lg:mx-0 lg:ml-auto">
             {/* Decorative blob */}
             <div className="absolute top-0 -left-4 -z-10 h-72 w-72 animate-pulse rounded-full bg-purple-300 opacity-30 blur-3xl filter"></div>
             <div className="animation-delay-2000 absolute -right-4 bottom-0 -z-10 h-72 w-72 animate-pulse rounded-full bg-pink-300 opacity-30 blur-3xl filter"></div>
-
             <div className="relative overflow-hidden rounded-2xl border border-white/40 bg-white/30 shadow-2xl backdrop-blur-md">
               <div className="embla" ref={emblaRef}>
                 <div className="flex">
@@ -219,7 +200,6 @@ const Hero = () => {
                         />
                         {/* Overlay Gradient */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-
                         {/* Content */}
                         <div className="absolute bottom-0 left-0 w-full p-6 text-white">
                           <h3 className="mb-1 text-2xl font-bold">
@@ -234,7 +214,6 @@ const Hero = () => {
                   ))}
                 </div>
               </div>
-
               {/* Navigation Buttons */}
               <button
                 onClick={scrollPrev}
@@ -266,5 +245,4 @@ const Hero = () => {
     </section>
   );
 };
-
 export default Hero;

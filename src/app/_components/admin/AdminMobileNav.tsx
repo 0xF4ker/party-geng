@@ -1,5 +1,4 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -28,8 +27,6 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-
-// Reuse the configuration to ensure consistency
 const fullMenuItemsConfig = [
   {
     name: "Dashboard",
@@ -99,22 +96,15 @@ const fullMenuItemsConfig = [
     roles: ["ADMIN"],
   },
 ];
-
 export function AdminMobileNav({ role }: { role: string }) {
   const pathname = usePathname();
   const { signOut } = useAuth();
   const [open, setOpen] = useState(false);
-
-  // Filter full menu
   const fullMenuItems = fullMenuItemsConfig.filter((item) =>
     item.roles.includes(role),
   );
-
-  // Dynamic Bottom Nav based on Role Priority
-  // We want to show the most relevant items for the user's role
   const getBottomNavItems = () => {
     const base = [{ name: "Home", href: "/admin", icon: LayoutDashboard }];
-
     if (role === "FINANCE") {
       return [
         ...base,
@@ -123,7 +113,6 @@ export function AdminMobileNav({ role }: { role: string }) {
         { name: "Users", href: "/admin/users", icon: Users },
       ];
     }
-
     if (role === "SUPPORT") {
       return [
         ...base,
@@ -132,8 +121,6 @@ export function AdminMobileNav({ role }: { role: string }) {
         { name: "Reports", href: "/admin/reports", icon: MessageSquareWarning },
       ];
     }
-
-    // Default (ADMIN)
     return [
       ...base,
       { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
@@ -141,9 +128,7 @@ export function AdminMobileNav({ role }: { role: string }) {
       { name: "Finance", href: "/admin/finance", icon: Wallet },
     ];
   };
-
   const bottomNavItems = getBottomNavItems();
-
   return (
     <div className="pb-safe fixed right-0 bottom-0 left-0 z-50 border-t border-gray-200 bg-white pt-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] md:hidden">
       <div className="flex items-center justify-around px-2">
@@ -151,7 +136,6 @@ export function AdminMobileNav({ role }: { role: string }) {
         {bottomNavItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
-
           return (
             <Link
               key={item.name}
@@ -165,7 +149,6 @@ export function AdminMobileNav({ role }: { role: string }) {
             </Link>
           );
         })}
-
         {/* Render 'Menu' Trigger */}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
@@ -178,7 +161,6 @@ export function AdminMobileNav({ role }: { role: string }) {
               <span className="text-[10px] font-medium">Menu</span>
             </button>
           </SheetTrigger>
-
           <SheetContent
             side="right"
             className="flex w-[80%] flex-col p-0 sm:max-w-sm"
@@ -191,14 +173,12 @@ export function AdminMobileNav({ role }: { role: string }) {
                 Partygeng Admin
               </SheetTitle>
             </SheetHeader>
-
             {/* Scrollable Menu Area */}
             <div className="flex-1 overflow-y-auto px-4 py-6">
               <nav className="grid gap-1">
                 {fullMenuItems.map((item) => {
                   const isActive = pathname === item.href;
                   const Icon = item.icon;
-
                   return (
                     <Link
                       key={item.href}
@@ -218,9 +198,7 @@ export function AdminMobileNav({ role }: { role: string }) {
                   );
                 })}
               </nav>
-
               <div className="my-6 border-t border-gray-100" />
-
               <div className="space-y-4">
                 <button
                   onClick={() => signOut()}
@@ -231,7 +209,6 @@ export function AdminMobileNav({ role }: { role: string }) {
                 </button>
               </div>
             </div>
-
             <div className="border-t border-gray-100 bg-gray-50 p-4">
               <Button
                 variant="outline"

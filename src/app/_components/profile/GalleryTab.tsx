@@ -1,5 +1,4 @@
 "use client";
-
 import { api } from "@/trpc/react";
 import { Loader2, Clapperboard, Heart, MessageCircle } from "lucide-react";
 import Image from "next/image";
@@ -7,17 +6,14 @@ import { useState } from "react";
 import PostModal, {
   type PostSnapshot,
 } from "@/app/_components/social/PostModal";
-
 type GalleryTabProps = {
   username: string;
 };
-
 export const GalleryTab = ({ username }: GalleryTabProps) => {
   const { data: posts, isLoading } = api.post.getForUser.useQuery({ username });
   const [selectedPostIndex, setSelectedPostIndex] = useState<number | null>(
     null,
   );
-
   if (isLoading) {
     return (
       <div className="flex h-48 items-center justify-center">
@@ -25,7 +21,6 @@ export const GalleryTab = ({ username }: GalleryTabProps) => {
       </div>
     );
   }
-
   if (!posts || posts.length === 0) {
     return (
       <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 text-center">
@@ -39,7 +34,6 @@ export const GalleryTab = ({ username }: GalleryTabProps) => {
       </div>
     );
   }
-
   return (
     <>
       {/* Masonry Layout Container */}
@@ -65,7 +59,6 @@ export const GalleryTab = ({ username }: GalleryTabProps) => {
                   <Clapperboard className="h-8 w-8 text-gray-400" />
                 </div>
               )}
-
               {/* Hover Overlay */}
               <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 via-transparent to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                 <div className="flex items-center gap-3 text-white">
@@ -87,7 +80,6 @@ export const GalleryTab = ({ username }: GalleryTabProps) => {
           </div>
         ))}
       </div>
-
       {selectedPostIndex !== null && (
         <div className="relative z-[100]">
           {/* We cast 'posts' here because inferRouterOutputs might treat 

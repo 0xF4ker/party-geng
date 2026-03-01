@@ -1,21 +1,17 @@
 "use client";
-
 import React from "react";
 import Link from "next/link";
 import { ArrowLeft, Rocket } from "lucide-react";
 import { useUiStore } from "@/stores/ui";
-
 interface ComingSoonProps {
   title: string;
   description?: string;
 }
-
 const ComingSoon: React.FC<ComingSoonProps> = ({
   title,
   description = "We are working hard to bring this feature to life. Stay tuned!",
 }) => {
   const { headerHeight } = useUiStore();
-
   return (
     <div 
       className="flex min-h-[70vh] flex-col items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50 px-4 py-12"
@@ -28,22 +24,18 @@ const ComingSoon: React.FC<ComingSoonProps> = ({
             <Rocket className="h-16 w-16 text-pink-600" />
           </div>
         </div>
-
         {/* Title */}
         <h1 className="brand-text-gradient mb-6 text-5xl font-bold sm:text-6xl">
           Coming Soon
         </h1>
-
         {/* Subtitle */}
         <h2 className="mb-4 text-2xl font-bold text-gray-800">
           {title}
         </h2>
-
         {/* Description */}
         <p className="mb-10 text-lg text-gray-600">
           {description}
         </p>
-
         {/* Action Button */}
         <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
           <Link
@@ -58,5 +50,4 @@ const ComingSoon: React.FC<ComingSoonProps> = ({
     </div>
   );
 };
-
 export default ComingSoon;

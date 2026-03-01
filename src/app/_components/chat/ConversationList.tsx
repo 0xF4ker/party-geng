@@ -1,10 +1,8 @@
-// components/chat/ConversationList.tsx
 import React, { useState, useMemo } from "react";
 import { Search, Users, Settings, MoreVertical, Pin, Archive, BellOff, Trash2, LogOut } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
-
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import {
@@ -15,10 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
-
 type routerOutput = inferRouterOutputs<AppRouter>;
 type conversationOutput = routerOutput["chat"]["getConversations"][number];
-
 export const ConversationList = ({
   conversations,
   selectedId,
@@ -35,12 +31,10 @@ export const ConversationList = ({
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"messages" | "groups">("messages");
   const utils = api.useUtils();
-
   const updateSettingsMutation = api.chat.updateConversationSettings.useMutation({
     onMutate: async (newSettings) => {
       await utils.chat.getConversations.cancel();
       const previousConversations = utils.chat.getConversations.getData();
-
       utils.chat.getConversations.setData(undefined, (old) => {
         if (!old) return [];
         return old.map((convo) => {
@@ -55,7 +49,6 @@ export const ConversationList = ({
           return convo;
         });
       });
-
       return { previousConversations };
     },
     onError: (err, newSettings, context) => {
@@ -66,18 +59,14 @@ export const ConversationList = ({
     },
     onSettled: () => utils.chat.getConversations.invalidate(),
   });
-
   const deleteConversationMutation = api.chat.deleteConversation.useMutation({
     onMutate: async ({ conversationId }) => {
       await utils.chat.getConversations.cancel();
       const previousConversations = utils.chat.getConversations.getData();
-
-      // Optimistically remove the conversation from the list
       utils.chat.getConversations.setData(undefined, (old) => {
         if (!old) return [];
         return old.filter((c) => c.id !== conversationId);
       });
-
       return { previousConversations };
     },
     onSuccess: () => {
@@ -91,18 +80,14 @@ export const ConversationList = ({
     },
     onSettled: () => utils.chat.getConversations.invalidate(),
   });
-
   const leaveGroupMutation = api.chat.leaveGroup.useMutation({
     onMutate: async ({ conversationId }) => {
       await utils.chat.getConversations.cancel();
       const previousConversations = utils.chat.getConversations.getData();
-
-      // Optimistically remove the conversation from the list
       utils.chat.getConversations.setData(undefined, (old) => {
         if (!old) return [];
         return old.filter((c) => c.id !== conversationId);
       });
-
       return { previousConversations };
     },
     onSuccess: () => {
@@ -116,12 +101,10 @@ export const ConversationList = ({
     },
     onSettled: () => utils.chat.getConversations.invalidate(),
   });
-
   const handleAction = (e: React.MouseEvent, action: () => void) => {
     e.stopPropagation();
     action();
   };
-
   const unreadCounts = useMemo(() => {
     return conversations.reduce(
       (acc, c) => {
@@ -137,7 +120,6 @@ export const ConversationList = ({
       { messages: 0, groups: 0 },
     );
   }, [conversations]);
-
   const filtered = useMemo(() => {
     return conversations
       .filter((c) => {
@@ -162,14 +144,11 @@ export const ConversationList = ({
         return name.toLowerCase().includes(search.toLowerCase());
       })
       .sort((a, b) => {
-        // Sort by pinned first
         if (a.isPinned && !b.isPinned) return -1;
         if (!a.isPinned && b.isPinned) return 1;
-        // Then by date
         return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
       });
   }, [conversations, search, currentUserId, activeTab]);
-
   return (
     <div className="flex h-full w-full flex-col bg-white">
       <div className="border-b border-gray-100 p-4 pb-0">
@@ -182,7 +161,6 @@ export const ConversationList = ({
             <Settings className="h-5 w-5" />
           </button>
         </div>
-
         {/* Tabs */}
         <div className="flex w-full border-b border-gray-100">
           <button
@@ -218,7 +196,6 @@ export const ConversationList = ({
             )}
           </button>
         </div>
-
         <div className="relative mt-4 mb-4">
           <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
@@ -231,7 +208,6 @@ export const ConversationList = ({
           />
         </div>
       </div>
-
       <div className="flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
           <div className="flex h-40 flex-col items-center justify-center text-center text-gray-500">
@@ -242,10 +218,9 @@ export const ConversationList = ({
             const isGroup = convo.isGroup;
             let name: string;
             let avatar: string | null | undefined;
-
             if (isGroup) {
               name = convo.clientEvent?.title ?? "Event Group Chat";
-              avatar = null; // Or a default group icon
+              avatar = null;
             } else {
               const other = convo.participants.find(
                 (p) => p.userId !== currentUserId,
@@ -259,10 +234,8 @@ export const ConversationList = ({
                 other?.vendorProfile?.avatarUrl ??
                 other?.clientProfile?.avatarUrl;
             }
-
             const lastMsg = convo.messages[0];
             const hasUnread = convo.unreadCount > 0;
-
             return (
               <div
                 key={convo.id}
@@ -304,7 +277,6 @@ export const ConversationList = ({
                     <span className="absolute right-0 bottom-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
                   )}
                 </div>
-
                 <div className="min-w-0 flex-1 overflow-hidden">
                   <div className="mb-1 flex items-baseline justify-between pr-6">
                     <h4 className="truncate font-semibold text-gray-900">
@@ -342,7 +314,6 @@ export const ConversationList = ({
                     )}
                   </div>
                 </div>
-
                 {/* Context Menu Trigger */}
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <DropdownMenu>
@@ -381,4 +352,3 @@ export const ConversationList = ({
     </div>
   );
 };
-

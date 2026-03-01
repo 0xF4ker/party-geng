@@ -1,21 +1,17 @@
 "use client";
-
 import React from "react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { Button } from "@/components/ui/button";
 import { WalletIcon } from "lucide-react";
-
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type EventDetails = RouterOutput["event"]["getById"];
 type Budget = EventDetails["budget"];
-
 interface BudgetManagerCardProps {
   budget: Budget;
   _eventId: string;
   onManage: () => void;
 }
-
 export const BudgetManagerCard = ({
   budget,
   _eventId,
@@ -25,7 +21,6 @@ export const BudgetManagerCard = ({
     budget?.items.reduce((acc, item) => acc + item.estimatedCost, 0) ?? 0;
   const totalActual =
     budget?.items.reduce((acc, item) => acc + (item.actualCost ?? 0), 0) ?? 0;
-
   return (
     <div className="rounded-lg bg-white p-6 shadow-md">
         <div className="flex items-center justify-between">
@@ -35,7 +30,6 @@ export const BudgetManagerCard = ({
                 Manage
             </Button>
         </div>
-
       <div className="mt-4 space-y-2">
         {budget?.items.map((item) => (
           <div key={item.id} className="flex justify-between text-sm">

@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { api } from "@/trpc/react";
 import {
@@ -28,56 +27,43 @@ import {
 import { Button } from "@/components/ui/button";
 import { UserActionModals } from "./UserActionModals";
 import { UserDetailSheet } from "./UserDetailSheet";
-
 import { type inferRouterOutputs } from "@trpc/server";
 import { type AppRouter } from "@/server/api/root";
-
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type UserItem = RouterOutputs["user"]["getUsers"]["items"][number];
 type ActionType = "DELETE" | "SUSPEND" | "ROLE";
-
 interface AdminUsersTableProps {
   initialRole: "CLIENT" | "VENDOR" | "ADMIN";
 }
-
 export function AdminUsersTable({ initialRole }: AdminUsersTableProps) {
   const [search, setSearch] = useState("");
   const [roleFilter] = useState(initialRole);
-
-  // Modal & Sheet State
   const [modalOpen, setModalOpen] = useState(false);
   const [activeAction, setActiveAction] = useState<ActionType | null>(null);
-
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
   const [viewUserId, setViewUserId] = useState<string | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-
   const { data, isLoading, refetch } = api.user.getUsers.useQuery({
     limit: 20,
     role: roleFilter,
     search: search || undefined,
   });
-
   const restoreMutation = api.user.restoreUser.useMutation({
     onSuccess: () => {
       toast.success("User account restored");
       void refetch();
     },
   });
-
   const openModal = (action: ActionType, user: UserItem) => {
     setSelectedUser(user);
     setActiveAction(action);
     setModalOpen(true);
   };
-
   const handleRestore = (userId: string) => restoreMutation.mutate({ userId });
-
   const handleViewUser = (userId: string) => {
     setViewUserId(userId);
     setIsDetailOpen(true);
   };
-
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -92,7 +78,6 @@ export function AdminUsersTable({ initialRole }: AdminUsersTableProps) {
           />
         </div>
       </div>
-
       {isLoading ? (
         <div className="p-8 text-center">
           <Loader2 className="mx-auto animate-spin" />
@@ -124,7 +109,6 @@ export function AdminUsersTable({ initialRole }: AdminUsersTableProps) {
               </tbody>
             </table>
           </div>
-
           {/* --- VIEW 2: MOBILE CARDS --- */}
           <div className="grid gap-4 md:hidden">
             {data?.items.map((user) => (
@@ -139,13 +123,11 @@ export function AdminUsersTable({ initialRole }: AdminUsersTableProps) {
           </div>
         </>
       )}
-
       <UserDetailSheet
         userId={viewUserId}
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
       />
-
       <UserActionModals
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -156,16 +138,12 @@ export function AdminUsersTable({ initialRole }: AdminUsersTableProps) {
     </div>
   );
 }
-
-// --- SUB-COMPONENTS ---
-
 interface UserRowProps {
   user: UserItem;
   onView: (id: string) => void;
   onAction: (action: ActionType, user: UserItem) => void;
   onRestore: (id: string) => void;
 }
-
 function DesktopUserRow({ user, onView, onAction, onRestore }: UserRowProps) {
   const displayName =
     user.clientProfile?.name ??
@@ -174,7 +152,6 @@ function DesktopUserRow({ user, onView, onAction, onRestore }: UserRowProps) {
   const displayAvatar =
     user.clientProfile?.avatarUrl ?? user.vendorProfile?.avatarUrl;
   const isSuspended = user.status === "SUSPENDED" || user.status === "BANNED";
-
   return (
     <tr className="group hover:bg-gray-50/50">
       <td className="px-6 py-4">
@@ -238,7 +215,6 @@ function DesktopUserRow({ user, onView, onAction, onRestore }: UserRowProps) {
     </tr>
   );
 }
-
 function MobileUserCard({ user, onView, onAction, onRestore }: UserRowProps) {
   const displayName =
     user.clientProfile?.name ??
@@ -247,7 +223,6 @@ function MobileUserCard({ user, onView, onAction, onRestore }: UserRowProps) {
   const displayAvatar =
     user.clientProfile?.avatarUrl ?? user.vendorProfile?.avatarUrl;
   const isSuspended = user.status === "SUSPENDED" || user.status === "BANNED";
-
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between">
@@ -284,7 +259,6 @@ function MobileUserCard({ user, onView, onAction, onRestore }: UserRowProps) {
           />
         </div>
       </div>
-
       <div className="flex items-center justify-between border-t border-gray-50 pt-3">
         <div className="flex gap-2">
           <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">
@@ -308,25 +282,20 @@ function MobileUserCard({ user, onView, onAction, onRestore }: UserRowProps) {
     </div>
   );
 }
-
 interface DropdownProps {
   user: UserItem;
   onAction: (action: ActionType, user: UserItem) => void;
   onRestore: (id: string) => void;
   isSuspended: boolean;
 }
-
 function UserActionsDropdown({
   user,
   onAction,
   onRestore,
   isSuspended,
 }: DropdownProps) {
-  // --- PROTECTION LOGIC ---
-  const isSuperAdmin = user.username === "superadmin"; // Or use user.email === "admin@partygeng.com"
+  const isSuperAdmin = user.username === "superadmin";
   const isInternalAdmin = ["ADMIN", "SUPPORT", "FINANCE"].includes(user.role);
-
-  // If it's the superadmin, render a disabled/empty button or nothing
   if (isSuperAdmin) {
     return (
       <Button
@@ -339,7 +308,6 @@ function UserActionsDropdown({
       </Button>
     );
   }
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -349,14 +317,12 @@ function UserActionsDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-
         {/* Only show "Update Role" if target user is part of the admin team */}
         {isInternalAdmin && (
           <DropdownMenuItem onClick={() => onAction("ROLE", user)}>
             <UserCog className="mr-2 h-4 w-4" /> Update Role
           </DropdownMenuItem>
         )}
-
         {isSuspended ? (
           <DropdownMenuItem onClick={() => onRestore(user.id)}>
             <Undo2 className="mr-2 h-4 w-4" /> Restore Access

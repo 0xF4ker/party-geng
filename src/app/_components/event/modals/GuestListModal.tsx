@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useMemo } from "react";
 import { api } from "@/trpc/react";
 import { Loader2, Lock } from "lucide-react";
@@ -24,25 +23,21 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { GuestRow } from "./GuestRow"; // You'll need to update GuestRow to accept isPast
-
+import { GuestRow } from "./GuestRow";
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type event = RouterOutput["event"]["getById"];
-
 interface GuestListModalProps {
   event: event;
   isOpen: boolean;
   onClose: () => void;
-  isPast?: boolean; // Added Prop
+  isPast?: boolean;
 }
-
 const statusColors: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100/80",
   ATTENDING: "bg-green-100 text-green-800 hover:bg-green-100/80",
   MAYBE: "bg-blue-100 text-blue-800 hover:bg-blue-100/80",
   DECLINED: "bg-red-100 text-red-800 hover:bg-red-100/80",
 };
-
 const AddGuestRow = ({
   eventId,
   guestListId,
@@ -52,12 +47,10 @@ const AddGuestRow = ({
   guestListId: string;
   nextAvailableTable: number;
 }) => {
-  // ... (Same logic as before)
   const utils = api.useUtils();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [tableNumber, setTableNumber] = useState<number | "">("");
-
   const addGuest = api.event.addGuest.useMutation({
     onMutate: async (newGuest) => {
       await utils.event.getById.cancel({ id: eventId });
@@ -105,7 +98,6 @@ const AddGuestRow = ({
       void utils.event.getById.invalidate({ id: eventId });
     },
   });
-
   const handleAddGuest = () => {
     if (!name) {
       toast.error("Guest name is required");
@@ -118,7 +110,6 @@ const AddGuestRow = ({
       tableNumber: tableNumber === "" ? undefined : Number(tableNumber),
     });
   };
-
   return (
     <TableRow>
       <TableCell>
@@ -164,17 +155,14 @@ const AddGuestRow = ({
     </TableRow>
   );
 };
-
 export const GuestListModal = ({
   event,
   isOpen,
   onClose,
-  isPast = false, // Added Prop
+  isPast = false,
 }: GuestListModalProps) => {
   const guestList = event.guestLists[0];
-
   const guests = useMemo(() => guestList?.guests ?? [], [guestList?.guests]);
-
   const nextAvailableTable = useMemo(() => {
     const tableNumbers = new Set(
       guests.map((g) => g.tableNumber).filter((t) => t !== null),
@@ -185,9 +173,7 @@ export const GuestListModal = ({
     }
     return nextTable;
   }, [guests]);
-
   if (!guestList) return null;
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="flex h-dvh w-screen max-w-none flex-col gap-0 rounded-none border-0 p-0 sm:h-auto sm:max-w-4xl sm:rounded-lg sm:border sm:p-6">
@@ -206,7 +192,6 @@ export const GuestListModal = ({
               : `Manage your guests for ${event.title}.`}
           </DialogDescription>
         </DialogHeader>
-
         <div className="flex-1 overflow-y-auto">
           <Table>
             <TableHeader>
@@ -223,7 +208,6 @@ export const GuestListModal = ({
             </TableHeader>
             <TableBody>
               {guests.map((guest) => (
-                // Pass isPast to GuestRow so it disables inputs/actions
                 <GuestRow
                   key={guest.id}
                   guest={guest}

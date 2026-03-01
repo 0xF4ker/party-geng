@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { api } from "@/trpc/react";
 import {
@@ -16,7 +15,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-
 type ReportReason =
   | "EXPLICIT_CONTENT"
   | "ILLEGAL_ACTIVITY"
@@ -24,14 +22,12 @@ type ReportReason =
   | "HATE_SPEECH_OR_VIOLENCE"
   | "SPAM"
   | "OTHER";
-
 interface ReportModalProps {
   isOpen: boolean;
   onClose: () => void;
   targetUserId?: string;
   targetPostId?: string;
 }
-
 export const ReportModal = ({
   isOpen,
   onClose,
@@ -40,7 +36,6 @@ export const ReportModal = ({
 }: ReportModalProps) => {
   const [reason, setReason] = useState<ReportReason>("SPAM");
   const [details, setDetails] = useState("");
-
   const reportMutation = api.report.create.useMutation({
     onSuccess: () => {
       toast.success(
@@ -54,7 +49,6 @@ export const ReportModal = ({
       toast.error(err.message || "Failed to submit report.");
     },
   });
-
   const handleSubmit = () => {
     reportMutation.mutate({
       reason,
@@ -63,7 +57,6 @@ export const ReportModal = ({
       targetPostId,
     });
   };
-
   const REASONS: { value: ReportReason; label: string }[] = [
     { value: "EXPLICIT_CONTENT", label: "Explicit sexual content" },
     { value: "ILLEGAL_ACTIVITY", label: "Promotion of illegal activities" },
@@ -72,7 +65,6 @@ export const ReportModal = ({
     { value: "SPAM", label: "Spam or scam" },
     { value: "OTHER", label: "Other" },
   ];
-
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="z-200 sm:max-w-[425px]">
@@ -86,7 +78,6 @@ export const ReportModal = ({
             safety team.
           </DialogDescription>
         </DialogHeader>
-
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
             <Label>Why are you reporting this?</Label>
@@ -111,7 +102,6 @@ export const ReportModal = ({
               ))}
             </RadioGroup>
           </div>
-
           <div className="grid gap-2">
             <Label htmlFor="details">Additional Details (Optional)</Label>
             <Textarea
@@ -123,7 +113,6 @@ export const ReportModal = ({
             />
           </div>
         </div>
-
         <DialogFooter>
           <Button
             variant="outline"

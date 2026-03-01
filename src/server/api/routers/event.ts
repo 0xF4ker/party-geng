@@ -1,7 +1,7 @@
 import {
   createTRPCRouter,
   protectedProcedure,
-  adminProcedure, // Import adminProcedure
+  adminProcedure,
 } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -15,7 +15,6 @@ import {
 import { createId } from "@paralleldrive/cuid2";
 import { logActivity } from "../services/activityLogger";
 import { emailService } from "@/server/services/emailService";
-
 const locationSchema = z
   .object({
     place_id: z.number(),
@@ -33,11 +32,7 @@ const locationSchema = z
   })
   .nullable()
   .optional();
-
 export const eventRouter = createTRPCRouter({
-  // --- ADMIN ACTIONS ---
-
-  // 1. Get All Events (Admin Dashboard)
   adminGetEvents: adminProcedure
     .input(
       z.object({
@@ -48,7 +43,6 @@ export const eventRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { limit, cursor, search } = input;
-
       const where: Prisma.ClientEventWhereInput = search
         ? {
             OR: [
@@ -66,12 +60,11 @@ export const eventRouter = createTRPCRouter({
             ],
           }
         : {};
-
       const items = await ctx.db.clientEvent.findMany({
         take: limit + 1,
         cursor: cursor ? { id: cursor } : undefined,
         where,
-        orderBy: { startDate: "desc" }, // UPDATED to startDate
+        orderBy: { startDate: "desc" },
         include: {
           client: {
             include: {
@@ -85,17 +78,13 @@ export const eventRouter = createTRPCRouter({
           },
         },
       });
-
       let nextCursor: typeof cursor | undefined = undefined;
       if (items.length > limit) {
         const nextItem = items.pop();
         nextCursor = nextItem!.id;
       }
-
       return { items, nextCursor };
     }),
-
-  // 2. Takedown Event (Admin Action)
   adminDeleteEvent: adminProcedure
     .input(
       z.object({
@@ -104,26 +93,20 @@ export const eventRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      ctx.auditFlags.disabled = true; // Disable auto-logging to handle manually
-
+      ctx.auditFlags.disabled = true;
       const event = await ctx.db.clientEvent.findUnique({
         where: { id: input.id },
         include: { client: true },
       });
-
       if (!event) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Event not found",
         });
       }
-
-      // Delete the event
       await ctx.db.clientEvent.delete({
         where: { id: input.id },
       });
-
-      // Log the administrative action
       await logActivity({
         ctx,
         action: "EVENT_TAKEDOWN",
@@ -135,22 +118,15 @@ export const eventRouter = createTRPCRouter({
           reason: input.reason ?? "Violates community guidelines",
         },
       });
-
       return { success: true };
     }),
-
-  // --- USER ACTIONS ---
-
-  // Get all events for the current user
   getMyEvents: protectedProcedure.query(async ({ ctx }) => {
     const clientProfile = await ctx.db.clientProfile.findUnique({
       where: { userId: ctx.user.id },
     });
-
     if (!clientProfile) {
       return { upcoming: [], past: [] };
     }
-
     const events = await ctx.db.clientEvent.findMany({
       where: { clientProfileId: clientProfile.id },
       include: {
@@ -174,23 +150,15 @@ export const eventRouter = createTRPCRouter({
           },
         },
       },
-      orderBy: { startDate: "asc" }, // Ascending for user view usually better for upcoming
+      orderBy: { startDate: "asc" },
     });
-
     const now = new Date();
-
-    // UPDATED LOGIC:
-    // Upcoming = Event ends in the future (or today)
-    // Past = Event end date has passed
     const upcoming = events.filter((e) => e.endDate >= now);
     const past = events
       .filter((e) => e.endDate < now)
-      .sort((a, b) => b.startDate.getTime() - a.startDate.getTime()); // Sort past events descending
-
+      .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
     return { upcoming, past };
   }),
-
-  // Get event by ID
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -240,7 +208,6 @@ export const eventRouter = createTRPCRouter({
           },
         },
       });
-
       if (!event) {
         console.log("--- [event.getById] Event not found ---");
         throw new TRPCError({
@@ -249,7 +216,6 @@ export const eventRouter = createTRPCRouter({
         });
       }
       console.log(`--- [event.getById] Found event: ${event.title}`);
-
       const isOwner = event.client.userId === ctx.user.id;
       const isParticipant =
         event.conversation?.participants.some(
@@ -262,7 +228,6 @@ export const eventRouter = createTRPCRouter({
       console.log(
         `--- [event.getById] Is owner a participant? ${isParticipant}`,
       );
-
       if (isOwner && (!event.conversation || !isParticipant)) {
         console.log(
           "--- [event.getById] No conversation found or owner is not a participant. Fixing...",
@@ -272,7 +237,6 @@ export const eventRouter = createTRPCRouter({
         console.log(
           `--- [event.getById] Hired vendor IDs: ${JSON.stringify(hiredVendorIds)}`,
         );
-
         await caller.chat.createEventGroupChat({
           eventId: event.id,
           memberIds: hiredVendorIds,
@@ -280,7 +244,6 @@ export const eventRouter = createTRPCRouter({
         console.log(
           "--- [event.getById] createEventGroupChat called. Refetching event... ---",
         );
-
         event = await ctx.db.clientEvent.findUnique({
           where: { id: input.id },
           include: {
@@ -301,7 +264,6 @@ export const eventRouter = createTRPCRouter({
             boardPosts: { include: { author: true } },
           },
         });
-
         if (!event) {
           console.log(
             "--- [event.getById] CRITICAL: Failed to refetch event after creating conversation. ---",
@@ -313,7 +275,6 @@ export const eventRouter = createTRPCRouter({
         }
         console.log("--- [event.getById] Event refetched successfully. ---");
       }
-
       const isParticipantAfterFix =
         event.conversation?.participants.some(
           (p) => p.userId === ctx.user.id,
@@ -321,7 +282,6 @@ export const eventRouter = createTRPCRouter({
       console.log(
         `--- [event.getById] Is participant after fix? ${isParticipantAfterFix}`,
       );
-
       let hasInvitation = false;
       if (!isOwner && !isParticipantAfterFix && !event.isPublic) {
         const invitation = await ctx.db.eventInvitation.findFirst({
@@ -337,7 +297,6 @@ export const eventRouter = createTRPCRouter({
           );
         }
       }
-
       if (
         !isOwner &&
         !isParticipantAfterFix &&
@@ -350,12 +309,9 @@ export const eventRouter = createTRPCRouter({
           message: "You do not have permission to view this event",
         });
       }
-
       console.log("--- [event.getById] Returning event successfully. ---");
       return event;
     }),
-
-  // Create event
   create: protectedProcedure
     .input(
       z.object({
@@ -370,7 +326,6 @@ export const eventRouter = createTRPCRouter({
       const clientProfile = await ctx.db.clientProfile.findUnique({
         where: { userId: ctx.user.id },
       });
-
       if (!clientProfile) {
         throw new TRPCError({
           code: "NOT_FOUND",
@@ -380,7 +335,6 @@ export const eventRouter = createTRPCRouter({
       const locationData = input.location
         ? (input.location as Prisma.JsonObject)
         : Prisma.JsonNull;
-
       return ctx.db.clientEvent.create({
         data: {
           title: input.title,
@@ -411,8 +365,6 @@ export const eventRouter = createTRPCRouter({
         },
       });
     }),
-
-  // Update event
   update: protectedProcedure
     .input(
       z.object({
@@ -433,17 +385,14 @@ export const eventRouter = createTRPCRouter({
           conversation: { include: { participants: true } },
         },
       });
-
       if (!event) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
-
       const isOwner = event.client.userId === ctx.user.id;
       const isParticipant =
         event.conversation?.participants.some(
           (p) => p.userId === ctx.user.id,
         ) ?? false;
-
       if (!isOwner && !isParticipant) {
         throw new TRPCError({
           code: "FORBIDDEN",
@@ -453,7 +402,6 @@ export const eventRouter = createTRPCRouter({
       const locationData = input.location
         ? (input.location as Prisma.JsonObject)
         : Prisma.JsonNull;
-
       return ctx.db.clientEvent.update({
         where: { id: input.id },
         data: {
@@ -466,8 +414,6 @@ export const eventRouter = createTRPCRouter({
         },
       });
     }),
-
-  // Delete event
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -475,22 +421,17 @@ export const eventRouter = createTRPCRouter({
         where: { id: input.id },
         include: { client: true },
       });
-
       if (!event || event.client.userId !== ctx.user.id) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You do not have permission to delete this event",
         });
       }
-
       await ctx.db.clientEvent.delete({
         where: { id: input.id },
       });
-
       return { success: true };
     }),
-
-  // Add vendor to event
   addVendor: protectedProcedure
     .input(
       z.object({
@@ -503,16 +444,13 @@ export const eventRouter = createTRPCRouter({
         where: { id: input.eventId },
         include: { client: true },
       });
-
       if (!event) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Event not found",
         });
       }
-
       const isOwner = event.client.userId === ctx.user.id;
-
       if (!isOwner) {
         const isVendorAccepting = ctx.user.id === input.vendorId;
         if (!isVendorAccepting) {
@@ -521,7 +459,6 @@ export const eventRouter = createTRPCRouter({
             message: "You cannot add another vendor to this event.",
           });
         }
-
         const acceptedInvitation = await ctx.db.eventInvitation.findFirst({
           where: {
             eventId: input.eventId,
@@ -529,7 +466,6 @@ export const eventRouter = createTRPCRouter({
             status: QuoteStatus.ACCEPTED,
           },
         });
-
         if (!acceptedInvitation) {
           throw new TRPCError({
             code: "FORBIDDEN",
@@ -537,24 +473,19 @@ export const eventRouter = createTRPCRouter({
           });
         }
       }
-
       const eventVendor = await ctx.db.eventVendor.create({
         data: {
           eventId: input.eventId,
           vendorId: input.vendorId,
         },
       });
-
       const caller = appRouter.createCaller(ctx);
       await caller.chat.createEventGroupChat({
         eventId: input.eventId,
         memberIds: [input.vendorId],
       });
-
       return eventVendor;
     }),
-
-  // Remove vendor from event
   removeVendor: protectedProcedure
     .input(
       z.object({
@@ -567,35 +498,29 @@ export const eventRouter = createTRPCRouter({
         where: { id: input.eventId },
         include: { client: true },
       });
-
       if (!event || event.client.userId !== ctx.user.id) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You do not have permission to edit this event",
         });
       }
-
       const eventVendor = await ctx.db.eventVendor.findFirst({
         where: {
           eventId: input.eventId,
           vendorId: input.vendorId,
         },
       });
-
       if (!eventVendor) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Vendor not found in event",
         });
       }
-
       await ctx.db.eventVendor.delete({
         where: { id: eventVendor.id },
       });
-
       return { success: true };
     }),
-
   updateBudgetItem: protectedProcedure
     .input(
       z.object({
@@ -624,7 +549,6 @@ export const eventRouter = createTRPCRouter({
         data,
       });
     }),
-
   addBudgetItem: protectedProcedure
     .input(
       z.object({
@@ -652,7 +576,6 @@ export const eventRouter = createTRPCRouter({
         },
       });
     }),
-
   deleteBudgetItem: protectedProcedure
     .input(z.object({ itemId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -671,7 +594,6 @@ export const eventRouter = createTRPCRouter({
       await ctx.db.eventBudgetItem.delete({ where: { id: input.itemId } });
       return { success: true };
     }),
-
   addGuest: protectedProcedure
     .input(
       z.object({
@@ -702,7 +624,6 @@ export const eventRouter = createTRPCRouter({
         },
       });
     }),
-
   updateGuest: protectedProcedure
     .input(
       z.object({
@@ -729,7 +650,6 @@ export const eventRouter = createTRPCRouter({
       }
       return ctx.db.eventGuest.update({ where: { id: guestId }, data });
     }),
-
   deleteGuest: protectedProcedure
     .input(z.object({ guestId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -748,7 +668,6 @@ export const eventRouter = createTRPCRouter({
       await ctx.db.eventGuest.delete({ where: { id: input.guestId } });
       return { success: true };
     }),
-
   sendGuestInvitation: protectedProcedure
     .input(z.object({ guestId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -758,22 +677,18 @@ export const eventRouter = createTRPCRouter({
           list: { include: { event: { include: { client: true } } } },
         },
       });
-
       if (!guest || guest.list.event.client.userId !== ctx.user.id) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You do not have permission.",
         });
       }
-
       const invitationToken = createId();
       await ctx.db.eventGuest.update({
         where: { id: input.guestId },
         data: { invitationToken },
       });
-
       const invitationLink = `${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/invitation/${invitationToken}`;
-
       await emailService.send({
         to: guest.email!,
         subject: `Exclusive Invite: ${guest.list.event.title}`,
@@ -784,10 +699,8 @@ export const eventRouter = createTRPCRouter({
           link: invitationLink,
         },
       });
-
       return { success: true };
     }),
-
   addEmptyGuestList: protectedProcedure
     .input(
       z.object({
@@ -808,7 +721,6 @@ export const eventRouter = createTRPCRouter({
       }
       return ctx.db.eventGuestList.create({ data: input });
     }),
-
   getBoardPosts: protectedProcedure
     .input(z.object({ eventId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -818,7 +730,6 @@ export const eventRouter = createTRPCRouter({
         include: { author: true },
       });
     }),
-
   addBoardPost: protectedProcedure
     .input(
       z.object({
@@ -843,7 +754,6 @@ export const eventRouter = createTRPCRouter({
         },
       });
     }),
-
   updateBoardPostPosition: protectedProcedure
     .input(
       z.object({
@@ -857,7 +767,6 @@ export const eventRouter = createTRPCRouter({
       const { id, ...data } = input;
       return ctx.db.boardPost.update({ where: { id }, data });
     }),
-
   updateBoardPost: protectedProcedure
     .input(
       z.object({
@@ -868,14 +777,11 @@ export const eventRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
-      // TODO: check for author
       return ctx.db.boardPost.update({ where: { id }, data });
     }),
-
   deleteBoardPost: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // TODO: check for author
       return ctx.db.boardPost.delete({ where: { id: input.id } });
     }),
 });

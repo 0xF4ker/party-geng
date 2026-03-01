@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -8,7 +7,6 @@ import Autoplay from "embla-carousel-autoplay";
 import type { EmblaPluginType } from "embla-carousel";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { api } from "@/trpc/react";
-
 const CATEGORY_IMAGES: Record<string, string> = {
   "Music & DJs": "/event-assets/e1599dd5-b393-4698-96b1-da811cc17065.jpg",
   "Food & Beverage": "/event-assets/7559b777-a27c-4ef8-9f71-9f8413c135f8.jpg",
@@ -22,26 +20,21 @@ const CATEGORY_IMAGES: Record<string, string> = {
   "Event Staffing": "/event-assets/a3e3fa3e-41fd-4827-8a79-d9e954497c1f.jpg",
   "Event Venue": "/event-assets/5a132bcc-0437-4c5f-a5f9-ff7518f7b50a.jpg",
 };
-
 const DEFAULT_IMAGE = "https://placehold.co/250x350/9ca3af/ffffff?text=Service";
-
 const PopularServices = () => {
   const { data: categories } = api.category.getAll.useQuery();
-
   const [autoplayPlugin] = useState(() => {
     const AutoplayPlugin = Autoplay as unknown as (opts?: {
       delay?: number;
       stopOnInteraction?: boolean;
       stopOnMouseEnter?: boolean;
     }) => EmblaPluginType;
-
     return AutoplayPlugin({
       delay: 4000,
       stopOnInteraction: false,
       stopOnMouseEnter: true,
     });
   });
-
   const [emblaRef, emblaApi] = useEmblaCarousel(
     {
       loop: true,
@@ -49,30 +42,18 @@ const PopularServices = () => {
     },
     [autoplayPlugin],
   );
-
   const scrollPrev = useCallback(() => {
     if (emblaApi) emblaApi.scrollPrev();
   }, [emblaApi]);
-
   const scrollNext = useCallback(() => {
     if (emblaApi) emblaApi.scrollNext();
   }, [emblaApi]);
-
-  // Combine categories and their services into a display list
-  // For now, let's just display the top-level categories as "Popular Services"
-  // or we could flatten the services. The prompt implies "Popular Services"
-  // but showing categories is often better for navigation.
-  // Given the seed data structure, let's show Categories.
-
   const itemsToDisplay =
     categories?.map((category) => ({
       name: category.name,
       image: CATEGORY_IMAGES[category.name] ?? DEFAULT_IMAGE,
       url: `/categories/${category.slug}`,
     })) ?? [];
-
-  // Fallback if no data yet (e.g. loading or empty DB)
-  // This matches the seed data so it looks good immediately
   const fallbackItems = Object.entries(CATEGORY_IMAGES).map(
     ([name, image]) => ({
       name,
@@ -80,10 +61,8 @@ const PopularServices = () => {
       url: `/categories/${name.toLowerCase().replace(/ & /g, "-and-").replace(/ /g, "-")}`,
     }),
   );
-
   const displayItems =
     itemsToDisplay.length > 0 ? itemsToDisplay : fallbackItems;
-
   return (
     <section className="bg-white py-16">
       <div className="container mx-auto px-4">
@@ -104,7 +83,6 @@ const PopularServices = () => {
             </button>
           </div>
         </div>
-
         <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>
             <div className="-ml-4 flex">
@@ -133,7 +111,6 @@ const PopularServices = () => {
               ))}
             </div>
           </div>
-
           <button
             onClick={scrollPrev}
             className="absolute top-1/2 left-0 z-10 hidden -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow-md transition-all hover:bg-white lg:flex"
@@ -153,5 +130,4 @@ const PopularServices = () => {
     </section>
   );
 };
-
 export default PopularServices;

@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { Loader2, PartyPopper, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { ContributionType } from "@prisma/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-
 interface ContributeModalProps {
   eventName: string;
   itemName: string;
@@ -24,7 +22,6 @@ interface ContributeModalProps {
   onClose: () => void;
   allowCashContribution: boolean;
 }
-
 export const ContributeModal = ({
   eventName,
   itemName,
@@ -39,14 +36,12 @@ export const ContributeModal = ({
   const [amount, setAmount] = useState<number | undefined>(undefined);
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     toast.info("Contribution flow not implemented yet.");
     onClose();
   };
-
   React.useEffect(() => {
     if (isOpen && user?.username) {
       setGuestName(user.username);
@@ -55,7 +50,6 @@ export const ContributeModal = ({
       setContributionType(ContributionType.PROMISE);
     }
   }, [isOpen, user, allowCashContribution]);
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="flex h-dvh w-screen max-w-none flex-col gap-0 rounded-none border-0 p-0 sm:h-auto sm:max-w-lg sm:rounded-lg sm:border sm:p-6">
@@ -67,7 +61,6 @@ export const ContributeModal = ({
             their <strong>{itemName}</strong>.
           </DialogDescription>
         </DialogHeader>
-
         {/* BODY: Scrollable area for form inputs */}
         <div className="flex-1 overflow-y-auto">
           <form
@@ -85,13 +78,12 @@ export const ContributeModal = ({
                 placeholder="e.g., Jane Doe"
                 required
                 disabled={!!user}
-                className="bg-gray-50/50" // Slight background for better contrast on mobile
+                className="bg-gray-50/50"
               />
               <p className="text-xs text-gray-500">
                 This name will be shown on the wishlist.
               </p>
             </div>
-
             {/* Contribution Type Toggle */}
             {allowCashContribution && (
               <div className="space-y-2">
@@ -107,7 +99,7 @@ export const ContributeModal = ({
                     onClick={() =>
                       setContributionType(ContributionType.PROMISE)
                     }
-                    className="h-12 flex-1 sm:h-10" // Taller buttons for mobile touch targets
+                    className="h-12 flex-1 sm:h-10"
                   >
                     <PartyPopper className="mr-2 h-4 w-4" /> Promise
                   </Button>
@@ -126,7 +118,6 @@ export const ContributeModal = ({
                 </div>
               </div>
             )}
-
             {/* Amount Input */}
             {contributionType === ContributionType.CASH && (
               <div className="animate-in fade-in slide-in-from-top-2 space-y-2">
@@ -139,13 +130,12 @@ export const ContributeModal = ({
                   placeholder="e.g., 5000"
                   required
                   min={1}
-                  className="text-lg" // Larger text for number entry on mobile
+                  className="text-lg"
                 />
               </div>
             )}
           </form>
         </div>
-
         {/* FOOTER: Fixed at bottom on mobile, normal on desktop */}
         <DialogFooter className="mt-auto border-t bg-gray-50 p-6 sm:mt-0 sm:border-t-0 sm:bg-transparent sm:p-0">
           <div className="flex w-full gap-3 sm:justify-end">

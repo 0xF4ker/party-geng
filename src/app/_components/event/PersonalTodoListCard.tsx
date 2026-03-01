@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { api } from "@/trpc/react";
 import { Button } from "@/components/ui/button";
@@ -11,15 +10,12 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
-
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type Todo = RouterOutput["personalTodo"]["getByEventId"][number];
-
 interface PersonalTodoListCardProps {
   eventId: string;
-  isPast?: boolean; // Added Prop
+  isPast?: boolean;
 }
-
 export const PersonalTodoListCard = ({
   eventId,
   isPast = false,
@@ -28,12 +24,10 @@ export const PersonalTodoListCard = ({
   const { data: todos, isLoading } = api.personalTodo.getByEventId.useQuery({
     eventId,
   });
-
   const [newItemContent, setNewItemContent] = useState("");
   const [newItemDueDate, setNewItemDueDate] = useState<Date | undefined>(
     undefined,
   );
-
   const createTodo = api.personalTodo.create.useMutation({
     onMutate: async (newItem) => {
       await utils.personalTodo.getByEventId.cancel({ eventId });
@@ -68,7 +62,6 @@ export const PersonalTodoListCard = ({
       void utils.personalTodo.getByEventId.invalidate({ eventId });
     },
   });
-
   const updateTodo = api.personalTodo.update.useMutation({
     onMutate: async (updatedTodo) => {
       await utils.personalTodo.getByEventId.cancel({ eventId });
@@ -93,7 +86,6 @@ export const PersonalTodoListCard = ({
       void utils.personalTodo.getByEventId.invalidate({ eventId });
     },
   });
-
   const deleteTodo = api.personalTodo.delete.useMutation({
     onMutate: async (deletedTodo) => {
       await utils.personalTodo.getByEventId.cancel({ eventId });
@@ -116,7 +108,6 @@ export const PersonalTodoListCard = ({
       void utils.personalTodo.getByEventId.invalidate({ eventId });
     },
   });
-
   const handleAddItem = () => {
     if (newItemContent.trim()) {
       createTodo.mutate({
@@ -126,12 +117,10 @@ export const PersonalTodoListCard = ({
       });
     }
   };
-
   return (
     <div className="relative rounded-xl bg-white p-4 shadow-lg sm:p-6">
       {/* Overlay for past events if you want to completely disable interaction */}
       {/* But requirement says "not modifiable at all", so disable inputs is better UX */}
-
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
           To-Do List
@@ -153,7 +142,6 @@ export const PersonalTodoListCard = ({
           </Button>
         )}
       </div>
-
       {!isPast && (
         <div className="mt-4 space-y-2">
           <div className="flex items-center gap-2">
@@ -177,11 +165,9 @@ export const PersonalTodoListCard = ({
           </div>
         </div>
       )}
-
       {isLoading && (
         <Loader2 className="mx-auto my-4 h-6 w-6 animate-spin text-gray-400" />
       )}
-
       <div className="mt-4 max-h-60 overflow-y-auto pr-2">
         {todos?.map((todo) => (
           <div
@@ -201,7 +187,7 @@ export const PersonalTodoListCard = ({
                     updateTodo.mutate({ id: todo.id, isCompleted: !!checked });
                   }
                 }}
-                disabled={todo.id.startsWith("optimistic") || isPast} // Disabled if past
+                disabled={todo.id.startsWith("optimistic") || isPast}
               />
               <div className="ml-3">
                 <label

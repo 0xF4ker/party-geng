@@ -24,15 +24,11 @@ export const authRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // 1. Upsert User (Safe against Trigger race conditions)
-      // If the trigger already created it, we just update/confirm fields.
       const user = await ctx.db.user.upsert({
         where: { id: input.id },
         update: {
           email: input.email,
           username: input.username,
-          // We generally don't want to overwrite role if it was set correctly,
-          // but input.role is authoritative from the signup form here.
           role: input.role,
         },
         create: {
@@ -43,14 +39,12 @@ export const authRouter = createTRPCRouter({
         },
       });
 
-      // 2. Ensure Wallet exists
       await ctx.db.wallet.upsert({
         where: { userId: user.id },
         create: { userId: user.id },
         update: {},
       });
 
-      // 3. Ensure Profile exists based on Role
       if (input.role === "CLIENT") {
         await ctx.db.clientProfile.upsert({
           where: { userId: user.id },
@@ -118,15 +112,12 @@ export const authRouter = createTRPCRouter({
    * Sign out (clear session)
    */
   signOut: protectedProcedure.mutation(async () => {
-    // The actual sign out will be handled by Supabase client
-    // This is just a placeholder for any server-side cleanup
     return { success: true };
   }),
 
   healAccount: publicProcedure.mutation(async ({ ctx }) => {
     const { db } = ctx;
 
-    // 1. Verify user authentication via Supabase
     const supabase = await createClient();
     const {
       data: { user: authUser },
@@ -140,7 +131,6 @@ export const authRouter = createTRPCRouter({
       });
     }
 
-    // 2. Check if the user exists AND check for their relations
     const dbUser = await db.user.findUnique({
       where: { id: authUser.id },
       include: {
@@ -150,9 +140,7 @@ export const authRouter = createTRPCRouter({
       },
     });
 
-    // --- SCENARIO A: User exists, but might be incomplete (The "Previous Heal" fix) ---
     if (dbUser) {
-      // 1. Fix Missing Wallet
       if (!dbUser.wallet) {
         await db.wallet.create({
           data: {
@@ -161,7 +149,6 @@ export const authRouter = createTRPCRouter({
         });
       }
 
-      // 2. Fix Missing Profile based on their existing DB role
       if (dbUser.role === "CLIENT" && !dbUser.clientProfile) {
         await db.clientProfile.create({
           data: { userId: dbUser.id },
@@ -175,9 +162,7 @@ export const authRouter = createTRPCRouter({
       return { success: true, status: "repaired" };
     }
 
-    // --- SCENARIO B: User does not exist at all (The "Fresh Heal") ---
 
-    // Prepare metadata
     const metadata = (authUser.user_metadata || {}) as {
       username?: string;
       role?: string;
@@ -187,7 +172,6 @@ export const authRouter = createTRPCRouter({
     const finalUsername = metadata.username ?? fallbackUsername;
     const role = metadata.role === "VENDOR" ? "VENDOR" : "CLIENT";
 
-    // Create everything in one go
     await db.user.create({
       data: {
         id: authUser.id,

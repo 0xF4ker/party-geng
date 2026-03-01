@@ -1,30 +1,16 @@
 "use client";
-
 import { notFound } from "next/navigation";
 import PopularServiceCarousel from "../../../_components/category/PopularServiceCarousel";
 import React, { use } from "react";
-// import LoopingCardAnimation from "@/app/_components/category/LoopingCardAnimation";
 import { slugify } from "@/lib/utils";
 import { api } from "@/trpc/react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
-
-// --- Types ---
 type routerOutput = inferRouterOutputs<AppRouter>;
-// 1. Get the type for the entire procedure's output (which can be null)
 type CategoryOutput = routerOutput["category"]["getBySlug"];
-
-// 2. Get the non-null type for the Category itself
-// This type is: { id, name, services: [...] }
 export type Category = NonNullable<CategoryOutput>;
-
-// 3. Get the type for the 'services' array from the Category
 type ServicesArray = Category["services"];
-
-// 4. This is the one you want: the type for a *single service* in that array
-// This will be: { id, name, _count: {...}, gigs: [...] }
 export type ServiceWithVendors = ServicesArray[number];
-
 const FlatServicesList = ({
   services,
   categorySlug,
@@ -45,7 +31,6 @@ const FlatServicesList = ({
     ))}
   </ul>
 );
-
 const ExploreServices = ({
   services,
   categorySlug,
@@ -55,19 +40,15 @@ const ExploreServices = ({
 }) => {
   return <FlatServicesList categorySlug={categorySlug} services={services} />;
 };
-
 export default function CategoryPage({
   params,
 }: {
   params: Promise<{ category: string }>;
 }) {
   const { category: slug } = use(params);
-
-  // Fetch category from database
   const { data: category, isLoading } = api.category.getBySlug.useQuery({
     slug,
   });
-
   if (isLoading) {
     return (
       <main className="bg-white py-44">
@@ -82,24 +63,19 @@ export default function CategoryPage({
       </main>
     );
   }
-
   if (!category) {
     notFound();
   }
-
   const services = category.services;
-  // Get popular services (services with most vendors)
   const popularServices = services
     .filter((s) => s._count.vendors > 0)
     .sort((a, b) => b._count.vendors - a._count.vendors)
     .slice(0, 8);
-
   return (
     <main className="bg-white py-44">
-      {/* 1. Hero Section */}
       <div
         className="container mx-auto flex items-center justify-center bg-linear-to-r from-pink-500 to-purple-600 px-4 py-12 text-white"
-        style={{ backgroundColor: "#003916" /* Matching GIF dark green */ }}
+        style={{ backgroundColor: "#003916" }}
       >
         <div className="flex flex-col items-center text-center">
           <h1 className="mb-2 text-4xl font-bold">{category.name}</h1>
@@ -111,7 +87,6 @@ export default function CategoryPage({
           </button>
         </div>
       </div>
-
       {/* 2. Popular Services Carousel */}
       {popularServices.length > 0 && (
         <div className="container mx-auto px-4 py-10">
@@ -120,15 +95,9 @@ export default function CategoryPage({
           </h2>
           <PopularServiceCarousel
             services={popularServices.map((s) => s.name)}
-            // categorySlug={slug}
           />
         </div>
       )}
-
-      {/* 3. Replaced "Big Project" Block */}
-      {/* <LoopingCardAnimation /> */}
-
-      {/* 4. UPDATED: Explore Services Section (with conditional logic) */}
       <div className="container mx-auto px-4 py-10">
         <h2 className="mb-6 text-2xl font-bold text-gray-800">
           Explore {category.name}

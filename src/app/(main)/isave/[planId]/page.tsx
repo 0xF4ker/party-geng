@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
@@ -29,22 +28,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
 const PlanDetailsPage = () => {
   const params = useParams();
   const router = useRouter();
   const planId = params.planId as string;
-
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isBreakModalOpen, setIsBreakModalOpen] = useState(false);
   const [depositAmount, setDepositAmount] = useState("");
-
   const {
     data: plan,
     isLoading,
     refetch,
   } = api.savePlan.getById.useQuery({ id: planId });
-
   const depositMutation = api.savePlan.deposit.useMutation({
     onSuccess: () => {
       toast.success("Deposit successful!");
@@ -54,7 +49,6 @@ const PlanDetailsPage = () => {
     },
     onError: (error) => toast.error(error.message),
   });
-
   const breakPlanMutation = api.savePlan.breakPlan.useMutation({
     onSuccess: () => {
       toast.success("Plan broken successfully. Funds returned to wallet.");
@@ -62,7 +56,6 @@ const PlanDetailsPage = () => {
     },
     onError: (error) => toast.error(error.message),
   });
-
   const withdrawCompletedMutation =
     api.savePlan.withdrawCompletedPlan.useMutation({
       onSuccess: () => {
@@ -71,7 +64,6 @@ const PlanDetailsPage = () => {
       },
       onError: (error) => toast.error(error.message),
     });
-
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -79,7 +71,6 @@ const PlanDetailsPage = () => {
       </div>
     );
   }
-
   if (!plan) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -87,20 +78,16 @@ const PlanDetailsPage = () => {
       </div>
     );
   }
-
   const progress = Math.min(
     (plan.currentAmount / plan.targetAmount) * 100,
     100,
   );
-  // const isCompleted = plan.status === "COMPLETED";
   const isTargetDateReached = new Date() >= new Date(plan.targetDate);
   const canWithdraw = isTargetDateReached && plan.currentAmount > 0;
-
   const handleDeposit = (e: React.FormEvent) => {
     e.preventDefault();
     depositMutation.mutate({ planId, amount: Number(depositAmount) });
   };
-
   return (
     <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
       <div className="container mx-auto max-w-4xl px-4 py-8 sm:px-8">
@@ -111,7 +98,6 @@ const PlanDetailsPage = () => {
           <ArrowLeft className="h-4 w-4" />
           Back to Plans
         </button>
-
         <div className="grid gap-8 lg:grid-cols-3">
           {/* Main Info */}
           <div className="space-y-6 lg:col-span-2">
@@ -135,7 +121,6 @@ const PlanDetailsPage = () => {
                   {plan.status}
                 </div>
               </div>
-
               <div className="mt-8">
                 <div className="mb-2 flex justify-between text-sm font-medium">
                   <span className="text-gray-600">Progress</span>
@@ -163,7 +148,6 @@ const PlanDetailsPage = () => {
                 </div>
               </div>
             </div>
-
             {/* Transactions */}
             <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
               <h3 className="mb-4 flex items-center gap-2 text-lg font-bold">
@@ -206,7 +190,6 @@ const PlanDetailsPage = () => {
               </div>
             </div>
           </div>
-
           {/* Sidebar / Actions */}
           <div className="space-y-6">
             <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -239,7 +222,6 @@ const PlanDetailsPage = () => {
                   </span>
                 </div>
               </div>
-
               <div className="mt-6 space-y-3">
                 {plan.status === "ACTIVE" && (
                   <>
@@ -250,7 +232,6 @@ const PlanDetailsPage = () => {
                       <Plus className="mr-2 h-4 w-4" />
                       Deposit Funds
                     </Button>
-
                     {canWithdraw ? (
                       <Button
                         variant="outline"
@@ -275,7 +256,6 @@ const PlanDetailsPage = () => {
                         Break Plan
                       </Button>
                     )}
-
                     {!canWithdraw && (
                       <p className="mt-2 text-center text-xs text-gray-500">
                         Funds are locked until{" "}
@@ -285,7 +265,6 @@ const PlanDetailsPage = () => {
                     )}
                   </>
                 )}
-
                 {plan.status === "COMPLETED" && (
                   <div className="rounded-md bg-green-50 p-3 text-center text-sm text-green-800">
                     This plan has been completed and funds withdrawn.
@@ -301,7 +280,6 @@ const PlanDetailsPage = () => {
           </div>
         </div>
       </div>
-
       {/* Deposit Modal */}
       <Dialog open={isDepositModalOpen} onOpenChange={setIsDepositModalOpen}>
         <DialogContent>
@@ -345,7 +323,6 @@ const PlanDetailsPage = () => {
           </form>
         </DialogContent>
       </Dialog>
-
       {/* Break Plan Confirmation Modal */}
       <Dialog open={isBreakModalOpen} onOpenChange={setIsBreakModalOpen}>
         <DialogContent>
@@ -390,5 +367,4 @@ const PlanDetailsPage = () => {
     </div>
   );
 };
-
 export default PlanDetailsPage;

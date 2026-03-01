@@ -1,4 +1,3 @@
-// components/chat/MessageBubbles.tsx
 import React from "react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -15,7 +14,6 @@ import type { MessageWithStatus } from "@/hooks/useChatRealtime";
 import { normalizeDate } from "@/lib/dateUtils";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { api } from "@/trpc/react";
@@ -26,12 +24,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
 type routerOutput = inferRouterOutputs<AppRouter>;
 type message = routerOutput["chat"]["getMessages"]["messages"][number];
-
-// --- Standard Text Bubble ---
-
 export const TextMessageBubble = ({
   message,
   isMe,
@@ -49,8 +43,6 @@ export const TextMessageBubble = ({
 }) => {
   const isPending = message.status === "sending";
   const isError = message.status === "error";
-
-  // Safe access for sender
   const sender = message.sender || {};
   const senderName =
     sender.clientProfile?.name ??
@@ -61,7 +53,6 @@ export const TextMessageBubble = ({
     sender.clientProfile?.avatarUrl ??
     sender.vendorProfile?.avatarUrl ??
     `https://placehold.co/40x40/ec4899/ffffff?text=${(senderName[0] ?? "?").toUpperCase()}`;
-
   const deleteMutation = api.chat.deleteMessage.useMutation({
     onSuccess: () => {
       toast.success("Message deleted");
@@ -69,16 +60,12 @@ export const TextMessageBubble = ({
     },
     onError: (err) => toast.error(err.message),
   });
-
   const handleDelete = (type: "ME" | "EVERYONE") => {
     if (message.id) {
       deleteMutation.mutate({ messageId: message.id, deleteType: type });
     }
   };
-
-  // Safe access for deleted flag
   const isDeletedForEveryone = !!message.isDeletedForEveryone;
-
   if (isDeletedForEveryone) {
     return (
       <div
@@ -112,7 +99,6 @@ export const TextMessageBubble = ({
       </div>
     );
   }
-
   return (
     <div
       className={cn(
@@ -138,7 +124,6 @@ export const TextMessageBubble = ({
             {senderName}
           </span>
         )}
-
         {/* Context Menu Trigger - Visible on Hover */}
         {!isPending && !isError && message.id && (
           <div
@@ -169,7 +154,6 @@ export const TextMessageBubble = ({
             </DropdownMenu>
           </div>
         )}
-
         <div
           className={cn(
             "relative rounded-2xl px-4 py-2 text-sm shadow-sm transition-all",
@@ -181,7 +165,6 @@ export const TextMessageBubble = ({
           )}
         >
           <p className="leading-relaxed whitespace-pre-wrap">{message.text}</p>
-
           {/* Meta Row */}
           <div
             className={cn(
@@ -197,10 +180,8 @@ export const TextMessageBubble = ({
                 <span>Just now</span>
               </>
             )}
-
             {/* STATE 2: ERROR */}
             {isError && <AlertCircle className="h-3 w-3" />}
-
             {/* STATE 3: SENT (Standard) */}
             {!isPending && !isError && (
               <>
@@ -219,7 +200,6 @@ export const TextMessageBubble = ({
             )}
           </div>
         </div>
-
         {/* Retry Button */}
         {isError && onRetry && (
           <button
@@ -236,8 +216,6 @@ export const TextMessageBubble = ({
     </div>
   );
 };
-
-// --- Quote Bubble (Interactive) ---
 export const QuoteMessageBubble = ({
   message,
   isMe,
@@ -250,7 +228,6 @@ export const QuoteMessageBubble = ({
   const router = useRouter();
   const quote = message.quote;
   if (!quote) return null;
-
   const sender = message.sender || {};
   const senderName =
     sender.clientProfile?.name ??
@@ -261,7 +238,6 @@ export const QuoteMessageBubble = ({
     sender.clientProfile?.avatarUrl ??
     sender.vendorProfile?.avatarUrl ??
     `https://placehold.co/40x40/ec4899/ffffff?text=${(senderName[0] ?? "?").toUpperCase()}`;
-
   const getStatusStyles = (status: string) => {
     switch (status) {
       case "ACCEPTED":
@@ -272,7 +248,6 @@ export const QuoteMessageBubble = ({
         return "border-gray-200 bg-white";
     }
   };
-
   return (
     <div
       className={cn(
@@ -316,7 +291,6 @@ export const QuoteMessageBubble = ({
               <p className="font-semibold text-gray-900">{quote.title}</p>
             </div>
           </div>
-
           {/* Content */}
           <div className="space-y-2 bg-white/50 p-4">
             <div className="flex justify-between text-sm">

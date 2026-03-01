@@ -22,7 +22,6 @@ import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
 import { activityLogRouter } from "./routers/activityLog";
 import { reportRouter } from "./routers/report";
 import { kybRouter } from "./routers/kyb";
-
 /**
  * This is the primary router for your server.
  *
@@ -52,24 +51,19 @@ export const appRouter = createTRPCRouter({
   report: reportRouter,
   kyb: kybRouter,
 });
-
-// export type definition of API
 export type AppRouter = typeof appRouter;
-
 /**
  * Inference helper for inputs.
  *
  * @example type HelloInput = RouterInputs['example']['hello']
  */
 export type RouterInputs = inferRouterInputs<AppRouter>;
-
 /**
  * Inference helper for outputs.
  *
  * @example type HelloOutput = RouterOutputs['example']['hello']
  */
 export type RouterOutputs = inferRouterOutputs<AppRouter>;
-
 /**
  * Create a server-side caller for the tRPC API.
  * @example

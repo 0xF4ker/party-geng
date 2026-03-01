@@ -13,7 +13,6 @@ import {
 import { unstable_cache, revalidateTag } from "next/cache";
 import { db } from "@/server/db";
 
-// --- 1. CACHED QUERY ---
 
 const getCachedWishlist = async (eventId: string) => {
   return unstable_cache(
@@ -50,18 +49,16 @@ const getCachedWishlist = async (eventId: string) => {
         },
       });
     },
-    [`wishlist-${eventId}`], // Specific Cache Key
+    [`wishlist-${eventId}`],
     {
-      tags: [`wishlist-${eventId}`], // Specific Invalidation Tag
+      tags: [`wishlist-${eventId}`],
       revalidate: 3600,
     },
   )();
 };
 
-// --- 2. ROUTER ---
 
 export const wishlistRouter = createTRPCRouter({
-  // Get wishlist by event ID (public - for guests)
   getByEventId: publicProcedure
     .input(z.object({ eventId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -87,7 +84,6 @@ export const wishlistRouter = createTRPCRouter({
       return event;
     }),
 
-  // Add item to wishlist
   addItem: protectedProcedure
     .input(
       z.object({
@@ -128,13 +124,11 @@ export const wishlistRouter = createTRPCRouter({
         },
       });
 
-      // FIX: Added "default"
       revalidateTag(`wishlist-${input.eventId}`, "default");
 
       return result;
     }),
 
-  // Update item
   updateItem: protectedProcedure
     .input(
       z.object({
@@ -174,13 +168,11 @@ export const wishlistRouter = createTRPCRouter({
         data: data,
       });
 
-      // FIX: Added "default"
       revalidateTag(`wishlist-${item.wishlist.event.id}`, "default");
 
       return result;
     }),
 
-  // Delete item
   deleteItem: protectedProcedure
     .input(z.object({ itemId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -208,13 +200,11 @@ export const wishlistRouter = createTRPCRouter({
         where: { id: input.itemId },
       });
 
-      // FIX: Added "default"
       revalidateTag(`wishlist-${item.wishlist.event.id}`, "default");
 
       return { success: true };
     }),
 
-  // Contribute to item
   contributeToItem: publicProcedure
     .input(
       z.object({
@@ -294,13 +284,11 @@ export const wishlistRouter = createTRPCRouter({
         });
       }
 
-      // FIX: Added "default"
       revalidateTag(`wishlist-${item.wishlist.event.id}`, "default");
 
       return contribution;
     }),
 
-  // Remove contribution
   removeContribution: protectedProcedure
     .input(z.object({ contributionId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -336,7 +324,6 @@ export const wishlistRouter = createTRPCRouter({
         where: { id: input.contributionId },
       });
 
-      // FIX: Added "default"
       revalidateTag(
         `wishlist-${contribution.item.wishlist.event.id}`,
         "default",

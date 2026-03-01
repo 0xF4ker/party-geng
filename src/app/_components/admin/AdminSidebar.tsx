@@ -1,5 +1,4 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -19,8 +18,6 @@ import {
   CalendarX,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-
-// Define items with access control
 const navItems = [
   {
     name: "Dashboard",
@@ -95,14 +92,10 @@ const navItems = [
     roles: ["ADMIN"],
   },
 ];
-
 export function AdminSidebar({ role }: { role: string }) {
   const pathname = usePathname();
   const { signOut } = useAuth();
-
-  // Filter items based on role
   const filteredNavItems = navItems.filter((item) => item.roles.includes(role));
-
   return (
     <div className="flex h-full flex-col border-r border-gray-100 bg-white">
       {/* 1. Fixed Header Section */}
@@ -121,14 +114,12 @@ export function AdminSidebar({ role }: { role: string }) {
           </div>
         </div>
       </div>
-
       {/* 2. Scrollable Navigation Section */}
       <div className="scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent flex-1 overflow-y-auto px-4 py-4">
         <nav className="space-y-1">
           {filteredNavItems.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
-
             return (
               <Link
                 key={item.href}
@@ -152,7 +143,6 @@ export function AdminSidebar({ role }: { role: string }) {
           })}
         </nav>
       </div>
-
       {/* 3. Fixed Footer Section */}
       <div className="space-y-4 border-t border-gray-50 bg-white px-4 py-6">
         <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
@@ -168,7 +158,6 @@ export function AdminSidebar({ role }: { role: string }) {
             </div>
           </div>
         </div>
-
         <button
           onClick={() => signOut()}
           className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"

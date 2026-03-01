@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { BellIcon } from "@heroicons/react/24/solid";
@@ -11,14 +10,13 @@ import {
 import { api } from "@/trpc/react";
 import { NotificationItem } from "./NotificationItem";
 import { cn } from "@/lib/utils";
-
 export const NotificationDropdown = ({ className }: { className?: string }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { data: notifications, isLoading } = api.notification.getAll.useQuery(
     undefined,
     {
       enabled: isOpen,
-      refetchInterval: 60000, // Refetch every minute
+      refetchInterval: 60000,
     },
   );
   const { data: unreadCount } = api.notification.getUnreadCount.useQuery(
@@ -28,21 +26,17 @@ export const NotificationDropdown = ({ className }: { className?: string }) => {
     },
   );
   const utils = api.useUtils();
-
   const markAllAsRead = api.notification.markAllAsRead.useMutation({
     onMutate: async () => {
       await utils.notification.getAll.cancel();
       await utils.notification.getUnreadCount.cancel();
-
       const previousNotifications = utils.notification.getAll.getData();
       const previousUnreadCount = utils.notification.getUnreadCount.getData();
-
       utils.notification.getAll.setData(
         undefined,
         (old) => old?.map((n) => ({ ...n, read: true })) ?? [],
       );
       utils.notification.getUnreadCount.setData(undefined, 0);
-
       return { previousNotifications, previousUnreadCount };
     },
     onError: (err, newTodo, context) => {
@@ -60,7 +54,6 @@ export const NotificationDropdown = ({ className }: { className?: string }) => {
       void utils.notification.getUnreadCount.invalidate();
     },
   });
-
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>

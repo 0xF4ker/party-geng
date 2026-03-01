@@ -1,5 +1,4 @@
 "use client";
-
 import React from "react";
 import { Loader2, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { api } from "@/trpc/react";
 import { ContributionType } from "@prisma/client";
-
 interface ConfirmPromiseModalProps {
   itemId: string;
   eventName: string;
@@ -24,7 +22,6 @@ interface ConfirmPromiseModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
-
 export const ConfirmPromiseModal = ({
   itemId,
   eventName,
@@ -45,20 +42,17 @@ export const ConfirmPromiseModal = ({
           toast.error(error.message ?? "Failed to make promise.");
       }
   });
-
   const handleSubmit = () => {
     if (!user) {
       toast.error("Please log in to make a promise.");
       return;
     }
-
     contribute.mutate({
       itemId: itemId,
       guestName: user.username,
       type: ContributionType.PROMISE,
     });
   };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>

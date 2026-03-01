@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/trpc/react";
@@ -20,11 +19,9 @@ import NewWishlistHeader from "@/app/_components/wishlist/NewWishlistHeader";
 import { WishlistItemType, ContributionType } from "@prisma/client";
 import { ContributeCashModal } from "@/app/_components/wishlist/ContributeCashModal";
 import { ConfirmPromiseModal } from "@/app/_components/wishlist/ConfirmPromiseModal";
-
 type routerOutput = inferRouterOutputs<AppRouter>;
 type EventWithWishlist = routerOutput["wishlist"]["getByEventId"];
 type WishlistItem = NonNullable<EventWithWishlist["wishlist"]>["items"][number];
-
 export default function WishlistClientPage({ initialEvent }: { initialEvent: EventWithWishlist }) {
   const { eventId } = useParams<{ eventId: string }>();
   const utils = api.useUtils();
@@ -33,15 +30,12 @@ export default function WishlistClientPage({ initialEvent }: { initialEvent: Eve
   }, {
     initialData: initialEvent,
   });
-
   const [selectedItem, setSelectedItem] = useState<WishlistItem | null>(null);
   const [isCashModalOpen, setIsCashModalOpen] = useState(false);
   const [isPromiseModalOpen, setIsPromiseModalOpen] = useState(false);
-
   const [activeTab, setActiveTab] = useState<"wishlist" | "gifters">(
     "wishlist",
   );
-
   const handleContributeClick = (item: WishlistItem) => {
     setSelectedItem(item);
     if (item.itemType === WishlistItemType.CASH_REQUEST) {
@@ -50,13 +44,11 @@ export default function WishlistClientPage({ initialEvent }: { initialEvent: Eve
       setIsPromiseModalOpen(true);
     }
   };
-
   const handleCloseModals = () => {
     setSelectedItem(null);
     setIsCashModalOpen(false);
     setIsPromiseModalOpen(false);
   }
-
   if (isLoading || !event) {
     return (
       <>
@@ -68,27 +60,22 @@ export default function WishlistClientPage({ initialEvent }: { initialEvent: Eve
       </>
     );
   }
-
   const wishlist = event.wishlist;
   const wishlistItems = wishlist?.items ?? [];
-
   const gifters = wishlistItems
     .flatMap((item) => item.contributions)
     .filter(
       (c, i, self) => self.findIndex((s) => s.guestName === c.guestName) === i,
     );
-
   return (
     <div className="min-h-screen bg-gray-50">
       <NewWishlistHeader event={event} />
-
       <main className="container mx-auto max-w-4xl px-4 py-8">
         <div className="mb-6 rounded-lg border border-dashed border-gray-300 bg-white p-4 text-center">
           <p className="text-gray-600">
             This is the wishlist for <strong>{event.title}</strong>!
           </p>
         </div>
-
         {/* Tabs */}
         <div className="mb-6 border-b border-gray-200">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
@@ -122,7 +109,6 @@ export default function WishlistClientPage({ initialEvent }: { initialEvent: Eve
             </button>
           </nav>
         </div>
-
         {/* Content */}
         <div>
           {activeTab === "wishlist" && (
@@ -189,7 +175,6 @@ export default function WishlistClientPage({ initialEvent }: { initialEvent: Eve
           )}
         </div>
       </main>
-
       {selectedItem && isCashModalOpen && (
         <ContributeCashModal
           isOpen={isCashModalOpen}
@@ -217,7 +202,6 @@ export default function WishlistClientPage({ initialEvent }: { initialEvent: Eve
     </div>
   );
 };
-
 const WishlistItemCard = ({
   item,
   onContribute,
@@ -235,16 +219,13 @@ const WishlistItemCard = ({
     (sum, c) => sum + (c.amount ?? 0),
     0,
   );
-
   const progress = item.requestedAmount ? (totalCashContributed / item.requestedAmount) * 100 : 0;
   
   const isFulfilled =
     item.isFulfilled ||
     isPromised ||
     (item.itemType === WishlistItemType.CASH_REQUEST && (item.requestedAmount ?? 0) > 0 && totalCashContributed >= (item.requestedAmount ?? 0));
-
   const isDisabled = isFulfilled;
-
   return (
     <div className="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:shadow-lg">
       {item.itemType === WishlistItemType.ITEM_REQUEST ? (
@@ -275,7 +256,6 @@ const WishlistItemCard = ({
             <DollarSign className="h-16 w-16 text-pink-300" />
         </div>
       )}
-
       <div className="flex flex-1 flex-col p-4">
         <div className="flex-1">
           <p className="font-semibold text-gray-800">{item.name}</p>
@@ -315,4 +295,3 @@ const WishlistItemCard = ({
     </div>
   );
 };
-

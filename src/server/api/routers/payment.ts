@@ -13,8 +13,6 @@ import {
   type Prisma,
 } from "@prisma/client";
 import { logActivity } from "../services/activityLogger";
-
-// --- Types for Paystack Responses ---
 interface PaystackBank {
   name: string;
   slug: string;
@@ -25,13 +23,11 @@ interface PaystackBank {
   type: string;
   id: number;
 }
-
 interface PaystackResponse<T> {
   status: boolean;
   message: string;
   data: T;
 }
-
 interface RecipientData {
   recipient_code: string;
   details: {
@@ -41,16 +37,14 @@ interface RecipientData {
     bank_name: string;
   };
 }
-
 interface TransferData {
   reference: string;
   amount: number;
   status: string;
   transfer_code: string;
 }
-
 interface TransferVerificationData {
-  status: string; // "success", "failed", "pending"
+  status: string;
   amount: number;
   reference: string;
   recipient: {
@@ -61,38 +55,28 @@ interface TransferVerificationData {
   };
   failures: string | null;
 }
-
-// --- Helper for Error Handling ---
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === "string") return error;
   return "Unknown error occurred";
 }
-
-// --- Helper to extract reference from description ---
-// Matches "Ref: wd_..." pattern f
 function extractReference(description: string | null): string | null {
   if (!description) return null;
   const match = /Ref:\s*(wd_[a-zA-Z0-9_-]+)/.exec(description);
   return match ? (match[1] ?? null) : null;
 }
-
 export const paymentRouter = createTRPCRouter({
   getWallet: protectedProcedure.query(async ({ ctx }) => {
     let wallet = await ctx.db.wallet.findUnique({
       where: { userId: ctx.user.id },
     });
-
     wallet ??= await ctx.db.wallet.create({
       data: {
         userId: ctx.user.id,
       },
     });
-
     return wallet;
   }),
-
-  // --- GET SUPPORTED BANKS ---
   getBanks: protectedProcedure.query(async () => {
     const secret = process.env.PAYSTACK_SECRET_KEY;
     if (!secret) {
@@ -101,7 +85,6 @@ export const paymentRouter = createTRPCRouter({
         message: "Paystack configuration error",
       });
     }
-
     try {
       const response = await fetch(
         "https://api.paystack.co/bank?country=nigeria&currency=NGN",
@@ -109,14 +92,10 @@ export const paymentRouter = createTRPCRouter({
           headers: { Authorization: `Bearer ${secret}` },
         },
       );
-
-      // Safe casting using the interface
       const data = (await response.json()) as PaystackResponse<PaystackBank[]>;
-
       if (!data.status) {
         throw new Error("Failed to fetch banks from Paystack");
       }
-
       return data.data.map((bank) => ({
         name: bank.name,
         code: bank.code,
@@ -130,8 +109,6 @@ export const paymentRouter = createTRPCRouter({
       });
     }
   }),
-
-  // Transfer funds to another user
   transferFunds: protectedProcedure
     .input(
       z.object({
@@ -143,53 +120,44 @@ export const paymentRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { recipientUsername, amount, description } = input;
       const senderId = ctx.user.id;
-
       const senderWallet = await ctx.db.wallet.findUnique({
         where: { userId: senderId },
       });
-
       if (!senderWallet || senderWallet.availableBalance < amount) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Insufficient funds.",
         });
       }
-
       const recipient = await ctx.db.user.findUnique({
         where: { username: recipientUsername },
         include: { wallet: true },
       });
-
       if (!recipient) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Recipient not found.",
         });
       }
-
       if (recipient.id === senderId) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "You cannot transfer funds to yourself.",
         });
       }
-
       let recipientWallet = recipient.wallet;
       recipientWallet ??= await ctx.db.wallet.create({
         data: { userId: recipient.id },
       });
-
       return ctx.db.$transaction(async (prisma) => {
         await prisma.wallet.update({
           where: { userId: senderId },
           data: { availableBalance: { decrement: amount } },
         });
-
         await prisma.wallet.update({
           where: { userId: recipient.id },
           data: { availableBalance: { increment: amount } },
         });
-
         const senderTx = await prisma.transaction.create({
           data: {
             walletId: senderWallet.id,
@@ -199,7 +167,6 @@ export const paymentRouter = createTRPCRouter({
             description: description ?? `Transfer to @${recipient.username}`,
           },
         });
-
         await prisma.notification.create({
           data: {
             userId: recipient.id,
@@ -208,11 +175,9 @@ export const paymentRouter = createTRPCRouter({
             link: `/wallet`,
           },
         });
-
         return { success: true, transactionId: senderTx.id };
       });
     }),
-
   requestFunds: protectedProcedure
     .input(
       z.object({
@@ -223,25 +188,21 @@ export const paymentRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { payerUsername, amount, description } = input;
-
       const payer = await ctx.db.user.findUnique({
         where: { username: payerUsername },
       });
-
       if (!payer) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "User not found.",
         });
       }
-
       if (payer.id === ctx.user.id) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "You cannot request funds from yourself.",
         });
       }
-
       await ctx.db.notification.create({
         data: {
           userId: payer.id,
@@ -250,10 +211,8 @@ export const paymentRouter = createTRPCRouter({
           link: `/wallet?modal=transfer&recipient=${ctx.user.username}&amount=${amount}`,
         },
       });
-
       return { success: true, message: "Request sent successfully." };
     }),
-
   contributeToWishlist: protectedProcedure
     .input(
       z.object({
@@ -265,7 +224,6 @@ export const paymentRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { wishlistItemId, amount, guestName } = input;
       const contributorId = ctx.user.id;
-
       const wishlistItem = await ctx.db.wishlistItem.findUnique({
         where: { id: wishlistItemId },
         include: {
@@ -280,56 +238,46 @@ export const paymentRouter = createTRPCRouter({
           },
         },
       });
-
       if (!wishlistItem) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Wishlist item not found.",
         });
       }
-
       if (wishlistItem.itemType !== WishlistItemType.CASH_REQUEST) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "This item does not accept cash contributions.",
         });
       }
-
       const recipientId = wishlistItem.wishlist.event.client.userId;
-
       const contributorWallet = await ctx.db.wallet.findUnique({
         where: { userId: contributorId },
       });
-
       if (!contributorWallet || contributorWallet.availableBalance < amount) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Insufficient funds.",
         });
       }
-
       const recipientWallet = await ctx.db.wallet.findUnique({
         where: { userId: recipientId },
       });
-
       if (!recipientWallet) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Recipient wallet not found.",
         });
       }
-
       const contribution = await ctx.db.$transaction(async (prisma) => {
         await prisma.wallet.update({
           where: { userId: contributorId },
           data: { availableBalance: { decrement: amount } },
         });
-
         await prisma.wallet.update({
           where: { userId: recipientId },
           data: { availableBalance: { increment: amount } },
         });
-
         await prisma.transaction.createMany({
           data: [
             {
@@ -348,7 +296,6 @@ export const paymentRouter = createTRPCRouter({
             },
           ],
         });
-
         const newContribution = await prisma.wishlistContribution.create({
           data: {
             wishlistItemId: wishlistItemId,
@@ -358,21 +305,17 @@ export const paymentRouter = createTRPCRouter({
             amount: amount,
           },
         });
-
         return newContribution;
       });
-
       return { success: true, contribution };
     }),
-
-  // Initialize Paystack payment
   initializePayment: protectedProcedure
     .input(
       z.object({
         amount: z.number().min(100),
         email: z.string().email(),
         reference: z.string().optional(),
-        metadata: z.record(z.unknown()).optional(), // Changed z.any() to z.unknown() for safety
+        metadata: z.record(z.unknown()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -383,9 +326,7 @@ export const paymentRouter = createTRPCRouter({
           message: "Paystack configuration error",
         });
       }
-
       const reference = input.reference ?? `pg_${Date.now()}_${ctx.user.id}`;
-
       try {
         const response = await fetch(
           "https://api.paystack.co/transaction/initialize",
@@ -408,21 +349,17 @@ export const paymentRouter = createTRPCRouter({
             }),
           },
         );
-
-        // Safe cast response
         const data = (await response.json()) as PaystackResponse<{
           authorization_url: string;
           access_code: string;
           reference: string;
         }>;
-
         if (!data.status) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: data.message ?? "Payment initialization failed",
           });
         }
-
         return {
           authorization_url: data.data.authorization_url,
           reference: data.data.reference,
@@ -435,8 +372,6 @@ export const paymentRouter = createTRPCRouter({
         });
       }
     }),
-
-  // Verify Paystack payment
   verifyPayment: protectedProcedure
     .input(
       z.object({
@@ -451,7 +386,6 @@ export const paymentRouter = createTRPCRouter({
           message: "Paystack configuration error",
         });
       }
-
       try {
         const response = await fetch(
           `https://api.paystack.co/transaction/verify/${input.reference}`,
@@ -461,8 +395,6 @@ export const paymentRouter = createTRPCRouter({
             },
           },
         );
-
-        // Strongly typed verification response structure
         const data = (await response.json()) as PaystackResponse<{
           status: string;
           amount: number;
@@ -471,25 +403,21 @@ export const paymentRouter = createTRPCRouter({
             quote_id?: string;
           };
         }>;
-
         if (!data.status || data.data.status !== "success") {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Payment verification failed",
           });
         }
-
-        const amount = data.data.amount / 100; // Convert from kobo
+        const amount = data.data.amount / 100;
         const metadata = data.data.metadata;
         const userId = metadata.user_id;
-
         if (userId !== ctx.user.id) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Payment verification failed",
           });
         }
-
         const wallet = await ctx.db.wallet.upsert({
           where: { userId: ctx.user.id },
           create: {
@@ -502,7 +430,6 @@ export const paymentRouter = createTRPCRouter({
             },
           },
         });
-
         await ctx.db.transaction.create({
           data: {
             walletId: wallet.id,
@@ -512,9 +439,7 @@ export const paymentRouter = createTRPCRouter({
             description: `Wallet top-up via Paystack - ${input.reference}`,
           },
         });
-
         const quoteId = metadata.quote_id;
-
         return {
           success: true,
           amount,
@@ -532,7 +457,6 @@ export const paymentRouter = createTRPCRouter({
         });
       }
     }),
-
   getTransactions: protectedProcedure
     .input(
       z.object({
@@ -558,11 +482,8 @@ export const paymentRouter = createTRPCRouter({
           },
         },
       });
-
       return wallet?.transactions ?? [];
     }),
-
-  // --- UPDATED: WITHDRAW FUNDS WITH PAYSTACK ---
   initiateWithdrawal: protectedProcedure
     .input(
       z.object({
@@ -580,18 +501,15 @@ export const paymentRouter = createTRPCRouter({
           message: "Paystack config missing",
         });
       }
-
       const wallet = await ctx.db.wallet.findUnique({
         where: { userId: ctx.user.id },
       });
-
       if (!wallet || wallet.availableBalance < input.amount) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Insufficient balance",
         });
       }
-
       let recipientCode = "";
       try {
         const recipResponse = await fetch(
@@ -611,7 +529,6 @@ export const paymentRouter = createTRPCRouter({
             }),
           },
         );
-
         const recipData =
           (await recipResponse.json()) as PaystackResponse<RecipientData>;
         if (!recipData.status) {
@@ -627,11 +544,9 @@ export const paymentRouter = createTRPCRouter({
           message: getErrorMessage(error) ?? "Invalid bank details.",
         });
       }
-
       const reference = `wd_${Date.now()}_${ctx.user.id}`;
       let transferStatus = "PENDING";
       let transferMessage = "Transfer initiated";
-
       try {
         const transferResponse = await fetch(
           "https://api.paystack.co/transfer",
@@ -650,14 +565,11 @@ export const paymentRouter = createTRPCRouter({
             }),
           },
         );
-
         const transferData =
           (await transferResponse.json()) as PaystackResponse<TransferData>;
-
         if (!transferData.status) {
           throw new Error(transferData.message ?? "Transfer initiation failed");
         }
-
         if (transferData.data.status === "success") {
           transferStatus = "COMPLETED";
           transferMessage = "Transfer successful";
@@ -671,7 +583,6 @@ export const paymentRouter = createTRPCRouter({
           message: getErrorMessage(error) ?? "Transfer failed at gateway.",
         });
       }
-
       return ctx.db.$transaction(async (prisma) => {
         await prisma.wallet.update({
           where: { userId: ctx.user.id },
@@ -681,7 +592,6 @@ export const paymentRouter = createTRPCRouter({
             },
           },
         });
-
         await prisma.transaction.create({
           data: {
             walletId: wallet.id,
@@ -691,7 +601,6 @@ export const paymentRouter = createTRPCRouter({
             description: `Withdrawal to ${input.accountName} (${input.accountNumber}) - Ref: ${reference}`,
           },
         });
-
         return { success: true, message: transferMessage };
       });
     }),
@@ -718,7 +627,6 @@ export const paymentRouter = createTRPCRouter({
         _sum: { amount: true },
       }),
     ]);
-
     return {
       totalInflow: totalInflow._sum.amount ?? 0,
       totalPayouts: Math.abs(totalPayouts._sum.amount ?? 0),
@@ -726,7 +634,6 @@ export const paymentRouter = createTRPCRouter({
       pendingPayoutsVolume: Math.abs(pendingPayoutsVolume._sum.amount ?? 0),
     };
   }),
-
   adminGetAllTransactions: adminProcedure
     .input(
       z.object({
@@ -739,7 +646,6 @@ export const paymentRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { limit, cursor, type, status, search } = input;
-
       const where: Prisma.TransactionWhereInput = {
         type,
         status,
@@ -754,7 +660,6 @@ export const paymentRouter = createTRPCRouter({
             }
           : undefined,
       };
-
       const items = await ctx.db.transaction.findMany({
         take: limit + 1,
         cursor: cursor ? { id: cursor } : undefined,
@@ -776,18 +681,13 @@ export const paymentRouter = createTRPCRouter({
           },
         },
       });
-
       let nextCursor: typeof cursor | undefined = undefined;
       if (items.length > limit) {
         const nextItem = items.pop();
         nextCursor = nextItem!.id;
       }
-
       return { items, nextCursor };
     }),
-
-  // This can be used by admins to manually verify a pending transaction
-  // or by a scheduled job to reconcile payments.
   checkWithdrawalStatus: adminProcedure
     .input(z.object({ transactionId: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -797,12 +697,10 @@ export const paymentRouter = createTRPCRouter({
           code: "INTERNAL_SERVER_ERROR",
           message: "Paystack config missing",
         });
-
       const transaction = await ctx.db.transaction.findUnique({
         where: { id: input.transactionId },
         include: { wallet: true },
       });
-
       if (!transaction)
         throw new TRPCError({
           code: "NOT_FOUND",
@@ -813,8 +711,6 @@ export const paymentRouter = createTRPCRouter({
           code: "BAD_REQUEST",
           message: "Not a payout transaction",
         });
-
-      // Attempt to find reference in description
       const reference = extractReference(transaction.description);
       if (!reference) {
         throw new TRPCError({
@@ -823,7 +719,6 @@ export const paymentRouter = createTRPCRouter({
             "Could not extract payment reference from transaction record.",
         });
       }
-
       try {
         const response = await fetch(
           `https://api.paystack.co/transfer/verify/${reference}`,
@@ -831,17 +726,12 @@ export const paymentRouter = createTRPCRouter({
             headers: { Authorization: `Bearer ${secret}` },
           },
         );
-
         const data =
           (await response.json()) as PaystackResponse<TransferVerificationData>;
-
         if (!data.status) {
           throw new Error(data.message ?? "Verification failed");
         }
-
-        const paystackStatus = data.data.status; // "success", "failed", "pending"
-
-        // 1. If Success -> Mark Completed
+        const paystackStatus = data.data.status;
         if (
           paystackStatus === "success" &&
           transaction.status !== "COMPLETED"
@@ -850,7 +740,6 @@ export const paymentRouter = createTRPCRouter({
             where: { id: transaction.id },
             data: { status: "COMPLETED" },
           });
-
           await ctx.db.notification.create({
             data: {
               userId: transaction.wallet.userId,
@@ -859,21 +748,17 @@ export const paymentRouter = createTRPCRouter({
               link: "/wallet",
             },
           });
-
           return {
             success: true,
             status: "COMPLETED",
             message: "Transfer verified as successful",
           };
         }
-
-        // 2. If Failed/Reversed -> Refund Wallet
         if (
           (paystackStatus === "failed" || paystackStatus === "reversed") &&
           transaction.status !== "FAILED"
         ) {
           const failureReason = data.data.failures ?? "Transfer failed at bank";
-
           await ctx.db.$transaction(async (prisma) => {
             await prisma.transaction.update({
               where: { id: transaction.id },
@@ -882,14 +767,12 @@ export const paymentRouter = createTRPCRouter({
                 description: `${transaction.description} | Failed: ${failureReason}`,
               },
             });
-
             await prisma.wallet.update({
               where: { id: transaction.walletId },
               data: {
                 availableBalance: { increment: Math.abs(transaction.amount) },
               },
             });
-
             await prisma.notification.create({
               data: {
                 userId: transaction.wallet.userId,
@@ -899,15 +782,12 @@ export const paymentRouter = createTRPCRouter({
               },
             });
           });
-
           return {
             success: true,
             status: "FAILED",
             message: `Transfer failed: ${failureReason}`,
           };
         }
-
-        // 3. Still Pending
         return {
           success: true,
           status: "PENDING",
@@ -921,7 +801,6 @@ export const paymentRouter = createTRPCRouter({
         });
       }
     }),
-
   adminProcessPayout: adminProcedure
     .input(
       z.object({
@@ -932,14 +811,11 @@ export const paymentRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       ctx.auditFlags.disabled = true;
-
       const { transactionId, action, rejectionReason } = input;
-
       const transaction = await ctx.db.transaction.findUnique({
         where: { id: transactionId },
         include: { wallet: true },
       });
-
       if (!transaction) throw new TRPCError({ code: "NOT_FOUND" });
       if (transaction.type !== "PAYOUT")
         throw new TRPCError({ code: "BAD_REQUEST", message: "Not a payout" });
@@ -948,13 +824,11 @@ export const paymentRouter = createTRPCRouter({
           code: "CONFLICT",
           message: "Transaction already processed",
         });
-
       if (action === "APPROVE") {
         await ctx.db.transaction.update({
           where: { id: transactionId },
           data: { status: "COMPLETED" },
         });
-
         await ctx.db.notification.create({
           data: {
             userId: transaction.wallet.userId,
@@ -963,7 +837,6 @@ export const paymentRouter = createTRPCRouter({
             link: "/wallet",
           },
         });
-
         await logActivity({
           ctx,
           action: "PAYOUT_APPROVE",
@@ -983,14 +856,12 @@ export const paymentRouter = createTRPCRouter({
               description: `Payout Rejected: ${rejectionReason}`,
             },
           });
-
           await prisma.wallet.update({
             where: { id: transaction.walletId },
             data: {
               availableBalance: { increment: Math.abs(transaction.amount) },
             },
           });
-
           await prisma.notification.create({
             data: {
               userId: transaction.wallet.userId,
@@ -999,7 +870,6 @@ export const paymentRouter = createTRPCRouter({
               link: "/wallet",
             },
           });
-
           await logActivity({
             ctx,
             action: "PAYOUT_REJECT",
@@ -1007,44 +877,34 @@ export const paymentRouter = createTRPCRouter({
             entityId: transactionId,
             details: { reason: rejectionReason },
           });
-
           return updatedTx;
         });
       }
-
       return { success: true };
     }),
-
   initializeSubscription: protectedProcedure.mutation(async ({ ctx }) => {
     const user = await ctx.db.user.findUnique({
       where: { id: ctx.user.id },
       include: { vendorProfile: true },
     });
-
     if (!user || user.role !== "VENDOR" || !user.vendorProfile) {
       throw new TRPCError({
         code: "BAD_REQUEST",
         message: "Only vendors can subscribe.",
       });
     }
-
     if (user.vendorProfile.subscriptionStatus === "ACTIVE") {
       throw new TRPCError({
         code: "BAD_REQUEST",
         message: "You are already subscribed.",
       });
     }
-
-    // Get fee from global settings
     const settings = await ctx.db.globalSettings.findUnique({
       where: { id: 1 },
     });
     const amount = settings?.vendorSubscriptionFee ?? 5000;
-
     const secret = process.env.PAYSTACK_SECRET_KEY;
     const reference = `sub_${Date.now()}_${ctx.user.id}`;
-
-    // Init Paystack
     const response = await fetch(
       "https://api.paystack.co/transaction/initialize",
       {
@@ -1057,7 +917,7 @@ export const paymentRouter = createTRPCRouter({
           amount: Math.round(amount * 100),
           email: user.email,
           reference,
-          callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard`, // Return to dashboard
+          callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard`,
           metadata: {
             user_id: ctx.user.id,
             type: "vendor_subscription",
@@ -1065,7 +925,6 @@ export const paymentRouter = createTRPCRouter({
         }),
       },
     );
-
     const data = (await response.json()) as PaystackResponse<{
       authorization_url: string;
       access_code: string;
@@ -1077,23 +936,18 @@ export const paymentRouter = createTRPCRouter({
         message: "Payment initialization failed",
       });
     }
-
     return { authorization_url: data.data.authorization_url, reference };
   }),
-
   verifySubscription: protectedProcedure
     .input(z.object({ reference: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const secret = process.env.PAYSTACK_SECRET_KEY;
-
-      // 1. Verify with Paystack
       const response = await fetch(
         `https://api.paystack.co/transaction/verify/${input.reference}`,
         {
           headers: { Authorization: `Bearer ${secret}` },
         },
       );
-
       const data = (await response.json()) as PaystackResponse<{
         status: string;
         amount: number;
@@ -1107,40 +961,28 @@ export const paymentRouter = createTRPCRouter({
           message: "Payment verification failed",
         });
       }
-
-      const amountPaid = data.data.amount / 100; // Convert Kobo to NGN
-
-      // 2. Execute Ledger Logic
+      const amountPaid = data.data.amount / 100;
       return ctx.db.$transaction(async (prisma) => {
-        // A. Get Vendor Wallet (Create if missing)
         let vendorWallet = await prisma.wallet.findUnique({
           where: { userId: ctx.user.id },
         });
         vendorWallet ??= await prisma.wallet.create({
           data: { userId: ctx.user.id, availableBalance: 0 },
         });
-
-        // B. Get Superadmin Wallet (The Platform Wallet)
-        // Ensure you have a user with username "superadmin" seeded!
         const superUser = await prisma.user.findUnique({
           where: { username: "superadmin" },
           include: { wallet: true },
         });
-
         if (!superUser) {
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
             message: "Platform configuration error: Superadmin not found.",
           });
         }
-
         let adminWallet = superUser.wallet;
         adminWallet ??= await prisma.wallet.create({
           data: { userId: superUser.id, availableBalance: 0 },
         });
-
-        // --- STEP 1: RECORD THE PAYMENT (Receipt for Vendor) ---
-        // Credit Vendor (Top-up from Paystack)
         await prisma.transaction.create({
           data: {
             walletId: vendorWallet.id,
@@ -1150,51 +992,32 @@ export const paymentRouter = createTRPCRouter({
             description: `Payment via Paystack (Ref: ${input.reference})`,
           },
         });
-
-        // Debit Vendor (Pay Subscription)
         await prisma.transaction.create({
           data: {
             walletId: vendorWallet.id,
             type: "SUBSCRIPTION_FEE",
-            amount: -amountPaid, // Negative
+            amount: -amountPaid,
             status: "COMPLETED",
             description: "Vendor Activation Fee",
           },
         });
-        // Net change to Vendor Balance is 0, so we don't update their availableBalance.
-
-        // --- STEP 2: MOVE MONEY TO PLATFORM (Revenue) ---
-        // Credit Superadmin
         await prisma.wallet.update({
           where: { id: adminWallet.id },
           data: { availableBalance: { increment: amountPaid } },
         });
-
         await prisma.transaction.create({
           data: {
             walletId: adminWallet.id,
-            type: "SUBSCRIPTION_FEE", // Marking it this way helps your Revenue Charts
+            type: "SUBSCRIPTION_FEE",
             amount: amountPaid,
             status: "COMPLETED",
             description: `Subscription from @${ctx.user.username}`,
           },
         });
-
-        // --- STEP 3: ACTIVATE VENDOR ---
         await prisma.vendorProfile.update({
           where: { userId: ctx.user.id },
           data: { subscriptionStatus: "ACTIVE" },
         });
-
-        // // Log Activity
-        // await logActivity({
-        //   ctx,
-        //   action: "SUBSCRIPTION_ACTIVATED",
-        //   entityType: "USER",
-        //   entityId: ctx.user.id,
-        //   details: { amount: amountPaid, reference: input.reference },
-        // });
-
         return { success: true };
       });
     }),

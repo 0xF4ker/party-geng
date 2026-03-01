@@ -1,7 +1,6 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-
 const VibeCodingBanner = () => {
   return (
     <section className="py-16 bg-pink-100">
@@ -22,5 +21,4 @@ const VibeCodingBanner = () => {
     </section>
   );
 };
-
 export default VibeCodingBanner;

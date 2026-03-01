@@ -1,59 +1,36 @@
 "use client";
-
 import React from "react";
 import { useAuthStore } from "@/stores/auth";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert, LogOut, Mail, Clock } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { useQueryClient } from "@tanstack/react-query"; // Import QueryClient
-
+import { useQueryClient } from "@tanstack/react-query";
 export const BanProvider = ({ children }: { children: React.ReactNode }) => {
-  // Destructure setProfile directly to ensure we use the bound action
   const { profile, isLoading, setProfile } = useAuthStore();
   const queryClient = useQueryClient();
-
   const handleSignOut = async () => {
     try {
       const supabase = createClient();
       await supabase.auth.signOut();
-
-      // 1. Immediately clear the global auth store
       setProfile(null);
-
-      // 2. Clear the entire TRPC/React Query cache.
-      // This prevents the "Banned" profile from lurking in the cache and re-triggering this screen.
       queryClient.clear();
-
-      // 3. Force a hard refresh/navigation to the home page.
-      // using window.location instead of router.push ensures a clean state wipe.
       window.location.href = "/";
     } catch (error) {
       console.error("Sign out error:", error);
-      // Fallback force redirect
       window.location.href = "/";
     }
   };
-
-  // 1. Allow loading state to pass (prevents flashing ban screen during hydration)
   if (isLoading) {
     return <>{children}</>;
   }
-
-  // 2. If not logged in, render app normally (Guest view)
   if (!profile) {
     return <>{children}</>;
   }
-
-  // 3. Check Status
   const isBanned = profile.status === "BANNED";
   const isSuspended = profile.status === "SUSPENDED";
-
-  // 4. If Active, render app normally
   if (!isBanned && !isSuspended) {
     return <>{children}</>;
   }
-
-  // 5. Render "Lock Screen"
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center bg-gray-50 px-4 text-center">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
@@ -70,17 +47,14 @@ export const BanProvider = ({ children }: { children: React.ReactNode }) => {
             )}
           </div>
         </div>
-
         <h1 className="mb-2 text-2xl font-bold text-gray-900">
           {isBanned ? "Account Banned" : "Account Suspended"}
         </h1>
-
         <p className="mb-6 text-gray-600">
           {isBanned
             ? "Your account has been permanently disabled due to a violation of our terms of service."
             : "Your account has been temporarily suspended."}
         </p>
-
         {profile.suspensionReason && (
           <div className="mb-8 rounded-lg border border-gray-100 bg-gray-50 p-4 text-left">
             <p className="text-xs font-semibold tracking-wider text-gray-500 uppercase">
@@ -99,7 +73,6 @@ export const BanProvider = ({ children }: { children: React.ReactNode }) => {
             )}
           </div>
         )}
-
         <div className="flex flex-col gap-3">
           <Button
             className="w-full gap-2 bg-black hover:bg-gray-800"
@@ -111,7 +84,6 @@ export const BanProvider = ({ children }: { children: React.ReactNode }) => {
             <Mail className="h-4 w-4" />
             Contact Support to Appeal
           </Button>
-
           <Button
             variant="outline"
             className="w-full gap-2"
@@ -122,7 +94,6 @@ export const BanProvider = ({ children }: { children: React.ReactNode }) => {
           </Button>
         </div>
       </div>
-
       <div className="mt-8 text-xs text-gray-400">User ID: {profile.id}</div>
     </div>
   );

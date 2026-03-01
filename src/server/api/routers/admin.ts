@@ -2,12 +2,9 @@ import { z } from "zod";
 import { adminProcedure, createTRPCRouter } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { TransactionType, TransactionStatus } from "@prisma/client";
-
 export const adminRouter = createTRPCRouter({
   getDashboardStats: adminProcedure.query(async ({ ctx }) => {
     const { role } = ctx.user;
-
-    // --- SHARED STATS (Base) ---
     const stats = {
       role,
       userCount: 0,
@@ -15,35 +12,26 @@ export const adminRouter = createTRPCRouter({
       orderCount: 0,
       pendingKybCount: 0,
       totalRevenue: 0,
-      totalVolume: 0, // GMV
+      totalVolume: 0,
       pendingPayoutsVolume: 0,
       pendingPayoutsCount: 0,
     };
-
-    // Calculate GMV (Gross Merchandise Value)
-    // Total money moving through the system (Transfers + Gifts)
     const calculateGMV = async () => {
       const agg = await ctx.db.transaction.aggregate({
         _sum: { amount: true },
         where: {
           status: TransactionStatus.COMPLETED,
-          amount: { lt: 0 }, // Spending (Debits)
+          amount: { lt: 0 },
           type: { in: [TransactionType.TRANSFER, TransactionType.GIFT] },
         },
       });
       return Math.abs(agg._sum.amount ?? 0);
     };
-
-    // Calculate Revenue (Platform Profit)
-    // We sum the Credits (positive amounts) going into the System Wallet
-    // OR we sum the Debits (negative amounts) labeled as Fees from user wallets.
-    // Let's rely on the Type label for simplicity.
     const calculateRevenue = async () => {
       const agg = await ctx.db.transaction.aggregate({
         _sum: { amount: true },
         where: {
           status: TransactionStatus.COMPLETED,
-          // We only count the DEBIT side (negative) from users as revenue generated
           amount: { lt: 0 },
           type: {
             in: [TransactionType.SUBSCRIPTION_FEE, TransactionType.SERVICE_FEE],
@@ -52,8 +40,6 @@ export const adminRouter = createTRPCRouter({
       });
       return Math.abs(agg._sum.amount ?? 0);
     };
-
-    // --- 1. ADMIN (God View) ---
     if (role === "ADMIN") {
       const [
         users,
@@ -85,7 +71,6 @@ export const adminRouter = createTRPCRouter({
           },
         }),
       ]);
-
       stats.userCount = users;
       stats.vendorCount = vendors;
       stats.orderCount = orders;
@@ -95,8 +80,6 @@ export const adminRouter = createTRPCRouter({
       stats.pendingPayoutsVolume = Math.abs(pendingPayoutsAgg._sum.amount ?? 0);
       stats.pendingPayoutsCount = pendingPayoutsCnt;
     }
-
-    // --- 2. SUPPORT (Operations View) ---
     else if (role === "SUPPORT") {
       const [users, vendors, pendingKyb, disputeOrders] = await Promise.all([
         ctx.db.user.count(),
@@ -104,14 +87,11 @@ export const adminRouter = createTRPCRouter({
         ctx.db.vendorProfile.count({ where: { kybStatus: "IN_REVIEW" } }),
         ctx.db.order.count({ where: { status: "IN_DISPUTE" } }),
       ]);
-
       stats.userCount = users;
       stats.vendorCount = vendors;
       stats.pendingKybCount = pendingKyb;
       stats.orderCount = disputeOrders;
     }
-
-    // --- 3. FINANCE (Money View) ---
     else if (role === "FINANCE") {
       const [revenue, gmv, pendingPayoutsAgg, pendingPayoutsCnt] =
         await Promise.all([
@@ -131,17 +111,13 @@ export const adminRouter = createTRPCRouter({
             },
           }),
         ]);
-
       stats.totalRevenue = revenue;
       stats.totalVolume = gmv;
       stats.pendingPayoutsVolume = Math.abs(pendingPayoutsAgg._sum.amount ?? 0);
       stats.pendingPayoutsCount = pendingPayoutsCnt;
     }
-
     return stats;
   }),
-
-  // ... (keep rest of router: getPendingKyc, approveKyc)
   getPendingKyc: adminProcedure
     .input(
       z.object({
@@ -157,7 +133,6 @@ export const adminRouter = createTRPCRouter({
         include: { user: { select: { email: true, username: true } } },
       });
     }),
-
   approveKyc: adminProcedure
     .input(z.object({ vendorProfileId: z.string(), approved: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
@@ -166,20 +141,15 @@ export const adminRouter = createTRPCRouter({
         data: { kybStatus: input.approved ? "APPROVED" : "REJECTED" },
       });
     }),
-
   getGlobalSettings: adminProcedure.query(async ({ ctx }) => {
-    // Upsert ensures we always return a valid object, creating default if missing
     return ctx.db.globalSettings.upsert({
       where: { id: 1 },
       update: {},
       create: {
         id: 1,
-        // Defaults are handled by Prisma schema
       },
     });
   }),
-
-  // 2. UPDATE SETTINGS
   updateGlobalSettings: adminProcedure
     .input(
       z.object({

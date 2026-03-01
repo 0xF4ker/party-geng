@@ -1,5 +1,4 @@
 "use client";
-
 import { useParams } from "next/navigation";
 import { api } from "@/trpc/react";
 import { Loader2, CheckCircle, XCircle, HelpCircle } from "lucide-react";
@@ -16,33 +15,26 @@ import { GuestStatus } from "@prisma/client";
 import { useState } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-
 const formatEventDate = (start: Date | string, end: Date | string) => {
     const s = new Date(start);
     const e = new Date(end);
-
     if (s.toDateString() === e.toDateString()) {
-      // Same day: Show Date + Time
       return format(s, "EEE, MMM d, yyyy • h:mm a");
     } else {
-      // Multi-day: Show Date Range (omit time to save space)
       if (s.getFullYear() === e.getFullYear()) {
         return `${format(s, "MMM d")} - ${format(e, "MMM d, yyyy")}`;
       }
       return `${format(s, "MMM d, yyyy")} - ${format(e, "MMM d, yyyy")}`;
     }
   };
-
 const InvitationPage = () => {
   const { token } = useParams<{ token: string }>();
   const [responseSent, setResponseSent] = useState<GuestStatus | null>(null);
-
   const {
     data: guest,
     isLoading,
     error,
   } = api.invitation.getGuestByToken.useQuery({ token });
-
   const respondMutation = api.invitation.respondToInvitation.useMutation({
     onSuccess: (data) => {
       setResponseSent(data.status);
@@ -52,7 +44,6 @@ const InvitationPage = () => {
       toast.error(error.message);
     },
   });
-
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -60,7 +51,6 @@ const InvitationPage = () => {
       </div>
     );
   }
-
   if (error || !guest) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -70,13 +60,10 @@ const InvitationPage = () => {
       </div>
     );
   }
-
   const event = guest.list.event;
-
   const handleResponse = (status: GuestStatus) => {
     respondMutation.mutate({ token, status });
   };
-
   if (responseSent) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -94,7 +81,6 @@ const InvitationPage = () => {
       </div>
     );
   }
-
   return (
     <div className="flex h-screen items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md">
@@ -140,5 +126,4 @@ const InvitationPage = () => {
     </div>
   );
 };
-
 export default InvitationPage;

@@ -1,8 +1,6 @@
 "use client";
-
 import { useAuthStore } from "@/stores/auth";
 import { Bell, Search } from "lucide-react";
-
 export function AdminHeader() {
   const { profile } = useAuthStore();
   return (
@@ -14,7 +12,6 @@ export function AdminHeader() {
         </div>
         <span className="font-bold text-gray-900">Admin</span>
       </div>
-
       {/* Desktop Search (Hidden on mobile) */}
       <div className="hidden md:block">
         <div className="relative">
@@ -26,16 +23,13 @@ export function AdminHeader() {
           />
         </div>
       </div>
-
       {/* Right Side Actions */}
       <div className="flex items-center gap-4">
         <button className="relative rounded-full bg-white p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700">
           <Bell className="h-5 w-5" />
           <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-pink-600 ring-2 ring-white"></span>
         </button>
-
         <div className="hidden h-8 w-px bg-gray-200 sm:block"></div>
-
         <div className="flex items-center gap-3">
           <div className="hidden text-right sm:block">
             <p className="text-sm font-semibold text-gray-900">

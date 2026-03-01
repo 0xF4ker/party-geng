@@ -11,10 +11,6 @@ import { logActivity } from "../services/activityLogger";
 import type { Prisma } from "@prisma/client";
 import { unstable_cache, revalidateTag } from "next/cache";
 import { db } from "@/server/db";
-
-// --- 1. CACHED PROFILE FETCHERS ---
-
-// Cache the heavy profile lookup by Username
 const getCachedUserByUsername = unstable_cache(
   async (username: string) => {
     return await db.user.findUnique({
@@ -45,8 +41,6 @@ const getCachedUserByUsername = unstable_cache(
     tags: ["users"],
   },
 );
-
-// Cache the heavy profile lookup by ID
 const getCachedUserById = unstable_cache(
   async (userId: string) => {
     return await db.user.findUnique({
@@ -77,12 +71,8 @@ const getCachedUserById = unstable_cache(
     tags: ["users"],
   },
 );
-
-// --- 2. ROUTER ---
-
 export const userRouter = createTRPCRouter({
   getProfile: onboardingProcedure.query(async ({ ctx }) => {
-    // 1. Query using the Supabase auth ID, not the Prisma user object
     const profile = await ctx.db.user.findUnique({
       where: { id: ctx.authUser.id },
       include: {
@@ -105,11 +95,8 @@ export const userRouter = createTRPCRouter({
         },
       },
     });
-    // 3. Otherwise, return their fully populated profile
     return profile;
   }),
-
-  // Get user by ID (Uses Cache)
   getById: publicProcedure
     .input(z.object({ userId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -122,7 +109,6 @@ export const userRouter = createTRPCRouter({
             ],
           },
         });
-
         if (block) {
           throw new TRPCError({
             code: "NOT_FOUND",
@@ -130,32 +116,25 @@ export const userRouter = createTRPCRouter({
           });
         }
       }
-
       const user = await getCachedUserById(input.userId);
-
       if (!user) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "User not found",
         });
       }
-
       return user;
     }),
-
-  // Get user by Username (Uses Cache)
   getByUsername: publicProcedure
     .input(z.object({ username: z.string() }))
     .query(async ({ ctx, input }) => {
       const user = await getCachedUserByUsername(input.username);
-
       if (!user) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "User not found",
         });
       }
-
       if (ctx.user) {
         const block = await ctx.db.block.findFirst({
           where: {
@@ -165,7 +144,6 @@ export const userRouter = createTRPCRouter({
             ],
           },
         });
-
         if (block) {
           throw new TRPCError({
             code: "NOT_FOUND",
@@ -173,12 +151,8 @@ export const userRouter = createTRPCRouter({
           });
         }
       }
-
       return user;
     }),
-
-  // --- Blocking Features ---
-
   blockUser: protectedProcedure
     .input(z.object({ userIdToBlock: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -188,7 +162,6 @@ export const userRouter = createTRPCRouter({
           message: "You cannot block yourself.",
         });
       }
-
       const existingBlock = await ctx.db.block.findUnique({
         where: {
           blockerId_blockedId: {
@@ -197,9 +170,7 @@ export const userRouter = createTRPCRouter({
           },
         },
       });
-
       if (existingBlock) return existingBlock;
-
       return ctx.db.block.create({
         data: {
           blockerId: ctx.user.id,
@@ -207,7 +178,6 @@ export const userRouter = createTRPCRouter({
         },
       });
     }),
-
   unblockUser: protectedProcedure
     .input(z.object({ userIdToUnblock: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -220,7 +190,6 @@ export const userRouter = createTRPCRouter({
         },
       });
     }),
-
   getBlockedUsers: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.block.findMany({
       where: { blockerId: ctx.user.id },
@@ -246,9 +215,6 @@ export const userRouter = createTRPCRouter({
       },
     });
   }),
-
-  // --- ADMIN MANAGEMENT PROCEDURES ---
-
   getUsers: adminProcedure
     .input(
       z.object({
@@ -271,7 +237,6 @@ export const userRouter = createTRPCRouter({
             ]
           : undefined,
       };
-
       const items = await ctx.db.user.findMany({
         take: limit + 1,
         cursor: cursor ? { id: cursor } : undefined,
@@ -282,16 +247,13 @@ export const userRouter = createTRPCRouter({
           vendorProfile: { select: { companyName: true, avatarUrl: true } },
         },
       });
-
       let nextCursor: typeof cursor | undefined = undefined;
       if (items.length > limit) {
         const nextItem = items.pop();
         nextCursor = nextItem!.id;
       }
-
       return { items, nextCursor };
     }),
-
   createUser: onboardingProcedure
     .input(
       z.object({
@@ -305,14 +267,12 @@ export const userRouter = createTRPCRouter({
       const existingUser = await ctx.db.user.findUnique({
         where: { username: input.username },
       });
-
       if (existingUser && existingUser.id !== input.id) {
         throw new TRPCError({
           code: "CONFLICT",
           message: "Username is already taken.",
         });
       }
-
       const user = await ctx.db.user.upsert({
         where: { id: input.id },
         update: {
@@ -327,13 +287,11 @@ export const userRouter = createTRPCRouter({
           role: input.role,
         },
       });
-
       await ctx.db.wallet.upsert({
         where: { userId: user.id },
         create: { userId: user.id },
         update: {},
       });
-
       if (input.role === "CLIENT") {
         await ctx.db.clientProfile.upsert({
           where: { userId: user.id },
@@ -352,13 +310,9 @@ export const userRouter = createTRPCRouter({
           update: {},
         });
       }
-
-      // INVALIDATE CACHE (FIXED: Using 'default' string)
       revalidateTag("users", "default");
-
       return user;
     }),
-
   adminCreateUser: adminProcedure
     .input(
       z.object({
@@ -370,7 +324,6 @@ export const userRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       ctx.auditFlags.disabled = true;
-
       const user = await ctx.db.user.create({
         data: {
           id: input.id,
@@ -379,7 +332,6 @@ export const userRouter = createTRPCRouter({
           role: input.role,
         },
       });
-
       await logActivity({
         ctx,
         action: "USER_CREATE_ADMIN",
@@ -387,13 +339,9 @@ export const userRouter = createTRPCRouter({
         entityId: user.id,
         details: { role: input.role },
       });
-
-      // INVALIDATE CACHE (FIXED)
       revalidateTag("users", "default");
-
       return user;
     }),
-
   suspendUser: adminProcedure
     .input(
       z.object({
@@ -404,18 +352,15 @@ export const userRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       ctx.auditFlags.disabled = true;
-
       if (input.userId === ctx.user.id) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Cannot suspend yourself.",
         });
       }
-
       const suspendedUntil = input.durationDays
         ? new Date(Date.now() + input.durationDays * 24 * 60 * 60 * 1000)
         : null;
-
       const updated = await ctx.db.user.update({
         where: { id: input.userId },
         data: {
@@ -424,7 +369,6 @@ export const userRouter = createTRPCRouter({
           suspendedUntil: suspendedUntil,
         },
       });
-
       await logActivity({
         ctx,
         action: input.durationDays ? "USER_SUSPEND" : "USER_BAN",
@@ -435,18 +379,13 @@ export const userRouter = createTRPCRouter({
           duration: input.durationDays ?? "Permanent",
         },
       });
-
-      // INVALIDATE CACHE (FIXED)
       revalidateTag("users", "default");
-
       return updated;
     }),
-
   restoreUser: adminProcedure
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       ctx.auditFlags.disabled = true;
-
       const updated = await ctx.db.user.update({
         where: { id: input.userId },
         data: {
@@ -455,36 +394,28 @@ export const userRouter = createTRPCRouter({
           suspendedUntil: null,
         },
       });
-
       await logActivity({
         ctx,
         action: "USER_RESTORE",
         entityType: "USER",
         entityId: input.userId,
       });
-
-      // INVALIDATE CACHE (FIXED)
       revalidateTag("users", "default");
-
       return updated;
     }),
-
   deleteUser: adminProcedure
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       ctx.auditFlags.disabled = true;
-
       if (input.userId === ctx.user.id) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Cannot delete yourself.",
         });
       }
-
       const deleted = await ctx.db.user.delete({
         where: { id: input.userId },
       });
-
       await logActivity({
         ctx,
         action: "USER_DELETE",
@@ -492,13 +423,9 @@ export const userRouter = createTRPCRouter({
         entityId: input.userId,
         details: { email: deleted.email, role: deleted.role },
       });
-
-      // INVALIDATE CACHE (FIXED)
       revalidateTag("users", "default");
-
       return deleted;
     }),
-
   updateUserRole: adminProcedure
     .input(
       z.object({
@@ -508,12 +435,10 @@ export const userRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       ctx.auditFlags.disabled = true;
-
       const updated = await ctx.db.user.update({
         where: { id: input.userId },
         data: { role: input.newRole },
       });
-
       await logActivity({
         ctx,
         action: "USER_ROLE_UPDATE",
@@ -521,13 +446,9 @@ export const userRouter = createTRPCRouter({
         entityId: input.userId,
         details: { newRole: input.newRole },
       });
-
-      // INVALIDATE CACHE (FIXED)
       revalidateTag("users", "default");
-
       return updated;
     }),
-
   adminGetUser: adminProcedure
     .input(z.object({ userId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -559,14 +480,11 @@ export const userRouter = createTRPCRouter({
           },
         },
       });
-
       if (!user) {
         throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
       }
-
       return user;
     }),
-
   updateOnboarding: onboardingProcedure
     .input(
       z.object({
@@ -577,20 +495,16 @@ export const userRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { db, authUser } = ctx;
       const userId = authUser.id;
-
-      // 1. Fetch current user
       const currentUser = await db.user.findUnique({
         where: { id: userId },
         select: { role: true, isOnboarded: true },
       });
-
       if (!currentUser) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "User record not found in database.",
         });
       }
-
       if (currentUser.isOnboarded) {
         throw new TRPCError({
           code: "FORBIDDEN",
@@ -598,8 +512,6 @@ export const userRouter = createTRPCRouter({
             "User has already completed onboarding. Role cannot be changed here.",
         });
       }
-
-      // 2. SCENARIO A: Role is unchanged. Simple update.
       if (currentUser.role === input.role) {
         return db.user.update({
           where: { id: userId },
@@ -609,8 +521,6 @@ export const userRouter = createTRPCRouter({
           },
         });
       }
-
-      // 3. SCENARIO B: Role has changed. We need an atomic transaction.
       return db.$transaction(async (tx) => {
         const updatedUser = await tx.user.update({
           where: { id: userId },
@@ -620,14 +530,12 @@ export const userRouter = createTRPCRouter({
             isOnboarded: true,
           },
         });
-
         if (input.role === "VENDOR") {
           try {
             await tx.clientProfile.delete({ where: { userId } });
           } catch {
             console.log("No ClientProfile found to delete; skipping.");
           }
-
           await tx.vendorProfile.create({
             data: {
               userId,
@@ -642,16 +550,13 @@ export const userRouter = createTRPCRouter({
           } catch {
             console.log("No VendorProfile found to delete; skipping.");
           }
-
           await tx.clientProfile.create({
             data: { userId },
           });
         }
-
         return updatedUser;
       });
     }),
-
   checkUsername: publicProcedure
     .input(
       z.object({
@@ -661,18 +566,14 @@ export const userRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }): Promise<boolean> => {
       const { db } = ctx;
-
       const existingUser = await db.user.findUnique({
         where: { username: input.username.toLowerCase() },
         select: { id: true },
       });
-
       if (!existingUser) return true;
-
       if (input.excludeUserId && existingUser.id === input.excludeUserId) {
         return true;
       }
-
       return false;
     }),
 });

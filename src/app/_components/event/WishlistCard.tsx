@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
@@ -8,12 +7,10 @@ import { Plus, Share2, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WishlistItemType, ContributionType } from "@prisma/client";
 import { ShareWishlistModal } from "./modals/ShareWishlistModal";
-
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type EventDetails = RouterOutput["event"]["getById"];
 type Wishlist = EventDetails["wishlist"];
 type WishlistItem = NonNullable<Wishlist>["items"][number];
-
 interface WishlistCardProps {
   wishlist: Wishlist;
   _eventId: string;
@@ -21,7 +18,6 @@ interface WishlistCardProps {
   onManage: () => void;
   isPast?: boolean;
 }
-
 const isItemFulfilled = (item: WishlistItem) => {
   if (item.isFulfilled) return true;
   if (item.itemType === WishlistItemType.ITEM_REQUEST) {
@@ -35,7 +31,6 @@ const isItemFulfilled = (item: WishlistItem) => {
   }
   return false;
 };
-
 export const WishlistCard = ({
   wishlist,
   _eventId,
@@ -45,11 +40,9 @@ export const WishlistCard = ({
 }: WishlistCardProps) => {
   const items = wishlist?.items ?? [];
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-
   const handleShare = () => {
     setIsShareModalOpen(true);
   };
-
   return (
     <>
       <div className="rounded-xl bg-white p-4 shadow-lg sm:p-6">
@@ -79,7 +72,6 @@ export const WishlistCard = ({
             </Button>
           </div>
         </div>
-
         <div className="mt-4 space-y-2">
           {items.length === 0 ? (
             <div className="py-8 text-center text-gray-500">
@@ -89,7 +81,6 @@ export const WishlistCard = ({
             items.map((item) => {
               const isFulfilled = isItemFulfilled(item);
               const fulfiller = item.contributions.find((c) => c.guestName);
-
               return (
                 <div
                   key={item.id}
@@ -121,7 +112,6 @@ export const WishlistCard = ({
                       Fulfilled
                     </Button>
                   ) : (
-                    // Hide manage/edit button if past
                     !isPast && (
                       <Button
                         size="sm"

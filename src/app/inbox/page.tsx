@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -38,10 +37,8 @@ import { Button } from "@/components/ui/button";
 import { createId } from "@paralleldrive/cuid2";
 import { ChatSettingsModal } from "@/app/_components/chat/ChatSettingsModal";
 import { normalizeDate } from "@/lib/dateUtils";
-
 type routerOutput = inferRouterOutputs<AppRouter>;
 type conversationOutput = routerOutput["chat"]["getConversations"][number];
-
 const InboxPageContent = () => {
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -49,29 +46,19 @@ const InboxPageContent = () => {
   const searchParams = useSearchParams();
   const conversationIdFromUrl = searchParams.get("conversation");
   const { headerHeight } = useUiStore();
-
-  // UI State
   const [selectedConvo, setSelectedConvo] = useState<conversationOutput>();
   const [showMobileChat, setShowMobileChat] = useState(false);
   const [showInfoSidebar, setShowInfoSidebar] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-
-  // Ref to track if we have already auto-selected from URL
   const hasAutoSelectedRef = useRef(false);
-
   const { mutate: markConversationAsRead } =
     api.chat.markConversationAsRead.useMutation({
       onMutate: async ({ conversationId }) => {
-        // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
         await utils.chat.getConversations.cancel();
         await utils.chat.getUnreadConversationCount.cancel();
-
-        // Snapshot the previous value
         const previousConversations = utils.chat.getConversations.getData();
         const previousUnreadCount =
           utils.chat.getUnreadConversationCount.getData();
-
-        // Optimistically update to the new value
         utils.chat.getConversations.setData(undefined, (old) => {
           if (!old) return old;
           return old.map((c) =>
@@ -81,8 +68,6 @@ const InboxPageContent = () => {
         utils.chat.getUnreadConversationCount.setData(undefined, (old) =>
           (old ?? 0) > 0 ? old! - 1 : 0,
         );
-
-        // Return a context object with the snapshotted value
         return { previousConversations, previousUnreadCount };
       },
       onError: (err, newTodo, context) => {
@@ -100,15 +85,11 @@ const InboxPageContent = () => {
         void utils.chat.getUnreadConversationCount.invalidate();
       },
     });
-
-  // 1. Fetch Conversations
   const {
     data: conversations = [],
     isLoading: isConvosLoading,
     refetch: refetchConvos,
   } = api.chat.getConversations.useQuery(undefined, { refetchInterval: false });
-
-  // 2. Fetch Messages (Initial Load)
   const {
     data: messagesData,
     isLoading: isMessagesLoading,
@@ -117,28 +98,18 @@ const InboxPageContent = () => {
     { conversationId: selectedConvo?.id ?? "", limit: 50 },
     { enabled: !!selectedConvo?.id },
   );
-
-  // FIX: Use setTimeout to move the state update out of the synchronous render phase.
-  // This satisfies the linter warning about cascading renders.
   useEffect(() => {
-    // If no URL param, or no data yet, skip.
     if (!conversationIdFromUrl || conversations.length === 0) {
       return;
     }
-
-    // If we already auto-selected, skip.
     if (hasAutoSelectedRef.current) {
       return;
     }
-
     const convoToSelect = conversations.find(
       (c) => c.id === conversationIdFromUrl,
     );
-
     if (convoToSelect) {
-      // Avoid re-setting if it's the same to be safe
       if (selectedConvo?.id !== convoToSelect.id) {
-        // Push to next tick to avoid "Synchronous setState" warning
         setTimeout(() => {
           setSelectedConvo(convoToSelect);
           setShowMobileChat(true);
@@ -146,19 +117,12 @@ const InboxPageContent = () => {
         }, 0);
       }
     }
-    // We intentionally exclude selectedConvo from deps to avoid loops,
-    // relying on the ref to ensure this runs once per data load/URL change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationIdFromUrl, conversations]);
-
-  // When selectedConvo changes, mark messages as read.
   useEffect(() => {
     if (selectedConvo?.id) {
       markConversationAsRead({ conversationId: selectedConvo.id });
     }
   }, [selectedConvo?.id, markConversationAsRead]);
-
-  // 3. HOOK: Handle Realtime Updates
   const {
     messages,
     addOptimisticMessage,
@@ -167,26 +131,19 @@ const InboxPageContent = () => {
     sendTypingEvent,
     typingUsers,
   } = useChatRealtime(selectedConvo?.id, messagesData?.messages ?? []);
-
-  // 4. Mutation: Send Message
   const sendMessage = api.chat.sendMessage.useMutation({
     onSuccess: () => {
       void refetchConvos();
     },
   });
-
-  // Auto-scroll on new message
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, typingUsers]); // Scroll when typing changes too
-
+  }, [messages, typingUsers]);
   const handleSend = async (text: string, retryTempId?: string) => {
     if (!selectedConvo || !user) return;
-
     const tempId = retryTempId ?? createId();
-
     const optimisticMsg: MessageWithStatus = {
       id: tempId,
       tempId: tempId,
@@ -205,13 +162,11 @@ const InboxPageContent = () => {
       },
       isDeletedForEveryone: false,
     };
-
     if (retryTempId) {
       updateOptimisticStatus(retryTempId, "sending");
     } else {
       addOptimisticMessage(optimisticMsg);
     }
-
     sendMessage.mutate(
       { conversationId: selectedConvo.id, text },
       {
@@ -225,7 +180,6 @@ const InboxPageContent = () => {
       },
     );
   };
-
   const getTypingText = () => {
     if (typingUsers.length === 0) return null;
     const names = typingUsers.map(userId => {
@@ -237,16 +191,13 @@ const InboxPageContent = () => {
     if (names.length === 2) return `${names[0]} and ${names[1]} are typing...`;
     return "Several people are typing...";
   };
-
   if (!user)
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="animate-spin text-pink-600" />
       </div>
     );
-
   const isVendor = !!user.vendorProfile;
-
   return (
     <div
       className="min-h-screen bg-gray-50 text-gray-900"
@@ -279,7 +230,6 @@ const InboxPageContent = () => {
             />
           )}
         </aside>
-
         {/* Middle: Chat Area */}
         <main
           className={`flex flex-1 flex-col bg-[#efeae2] ${!showMobileChat ? "hidden sm:flex" : "flex"}`}
@@ -322,7 +272,6 @@ const InboxPageContent = () => {
                   </div>
                 </div>
               </div>
-
               {/* Messages Window */}
               {isMessagesLoading ? (
                 <ChatMessagesSkeleton />
@@ -336,24 +285,19 @@ const InboxPageContent = () => {
                         new Date(msg.createdAt) >=
                           new Date(messagesData.firstUnreadTimestamp) &&
                         msg.senderId !== user.id;
-
                       let showDivider = false;
                       if (isUnread && !shownUnreadDivider) {
                         showDivider = true;
                         shownUnreadDivider = true;
                       }
-
-                      // Check read status
                       let isRead = false;
                       if (msg.senderId === user.id && selectedConvo) {
                           const otherParticipants = selectedConvo.participants.filter(p => p.userId !== user.id);
-                          // Check if everyone else has read it
                           const messageDate = normalizeDate(msg.createdAt);
                           isRead = otherParticipants.length > 0 && otherParticipants.every(p => {
                               return p.lastReadAt && new Date(p.lastReadAt) >= messageDate;
                           });
                       }
-
                       return (
                         <React.Fragment key={msg.id || msg.tempId}>
                           {showDivider && (
@@ -381,7 +325,6 @@ const InboxPageContent = () => {
                               message={msg}
                               isMe={msg.senderId === user.id}
                               onRetry={() => handleSend(msg.text, msg.tempId)}
-                              // Pass refetch to TextMessageBubble for actions
                               onUpdate={() => refetchMessages()}
                               isGroupAdmin={selectedConvo.groupAdminId === user.id}
                               isRead={isRead}
@@ -394,7 +337,6 @@ const InboxPageContent = () => {
                   <div ref={scrollRef} />
                 </div>
               )}
-
               {/* Input */}
               <div className="bg-white p-4">
                 {typingUsers.length > 0 && (
@@ -427,7 +369,6 @@ const InboxPageContent = () => {
             </div>
           )}
         </main>
-
         {/* Right: Info Sidebar (Only on large screens) */}
         <aside className="hidden w-1/4 overflow-y-auto border-l bg-white lg:block">
           {selectedConvo && (
@@ -437,7 +378,6 @@ const InboxPageContent = () => {
             />
           )}
         </aside>
-
         {/* Mobile Info Sidebar */}
         {showInfoSidebar && selectedConvo && (
           <div
@@ -461,7 +401,6 @@ const InboxPageContent = () => {
     </div>
   );
 };
-
 const InboxPage = () => {
   return (
     <Suspense
@@ -475,5 +414,4 @@ const InboxPage = () => {
     </Suspense>
   );
 };
-
 export default InboxPage;

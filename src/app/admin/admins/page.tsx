@@ -1,6 +1,5 @@
 import { AdminUsersTable } from "@/app/_components/admin/AdminUsersTable";
 import { CreateUserModal } from "@/app/_components/admin/CreateUserModal";
-
 export default function AdminStaffPage() {
   return (
     <div className="space-y-6">

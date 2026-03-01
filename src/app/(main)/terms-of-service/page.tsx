@@ -1,9 +1,7 @@
 "use client";
-
 import React, { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui";
-
 const sections = [
   { id: "definitions", title: "1. Definitions" },
   { id: "acceptance", title: "2. Acceptance of Terms" },
@@ -21,11 +19,9 @@ const sections = [
   { id: "updates", title: "14. Updates to Terms" },
   { id: "disputes", title: "15. Dispute Resolution" },
 ];
-
 export default function TermsOfServicePage() {
   const [activeSection, setActiveSection] = useState("");
   const { headerHeight } = useUiStore();
-
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -37,15 +33,12 @@ export default function TermsOfServicePage() {
       },
       { rootMargin: "-20% 0px -35% 0px" },
     );
-
     sections.forEach(({ id }) => {
       const element = document.getElementById(id);
       if (element) observer.observe(element);
     });
-
     return () => observer.disconnect();
   }, []);
-
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
@@ -53,7 +46,6 @@ export default function TermsOfServicePage() {
       setActiveSection(id);
     }
   };
-
   return (
     <div className="min-h-screen bg-white" style={{ paddingTop: headerHeight }}>
       {/* Header */}
@@ -70,7 +62,6 @@ export default function TermsOfServicePage() {
           </div>
         </div>
       </div>
-
       <div className="container mx-auto flex flex-col gap-12 px-4 py-12 md:px-6 lg:flex-row">
         {/* Table of Contents - Sticky Sidebar */}
         <aside className="hidden w-1/4 min-w-[250px] shrink-0 lg:block">
@@ -96,7 +87,6 @@ export default function TermsOfServicePage() {
             </nav>
           </div>
         </aside>
-
         {/* Main Content */}
         <main className="mx-auto max-w-4xl flex-1 lg:mx-0">
           <div className="prose prose-pink prose-lg max-w-none space-y-12 text-gray-600">
@@ -112,7 +102,6 @@ export default function TermsOfServicePage() {
                 platform.
               </p>
             </div>
-
             <section id="definitions" className="scroll-mt-24">
               <h2 className="mb-6 text-2xl font-bold text-gray-900">
                 1. Definitions
@@ -144,7 +133,6 @@ export default function TermsOfServicePage() {
                 </li>
               </ul>
             </section>
-
             <section
               id="acceptance"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -162,7 +150,6 @@ export default function TermsOfServicePage() {
                 </li>
               </ul>
             </section>
-
             <section
               id="account"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -189,7 +176,6 @@ export default function TermsOfServicePage() {
                 </li>
               </ul>
             </section>
-
             <section
               id="services"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -260,7 +246,6 @@ export default function TermsOfServicePage() {
                 notice.
               </p>
             </section>
-
             <section
               id="responsibilities"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -288,7 +273,6 @@ export default function TermsOfServicePage() {
                 PartyGeng may suspend or terminate accounts that violate rules.
               </p>
             </section>
-
             <section
               id="relationships"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -338,7 +322,6 @@ export default function TermsOfServicePage() {
                 </div>
               </div>
             </section>
-
             <section
               id="financial"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -420,7 +403,6 @@ export default function TermsOfServicePage() {
                 </div>
               </div>
             </section>
-
             <section
               id="content"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -467,7 +449,6 @@ export default function TermsOfServicePage() {
                 </p>
               </div>
             </section>
-
             <section
               id="prohibited"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -556,7 +537,6 @@ export default function TermsOfServicePage() {
                 </div>
               </div>
             </section>
-
             <section
               id="reviews"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -572,7 +552,6 @@ export default function TermsOfServicePage() {
                 <li>Repeated offenses may lead to account penalties.</li>
               </ul>
             </section>
-
             <section
               id="safety"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -592,7 +571,6 @@ export default function TermsOfServicePage() {
                 compliance during events.
               </p>
             </section>
-
             <section
               id="suspension"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -606,7 +584,6 @@ export default function TermsOfServicePage() {
                 without notice.
               </p>
             </section>
-
             <section
               id="privacy"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -619,7 +596,6 @@ export default function TermsOfServicePage() {
                 Privacy Policy. We do not sell personal data to third parties.
               </p>
             </section>
-
             <section
               id="updates"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -633,7 +609,6 @@ export default function TermsOfServicePage() {
                 terms.
               </p>
             </section>
-
             <section
               id="disputes"
               className="scroll-mt-24 border-t border-gray-100 pt-8"

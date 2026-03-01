@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { api } from "@/trpc/react";
 import {
@@ -27,17 +26,14 @@ import { Label } from "@/components/ui/label";
 import { ImageUpload } from "@/components/ImageUpload";
 import { WishlistItemType } from "@prisma/client";
 import { createId } from "@paralleldrive/cuid2";
-
 type routerOutput = inferRouterOutputs<AppRouter>;
 type event = routerOutput["event"]["getById"];
 type wishlistItem = NonNullable<event["wishlist"]>["items"][number];
-
 interface WishlistModalProps {
   event: event;
   isOpen: boolean;
   onClose: () => void;
 }
-
 export const WishlistModal = ({
   event,
   isOpen,
@@ -52,14 +48,12 @@ export const WishlistModal = ({
     WishlistItemType.ITEM_REQUEST,
   );
   const utils = api.useUtils();
-
   const addItem = api.wishlist.addItem.useMutation({
     onSuccess: () => {
       void utils.event.getById.invalidate({ id: event.id });
       setNewItemImageUrl(undefined);
     },
   });
-
   const copyLink = async () => {
     const textToCopy = `${window.location.origin}/wishlist/${event.id}`;
     try {
@@ -70,7 +64,6 @@ export const WishlistModal = ({
       console.error("Failed to copy:", err);
     }
   };
-
   const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
@@ -80,9 +73,7 @@ export const WishlistModal = ({
     const requestedAmount = (
       form.elements.namedItem("requestedAmount") as HTMLInputElement
     )?.value;
-
     if (!newItemName) return;
-
     addItem.mutate({
       eventId: event.id,
       name: newItemName,
@@ -96,9 +87,7 @@ export const WishlistModal = ({
     form.reset();
     setNewItemImageUrl(undefined);
   };
-
   const uniqueId = createId();
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-h-screen max-w-3xl overflow-y-auto sm:max-h-[85vh]">
@@ -109,7 +98,6 @@ export const WishlistModal = ({
             wish.
           </DialogDescription>
         </DialogHeader>
-
         <div className="mt-4 border-t pt-4">
           <Label className="text-sm font-medium">Shareable Link</Label>
           <div className="mt-2 flex gap-2">
@@ -128,7 +116,6 @@ export const WishlistModal = ({
             </Button>
           </div>
         </div>
-
         <div className="mt-4 border-t pt-4">
           <h4 className="mb-4 font-semibold">Add New Item</h4>
           <div className="mb-4 flex justify-center rounded-md bg-gray-100 p-1">
@@ -155,7 +142,6 @@ export const WishlistModal = ({
               <DollarSign className="mr-2 h-4 w-4" /> Cash Request
             </Button>
           </div>
-
           <form className="space-y-4" onSubmit={handleAddItem}>
             <div>
               <Label htmlFor="newItemName">Name</Label>
@@ -169,7 +155,6 @@ export const WishlistModal = ({
                 required
               />
             </div>
-
             {newItemType === WishlistItemType.CASH_REQUEST && (
               <div>
                 <Label htmlFor="requestedAmount">Requested Amount (₦)</Label>
@@ -181,7 +166,6 @@ export const WishlistModal = ({
                 />
               </div>
             )}
-
             {newItemType === WishlistItemType.ITEM_REQUEST && (
               <div>
                 <ImageUpload
@@ -193,7 +177,6 @@ export const WishlistModal = ({
                 />
               </div>
             )}
-
             <div>
               <Button
                 type="submit"
@@ -208,7 +191,6 @@ export const WishlistModal = ({
             </div>
           </form>
         </div>
-
         <div className="mt-4 h-[300px] overflow-y-auto border-t pt-4 pr-2">
           <h4 className="mb-2 font-semibold">Wishlist Items</h4>
           <ul className="space-y-2">
@@ -228,7 +210,6 @@ export const WishlistModal = ({
     </Dialog>
   );
 };
-
 const WishlistItemRow = ({
   item,
   onEdit,
@@ -248,18 +229,15 @@ const WishlistItemRow = ({
     item.requestedAmount ?? "",
   );
   const [imageUrl, setImageUrl] = useState(item.imageUrl ?? "");
-
   const updateItem = api.wishlist.updateItem.useMutation({
     onSuccess: () => {
       void utils.event.getById.invalidate({ id: eventId });
       onCancelEdit();
     },
   });
-
   const deleteItem = api.wishlist.deleteItem.useMutation({
     onSuccess: () => utils.event.getById.invalidate({ id: eventId }),
   });
-
   const handleUpdate = () => {
     if (!name.trim()) return;
     updateItem.mutate({
@@ -269,11 +247,9 @@ const WishlistItemRow = ({
       imageUrl: imageUrl || undefined,
     });
   };
-
   const handleToggleFulfilled = () => {
     updateItem.mutate({ itemId: item.id, isFulfilled: !item.isFulfilled });
   };
-
   if (isEditing) {
     return (
       <li className="space-y-2 rounded-lg bg-gray-50 p-2">
@@ -326,7 +302,6 @@ const WishlistItemRow = ({
       </li>
     );
   }
-
   return (
     <li className="flex items-center gap-2 rounded-lg p-2 transition-colors hover:bg-gray-50">
       <input

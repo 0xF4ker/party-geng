@@ -67,11 +67,9 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
   };
 
   return (
-    // Updated overlay classes: z-[100] to cover everything, including mobile nav
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       onClick={(e) => {
-        // Close if clicking the backdrop
         if (e.target === e.currentTarget) onClose();
       }}
     >

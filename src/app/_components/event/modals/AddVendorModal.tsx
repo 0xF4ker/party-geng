@@ -1,11 +1,8 @@
 "use client";
-
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { api } from "@/trpc/react";
 import { Loader2, Search, Check, ChevronDown, X, Trash2 } from "lucide-react";
-// import type { inferRouterOutputs } from "@trpc/server";
-// import type { AppRouter } from "@/server/api/root";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,11 +22,6 @@ import { toast } from "sonner";
 import LocationSearchInput, {
   type LocationSearchResult,
 } from "@/components/ui/LocationSearchInput";
-
-// type RouterOutput = inferRouterOutputs<AppRouter>;
-// Remove strict dependency on getById full return type
-// type Event = RouterOutput["event"]["getById"];
-
 export interface AddVendorModalEvent {
   id: string;
   hiredVendors?: {
@@ -38,13 +30,11 @@ export interface AddVendorModalEvent {
     };
   }[];
 }
-
 interface AddVendorModalProps {
   event: AddVendorModalEvent;
   isOpen: boolean;
   onClose: () => void;
 }
-
 export const AddVendorModal = ({
   event,
   isOpen,
@@ -54,13 +44,10 @@ export const AddVendorModal = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedServices, setSelectedServices] = useState<number[]>([]);
   const [location, setLocation] = useState<LocationSearchResult | null>(null);
-  const [radius, setRadius] = useState(5000); // 5km
-
+  const [radius, setRadius] = useState(5000);
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
-
   const { data: categoriesData, isLoading: isLoadingCategories } =
     api.category.getAll.useQuery();
-
   const allServices = useMemo(() => {
     return (
       categoriesData?.flatMap((cat) =>
@@ -68,7 +55,6 @@ export const AddVendorModal = ({
       ) ?? []
     );
   }, [categoriesData]);
-
   const { data: searchResults, isLoading: isSearching } =
     api.vendor.searchVendors.useQuery({
       query: debouncedSearchQuery,
@@ -82,22 +68,18 @@ export const AddVendorModal = ({
         : undefined,
       limit: 20,
     });
-
   const sendInvitation = api.eventInvitation.create.useMutation({
     onSuccess: (data) => {
       toast.success(`Invitation sent to ${data.vendor.username}!`);
-      // I could add optimistic updates here
       void utils.vendor.searchVendors.invalidate();
     },
     onError: (error) => {
       toast.error(error.message);
     },
   });
-
   const removeVendor = api.event.removeVendor.useMutation({
     onSuccess: () => {
       toast.success("Vendor removed from event.");
-      // Invalidate both event details and search to refresh status
       void utils.event.getById.invalidate({ id: event.id });
       void utils.vendor.searchVendors.invalidate();
     },
@@ -105,11 +87,9 @@ export const AddVendorModal = ({
       toast.error(error.message);
     },
   });
-
   const handleInviteVendor = (vendorId: string) => {
     sendInvitation.mutate({ eventId: event.id, vendorId });
   };
-
   const handleRemoveVendor = (vendorId: string) => {
     if (
       confirm(
@@ -119,13 +99,10 @@ export const AddVendorModal = ({
       removeVendor.mutate({ eventId: event.id, vendorId });
     }
   };
-
   const hiredVendorIds = useMemo(
     () => event.hiredVendors?.map((ev) => ev.vendor.id) ?? [],
     [event.hiredVendors],
   );
-  // TODO: Also check for pending invitations and disable the button
-
   const toggleService = (serviceId: number) => {
     setSelectedServices((prev) =>
       prev.includes(serviceId)
@@ -133,20 +110,17 @@ export const AddVendorModal = ({
         : [...prev, serviceId],
     );
   };
-
   const selectedServiceNames = useMemo(() => {
     return allServices
       .filter((s) => selectedServices.includes(s.id))
       .map((s) => s.name);
   }, [allServices, selectedServices]);
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="flex h-[80vh] flex-col sm:max-w-[625px]">
         <DialogHeader>
           <DialogTitle>Invite a Vendor to Your Event</DialogTitle>
         </DialogHeader>
-
         <div className="flex flex-col gap-4 border-b border-gray-200 p-4">
           <div className="relative">
             <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -239,14 +213,12 @@ export const AddVendorModal = ({
             </div>
           </div>
         </div>
-
         <div className="flex-1 overflow-y-auto p-2">
           {isSearching && (
             <div className="flex justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
             </div>
           )}
-
           {!isSearching &&
           (!searchResults || searchResults.vendors.length === 0) ? (
             <p className="px-2 py-8 text-center text-gray-500">

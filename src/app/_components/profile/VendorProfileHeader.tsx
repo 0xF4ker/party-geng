@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -17,9 +16,9 @@ import {
   Grid3x3,
   MoreHorizontal,
   Flag,
-  ChevronDown, // Added
-  LogOut, // Added
-  User as UserIcon, // Added
+  ChevronDown,
+  LogOut,
+  User as UserIcon,
 } from "lucide-react";
 import { EnvelopeIcon } from "@heroicons/react/24/solid";
 import { cn } from "@/lib/utils";
@@ -40,12 +39,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ReportModal } from "@/app/_components/modals/ReportModal";
-
 type routerOutput = inferRouterOutputs<AppRouter>;
 type VendorProfileWithUser = routerOutput["vendor"]["getByUsername"];
 type Reviews = routerOutput["review"]["getForVendor"];
-
-// Modal from Header.tsx
 const Modal = ({
   children,
   onClose,
@@ -58,14 +54,12 @@ const Modal = ({
       onClose();
     }
   };
-
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "unset";
     };
   }, []);
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 sm:items-center sm:p-4"
@@ -80,8 +74,6 @@ const Modal = ({
     </div>
   );
 };
-
-// Main component
 const VendorProfileHeader = ({
   vendorProfile,
   isOwnProfile,
@@ -97,25 +89,17 @@ const VendorProfileHeader = ({
 }) => {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
-
-  // States
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalView, setModalView] = useState<"login" | "join">("login");
-
-  // Dropdown States
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
-
-  const [isReportOpen, setIsReportOpen] = useState(false); // Reporting state
-
+  const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTabsSticky, setIsTabsSticky] = useState(false);
   const [isHeaderSticky, setIsHeaderSticky] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const bannerRef = useRef<HTMLDivElement>(null);
-
-  // --- Data Fetching ---
   const { data: wallet } = api.payment.getWallet.useQuery(undefined, {
     enabled: !!user,
   });
@@ -124,8 +108,6 @@ const VendorProfileHeader = ({
       enabled: !!user,
     });
   const { data: searchList } = api.category.getSearchList.useQuery();
-
-  // --- Derived State ---
   const isVendor =
     user?.vendorProfile !== null && user?.vendorProfile !== undefined;
   const isGuest = !user;
@@ -135,8 +117,6 @@ const VendorProfileHeader = ({
   const displayName = isVendor
     ? (user?.vendorProfile?.companyName ?? user?.username)
     : (user?.clientProfile?.name ?? user?.username);
-
-  // --- Handlers ---
   const openModal = (view: "login" | "join") => {
     setModalView(view);
     setIsModalOpen(true);
@@ -144,7 +124,6 @@ const VendorProfileHeader = ({
   };
   const closeModal = () => setIsModalOpen(false);
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
-
   const sendMessage = api.chat.sendMessage.useMutation();
   const createConversation = api.chat.getOrCreateConversation.useMutation({
     onSuccess: (data) => {
@@ -159,7 +138,6 @@ const VendorProfileHeader = ({
       toast.error("Failed to create conversation. Please try again.");
     },
   });
-
   const handleContactVendor = () => {
     if (!user) {
       toast.info("Please sign in to contact this vendor");
@@ -174,20 +152,15 @@ const VendorProfileHeader = ({
       toast.error("You cannot message yourself");
       return;
     }
-
     createConversation.mutate({
       otherUserId: vendorProfile.userId,
     });
   };
-
   const toggleProfileDropdown = () => {
     setIsProfileDropdownOpen(!isProfileDropdownOpen);
   };
-
-  // --- Scroll Effects ---
   useEffect(() => {
     const HEADER_STICKY_HEIGHT = 64;
-
     const handleScroll = () => {
       const bannerBottom =
         bannerRef.current?.getBoundingClientRect().bottom ?? 0;
@@ -198,18 +171,14 @@ const VendorProfileHeader = ({
       } else {
         setIsHeaderSticky(false);
       }
-
       if (tabsRef.current) {
         const { top } = tabsRef.current.getBoundingClientRect();
         setIsTabsSticky(top <= HEADER_STICKY_HEIGHT);
       }
     };
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  // --- Click Outside ---
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -226,12 +195,10 @@ const VendorProfileHeader = ({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isProfileDropdownOpen]);
-
   const headerTextColor = isHeaderSticky ? "text-gray-800" : "text-white";
   const headerIconColor = isHeaderSticky
     ? "text-gray-600 hover:text-pink-500"
     : "text-white hover:text-pink-300";
-
   return (
     <>
       <div ref={headerRef} className="relative bg-white pb-4">
@@ -261,7 +228,6 @@ const VendorProfileHeader = ({
                 />
               </Link>
             </div>
-
             <div className="mx-4 hidden grow sm:flex lg:mx-16">
               {searchList && (
                 <GlobalSearch
@@ -270,7 +236,6 @@ const VendorProfileHeader = ({
                 />
               )}
             </div>
-
             {loading ? (
               <div className="flex items-center space-x-6">
                 <Skeleton className="h-6 w-24" />
@@ -343,7 +308,6 @@ const VendorProfileHeader = ({
                 <NotificationDropdown
                   className={cn("hidden md:flex", headerIconColor)}
                 />
-
                 {/* --- Profile Dropdown Section --- */}
                 <div
                   className="relative ml-2 flex items-center gap-1"
@@ -372,7 +336,6 @@ const VendorProfileHeader = ({
                       )}
                     </div>
                   </Link>
-
                   {/* Caret Trigger */}
                   <button
                     onClick={toggleProfileDropdown}
@@ -391,7 +354,6 @@ const VendorProfileHeader = ({
                   >
                     <ChevronDown className="h-4 w-4" />
                   </button>
-
                   {/* Dropdown Menu */}
                   {isProfileDropdownOpen && (
                     <div className="absolute top-full right-0 z-50 mt-2 w-56 origin-top-right rounded-xl border border-gray-100 bg-white shadow-lg ring-1 ring-black/5 focus:outline-none">
@@ -403,7 +365,6 @@ const VendorProfileHeader = ({
                           @{user?.username}
                         </p>
                       </div>
-
                       <div className="p-1">
                         {/* <Link
                           href={
@@ -416,7 +377,6 @@ const VendorProfileHeader = ({
                         >
                           <UserIcon className="h-4 w-4" /> Profile
                         </Link> */}
-
                         <Link
                           href="/settings"
                           className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -425,7 +385,6 @@ const VendorProfileHeader = ({
                           <Settings className="h-4 w-4" /> Settings
                         </Link>
                       </div>
-
                       <div className="border-t border-gray-100 p-1">
                         <button
                           onClick={() => {
@@ -444,7 +403,6 @@ const VendorProfileHeader = ({
             )}
           </div>
         </header>
-
         {/* --- Banner --- */}
         <div
           ref={bannerRef}
@@ -459,7 +417,6 @@ const VendorProfileHeader = ({
           />
           <div className="absolute inset-0 bg-linear-to-t from-white via-white/50 to-black/30"></div>
         </div>
-
         {/* --- Profile Content --- */}
         <div className="relative container mx-auto max-w-4xl px-4">
           <div className="-mt-24 flex flex-col items-center sm:flex-row sm:items-end sm:justify-between">
@@ -486,7 +443,6 @@ const VendorProfileHeader = ({
                 </p>
               </div>
             </div>
-
             {/* Actions */}
             <div className="mt-4 flex items-center space-x-2 sm:mt-0">
               {isOwnProfile ? (
@@ -521,7 +477,6 @@ const VendorProfileHeader = ({
                     )}
                     Request Quote
                   </button>
-
                   {/* Reporting Popover for Vendors */}
                   <Popover>
                     <PopoverTrigger asChild>
@@ -545,7 +500,6 @@ const VendorProfileHeader = ({
               )}
             </div>
           </div>
-
           {/* ABOUT DISPLAY */}
           <div className="mt-6 border-t border-gray-100 pt-6">
             <h3 className="mb-2 text-lg font-semibold text-gray-900">About</h3>
@@ -561,7 +515,6 @@ const VendorProfileHeader = ({
               </p>
             )}
           </div>
-
           {/* Stats */}
           <div className="mt-6 border-t border-gray-200 pt-4">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-500">
@@ -590,7 +543,6 @@ const VendorProfileHeader = ({
               </div>
             </div>
           </div>
-
           {/* Services */}
           {vendorProfile?.services && vendorProfile.services.length > 0 && (
             <div className="mt-4 border-t border-gray-200 pt-4">
@@ -607,7 +559,6 @@ const VendorProfileHeader = ({
             </div>
           )}
         </div>
-
         {/* --- Scrollable Tab Navigation --- */}
         <div
           ref={tabsRef}
@@ -639,7 +590,6 @@ const VendorProfileHeader = ({
           </div>
         </div>
       </div>
-
       {/* --- Floating Components --- */}
       <MobileMenu
         isOpen={isMobileMenuOpen}
@@ -657,7 +607,6 @@ const VendorProfileHeader = ({
           />
         </Modal>
       )}
-
       {/* Report Modal */}
       <ReportModal
         isOpen={isReportOpen}
@@ -667,7 +616,6 @@ const VendorProfileHeader = ({
     </>
   );
 };
-
 const TabButton = ({
   title,
   icon,
@@ -692,5 +640,4 @@ const TabButton = ({
     {title}
   </button>
 );
-
 export default VendorProfileHeader;

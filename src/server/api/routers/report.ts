@@ -6,10 +6,7 @@ import {
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { logActivity } from "../services/activityLogger";
-
 export const reportRouter = createTRPCRouter({
-  // --- USER ACTIONS ---
-
   create: protectedProcedure
     .input(
       z.object({
@@ -27,14 +24,12 @@ export const reportRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Validate: Must report SOMETHING
       if (!input.targetUserId && !input.targetPostId) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "You must specify a user or a post to report.",
         });
       }
-
       return ctx.db.report.create({
         data: {
           reporterId: ctx.user.id,
@@ -45,9 +40,6 @@ export const reportRouter = createTRPCRouter({
         },
       });
     }),
-
-  // --- ADMIN ACTIONS ---
-
   getAll: adminProcedure
     .input(
       z.object({
@@ -80,22 +72,19 @@ export const reportRouter = createTRPCRouter({
           },
           targetPost: {
             include: {
-              assets: { take: 1 }, // Show first image in admin preview
+              assets: { take: 1 },
               author: { select: { username: true } },
             },
           },
         },
       });
-
       let nextCursor: typeof input.cursor | undefined = undefined;
       if (reports.length > input.limit) {
         const nextItem = reports.pop();
         nextCursor = nextItem!.id;
       }
-
       return { reports, nextCursor };
     }),
-
   resolveReport: adminProcedure
     .input(
       z.object({
@@ -114,12 +103,9 @@ export const reportRouter = createTRPCRouter({
         where: { id: input.reportId },
         include: { targetPost: true },
       });
-
       if (!report) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Report not found" });
       }
-
-      // Perform Action
       if (input.action === "BAN_USER") {
         const userIdToBan = report.targetUserId || report.targetPost?.authorId;
         if (userIdToBan) {
@@ -149,10 +135,7 @@ export const reportRouter = createTRPCRouter({
           });
         }
       }
-
-      // Update Report Status
       const finalStatus = input.action === "DISMISS" ? "DISMISSED" : "RESOLVED";
-
       const updatedReport = await ctx.db.report.update({
         where: { id: input.reportId },
         data: {
@@ -162,8 +145,6 @@ export const reportRouter = createTRPCRouter({
           resolutionNotes: input.notes,
         },
       });
-
-      // Log Admin Activity
       await logActivity({
         ctx,
         action: "REPORT_RESOLVE",
@@ -171,7 +152,6 @@ export const reportRouter = createTRPCRouter({
         entityId: report.id,
         details: { action: input.action, notes: input.notes },
       });
-
       return updatedReport;
     }),
 });

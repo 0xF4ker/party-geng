@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
@@ -23,10 +22,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
 export default function AdminSettingsPage() {
   const utils = api.useUtils();
-
   const [formData, setFormData] = useState({
     serviceFeePercent: 5.0,
     minWithdrawalAmount: 2000,
@@ -38,9 +35,7 @@ export default function AdminSettingsPage() {
     supportEmail: "",
     supportPhone: "",
   });
-
   const { data: settings, isLoading } = api.admin.getGlobalSettings.useQuery();
-
   useEffect(() => {
     if (settings) {
       setFormData({
@@ -56,7 +51,6 @@ export default function AdminSettingsPage() {
       });
     }
   }, [settings]);
-
   const mutation = api.admin.updateGlobalSettings.useMutation({
     onSuccess: () => {
       toast.success("System settings updated");
@@ -64,11 +58,9 @@ export default function AdminSettingsPage() {
     },
     onError: (err) => toast.error(err.message),
   });
-
   const handleSave = () => {
     mutation.mutate(formData);
   };
-
   if (isLoading) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -76,7 +68,6 @@ export default function AdminSettingsPage() {
       </div>
     );
   }
-
   return (
     <div className="w-full space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -101,7 +92,6 @@ export default function AdminSettingsPage() {
           Save Changes
         </Button>
       </div>
-
       <div className="grid gap-6">
         {/* 1. FINANCIAL CONFIGURATION */}
         <Card>
@@ -135,7 +125,6 @@ export default function AdminSettingsPage() {
                 Taken from Vendor earnings per order.
               </p>
             </div>
-
             <div className="space-y-2">
               <Label>Vendor One-Time Fee (₦)</Label>
               <Input
@@ -152,7 +141,6 @@ export default function AdminSettingsPage() {
                 Fee charged to vendors after KYB verification.
               </p>
             </div>
-
             <div className="space-y-2">
               <Label>Min Withdrawal (₦)</Label>
               <Input
@@ -166,7 +154,6 @@ export default function AdminSettingsPage() {
                 }
               />
             </div>
-
             <div className="space-y-2">
               <Label>Payout Delay (Days)</Label>
               <Input
@@ -185,7 +172,6 @@ export default function AdminSettingsPage() {
             </div>
           </CardContent>
         </Card>
-
         {/* 2. ACCESS & SECURITY */}
         <Card>
           <CardHeader>
@@ -211,7 +197,6 @@ export default function AdminSettingsPage() {
                 }
               />
             </div>
-
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
@@ -229,7 +214,6 @@ export default function AdminSettingsPage() {
                 }
               />
             </div>
-
             <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 p-4">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2 text-red-700">
@@ -252,7 +236,6 @@ export default function AdminSettingsPage() {
             </div>
           </CardContent>
         </Card>
-
         {/* 3. CONTACT INFO */}
         <Card>
           <CardHeader>

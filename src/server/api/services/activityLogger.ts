@@ -1,10 +1,8 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
-
 type LoggingContext = {
   db: PrismaClient;
   user: { id: string } | null;
 };
-
 interface LogActivityParams {
   ctx: LoggingContext;
   action: string;
@@ -12,7 +10,6 @@ interface LogActivityParams {
   entityId?: string;
   details?: Prisma.InputJsonValue;
 }
-
 export const logActivity = async ({
   ctx,
   action,
@@ -21,7 +18,6 @@ export const logActivity = async ({
   details,
 }: LogActivityParams) => {
   if (!ctx.user) return;
-
   try {
     await ctx.db.activityLog.create({
       data: {
@@ -29,7 +25,6 @@ export const logActivity = async ({
         action,
         entityType,
         entityId,
-        // Prisma.DbNull is a value, so we needed the import fix above
         details: details ?? Prisma.DbNull,
       },
     });

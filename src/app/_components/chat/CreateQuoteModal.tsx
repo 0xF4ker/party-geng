@@ -6,21 +6,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-
 interface QuoteModalProps {
   conversationId: string;
-  clientId: string; // The ID of the user receiving the quote
+  clientId: string;
   onClose: () => void;
   onSuccess: () => void;
 }
-
 interface FormState {
   title: string;
-  price: string; // String for input handling, converted on submit
+  price: string;
   eventDate: string;
   includes: string;
 }
-
 export const CreateQuoteModal = ({
   conversationId,
   clientId,
@@ -28,8 +25,6 @@ export const CreateQuoteModal = ({
   onSuccess,
 }: QuoteModalProps) => {
   const { user } = useAuth();
-
-  // Form State
   const [form, setForm] = useState<FormState>({
     title: "",
     price: "",
@@ -38,33 +33,24 @@ export const CreateQuoteModal = ({
   });
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
   const [open, setOpen] = useState(false);
-
-  // 1. Fetch Vendor Services to populate dropdown
   const { data: vendorProfile, isLoading: isLoadingServices } =
     api.vendor.getMyProfile.useQuery(undefined, {
       enabled: user?.role === "VENDOR",
-      staleTime: 1000 * 60 * 5, // Cache for 5 mins
+      staleTime: 1000 * 60 * 5,
     });
-
   const services = useMemo(() => vendorProfile?.services.map(s => s.service) ?? [], [vendorProfile]);
-
-  // 2. Mutation
   const createQuote = api.quote.create.useMutation({
     onSuccess: () => {
       onSuccess();
     },
   });
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedServiceIds.length === 0) return;
-
-    // Convert includes string (newlines) to array
     const includesArray = form.includes
       .split("\n")
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
-
     createQuote.mutate({
       serviceIds: selectedServiceIds,
       clientId,
@@ -75,7 +61,6 @@ export const CreateQuoteModal = ({
       includes: includesArray,
     });
   };
-
   return (
     <div className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm transition-opacity duration-200">
       <div className="animate-in zoom-in-95 w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl duration-200">
@@ -91,7 +76,6 @@ export const CreateQuoteModal = ({
             <X className="h-5 w-5" />
           </button>
         </div>
-
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5 p-6">
           {/* Service Selection */}
@@ -179,7 +163,6 @@ export const CreateQuoteModal = ({
                 required
               />
           </div>
-
           <div className="grid grid-cols-2 gap-5">
             {/* Price */}
             <div>
@@ -196,7 +179,6 @@ export const CreateQuoteModal = ({
                 min="0"
               />
             </div>
-
             {/* Date */}
             <div>
               <label className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -213,7 +195,6 @@ export const CreateQuoteModal = ({
               />
             </div>
           </div>
-
           {/* Includes */}
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-gray-700">
@@ -231,7 +212,6 @@ export const CreateQuoteModal = ({
               required
             />
           </div>
-
           {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button

@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect } from "react";
 import {
   Star,
@@ -22,33 +21,25 @@ import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { useUserType } from "@/hooks/useUserType";
 import { useRouter } from "next/navigation";
-
 type routerOutput = inferRouterOutputs<AppRouter>;
 type quote = routerOutput["quote"]["getMyQuotesAsVendor"][0];
 type order = routerOutput["order"]["getMyActiveOrders"][0];
-
-// --- Main Page Component ---
 const VendorDashboardPage = () => {
   const { isVendor, loading } = useUserType();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("leads");
-
-  // Fetch real data from API
   const { data: pendingQuotes, isLoading: quotesLoading } =
     api.quote.getMyQuotesAsVendor.useQuery({
       status: "PENDING",
     });
   const { data: activeOrders, isLoading: ordersLoading } =
     api.order.getMyActiveOrders.useQuery();
-
   const { data: wallet } = api.payment.getWallet.useQuery();
-
   useEffect(() => {
     if (!loading && !isVendor) {
       router.push("/");
     }
   }, [loading, isVendor, router]);
-
   if (loading || !isVendor) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -56,7 +47,6 @@ const VendorDashboardPage = () => {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
       {/* Container */}
@@ -74,11 +64,9 @@ const VendorDashboardPage = () => {
               <VendorSidebar />
             </div>
           </div>
-
           {/* Right Column (Main Content) */}
           <div className="space-y-8 lg:col-span-3">
             <h1 className="text-3xl font-bold text-gray-800">Welcome back!</h1>
-
             {/* Alert */}
             {/* <div className="rounded-md border-l-4 border-yellow-400 bg-yellow-50 p-4 shadow-sm">
               <div className="flex">
@@ -99,7 +87,6 @@ const VendorDashboardPage = () => {
                 </div>
               </div>
             </div> */}
-
             {/* "Our Twist": Key Metric Cards */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               <StatCard
@@ -123,7 +110,6 @@ const VendorDashboardPage = () => {
                 color="text-purple-600 bg-purple-100"
               />
             </div>
-
             {/* Main Task Area */}
             <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
               <div className="flex items-center border-b border-gray-200">
@@ -140,7 +126,6 @@ const VendorDashboardPage = () => {
                   onClick={() => setActiveTab("orders")}
                 />
               </div>
-
               {/* Tab Content */}
               <div className="p-4 sm:p-6">
                 {activeTab === "leads" && (
@@ -163,14 +148,10 @@ const VendorDashboardPage = () => {
     </div>
   );
 };
-
-// --- Sub-Components ---
-
 const VendorSidebar = () => {
   const [isAvailable, setIsAvailable] = useState(true);
   const { data: vendorProfile } = api.vendor.getMyProfile.useQuery();
   const { data: wallet } = api.payment.getWallet.useQuery();
-
   return (
     <div className="space-y-6">
       {/* Profile Card */}
@@ -202,7 +183,6 @@ const VendorSidebar = () => {
           </button>
         </Link>
       </div>
-
       {/* Performance Card */}
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h3 className="mb-4 text-lg font-semibold">Performance</h3>
@@ -222,7 +202,6 @@ const VendorSidebar = () => {
           </li>
         </ul>
       </div>
-
       {/* Availability Card */}
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h3 className="mb-3 text-lg font-semibold">Availability</h3>
@@ -249,7 +228,6 @@ const VendorSidebar = () => {
           </span>
         </button>
       </div>
-
       {/* Wallet Balance Card */}
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="mb-2 flex items-center justify-between">
@@ -267,7 +245,6 @@ const VendorSidebar = () => {
     </div>
   );
 };
-
 const StatCard = ({
   title,
   value,
@@ -291,7 +268,6 @@ const StatCard = ({
     </div>
   </div>
 );
-
 const TabButton = ({
   title,
   count,
@@ -323,7 +299,6 @@ const TabButton = ({
     </span>
   </button>
 );
-
 const NewLeadsSection = ({
   quotes,
   isLoading,
@@ -338,7 +313,6 @@ const NewLeadsSection = ({
       </div>
     );
   }
-
   if (!quotes || quotes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
@@ -348,7 +322,6 @@ const NewLeadsSection = ({
       </div>
     );
   }
-
   return (
     <div className="space-y-4">
       {quotes.map((quote) => (
@@ -391,7 +364,6 @@ const NewLeadsSection = ({
     </div>
   );
 };
-
 const ActiveOrdersSection = ({
   orders,
   isLoading,
@@ -406,7 +378,6 @@ const ActiveOrdersSection = ({
       </div>
     );
   }
-
   if (!orders || orders.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
@@ -418,7 +389,6 @@ const ActiveOrdersSection = ({
       </div>
     );
   }
-
   return (
     <div className="space-y-4">
       {orders.map((order) => (
@@ -448,5 +418,4 @@ const ActiveOrdersSection = ({
     </div>
   );
 };
-
 export default VendorDashboardPage;

@@ -1,5 +1,4 @@
 "use client";
-
 import React from "react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
@@ -7,18 +6,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, UserPlus, Lock } from "lucide-react";
-
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type EventDetails = RouterOutput["event"]["getById"];
 type HiredVendor = EventDetails["hiredVendors"][number];
-
 interface BookedVendorsCardProps {
   vendors: HiredVendor[];
   _eventId: string;
   onAdd: () => void;
-  isPast?: boolean; // Added Prop
+  isPast?: boolean;
 }
-
 export const BookedVendorsCard = ({
   vendors,
   _eventId,

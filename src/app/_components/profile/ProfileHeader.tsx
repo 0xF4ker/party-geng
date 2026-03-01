@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -19,9 +18,9 @@ import {
   Grid3x3,
   Flame,
   Flag,
-  ChevronDown, // Added
-  LogOut, // Added
-  User as UserIcon, // Added (Aliased to avoid conflict with User type)
+  ChevronDown,
+  LogOut,
+  User as UserIcon,
 } from "lucide-react";
 import { EnvelopeIcon } from "@heroicons/react/24/solid";
 import { cn } from "@/lib/utils";
@@ -42,12 +41,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ReportModal } from "@/app/_components/modals/ReportModal";
-
 type routerOutput = inferRouterOutputs<AppRouter>;
 type User = routerOutput["user"]["getByUsername"];
 type ClientProfile = User["clientProfile"];
-
-// Modal from Header.tsx (Internal helper)
 const Modal = ({
   children,
   onClose,
@@ -60,14 +56,12 @@ const Modal = ({
       onClose();
     }
   };
-
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "unset";
     };
   }, []);
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 sm:items-center sm:p-4"
@@ -82,8 +76,6 @@ const Modal = ({
     </div>
   );
 };
-
-// --- Main Component ---
 const ProfileHeader = ({
   clientProfile,
   profileUser,
@@ -99,24 +91,17 @@ const ProfileHeader = ({
 }) => {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
-
-  // States from Header logic
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalView, setModalView] = useState<"login" | "join">("login");
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
-
-  // States for Profile Header UI
   const [isTabsSticky, setIsTabsSticky] = useState(false);
   const [isHeaderSticky, setIsHeaderSticky] = useState(false);
-  const [isReportOpen, setIsReportOpen] = useState(false); // Reporting State
-
+  const [isReportOpen, setIsReportOpen] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const bannerRef = useRef<HTMLDivElement>(null);
-
-  // --- Data Fetching ---
   const { data: wallet } = api.payment.getWallet.useQuery(undefined, {
     enabled: !!user,
   });
@@ -125,12 +110,8 @@ const ProfileHeader = ({
       enabled: !!user,
     });
   const { data: searchList } = api.category.getSearchList.useQuery();
-
-  // --- Logic for Real Stats ---
   const completedHires = profileUser.clientOrders?.length ?? 0;
   const eventsHosted = profileUser.clientProfile?._count?.events ?? 0;
-
-  // --- Conversation Mutation ---
   const sendMessage = api.chat.sendMessage.useMutation();
   const createConversation = api.chat.getOrCreateConversation.useMutation({
     onSuccess: (data) => {
@@ -148,8 +129,6 @@ const ProfileHeader = ({
       }
     },
   });
-
-  // --- Derived State ---
   const isVendor =
     user?.vendorProfile !== null && user?.vendorProfile !== undefined;
   const isGuest = !user;
@@ -159,8 +138,6 @@ const ProfileHeader = ({
   const displayName = isVendor
     ? (user?.vendorProfile?.companyName ?? user?.username)
     : (user?.clientProfile?.name ?? user?.username);
-
-  // --- Handlers ---
   const openModal = (view: "login" | "join") => {
     setModalView(view);
     setIsModalOpen(true);
@@ -168,7 +145,6 @@ const ProfileHeader = ({
   };
   const closeModal = () => setIsModalOpen(false);
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
-
   const handleContactClient = () => {
     if (!user) {
       toast.info("Please sign in to message this user.");
@@ -183,20 +159,15 @@ const ProfileHeader = ({
       toast.error("You cannot message yourself.");
       return;
     }
-
     createConversation.mutate({
       otherUserId: profileUser.id,
     });
   };
-
   const toggleProfileDropdown = () => {
     setIsProfileDropdownOpen(!isProfileDropdownOpen);
   };
-
-  // --- Scroll Effects ---
   useEffect(() => {
     const HEADER_STICKY_HEIGHT = 64;
-
     const handleScroll = () => {
       const bannerBottom =
         bannerRef.current?.getBoundingClientRect().bottom ?? 0;
@@ -207,18 +178,14 @@ const ProfileHeader = ({
       } else {
         setIsHeaderSticky(false);
       }
-
       if (tabsRef.current) {
         const { top } = tabsRef.current.getBoundingClientRect();
         setIsTabsSticky(top <= HEADER_STICKY_HEIGHT);
       }
     };
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  // --- Click Outside for Dropdown ---
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -235,12 +202,10 @@ const ProfileHeader = ({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isProfileDropdownOpen]);
-
   const headerTextColor = isHeaderSticky ? "text-gray-800" : "text-white";
   const headerIconColor = isHeaderSticky
     ? "text-gray-600 hover:text-pink-500"
     : "text-white hover:text-pink-300";
-
   return (
     <>
       <div ref={headerRef} className="relative bg-white pb-4">
@@ -270,7 +235,6 @@ const ProfileHeader = ({
                 />
               </Link>
             </div>
-
             <div className="mx-4 hidden grow sm:flex lg:mx-16">
               {searchList && (
                 <GlobalSearch
@@ -279,7 +243,6 @@ const ProfileHeader = ({
                 />
               )}
             </div>
-
             {/* Nav Items */}
             {loading ? (
               <div className="flex items-center space-x-6">
@@ -353,7 +316,6 @@ const ProfileHeader = ({
                 <NotificationDropdown
                   className={cn("hidden md:flex", headerIconColor)}
                 />
-
                 {/* --- Profile Dropdown Section --- */}
                 <div
                   className="relative ml-2 flex items-center gap-1"
@@ -382,7 +344,6 @@ const ProfileHeader = ({
                       )}
                     </div>
                   </Link>
-
                   {/* Caret Trigger */}
                   <button
                     onClick={toggleProfileDropdown}
@@ -401,7 +362,6 @@ const ProfileHeader = ({
                   >
                     <ChevronDown className="h-4 w-4" />
                   </button>
-
                   {/* Dropdown Menu */}
                   {isProfileDropdownOpen && (
                     <div className="absolute top-full right-0 z-50 mt-2 w-56 origin-top-right rounded-xl border border-gray-100 bg-white shadow-lg ring-1 ring-black/5 focus:outline-none">
@@ -413,7 +373,6 @@ const ProfileHeader = ({
                           @{user?.username}
                         </p>
                       </div>
-
                       <div className="p-1">
                         {/* <Link
                           href={
@@ -426,7 +385,6 @@ const ProfileHeader = ({
                         >
                           <UserIcon className="h-4 w-4" /> Profile
                         </Link> */}
-
                         <Link
                           href="/settings"
                           className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -435,7 +393,6 @@ const ProfileHeader = ({
                           <Settings className="h-4 w-4" /> Settings
                         </Link>
                       </div>
-
                       <div className="border-t border-gray-100 p-1">
                         <button
                           onClick={() => {
@@ -454,7 +411,6 @@ const ProfileHeader = ({
             )}
           </div>
         </header>
-
         {/* --- Banner Image --- */}
         <div
           ref={bannerRef}
@@ -469,7 +425,6 @@ const ProfileHeader = ({
           />
           <div className="absolute inset-0 bg-linear-to-t from-white via-white/50 to-black/30"></div>
         </div>
-
         {/* --- Profile Content --- */}
         <div className="relative container mx-auto max-w-4xl px-4">
           <div className="-mt-24 flex items-end justify-between sm:-mt-28">
@@ -487,7 +442,6 @@ const ProfileHeader = ({
                 {clientProfile?.name?.charAt(0).toUpperCase() ?? "C"}
               </div>
             )}
-
             {/* Actions (Message / Edit / Report) */}
             <div className="flex items-center space-x-2 pb-4">
               {isOwnProfile ? (
@@ -522,7 +476,6 @@ const ProfileHeader = ({
                     )}
                     Message
                   </button>
-
                   {/* Reporting Popover */}
                   <Popover>
                     <PopoverTrigger asChild>
@@ -546,7 +499,6 @@ const ProfileHeader = ({
               )}
             </div>
           </div>
-
           {/* User Details */}
           <div className="mt-4">
             <h1 className="text-2xl font-bold">
@@ -554,7 +506,6 @@ const ProfileHeader = ({
             </h1>
             <p className="text-sm text-gray-500">@{profileUser.username}</p>
           </div>
-
           {/* BIO DISPLAY */}
           <div className="mt-4 max-w-2xl">
             {clientProfile?.bio ? (
@@ -569,7 +520,6 @@ const ProfileHeader = ({
               </p>
             )}
           </div>
-
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
             {clientProfile?.location && (
               <div className="flex items-center gap-1">
@@ -596,7 +546,6 @@ const ProfileHeader = ({
               </span>
             </div>
           </div>
-
           {/* Real Stats */}
           <div className="mt-4 flex items-center space-x-6">
             <div className="text-sm">
@@ -609,7 +558,6 @@ const ProfileHeader = ({
             </div>
           </div>
         </div>
-
         {/* --- Scrollable Tabs --- */}
         <div
           ref={tabsRef}
@@ -653,7 +601,6 @@ const ProfileHeader = ({
           </div>
         </div>
       </div>
-
       {/* --- Floating Components --- */}
       <MobileMenu
         isOpen={isMobileMenuOpen}
@@ -671,7 +618,6 @@ const ProfileHeader = ({
           />
         </Modal>
       )}
-
       {/* Report Modal */}
       <ReportModal
         isOpen={isReportOpen}
@@ -681,7 +627,6 @@ const ProfileHeader = ({
     </>
   );
 };
-
 const TabButton = ({
   title,
   icon,
@@ -706,5 +651,4 @@ const TabButton = ({
     {title}
   </button>
 );
-
 export default ProfileHeader;

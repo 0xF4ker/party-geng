@@ -5,14 +5,11 @@ import {
 } from "@trpc/client";
 import SuperJSON from "superjson";
 import { type AppRouter } from "@/server/api/root";
-
-// Helper to get the base URL (Same as your React setup)
 function getBaseUrl() {
   if (typeof window !== "undefined") return window.location.origin;
   if (process.env.NEXT_PUBLIC_BASE_URL) return `https://${process.env.NEXT_PUBLIC_BASE_URL}`;
   return `http://localhost:${process.env.PORT ?? 3000}`;
 }
-
 export const client = createTRPCClient<AppRouter>({
   links: [
     loggerLink({
@@ -25,7 +22,7 @@ export const client = createTRPCClient<AppRouter>({
       url: getBaseUrl() + "/api/trpc",
       headers: () => {
         const headers = new Headers();
-        headers.set("x-trpc-source", "nextjs-vanilla"); // specific header for tracking
+        headers.set("x-trpc-source", "nextjs-vanilla");
         return headers;
       },
     }),

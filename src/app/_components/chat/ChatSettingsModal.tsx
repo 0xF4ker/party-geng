@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import {
   Dialog,
@@ -23,18 +22,15 @@ import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-
 interface ChatSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
 export const ChatSettingsModal = ({
   isOpen,
   onClose,
 }: ChatSettingsModalProps) => {
   const [activeTab, setActiveTab] = useState<"general" | "privacy">("general");
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl gap-0 p-0">
@@ -44,7 +40,6 @@ export const ChatSettingsModal = ({
             Manage your messaging preferences and privacy.
           </DialogDescription>
         </DialogHeader>
-
         <div className="flex h-[500px]">
           {/* Sidebar */}
           <div className="w-1/3 space-y-1 border-r bg-gray-50/50 p-2">
@@ -71,7 +66,6 @@ export const ChatSettingsModal = ({
               Privacy & Blocking
             </button>
           </div>
-
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
             {activeTab === "general" ? (
@@ -85,21 +79,17 @@ export const ChatSettingsModal = ({
     </Dialog>
   );
 };
-
 const GeneralSettings = () => {
   const utils = api.useUtils();
   const { data: settings, isLoading } = api.chat.getSettings.useQuery();
-
   const mutation = api.chat.updateSettings.useMutation({
     onMutate: async (newSettings) => {
       await utils.chat.getSettings.cancel();
       const previousSettings = utils.chat.getSettings.getData();
-
       utils.chat.getSettings.setData(undefined, (old) => {
         if (!old) return undefined;
         return { ...old, ...newSettings };
       });
-
       return { previousSettings };
     },
     onError: (err, newSettings, context) => {
@@ -115,11 +105,9 @@ const GeneralSettings = () => {
       void utils.chat.getSettings.invalidate();
     },
   });
-
   const toggle = async (key: string, value: boolean | string) => {
     await mutation.mutateAsync({ [key]: value });
   };
-
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
@@ -127,9 +115,7 @@ const GeneralSettings = () => {
       </div>
     );
   }
-
   if (!settings) return null;
-
   return (
     <div className="space-y-8">
       <div className="space-y-4">
@@ -161,7 +147,6 @@ const GeneralSettings = () => {
           />
         </div>
       </div>
-
       <div className="space-y-4">
         <h3 className="text-sm font-medium tracking-wider text-gray-500 uppercase">
           Notifications
@@ -206,7 +191,6 @@ const GeneralSettings = () => {
           />
         </div>
       </div>
-
       <div className="space-y-4">
         <h3 className="text-sm font-medium tracking-wider text-gray-500 uppercase">
           Appearance
@@ -240,7 +224,6 @@ const GeneralSettings = () => {
     </div>
   );
 };
-
 const PrivacySettings = () => {
   const {
     data: blockedUsers,
@@ -248,17 +231,14 @@ const PrivacySettings = () => {
     refetch,
   } = api.user.getBlockedUsers.useQuery();
   const utils = api.useUtils();
-
   const unblockMutation = api.user.unblockUser.useMutation({
     onSuccess: () => {
       toast.success("User unblocked");
       void refetch();
-      // Invalidate conversations to refresh lists if needed
       void utils.chat.getConversations.invalidate();
     },
     onError: (err) => toast.error(err.message),
   });
-
   return (
     <div className="space-y-6">
       <div>
@@ -268,7 +248,6 @@ const PrivacySettings = () => {
         <p className="mb-6 text-sm text-gray-600">
           Blocked users cannot message you or view your profile.
         </p>
-
         {isLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-pink-600" />

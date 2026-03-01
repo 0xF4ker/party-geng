@@ -1,21 +1,17 @@
 "use client";
-
 import React from "react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { Button } from "@/components/ui/button";
 import { UsersIcon } from "lucide-react";
-
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type EventDetails = RouterOutput["event"]["getById"];
 type GuestLists = EventDetails["guestLists"];
-
 interface GuestListCardProps {
   guestLists: GuestLists;
   _eventId: string;
   onManage: () => void;
 }
-
 export const GuestListCard = ({
   guestLists,
   _eventId,
@@ -23,7 +19,6 @@ export const GuestListCard = ({
 }: GuestListCardProps) => {
   const totalGuests =
     guestLists?.reduce((acc, list) => acc + list.guests.length, 0) ?? 0;
-
   return (
     <div className="rounded-lg bg-white p-6 shadow-md">
       <h3 className="text-xl font-bold text-gray-900">Guest List</h3>

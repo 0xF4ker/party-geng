@@ -19,13 +19,9 @@ import { createId } from "@paralleldrive/cuid2";
 import { useUpload } from "@/hooks/useUpload";
 import Image from "next/image";
 const api = createTRPCReact<AppRouter>();
-
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type EventDetails = RouterOutput["event"]["getById"];
 type Post = EventDetails["boardPosts"][number];
-
-// --- Constants ---
-
 const NOTE_COLORS = [
   { bg: "bg-yellow-100", text: "text-yellow-900", border: "border-yellow-200" },
   { bg: "bg-rose-100", text: "text-rose-900", border: "border-rose-200" },
@@ -37,18 +33,14 @@ const NOTE_COLORS = [
   { bg: "bg-sky-100", text: "text-sky-900", border: "border-sky-200" },
   { bg: "bg-violet-100", text: "text-violet-900", border: "border-violet-200" },
 ];
-
-// --- Sub-Components ---
-
 const ModernPin = () => (
   <div className="pointer-events-none absolute -top-3 left-1/2 z-20 -translate-x-1/2 transform">
     <div className="h-3 w-3 rounded-full border border-slate-600 bg-slate-800 shadow-sm"></div>
   </div>
 );
-
 const DeleteButton = ({ onClick }: { onClick: () => void }) => (
   <button
-    onMouseDown={(e) => e.stopPropagation()} // Prevent drag start
+    onMouseDown={(e) => e.stopPropagation()}
     onClick={(e) => {
       e.stopPropagation();
       onClick();
@@ -71,8 +63,6 @@ const DeleteButton = ({ onClick }: { onClick: () => void }) => (
     </svg>
   </button>
 );
-
-// Draggable Wrapper
 const DraggableItem = ({
   post,
   onUpdatePosition,
@@ -90,51 +80,39 @@ const DraggableItem = ({
   const [pos, setPos] = useState({ x: post.x, y: post.y });
   const dragOffset = useRef({ x: 0, y: 0 });
   const nodeRef = useRef<HTMLDivElement>(null);
-
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
-
-    onFocus(); // Bring to front
-
-    // Sync to current props before starting drag
+    onFocus();
     setPos({ x: post.x, y: post.y });
     setIsDragging(true);
-
     const rect = nodeRef.current!.getBoundingClientRect();
     dragOffset.current = {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
     };
   };
-
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
       if (!isDragging || !nodeRef.current) return;
-
       const parentRect =
         nodeRef.current.offsetParent?.getBoundingClientRect() ?? {
           left: 0,
           top: 0,
         };
-
       let newX = e.clientX - parentRect.left - dragOffset.current.x;
       let newY = e.clientY - parentRect.top - dragOffset.current.y;
-
       newX = Math.max(0, newX);
       newY = Math.max(0, newY);
-
       setPos({ x: newX, y: newY });
     },
     [isDragging],
   );
-
   const handleMouseUp = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);
       onUpdatePosition(post.id, pos.x, pos.y, zIndex);
     }
   }, [isDragging, onUpdatePosition, post.id, pos.x, pos.y, zIndex]);
-
   useEffect(() => {
     if (isDragging) {
       window.addEventListener("mousemove", handleMouseMove);
@@ -148,7 +126,6 @@ const DraggableItem = ({
       window.removeEventListener("mouseup", handleMouseUp);
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
-
   return (
     <div
       ref={nodeRef}
@@ -167,7 +144,6 @@ const DraggableItem = ({
     </div>
   );
 };
-
 const NoteCard = ({
   post,
   userId,
@@ -180,7 +156,6 @@ const NoteCard = ({
   const color = NOTE_COLORS[post.colorIndex % NOTE_COLORS.length];
   const isCurrentUser = post.authorId === userId;
   const rotation = post.rotation;
-
   return (
     <div
       className={`group relative w-64 ${color?.bg} ${color?.text} min-h-40 rounded-lg border p-5 pt-7 shadow-sm hover:shadow-2xl ${color?.border} transition-shadow duration-300`}
@@ -191,11 +166,9 @@ const NoteCard = ({
     >
       <ModernPin />
       {isCurrentUser && <DeleteButton onClick={() => deletePost(post.id)} />}
-
       <div className="font-handwriting pointer-events-none mb-4 text-lg leading-relaxed font-medium">
         {post.content}
       </div>
-
       <div className="pointer-events-none mt-auto flex items-center justify-between border-t border-black/5 pt-3">
         <div className="flex items-center gap-1.5">
           <div
@@ -211,7 +184,6 @@ const NoteCard = ({
     </div>
   );
 };
-
 const ImageCard = ({
   post,
   userId,
@@ -223,7 +195,6 @@ const ImageCard = ({
 }) => {
   const isCurrentUser = post.authorId === userId;
   const rotation = post.rotation;
-
   return (
     <div
       className="group relative w-64 rounded-lg border border-slate-200 bg-white p-2 pb-4 shadow-sm transition-shadow duration-300 hover:shadow-2xl"
@@ -231,7 +202,6 @@ const ImageCard = ({
     >
       <ModernPin />
       {isCurrentUser && <DeleteButton onClick={() => deletePost(post.id)} />}
-
       <div className="pointer-events-none aspect-auto overflow-hidden rounded bg-slate-100">
         <Image
           src={post.content}
@@ -245,7 +215,6 @@ const ImageCard = ({
           }}
         />
       </div>
-
       <div className="pointer-events-none mt-3 flex items-center justify-between px-1">
         <span className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
           {post.authorName}
@@ -257,7 +226,6 @@ const ImageCard = ({
     </div>
   );
 };
-
 const InputStation = ({
   onPost,
   isPosting,
@@ -278,9 +246,6 @@ const InputStation = ({
   const [colorIdx, setColorIdx] = useState(0);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // FIX: This useEffect now ONLY handles cleanup of old URLs.
-  // It does NOT set state, avoiding the cascading render error.
   useEffect(() => {
     return () => {
       if (imagePreview) {
@@ -288,12 +253,9 @@ const InputStation = ({
       }
     };
   }, [imagePreview]);
-
-  // Helper to handle file selection and preview generation in one go
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     setImageFile(file);
-
     if (file) {
       const url = URL.createObjectURL(file);
       setImagePreview(url);
@@ -301,24 +263,20 @@ const InputStation = ({
       setImagePreview(null);
     }
   };
-
   const clearImageSelection = () => {
     setImageFile(null);
     setImagePreview(null);
   };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const postContent = type === "image" ? imageFile! : content;
     if (!postContent) return;
-
     onPost({ type, content: postContent, colorIdx });
     setContent("");
     clearImageSelection();
     if (type === "note") setColorIdx((prev) => (prev + 1) % NOTE_COLORS.length);
     setIsOpen(false);
   };
-
   if (!isOpen) {
     return (
       <button
@@ -330,7 +288,6 @@ const InputStation = ({
       </button>
     );
   }
-
   return (
     <div className="animate-in fade-in slide-in-from-top-4 pointer-events-auto relative mx-auto mb-8 w-full max-w-xl rounded-2xl border border-white/40 bg-white/90 p-1 shadow-xl ring-1 ring-black/5 backdrop-blur-xl duration-300">
       <button
@@ -351,7 +308,6 @@ const InputStation = ({
           />
         </svg>
       </button>
-
       <div className="mb-3 flex gap-1 rounded-xl bg-slate-100/50 p-1 pr-10">
         <button
           type="button"
@@ -382,7 +338,6 @@ const InputStation = ({
           Image
         </button>
       </div>
-
       <form onSubmit={handleSubmit} className="px-4 pb-4">
         <div className="group relative">
           {type === "note" ? (
@@ -399,7 +354,6 @@ const InputStation = ({
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                // FIX: Use the handler here instead of inline setState
                 onChange={handleFileSelect}
                 className="hidden"
               />
@@ -450,7 +404,6 @@ const InputStation = ({
               )}
             </div>
           )}
-
           {type === "note" && (
             <div className="mt-2 flex gap-1.5">
               {NOTE_COLORS.map((c, i) => (
@@ -470,7 +423,6 @@ const InputStation = ({
             </div>
           )}
         </div>
-
         <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <span className="h-2 w-2 animate-pulse rounded-full bg-green-400"></span>
@@ -491,29 +443,22 @@ const InputStation = ({
     </div>
   );
 };
-
-// --- Main Component ---
-
 export default function EventCollaborativeBoard() {
   const { eventId } = useParams<{ eventId: string }>();
   const { user } = useAuth();
   const utils = api.useUtils();
   const { headerHeight } = useUiStore();
   const { upload: uploadImage, isLoading: isUploading } = useUpload();
-
   const { data: event, isLoading } = api.event.getById.useQuery({
     id: eventId,
   });
-
   const initialPosts = useMemo(() => event?.boardPosts ?? [], [event]);
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [isPosting, setIsPosting] = useState(false);
   const [focusMap, setFocusMap] = useState<Record<string, number>>({});
-
   useEffect(() => {
     setPosts(initialPosts);
   }, [initialPosts]);
-
   useEffect(() => {
     const channel = supabase
       .channel(`board-posts:${eventId}`)
@@ -530,12 +475,10 @@ export default function EventCollaborativeBoard() {
         },
       )
       .subscribe();
-
     return () => {
       void supabase.removeChannel(channel);
     };
   }, [eventId, utils]);
-
   const addPostMutation = api.event.addBoardPost.useMutation({
     onMutate: async (newPost) => {
       setIsPosting(true);
@@ -569,7 +512,6 @@ export default function EventCollaborativeBoard() {
     },
     onSettled: () => setIsPosting(false),
   });
-
   const updatePositionMutation = api.event.updateBoardPostPosition.useMutation({
     onMutate: async (updatedPost) => {
       await utils.event.getById.cancel({ id: eventId });
@@ -596,7 +538,6 @@ export default function EventCollaborativeBoard() {
       void utils.event.getById.invalidate({ id: eventId });
     },
   });
-
   const deletePostMutation = api.event.deleteBoardPost.useMutation({
     onMutate: async (deletedPost) => {
       await utils.event.getById.cancel({ id: eventId });
@@ -623,7 +564,6 @@ export default function EventCollaborativeBoard() {
       void utils.event.getById.invalidate({ id: eventId });
     },
   });
-
   const handlePost = async ({
     type,
     content,
@@ -634,17 +574,14 @@ export default function EventCollaborativeBoard() {
     colorIdx: number;
   }) => {
     if (!user) return;
-
     let postContent = content as string;
     if (content instanceof File) {
       const url = await uploadImage(content, "board-images");
       if (!url) return;
       postContent = url;
     }
-
     const randomX = Math.random() * 400 + 100;
     const randomY = Math.random() * 300 + 200;
-
     addPostMutation.mutate({
       eventId,
       type: type === "note" ? BoardPostType.NOTE : BoardPostType.IMAGE,
@@ -656,44 +593,37 @@ export default function EventCollaborativeBoard() {
       rotation: Math.random() * 6 - 3,
     });
   };
-
   const handleUpdatePosition = useCallback(
     async (id: string, x: number, y: number, zIndex: number) => {
       updatePositionMutation.mutate({ id, x, y, zIndex });
     },
     [updatePositionMutation],
   );
-
   const deletePost = useCallback(
     async (id: string) => {
       deletePostMutation.mutate({ id });
     },
     [deletePostMutation],
   );
-
   const handleFocus = (id: string) => {
     setFocusMap((prev) => ({
       ...prev,
       [id]: (Math.max(...Object.values(prev), 0) || 10) + 1,
     }));
   };
-
   const boardSize = useMemo(() => {
     if (posts.length === 0) {
       return { width: "100%", height: "100%" };
     }
     const maxX = Math.max(0, ...posts.map((p) => p.x));
     const maxY = Math.max(0, ...posts.map((p) => p.y));
-
     const width = maxX + 400;
     const height = maxY + 400;
-
     return {
       width: `${width}px`,
       height: `${height}px`,
     };
   }, [posts]);
-
   if (isLoading || !event) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -701,7 +631,6 @@ export default function EventCollaborativeBoard() {
       </div>
     );
   }
-
   return (
     <div
       className="relative flex h-screen w-full flex-col overflow-hidden bg-slate-50 font-sans text-slate-900"
@@ -714,7 +643,6 @@ export default function EventCollaborativeBoard() {
           backgroundSize: "20px 20px",
         }}
       />
-
       <div className="p-6">
         <div className="pointer-events-auto flex flex-col items-center">
           <h2 className="mb-2 text-2xl font-bold tracking-tight text-slate-800 drop-shadow-sm">
@@ -727,7 +655,6 @@ export default function EventCollaborativeBoard() {
           />
         </div>
       </div>
-
       <div className="relative grow overflow-auto">
         {posts.length > 0 ? (
           <div className="relative" style={boardSize}>

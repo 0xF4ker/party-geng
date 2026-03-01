@@ -10,11 +10,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     }
   },
   auth: {
-    persistSession: false, // We're handling auth via tRPC/session
+    persistSession: false,
   }
 })
 
-// Database types for realtime
 export type RealtimeMessage = {
   id: string
   text: string

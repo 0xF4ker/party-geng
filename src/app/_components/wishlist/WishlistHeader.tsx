@@ -1,26 +1,21 @@
 "use client";
-
 import React from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Share2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-
 interface WishlistHeaderProps {
   title: string;
   coverImage?: string | null;
 }
-
 export const WishlistHeader = ({ title, coverImage }: WishlistHeaderProps) => {
     const router = useRouter();
-
     const handleShare = () => {
         const url = window.location.href;
         void navigator.clipboard.writeText(url);
         toast.success("Wishlist link copied to clipboard!");
     };
-
   return (
     <div className="relative h-60 w-full bg-gray-200">
       <Image
@@ -30,7 +25,6 @@ export const WishlistHeader = ({ title, coverImage }: WishlistHeaderProps) => {
         objectFit="cover"
       />
       <div className="absolute inset-0 bg-black/30" />
-
       <div className="absolute top-4 left-4 z-10 flex gap-2">
         <Button
             variant="ghost"
@@ -49,7 +43,6 @@ export const WishlistHeader = ({ title, coverImage }: WishlistHeaderProps) => {
             <Share2 />
         </Button>
       </div>
-
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white">
         <p className="font-medium">Help make their wishes come true for</p>
         <h1 className="mt-2 text-4xl font-bold tracking-tight">{title}</h1>

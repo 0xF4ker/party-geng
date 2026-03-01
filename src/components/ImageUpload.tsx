@@ -33,19 +33,15 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
-  // --- FIX: Sync preview with currentImage prop ---
   useEffect(() => {
-    // Only update if we aren't currently uploading (to avoid jitter)
     if (!uploading && currentImage !== undefined) {
       setPreview(currentImage);
     }
   }, [currentImage, uploading]);
 
-  // Parse the file path from an existing URL (for removal)
   const getPathFromUrl = (url: string) => {
     try {
       const { pathname } = new URL(url);
-      // Path is /storage/v1/object/public/bucket-name/file-path
       const path = pathname.split(`/${bucket}/`)[1]!;
       return path;
     } catch (error) {

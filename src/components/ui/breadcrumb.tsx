@@ -3,17 +3,14 @@ import React from 'react';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
 type BreadcrumbItem = {
   label: string;
   href: string;
 };
-
 interface BreadcrumbProps {
   items: BreadcrumbItem[];
   className?: string;
 }
-
 const Breadcrumb = ({ items, className }: BreadcrumbProps) => {
   return (
     <nav aria-label="Breadcrumb" className={cn("text-sm font-medium text-gray-500", className)}>
@@ -32,5 +29,4 @@ const Breadcrumb = ({ items, className }: BreadcrumbProps) => {
     </nav>
   );
 };
-
 export default Breadcrumb;

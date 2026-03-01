@@ -1,15 +1,12 @@
 import { create } from "zustand";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
-
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type Message = RouterOutput["chat"]["getMessages"]["messages"][number];
 export type OptimisticMessage = Message & {
   status: "pending" | "sent" | "failed";
 };
-
 type Conversation = RouterOutput["chat"]["getConversations"][number];
-
 interface ChatState {
   conversations: Conversation[];
   messages: Record<string, OptimisticMessage[]>;
@@ -26,7 +23,6 @@ interface ChatState {
   setSelectedConversation: (conversation: Conversation | null) => void;
   setMessages: (conversationId: string, messages: Message[]) => void;
 }
-
 export const useChatStore = create<ChatState>((set) => ({
   conversations: [],
   messages: {},
@@ -56,28 +52,22 @@ export const useChatStore = create<ChatState>((set) => ({
       const messageIndex = conversationMessages.findIndex(
         (m) => m.id === messageId,
       );
-
       if (messageIndex === -1) {
         return state;
       }
-
       const newMessages = [...conversationMessages];
       const oldMessage = newMessages[messageIndex]!;
-
       if (newMessage) {
-        // Replace optimistic message with real message from server
         newMessages[messageIndex] = {
           ...newMessage,
           status: newStatus,
         };
       } else {
-        // Just update status
         newMessages[messageIndex] = {
           ...oldMessage,
           status: newStatus,
         };
       }
-
       return {
         messages: {
           ...state.messages,

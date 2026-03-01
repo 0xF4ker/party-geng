@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { Paperclip, Send, FileText, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CreateQuoteModal } from "./CreateQuoteModal";
-
 interface ChatInputProps {
   onSend: (text: string) => void;
   disabled: boolean;
@@ -13,7 +12,6 @@ interface ChatInputProps {
   isGroup?: boolean;
   onTyping?: () => void;
 }
-
 export const ChatInput = ({
   onSend,
   disabled,
@@ -28,26 +26,21 @@ export const ChatInput = ({
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastTypingTime = useRef<number>(0);
-
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = "inherit"; // Reset height
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`; // Grow up to 120px
+      textareaRef.current.style.height = "inherit";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
     }
   }, [text]);
-
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
     
-    // Throttle typing event (e.g., once every 2 seconds)
     const now = Date.now();
     if (onTyping && now - lastTypingTime.current > 2000) {
       onTyping();
       lastTypingTime.current = now;
     }
   };
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -57,14 +50,12 @@ export const ChatInput = ({
       }
     }
   };
-
   const handleSendClick = () => {
     if (text.trim()) {
       onSend(text);
       setText("");
     }
   };
-
   return (
     <>
       <div className="relative flex items-end gap-2 rounded-xl bg-gray-50 p-2 shadow-inner">
@@ -72,7 +63,6 @@ export const ChatInput = ({
         <button className="mb-2 rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600">
           <Paperclip className="h-5 w-5" />
         </button>
-
         {/* Text Input */}
         <textarea
           ref={textareaRef}
@@ -84,7 +74,6 @@ export const ChatInput = ({
           disabled={disabled}
           className="max-h-[120px] flex-1 resize-none bg-transparent py-3 text-sm outline-none placeholder:text-gray-400 disabled:opacity-50"
         />
-
         <div className="flex gap-2 pb-1">
           {/* Vendor Quote Button - Disabled in Group Chats */}
           {isVendor && !isGroup && (
@@ -96,7 +85,6 @@ export const ChatInput = ({
               <FileText className="h-5 w-5" />
             </button>
           )}
-
           {/* Send Button */}
           <button
             onClick={handleSendClick}
@@ -116,7 +104,6 @@ export const ChatInput = ({
           </button>
         </div>
       </div>
-
       {/* Modal integration */}
       {showQuoteModal && (
         <CreateQuoteModal

@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { api } from "@/trpc/react";
 import {
@@ -27,17 +26,10 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
-// --- 1. STRICT TYPE INFERENCE ---
 import { type inferRouterOutputs } from "@trpc/server";
 import { type AppRouter } from "@/server/api/root";
-
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type OrderItem = RouterOutputs["order"]["getAllOrders"]["items"][number];
-
-// --- SUB-COMPONENTS & HELPERS ---
-
-// Helper for Status Badges
 const StatusBadge = ({ status }: { status: string }) => {
   const styles: Record<string, string> = {
     ACTIVE: "bg-blue-100 text-blue-700 border-blue-200",
@@ -45,16 +37,13 @@ const StatusBadge = ({ status }: { status: string }) => {
     CANCELLED: "bg-gray-100 text-gray-600 border-gray-200",
     IN_DISPUTE: "bg-orange-100 text-orange-700 border-orange-200",
   };
-
   const icons: Record<string, LucideIcon> = {
     ACTIVE: Clock,
     COMPLETED: CheckCircle,
     CANCELLED: XCircle,
     IN_DISPUTE: AlertOctagon,
   };
-
   const Icon = icons[status] ?? Clock;
-
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${styles[status] ?? "bg-gray-100"}`}
@@ -64,12 +53,10 @@ const StatusBadge = ({ status }: { status: string }) => {
     </span>
   );
 };
-
 interface MobileOrderCardProps {
   order: OrderItem;
   onClick: () => void;
 }
-
 function MobileOrderCard({ order, onClick }: MobileOrderCardProps) {
   return (
     <div
@@ -82,7 +69,6 @@ function MobileOrderCard({ order, onClick }: MobileOrderCardProps) {
         </Badge>
         <StatusBadge status={order.status} />
       </div>
-
       <div className="flex items-center justify-between py-2">
         {/* Client */}
         <div className="flex items-center gap-2">
@@ -101,10 +87,8 @@ function MobileOrderCard({ order, onClick }: MobileOrderCardProps) {
             </span>
           </div>
         </div>
-
         {/* Arrow Icon */}
         <div className="text-gray-300">→</div>
-
         {/* Vendor */}
         <div className="flex flex-row-reverse items-center gap-2 text-right">
           <div className="h-8 w-8 overflow-hidden rounded-full border border-white bg-gray-100 shadow-sm">
@@ -123,7 +107,6 @@ function MobileOrderCard({ order, onClick }: MobileOrderCardProps) {
           </div>
         </div>
       </div>
-
       <div className="flex items-center justify-between border-t border-gray-50 pt-3">
         <div className="font-bold text-gray-900">
           ₦{order.quote.price.toLocaleString()}
@@ -136,28 +119,18 @@ function MobileOrderCard({ order, onClick }: MobileOrderCardProps) {
     </div>
   );
 }
-
-// --- MAIN PAGE COMPONENT ---
-
 export default function AdminOrdersPage() {
   const [search, setSearch] = useState("");
-  // Properly typed status filter. 'undefined' means all.
   const [statusFilter, setStatusFilter] = useState<
     "ACTIVE" | "COMPLETED" | "IN_DISPUTE" | "CANCELLED" | undefined
   >(undefined);
-
-  // Use OrderItem type instead of 'any'
   const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-
-  // --- QUERY ---
   const { data, isLoading, refetch } = api.order.getAllOrders.useQuery({
     limit: 50,
     search: search || undefined,
     status: statusFilter,
   });
-
-  // --- MUTATION ---
   const updateStatusMutation = api.order.adminUpdateStatus.useMutation({
     onSuccess: () => {
       toast.success("Order status updated");
@@ -166,12 +139,10 @@ export default function AdminOrdersPage() {
     },
     onError: (e) => toast.error(e.message),
   });
-
   const handleOpenDetail = (order: OrderItem) => {
     setSelectedOrder(order);
     setIsSheetOpen(true);
   };
-
   const handleStatusChange = (
     newStatus: "ACTIVE" | "COMPLETED" | "IN_DISPUTE" | "CANCELLED",
   ) => {
@@ -185,7 +156,6 @@ export default function AdminOrdersPage() {
       });
     }
   };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -194,7 +164,6 @@ export default function AdminOrdersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
           <p className="text-sm text-gray-500">Track gigs & disputes.</p>
         </div>
-
         {/* 2. Controls Section */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {/* Search Input */}
@@ -207,7 +176,6 @@ export default function AdminOrdersPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-
           {/* Filter Dropdown */}
           <div className="relative w-full sm:w-48">
             <Filter className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -216,7 +184,6 @@ export default function AdminOrdersPage() {
               value={statusFilter ?? ""}
               onChange={(e) => {
                 const val = e.target.value;
-                // Type guard or cast logic for safety
                 if (
                   val === "" ||
                   val === "ACTIVE" ||
@@ -243,7 +210,6 @@ export default function AdminOrdersPage() {
           </div>
         </div>
       </div>
-
       <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm md:block">
         <table className="w-full text-left text-sm text-gray-600">
           <thead className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase">
@@ -325,7 +291,6 @@ export default function AdminOrdersPage() {
           </tbody>
         </table>
       </div>
-
       {/* MOBILE CARD GRID */}
       <div className="grid gap-4 md:hidden">
         {isLoading ? (
@@ -340,7 +305,6 @@ export default function AdminOrdersPage() {
           ))
         )}
       </div>
-
       {/* --- DETAIL SHEET --- */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="flex h-full w-full flex-col border-l border-gray-200 bg-white p-0 shadow-2xl sm:max-w-xl">
@@ -367,7 +331,6 @@ export default function AdminOrdersPage() {
               </div>
             </div>
           )}
-
           {/* 2. SCROLLABLE CONTENT */}
           {selectedOrder && (
             <div className="flex-1 overflow-y-auto px-8 py-8">
@@ -408,7 +371,6 @@ export default function AdminOrdersPage() {
                         </div>
                       </div>
                     </div>
-
                     {/* Vendor Card */}
                     <div className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-gray-50/50 p-4 transition-colors hover:border-blue-100 hover:bg-blue-50/30">
                       <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
@@ -441,7 +403,6 @@ export default function AdminOrdersPage() {
                     </div>
                   </div>
                 </div>
-
                 {/* Financials */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-semibold tracking-wider text-gray-400 uppercase">
@@ -477,13 +438,11 @@ export default function AdminOrdersPage() {
                     </div>
                   </div>
                 </div>
-
                 {/* Admin Control Panel */}
                 <div className="space-y-3">
                   <h4 className="flex items-center gap-2 text-xs font-semibold tracking-wider text-orange-600 uppercase">
                     <AlertOctagon className="h-3.5 w-3.5" /> Admin Control Panel
                   </h4>
-
                   <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-5">
                     <p className="mb-4 text-sm leading-relaxed text-gray-600">
                       Use these actions to resolve disputes or correct system
@@ -493,7 +452,6 @@ export default function AdminOrdersPage() {
                         These actions bypass the standard user flow.
                       </span>
                     </p>
-
                     <div className="flex flex-col gap-3">
                       <div className="grid grid-cols-2 gap-3">
                         <Button
@@ -508,7 +466,6 @@ export default function AdminOrdersPage() {
                             Pause transaction
                           </span>
                         </Button>
-
                         <Button
                           variant="outline"
                           className="h-auto flex-col items-start gap-1 border-gray-200 bg-white p-3 hover:border-red-300 hover:bg-red-50"
@@ -522,7 +479,6 @@ export default function AdminOrdersPage() {
                           </span>
                         </Button>
                       </div>
-
                       <Button
                         className="h-auto w-full items-center justify-between bg-emerald-600 p-3 text-white shadow-sm hover:bg-emerald-700"
                         onClick={() => handleStatusChange("COMPLETED")}
@@ -543,7 +499,6 @@ export default function AdminOrdersPage() {
               </div>
             </div>
           )}
-
           {/* 3. FOOTER */}
           <SheetFooter className="flex-none border-t border-gray-100 bg-gray-50/50 px-8 py-4 sm:justify-between">
             <div className="self-center text-xs text-gray-400">

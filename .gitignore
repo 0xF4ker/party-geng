@@ -53,3 +53,5 @@ env.production.template
 nginx.conf
 deploy.sh
 docker-compose.yml
+
+clean-comments.sh

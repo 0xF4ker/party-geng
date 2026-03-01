@@ -5,10 +5,8 @@ import type { AppRouter } from "@/server/api/root";
 import { normalizeDate } from "@/lib/dateUtils";
 import { useAuthStore } from "@/stores/auth";
 import { api } from "@/trpc/react";
-
 type routerOutput = inferRouterOutputs<AppRouter>;
 type DBMessage = routerOutput["chat"]["getMessages"]["messages"][number];
-
 export interface OptimisticMessage {
   id: string;
   tempId: string;
@@ -27,12 +25,10 @@ export interface OptimisticMessage {
   };
   isDeletedForEveryone: boolean;
 }
-
 export type MessageWithStatus = DBMessage & {
   tempId?: string;
   status?: "sending" | "sent" | "error";
 };
-
 interface RealtimeMessage {
   id: string;
   createdAt: string;
@@ -49,11 +45,9 @@ interface RealtimeMessage {
   quote?: null;
   eventInvitation?: null;
 }
-
 interface TypingBroadcastPayload {
   userId: string;
 }
-
 export const useChatRealtime = (
   conversationId: string | undefined,
   initialMessages: DBMessage[],
@@ -64,22 +58,17 @@ export const useChatRealtime = (
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const { profile } = useAuthStore();
   const { data: settings } = api.chat.getSettings.useQuery();
-
   useEffect(() => {
-    // This pushes the state reset to the next tick.
     const timer = setTimeout(() => {
       setNewMessages([]);
       setTypingUsers(new Set());
       typingTimeouts.current.forEach(clearTimeout);
       typingTimeouts.current.clear();
     }, 0);
-
     return () => clearTimeout(timer);
   }, [conversationId]);
-
   useEffect(() => {
     if (!conversationId) return;
-
     const channel = supabase
       .channel(`room:${conversationId}`, {
         config: {
@@ -98,7 +87,6 @@ export const useChatRealtime = (
           const rawMessage = payload.new as unknown as RealtimeMessage;
           const newMessage: MessageWithStatus = {
             ...rawMessage,
-            // Ensure properties required by DBMessage/MessageWithStatus are present
             id: rawMessage.id,
             conversationId: rawMessage.conversationId,
             text: rawMessage.text,
@@ -115,10 +103,7 @@ export const useChatRealtime = (
             eventInvitation: rawMessage.eventInvitation ?? null,
             isDeletedForEveryone: rawMessage.isDeletedForEveryone ?? false,
           } as MessageWithStatus;
-
           setNewMessages((prev) => [...prev, newMessage]);
-
-          // Clear typing indicator for this user when they send a message
           if (rawMessage.senderId) {
             setTypingUsers((prev) => {
               const next = new Set(prev);
@@ -137,9 +122,7 @@ export const useChatRealtime = (
           filter: `conversationId=eq.${conversationId}`,
         },
         (payload) => {
-          // Handle updates like "Delete for Everyone"
           const updatedMessage = payload.new as unknown as RealtimeMessage;
-
           const newMessage: MessageWithStatus = {
             ...updatedMessage,
             id: updatedMessage.id,
@@ -158,12 +141,8 @@ export const useChatRealtime = (
             eventInvitation: updatedMessage.eventInvitation ?? null,
             isDeletedForEveryone: updatedMessage.isDeletedForEveryone ?? false,
           } as MessageWithStatus;
-
           setNewMessages((prev) => {
             const filtered = prev.filter((m) => m.id !== updatedMessage.id);
-            // If existing message updated, we update it in place.
-            // However, `messages` memo handles merging by ID.
-            // We just push the updated version.
             return [...filtered, newMessage];
           });
         },
@@ -172,19 +151,14 @@ export const useChatRealtime = (
         const typedPayload = payload.payload as TypingBroadcastPayload;
         const userId = typedPayload.userId;
         if (!userId) return;
-
         setTypingUsers((prev) => {
           const next = new Set(prev);
           next.add(userId);
           return next;
         });
-
-        // Clear existing timeout
         if (typingTimeouts.current.has(userId)) {
           clearTimeout(typingTimeouts.current.get(userId));
         }
-
-        // Set new timeout to clear typing status
         const timeout = setTimeout(() => {
           setTypingUsers((prev) => {
             const next = new Set(prev);
@@ -193,34 +167,27 @@ export const useChatRealtime = (
           });
           typingTimeouts.current.delete(userId);
         }, 3000);
-
         typingTimeouts.current.set(userId, timeout);
       })
       .subscribe();
-
     channelRef.current = channel;
-
     return () => {
       void supabase.removeChannel(channel);
       channelRef.current = null;
     };
   }, [conversationId]);
-
   const sendTypingEvent = useCallback(() => {
     if (!channelRef.current || !profile) return;
     if (settings?.typingIndicators === false) return;
-
     void channelRef.current.send({
       type: "broadcast",
       event: "typing",
       payload: { userId: profile.id },
     });
   }, [profile, settings]);
-
   const addOptimisticMessage = useCallback((msg: MessageWithStatus) => {
     setNewMessages((prev) => [...prev, msg]);
   }, []);
-
   const updateOptimisticStatus = useCallback(
     (tempId: string, status: "sending" | "error" | "sent") => {
       setNewMessages((prev) =>
@@ -229,29 +196,23 @@ export const useChatRealtime = (
     },
     [],
   );
-
   const removeOptimisticMessage = useCallback((tempId: string) => {
     setNewMessages((prev) => prev.filter((m) => m.tempId !== tempId));
   }, []);
-
   const setMessages = (setter: React.SetStateAction<MessageWithStatus[]>) => {
     if (typeof setter === "function") {
       setNewMessages(setter);
     }
   };
-
   const messages = useMemo(() => {
     const messageMap = new Map<string, MessageWithStatus>();
-
     initialMessages.forEach((msg) => messageMap.set(msg.id, msg));
     newMessages.forEach((msg) => messageMap.set(msg.id, msg));
-
     return Array.from(messageMap.values()).sort(
       (a, b) =>
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     );
   }, [initialMessages, newMessages]);
-
   return {
     messages,
     addOptimisticMessage,

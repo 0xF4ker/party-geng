@@ -1,17 +1,13 @@
 "use client";
-
 import React from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { MessageSquare } from "lucide-react";
-
 import { api } from "@/trpc/react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { cn } from "@/lib/utils";
-
 type Notification = inferRouterOutputs<AppRouter>["notification"]["getAll"][number];
-
 export const GroupedNotificationItem = ({
   notifications,
   onClose,
@@ -21,21 +17,17 @@ export const GroupedNotificationItem = ({
 }) => {
   const router = useRouter();
   const utils = api.useUtils();
-
   const markManyAsRead = api.notification.markManyAsRead.useMutation({
     onSuccess: () => {
       void utils.notification.invalidate();
     },
   });
-
   if (notifications.length === 0) {
     return null;
   }
-
   const firstNotif = notifications[0]!;
   const count = notifications.length;
   const senderName = firstNotif.message.replace("You have a new message from ", "");
-
   const handleClick = () => {
     const ids = notifications.map((n) => n.id);
     markManyAsRead.mutate({ ids });
@@ -44,7 +36,6 @@ export const GroupedNotificationItem = ({
     }
     onClose();
   };
-
   return (
     <button
       onClick={handleClick}

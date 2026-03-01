@@ -9,8 +9,8 @@ import { useAuthStore } from "@/stores/auth";
 
 interface AddFundsModalProps {
   onClose: () => void;
-  initialAmount?: number; // New prop
-  quoteId?: string; // New prop for redirection after funding
+  initialAmount?: number;
+  quoteId?: string;
 }
 
 export const AddFundsModal: React.FC<AddFundsModalProps> = ({
@@ -24,7 +24,6 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
 
   const initializePayment = api.payment.initializePayment.useMutation({
     onSuccess: (data) => {
-      // Redirect to Paystack payment page
       window.location.href = data.authorization_url;
     },
     onError: (error) => {
@@ -51,7 +50,6 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
     initializePayment.mutate({
       amount: amountValue,
       email: profile.email,
-      // Pass quoteId if available in the metadata
       metadata: quoteId ? { quote_id: quoteId } : undefined,
     });
   };

@@ -1,5 +1,4 @@
 "use client";
-
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
@@ -8,14 +7,9 @@ import { api } from "@/trpc/react";
 import Link from "next/link";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
-
-// --- Types ---
 type routerOutput = inferRouterOutputs<AppRouter>;
-// 1. Get the type for the entire procedure's output (which can be null)
 type CategoryOutput = routerOutput["category"]["getAll"][number];
-
 type Category = NonNullable<CategoryOutput>;
-
 const MegaMenu = ({
   category,
   onMouseEnter,
@@ -25,20 +19,17 @@ const MegaMenu = ({
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }) => {
-  // Split services into columns for better layout
   const allServices = category.services;
   const columns = allServices.reduce(
     (acc, service, index) => {
-      const colIndex = Math.floor(index / 10); // 10 items per column
+      const colIndex = Math.floor(index / 10);
       acc[colIndex] ??= [];
       acc[colIndex].push(service);
       return acc;
     },
     [] as (typeof allServices)[],
   );
-
   const categorySlug = category?.slug;
-
   return (
     <div
       className="absolute top-full right-0 left-0 z-30 w-full border-t border-gray-200 bg-white shadow-lg"
@@ -89,41 +80,35 @@ const MegaMenu = ({
     </div>
   );
 };
-
 const CategoryCarousel = () => {
-  // Fetch categories from database
   const { data: categoriesData = [] } = api.category.getAll.useQuery();
-
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [hoveredCategory, setHoveredCategory] = useState<Category | null>(null);
   const menuTimerRef = useRef<NodeJS.Timeout | null>(null);
-
   const checkScroll = () => {
     const el = scrollContainerRef.current;
     if (el) {
       const isAtStart = el.scrollLeft <= 0;
-      const isAtEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 1; // -1 for subpixel precision
+      const isAtEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 1;
       setCanScrollLeft(!isAtStart);
       setCanScrollRight(!isAtEnd);
     }
   };
-
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (el) {
       el.addEventListener("scroll", checkScroll);
       const resizeObserver = new ResizeObserver(checkScroll);
       resizeObserver.observe(el);
-      checkScroll(); // Initial check
+      checkScroll();
       return () => {
         el.removeEventListener("scroll", checkScroll);
         resizeObserver.unobserve(el);
       };
     }
   }, []);
-
   const scroll = (direction: "left" | "right") => {
     const el = scrollContainerRef.current;
     if (el) {
@@ -132,7 +117,6 @@ const CategoryCarousel = () => {
       el.scrollBy({ left: scrollAmount, behavior: "smooth" });
     }
   };
-
   const openMenu = (category: Category) => {
     if (menuTimerRef.current) {
       clearTimeout(menuTimerRef.current);
@@ -141,7 +125,6 @@ const CategoryCarousel = () => {
       setHoveredCategory(category);
     }, 500);
   };
-
   const closeMenu = () => {
     if (menuTimerRef.current) {
       clearTimeout(menuTimerRef.current);
@@ -150,13 +133,11 @@ const CategoryCarousel = () => {
       setHoveredCategory(null);
     }, 200);
   };
-
   const cancelMenuTimer = () => {
     if (menuTimerRef.current) {
       clearTimeout(menuTimerRef.current);
     }
   };
-
   return (
     <div
       className={cn(
@@ -175,7 +156,7 @@ const CategoryCarousel = () => {
       )}
       <div
         ref={scrollContainerRef}
-        className="scrollbar-hide flex items-center overflow-x-auto scroll-smooth py-1" // scrollbar-hide needs a plugin or custom CSS
+        className="scrollbar-hide flex items-center overflow-x-auto scroll-smooth py-1"
       >
         <div className="flex items-center space-x-4">
           {categoriesData.map((category) => (
@@ -204,7 +185,6 @@ const CategoryCarousel = () => {
         {`.scrollbar-hide::-webkit-scrollbar { display: none; }
           .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }`}
       </style>
-
       {/* --- Render Mega Menu --- */}
       {hoveredCategory && (
         <MegaMenu
@@ -216,5 +196,4 @@ const CategoryCarousel = () => {
     </div>
   );
 };
-
 export default CategoryCarousel;

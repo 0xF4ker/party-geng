@@ -1,5 +1,4 @@
 "use client";
-
 import { api } from "@/trpc/react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -19,9 +18,6 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { format } from "date-fns";
-
-// --- HELPER COMPONENTS ---
-
 const StatusBadge = ({ status }: { status: string }) => {
   const styles: Record<string, string> = {
     ACTIVE: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -38,51 +34,39 @@ const StatusBadge = ({ status }: { status: string }) => {
     </span>
   );
 };
-
-// New helper to safely render Nominatim JSON location
 const LocationDisplay = ({ location }: { location: unknown }) => {
   if (!location) return <span className="text-gray-400 italic">Not set</span>;
-
   let displayName = "Unknown Location";
-
   if (
     typeof location === "object" &&
     location !== null &&
     "display_name" in location
   ) {
-    // Nominatim format
     displayName = (location as { display_name: string }).display_name;
   } else if (typeof location === "string") {
-    // Legacy string format
     displayName = location;
   }
-
   return <span>{displayName}</span>;
 };
-
 interface UserDetailSheetProps {
   userId: string | null;
   isOpen: boolean;
   onClose: () => void;
 }
-
 export function UserDetailSheet({
   userId,
   isOpen,
   onClose,
 }: UserDetailSheetProps) {
-  // Only fetch if we have an ID and the sheet is open
   const { data: user, isLoading } = api.user.adminGetUser.useQuery(
     { userId: userId! },
     { enabled: !!userId && isOpen },
   );
-
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-NG", {
       style: "currency",
       currency: "NGN",
     }).format(amount);
-
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="w-full overflow-y-auto bg-white p-0 sm:max-w-xl">
@@ -100,7 +84,6 @@ export function UserDetailSheet({
                   {user.role}
                 </Badge>
               </div>
-
               <div className="flex items-center gap-5">
                 <div className="h-20 w-20 overflow-hidden rounded-full border-4 border-white bg-white shadow-sm">
                   {user.clientProfile?.avatarUrl ||
@@ -137,7 +120,6 @@ export function UserDetailSheet({
                 </div>
               </div>
             </div>
-
             {/* 2. STATS GRID */}
             <div className="grid grid-cols-2 gap-px border-b border-gray-100 bg-gray-100">
               {/* Wallet (Common) */}
@@ -151,7 +133,6 @@ export function UserDetailSheet({
                     : "—"}
                 </div>
               </div>
-
               {/* Role Specific Stat */}
               <div className="bg-white p-5">
                 {user.role === "CLIENT" && (
@@ -191,7 +172,6 @@ export function UserDetailSheet({
                 )}
               </div>
             </div>
-
             {/* 3. DETAILS SECTION */}
             <div className="flex-1 space-y-8 p-8">
               {/* Vendor Specific Details */}
@@ -216,7 +196,6 @@ export function UserDetailSheet({
                         {user.vendorProfile.kybStatus}
                       </Badge>
                     </div>
-
                     {/* Subscription Status (NEW) */}
                     <div className="flex items-center justify-between border-b border-gray-200 pb-2">
                       <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -233,7 +212,6 @@ export function UserDetailSheet({
                         {user.vendorProfile.subscriptionStatus || "INACTIVE"}
                       </Badge>
                     </div>
-
                     <div className="flex items-center justify-between border-b border-gray-200 pb-2">
                       <span className="text-sm text-gray-500">
                         Active Services
@@ -251,7 +229,6 @@ export function UserDetailSheet({
                   </div>
                 </div>
               )}
-
               {/* Client Specific Details */}
               {user.role === "CLIENT" && user.clientProfile && (
                 <div className="space-y-4">
@@ -278,7 +255,6 @@ export function UserDetailSheet({
                   </div>
                 </div>
               )}
-
               {/* Bio & Location (Common) */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-gray-900">About</h3>
@@ -291,7 +267,6 @@ export function UserDetailSheet({
                     </span>
                   )}
                 </div>
-
                 <div className="flex items-start gap-2 border-t border-gray-100 pt-4 text-sm text-gray-500">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
                   <LocationDisplay
@@ -303,7 +278,6 @@ export function UserDetailSheet({
                 </div>
               </div>
             </div>
-
             {/* 4. FOOTER ACTIONS */}
             <div className="border-t border-gray-100 bg-gray-50 p-6">
               <Button className="w-full" variant="outline" onClick={onClose}>

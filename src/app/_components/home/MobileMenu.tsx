@@ -10,16 +10,12 @@ import {
 import Link from "next/link";
 import { type Profile } from "@/stores/auth";
 import { api } from "@/trpc/react";
-
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { Button } from "@/components/ui/button";
-
-// --- Types ---
 type routerOutput = inferRouterOutputs<AppRouter>;
 type CategoryOutput = routerOutput["category"]["getAll"][number];
 type Category = NonNullable<CategoryOutput>;
-
 interface MobileMenuProps {
   isOpen: boolean;
   onClose: () => void;
@@ -27,7 +23,6 @@ interface MobileMenuProps {
   user?: Profile | null;
   signOut?: () => void;
 }
-
 const MobileMenu: React.FC<MobileMenuProps> = ({
   isOpen,
   onClose,
@@ -35,21 +30,15 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
   user,
   signOut,
 }) => {
-  const isVendor = user?.role === "VENDOR"; // Simplified check
+  const isVendor = user?.role === "VENDOR";
   const isGuest = !user;
   const [currentView, setCurrentView] = useState("main");
   const [currentCategory, setCurrentCategory] = useState<Category | null>(null);
-
-  // Fetch categories
   const { data: categoriesData = [] } = api.category.getAll.useQuery();
-
-  // Fetch unread count for badge
   const { data: unreadConvoCount } =
     api.chat.getUnreadConversationCount.useQuery(undefined, {
       enabled: !!user,
     });
-
-  // Reset view when menu is closed
   useEffect(() => {
     if (!isOpen) {
       setTimeout(() => {
@@ -58,19 +47,16 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
       }, 300);
     }
   }, [isOpen]);
-
   const handleCategoryClick = (category: Category) => {
     setCurrentCategory(category);
     setCurrentView("category");
   };
-
   const handleBackClick = () => {
     setCurrentView("main");
     setTimeout(() => {
       setCurrentCategory(null);
     }, 300);
   };
-
   return (
     <div
       className={cn(
@@ -86,7 +72,6 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
         )}
         onClick={onClose}
       ></div>
-
       {/* Menu Content */}
       <div className="relative flex h-full w-full max-w-xs flex-col overflow-hidden bg-white shadow-xl">
         {/* Main Panel */}
@@ -104,7 +89,6 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
           </div>
           <nav className="flex flex-col space-y-5 p-4">
             {isGuest ? (
-              // Guest Links (unchanged)
               <>
                 <button
                   onClick={() => {
@@ -148,7 +132,6 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                 {/* Other Guest Links... */}
               </>
             ) : isVendor ? (
-              // --- UPDATED VENDOR LINKS ---
               <>
                 <div className="space-y-5">
                   <Button
@@ -161,7 +144,6 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                       Trending
                     </Link>
                   </Button>
-
                   {/* Added Inbox & Notifications for Vendors */}
                   <Link
                     href="/inbox"
@@ -182,9 +164,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                   >
                     Notifications
                   </Link>
-
                   <div className="my-2 h-px w-full bg-gray-100" />
-
                   <Link
                     href="/dashboard"
                     onClick={onClose}
@@ -206,9 +186,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                   >
                     Wallet
                   </Link>
-
                   <div className="my-2 h-px w-full bg-gray-100" />
-
                   <Link
                     href={`/v/${user.username}`}
                     onClick={onClose}
@@ -235,7 +213,6 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                 </div>
               </>
             ) : (
-              // Client Links (unchanged)
               <>
                 <div className="space-y-5">
                   <Button
@@ -330,7 +307,6 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
             )}
           </nav>
         </div>
-
         {/* Category Sub-Panel (unchanged) */}
         <div
           className={cn(
@@ -374,5 +350,4 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     </div>
   );
 };
-
 export default MobileMenu;

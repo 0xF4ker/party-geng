@@ -1,5 +1,4 @@
 import { db } from "@/server/db";
-// import { UserRole } from "@prisma/client";
 
 /**
  * Sync Supabase auth user with Prisma database
@@ -12,7 +11,6 @@ export async function syncUserToDatabase(params: {
   role: "CLIENT" | "VENDOR";
 }) {
   try {
-    // Check if user already exists
     const existingUser = await db.user.findUnique({
       where: { id: params.id },
     });
@@ -21,7 +19,6 @@ export async function syncUserToDatabase(params: {
       return existingUser;
     }
 
-    // Create user
     const user = await db.user.create({
       data: {
         id: params.id,
@@ -31,7 +28,6 @@ export async function syncUserToDatabase(params: {
       },
     });
 
-    // Create profile based on role
     if (params.role === "CLIENT") {
       await db.clientProfile.create({
         data: {
@@ -46,7 +42,6 @@ export async function syncUserToDatabase(params: {
       });
     }
 
-    // Create wallet for user
     await db.wallet.create({
       data: {
         userId: user.id,

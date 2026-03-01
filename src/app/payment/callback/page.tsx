@@ -4,9 +4,6 @@ import { useEffect, useState, Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
-// import type { TRPCClientError } from "@trpc/client";
-// import { toast } from "sonner";
-// import type { AppRouter } from "@/server/api/root";
 
 function PaymentCallback() {
   const searchParams = useSearchParams();
@@ -34,7 +31,6 @@ function PaymentCallback() {
         `Payment successful! ₦${data.amount.toLocaleString()} has been added to your wallet.`,
       );
 
-      // If a quoteId is returned, redirect back to the quote
       if (data.quoteId) {
         setTimeout(() => {
           router.push(`/quote/${data.quoteId}`);
@@ -57,7 +53,6 @@ function PaymentCallback() {
     const reference = searchParams.get("reference");
 
     if (reference && status === "verifying") {
-      // Verify the payment
       verifyPayment({ reference });
     }
   }, [searchParams, verifyPayment, status]);

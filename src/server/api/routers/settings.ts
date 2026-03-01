@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
-import { revalidateTag } from "next/cache"; // 1. Import revalidateTag
+import { revalidateTag } from "next/cache";
 
 const locationSchema = z
   .object({
@@ -23,7 +23,6 @@ const locationSchema = z
   .optional();
 
 export const settingsRouter = createTRPCRouter({
-  // Update user profile (name, username, avatar)
   updateProfile: protectedProcedure
     .input(
       z.object({
@@ -31,7 +30,6 @@ export const settingsRouter = createTRPCRouter({
         username: z.string().min(3).max(30).optional(),
         avatarUrl: z.string().url().optional().nullable(),
         bio: z.string().max(500).optional(),
-        // Vendor-specific fields
         companyName: z.string().min(2).max(100).optional(),
         title: z.string().max(200).optional(),
         about: z.string().max(5000).optional(),
@@ -43,7 +41,6 @@ export const settingsRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.user.id;
 
-      // Get user's role
       const user = await ctx.db.user.findUnique({
         where: { id: userId },
         select: { role: true },
@@ -56,7 +53,6 @@ export const settingsRouter = createTRPCRouter({
         });
       }
 
-      // Check if username is taken (if updating username)
       if (input.username) {
         const existingUser = await ctx.db.user.findFirst({
           where: {
@@ -72,7 +68,6 @@ export const settingsRouter = createTRPCRouter({
           });
         }
 
-        // Update username in User table
         await ctx.db.user.update({
           where: { id: userId },
           data: { username: input.username },
@@ -83,7 +78,6 @@ export const settingsRouter = createTRPCRouter({
         ? (input.location as Prisma.JsonObject)
         : Prisma.JsonNull;
 
-      // Update profile based on role
       if (user.role === "VENDOR") {
         await ctx.db.vendorProfile.update({
           where: { userId },
@@ -98,9 +92,8 @@ export const settingsRouter = createTRPCRouter({
           },
         });
 
-        // INVALIDATE: Vendor public profile changed
         revalidateTag("vendors", "default");
-        revalidateTag("users", "default"); // Vendors are also users
+        revalidateTag("users", "default");
       } else {
         await ctx.db.clientProfile.update({
           where: { userId },
@@ -112,14 +105,12 @@ export const settingsRouter = createTRPCRouter({
           },
         });
 
-        // INVALIDATE: Client public profile changed
         revalidateTag("users", "default");
       }
 
       return { success: true };
     }),
 
-  // Update password
   updatePassword: protectedProcedure
     .input(
       z.object({
@@ -168,7 +159,6 @@ export const settingsRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  // Submit KYC for vendors
   submitKyc: protectedProcedure
     .input(
       z.object({
@@ -221,7 +211,6 @@ export const settingsRouter = createTRPCRouter({
         },
       });
 
-      // INVALIDATE: Status changed, remove from public lists if needed
       revalidateTag("vendors", "default");
 
       return updated;
@@ -266,7 +255,6 @@ export const settingsRouter = createTRPCRouter({
         },
       });
 
-      // INVALIDATE: Status changed to IN_REVIEW, potentially hide from public
       revalidateTag("vendors", "default");
 
       return updated;
@@ -332,10 +320,6 @@ export const settingsRouter = createTRPCRouter({
         }),
       ]);
 
-      // INVALIDATE:
-      // 1. "vendors" (This specific vendor now shows up in different searches)
-      // 2. "services" (Service vendor counts have changed)
-      // 3. "categories" (Category service counts might have changed)
       revalidateTag("vendors", "default");
       revalidateTag("services", "default");
       revalidateTag("categories", "default");

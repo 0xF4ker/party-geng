@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,13 +10,11 @@ import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import type { SavePlanFrequency } from "@prisma/client";
-
 interface CreatePlanModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
-
 export const CreatePlanModal: React.FC<CreatePlanModalProps> = ({
   isOpen,
   onClose,
@@ -30,7 +27,6 @@ export const CreatePlanModal: React.FC<CreatePlanModalProps> = ({
   const [frequency, setFrequency] = useState<SavePlanFrequency>("MANUAL");
   const [autoSaveAmount, setAutoSaveAmount] = useState("");
   const [initialDeposit, setInitialDeposit] = useState("");
-
   const createMutation = api.savePlan.create.useMutation({
     onSuccess: () => {
       onSuccess();
@@ -39,7 +35,6 @@ export const CreatePlanModal: React.FC<CreatePlanModalProps> = ({
       toast.error(error.message || "Failed to create plan");
     },
   });
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -47,7 +42,6 @@ export const CreatePlanModal: React.FC<CreatePlanModalProps> = ({
         toast.error("Please enter an amount to save automatically.");
         return;
     }
-
     createMutation.mutate({
       title,
       description,
@@ -58,7 +52,6 @@ export const CreatePlanModal: React.FC<CreatePlanModalProps> = ({
       initialDeposit: initialDeposit ? Number(initialDeposit) : undefined,
     });
   };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
@@ -102,7 +95,6 @@ export const CreatePlanModal: React.FC<CreatePlanModalProps> = ({
                 />
             </div>
           </div>
-
           <div className="grid gap-2">
             <Label htmlFor="frequency">Savings Frequency</Label>
             <Select value={frequency} onValueChange={(val) => setFrequency(val as SavePlanFrequency)}>
@@ -117,7 +109,6 @@ export const CreatePlanModal: React.FC<CreatePlanModalProps> = ({
               </SelectContent>
             </Select>
           </div>
-
           {frequency !== "MANUAL" && (
              <div className="grid gap-2 animate-in fade-in slide-in-from-top-2">
                 <Label htmlFor="autoSaveAmount">Amount to Save {frequency.toLowerCase()} (₦)</Label>
@@ -131,7 +122,6 @@ export const CreatePlanModal: React.FC<CreatePlanModalProps> = ({
                 />
             </div>
           )}
-
           <div className="grid gap-2">
             <Label htmlFor="initialDeposit">Initial Deposit (Optional)</Label>
             <Input
@@ -142,7 +132,6 @@ export const CreatePlanModal: React.FC<CreatePlanModalProps> = ({
               onChange={(e) => setInitialDeposit(e.target.value)}
             />
           </div>
-
           <div className="grid gap-2">
             <Label htmlFor="description">Description (Optional)</Label>
             <Textarea
@@ -152,7 +141,6 @@ export const CreatePlanModal: React.FC<CreatePlanModalProps> = ({
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
-
           <div className="flex justify-end gap-3 mt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel

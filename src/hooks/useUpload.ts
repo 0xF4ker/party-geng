@@ -1,31 +1,25 @@
 "use client";
-
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { compressImage } from "@/lib/image-compression";
 import { checkFileSize } from "@/lib/file-size-check";
-
 type UploadResult = {
   publicUrl: string | null;
   error: string | null;
   isLoading: boolean;
   upload: (file: File, bucket: string) => Promise<string | null>;
 };
-
 export const useUpload = (): UploadResult => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [publicUrl, setPublicUrl] = useState<string | null>(null);
-
   const supabase = createClient();
-
   const upload = async (file: File, bucket: string): Promise<string | null> => {
     setIsLoading(true);
     setError(null);
     setPublicUrl(null);
-
     if (!user) {
       const authError = "User must be authenticated to upload files.";
       setError(authError);
@@ -39,7 +33,6 @@ export const useUpload = (): UploadResult => {
         setIsLoading(false);
         return null;
     }
-
     try {
       let fileToUpload = file;
       if (file.type.startsWith("image/")) {
@@ -49,15 +42,12 @@ export const useUpload = (): UploadResult => {
       const fileExt = fileToUpload.name.split(".").pop();
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
-
       const { error: uploadError } = await supabase.storage
         .from(bucket)
         .upload(filePath, fileToUpload);
-
       if (uploadError) {
         throw uploadError;
       }
-
       const { data: { publicUrl } } = supabase.storage
         .from(bucket)
         .getPublicUrl(filePath);
@@ -72,6 +62,5 @@ export const useUpload = (): UploadResult => {
       return null;
     }
   };
-
   return { publicUrl, error, isLoading, upload };
 };

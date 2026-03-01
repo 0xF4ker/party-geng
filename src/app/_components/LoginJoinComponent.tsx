@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect } from "react";
 import {
   X,
@@ -19,8 +18,6 @@ import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth";
 import { cn } from "@/lib/utils";
 import { type AuthError } from "@supabase/supabase-js";
-
-// --- ICONS ---
 const GoogleIcon = () => (
   <svg className="h-5 w-5" viewBox="0 0 48 48">
     <path
@@ -41,77 +38,54 @@ const GoogleIcon = () => (
     />
   </svg>
 );
-
-// --- STRICT PROPS INTERFACES ---
 interface FlowProps {
   onClose?: () => void;
   onSwitchView: () => void;
 }
-
-// --- COMPONENT: LOGIN FLOW ---
 const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-
   const [isVerified, setIsVerified] = useState(false);
   const [step, setStep] = useState<"options" | "email">("options");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
-
   const utils = api.useUtils();
-
-  // 👇 FIX: Auto-advance to email step and fire toast
   useEffect(() => {
     if (
       searchParams.get("verified") === "true" ||
       window.location.href.includes("verified=true")
     ) {
       setIsVerified(true);
-      setStep("email"); // Automatically skip the options menu!
-
-      // Clean up the URL so it doesn't stay there if they refresh
+      setStep("email");
       window.history.replaceState(null, "", "/login");
-
-      // Fire a toast as an extra visual cue
       toast.success("Email verified! Please sign in.");
     }
   }, [searchParams]);
-
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-
       if (error) throw error;
-
       toast.success("Welcome back!");
-
       try {
         const profile = await utils.user.getProfile.fetch();
-
-        // --- THE ONBOARDING CHECK ---
         if (!profile || !profile.isOnboarded) {
           if (onClose) onClose();
           router.push("/onboarding");
           return;
         }
-
         useAuthStore.getState().setProfile(profile);
         if (onClose) onClose();
-
-        // Standard routing for existing users
         if (profile?.status === "BANNED" || profile?.status === "SUSPENDED") {
           toast.error("This account has been suspended.");
           return;
         }
-
         if (profile?.role === "VENDOR") router.push("/vendor/dashboard");
         else if (profile?.role === "CLIENT") router.push("/dashboard");
         else if (["ADMIN", "SUPPORT", "FINANCE"].includes(profile?.role ?? ""))
@@ -131,7 +105,6 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
       setLoading(false);
     }
   };
-
   if (step === "options") {
     return (
       <div className="animate-in fade-in slide-in-from-left-4 flex flex-col gap-4">
@@ -156,7 +129,6 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
       </div>
     );
   }
-
   return (
     <form
       onSubmit={handleLogin}
@@ -212,8 +184,6 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
     </form>
   );
 };
-
-// --- COMPONENT: SIGNUP FLOW ---
 const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
   const [step, setStep] = useState<"role" | "email" | "username" | "success">(
     "role",
@@ -223,36 +193,28 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
   const [password, setPassword] = useState<string>("");
   const [username, setUsername] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
-
   const utils = api.useUtils();
-
-  // Username validation state
   const [usernameStatus, setUsernameStatus] = useState<
     "idle" | "checking" | "available" | "taken"
   >("idle");
   const [usernameError, setUsernameError] = useState<string>("");
-
-  // Real-time Debounced Username Check
   useEffect(() => {
     if (username.length === 0) {
       setUsernameStatus("idle");
       setUsernameError("");
       return;
     }
-
     if (username.length < 3) {
       setUsernameStatus("idle");
       setUsernameError("Username must be at least 3 characters");
       return;
     }
-
     const checkAvailability = async () => {
       setUsernameStatus("checking");
       try {
         const isAvailable = await utils.user.checkUsername.fetch({
           username: username.toLowerCase(),
         });
-
         if (isAvailable) {
           setUsernameStatus("available");
           setUsernameError("");
@@ -264,21 +226,15 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
         setUsernameStatus("idle");
       }
     };
-
-    // Wait 500ms after the user stops typing to fire the request
     const delayDebounceFn = setTimeout(() => {
       void checkAvailability();
     }, 500);
-
     return () => clearTimeout(delayDebounceFn);
   }, [username, utils.user.checkUsername]);
-
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (usernameStatus !== "available") return;
-
     setLoading(true);
-
     try {
       const supabase = createClient();
       const { data, error } = await supabase.auth.signUp({
@@ -286,13 +242,10 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
         password,
         options: {
           data: { username: username.toLowerCase(), role },
-          // Dynamically grab the origin so it works flawlessly in dev and production
           emailRedirectTo: `${window.location.origin}/login?verified=true`,
         },
       });
-
       if (error) throw error;
-
       if (data.user && !data.session) {
         setStep("success");
       } else {
@@ -310,7 +263,6 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
       setLoading(false);
     }
   };
-
   if (step === "success") {
     return (
       <div className="animate-in fade-in zoom-in-95 flex flex-col items-center justify-center space-y-4 py-8 text-center">
@@ -332,7 +284,6 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
       </div>
     );
   }
-
   if (step === "role") {
     return (
       <div className="animate-in fade-in slide-in-from-left-4">
@@ -387,7 +338,6 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
       </div>
     );
   }
-
   if (step === "email") {
     return (
       <form
@@ -440,7 +390,6 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
       </form>
     );
   }
-
   return (
     <form
       onSubmit={handleSignup}
@@ -460,12 +409,11 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
         <p className="mt-1 mb-4 text-sm text-gray-600">
           This is how you&apos;ll appear to others on PartyGeng.
         </p>
-
         <div className="relative mt-1">
           <input
             type="text"
             value={username}
-            onChange={(e) => setUsername(e.target.value.replace(/\s+/g, ""))} // Prevent spaces
+            onChange={(e) => setUsername(e.target.value.replace(/\s+/g, ""))}
             placeholder="e.g. djspinmaster"
             className={cn(
               "w-full rounded-md border p-3 outline-none focus:ring-1",
@@ -490,7 +438,6 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
             )}
           </div>
         </div>
-
         {/* Error message text */}
         {usernameError && (
           <p className="mt-2 flex items-center gap-1 text-sm text-red-500">
@@ -512,8 +459,6 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
     </form>
   );
 };
-
-// --- ORCHESTRATOR COMPONENT ---
 export default function AuthModal({
   isModal = false,
   initialView = "login",
@@ -524,7 +469,6 @@ export default function AuthModal({
   onClose?: () => void;
 }) {
   const [view, setView] = useState<"login" | "join">(initialView);
-
   return (
     <div
       className={cn(
@@ -570,7 +514,6 @@ export default function AuthModal({
             </ul>
           </div>
         </div>
-
         {/* Right Side (Form Shell) */}
         <div className="relative w-full overflow-y-auto bg-white p-8 md:w-1/2 md:p-12">
           {isModal && onClose && (
@@ -581,13 +524,11 @@ export default function AuthModal({
               <X className="h-5 w-5" />
             </button>
           )}
-
           <div className="mb-8">
             <h3 className="text-3xl font-bold text-gray-900">
               {view === "join" ? "Create an account" : "Welcome back"}
             </h3>
           </div>
-
           {/* Render Active Flow */}
           {view === "login" ? (
             <LoginFlow onClose={onClose} onSwitchView={() => setView("join")} />
@@ -597,7 +538,6 @@ export default function AuthModal({
               onSwitchView={() => setView("login")}
             />
           )}
-
           {/* Footer Terms */}
           <p className="mt-8 text-center text-xs leading-relaxed text-gray-400">
             By continuing, you agree to PartyGeng&apos;s{" "}

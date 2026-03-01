@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -11,7 +10,6 @@ import {
 } from "@/components/ui/accordion";
 import { Search, Mail, MessageCircle, AlertCircle } from "lucide-react";
 import { useUiStore } from "@/stores/ui";
-
 const faqData = [
   {
     id: "general",
@@ -400,12 +398,10 @@ const faqData = [
     ],
   },
 ];
-
 export default function FAQPage() {
   const [activeCategory, setActiveCategory] = useState("general");
   const [searchQuery, setSearchQuery] = useState("");
   const { headerHeight } = useUiStore();
-
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -417,15 +413,12 @@ export default function FAQPage() {
       },
       { rootMargin: "-20% 0px -35% 0px" },
     );
-
     faqData.forEach(({ id }) => {
       const element = document.getElementById(id);
       if (element) observer.observe(element);
     });
-
     return () => observer.disconnect();
   }, []);
-
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
@@ -433,7 +426,6 @@ export default function FAQPage() {
       setActiveCategory(id);
     }
   };
-
   const filteredFAQs = faqData
     .map((section) => ({
       ...section,
@@ -445,7 +437,6 @@ export default function FAQPage() {
       ),
     }))
     .filter((section) => section.items.length > 0);
-
   return (
     <div className="min-h-screen bg-white" style={{ paddingTop: headerHeight }}>
       {/* Header */}
@@ -458,7 +449,6 @@ export default function FAQPage() {
             <p className="mb-8 text-lg text-gray-600 md:text-xl">
               Everything you need to know about PartyGeng.
             </p>
-
             {/* Search Bar */}
             <div className="relative mx-auto max-w-lg">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -475,7 +465,6 @@ export default function FAQPage() {
           </div>
         </div>
       </div>
-
       <div className="container mx-auto flex flex-col gap-12 px-4 py-12 md:px-6 lg:flex-row">
         {/* Sidebar Navigation - Hidden on mobile/tablet */}
         <aside className="hidden w-1/4 min-w-[250px] shrink-0 lg:block">
@@ -499,7 +488,6 @@ export default function FAQPage() {
                 </button>
               ))}
             </nav>
-
             <div className="mt-8 rounded-xl border border-gray-100 bg-gray-50 p-6">
               <h4 className="mb-2 flex items-center gap-2 font-bold text-gray-900">
                 <MessageCircle className="h-4 w-4 text-pink-600" />
@@ -518,7 +506,6 @@ export default function FAQPage() {
             </div>
           </div>
         </aside>
-
         {/* Main Content */}
         <main className="mx-auto max-w-4xl flex-1 lg:mx-0">
           <div className="space-y-16">
@@ -545,7 +532,6 @@ export default function FAQPage() {
                 </Accordion>
               </section>
             ))}
-
             {filteredFAQs.length === 0 && (
               <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 py-20 text-center">
                 <AlertCircle className="mx-auto mb-4 h-10 w-10 text-gray-400" />
@@ -565,7 +551,6 @@ export default function FAQPage() {
               </div>
             )}
           </div>
-
           {/* Mobile "Still have questions?" Card */}
           <div className="mt-16 rounded-2xl border border-gray-100 bg-gray-50 p-8 text-center lg:hidden">
             <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-pink-100">

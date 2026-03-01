@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,13 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-
 interface RequestFundsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
-
 export const RequestFundsModal: React.FC<RequestFundsModalProps> = ({
   isOpen,
   onClose,
@@ -24,7 +21,6 @@ export const RequestFundsModal: React.FC<RequestFundsModalProps> = ({
   const [payerUsername, setPayerUsername] = useState("");
   const [amount, setAmount] = useState<string>("");
   const [description, setDescription] = useState("");
-
   const requestMutation = api.payment.requestFunds.useMutation({
     onSuccess: (data) => {
       toast.success(data.message);
@@ -34,23 +30,19 @@ export const RequestFundsModal: React.FC<RequestFundsModalProps> = ({
       toast.error(error.message || "Request failed");
     },
   });
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const numAmount = Number(amount);
-
     if (numAmount < 100) {
       toast.error("Minimum request amount is ₦100");
       return;
     }
-
     requestMutation.mutate({
       payerUsername,
       amount: numAmount,
       description,
     });
   };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">

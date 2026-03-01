@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
@@ -22,15 +21,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
-
-// Types
 import { type inferRouterOutputs } from "@trpc/server";
 import { type AppRouter } from "@/server/api/root";
-
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type UserItem = RouterOutputs["user"]["getUsers"]["items"][number];
 type ActionType = "DELETE" | "SUSPEND" | "ROLE";
-
 interface UserActionModalsProps {
   isOpen: boolean;
   onClose: () => void;
@@ -38,7 +33,6 @@ interface UserActionModalsProps {
   user: UserItem | null;
   onSuccess: () => void;
 }
-
 export function UserActionModals({
   isOpen,
   onClose,
@@ -51,7 +45,7 @@ export function UserActionModals({
       <DialogContent>
         {user && type ? (
           <ActionFormContent
-            key={`${user.id}-${type}`} // Forces a fresh start for every new action/user
+            key={`${user.id}-${type}`}
             user={user}
             type={type}
             onClose={onClose}
@@ -66,10 +60,6 @@ export function UserActionModals({
     </Dialog>
   );
 }
-
-// --- SUB-COMPONENT: HANDLES STATE & LOGIC ---
-// Splitting this out ensures state is fresh every time it mounts.
-
 function ActionFormContent({
   user,
   type,
@@ -81,8 +71,6 @@ function ActionFormContent({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  // Initialize state directly from props (Lazy initialization)
-  // This runs only once when this sub-component mounts.
   const [reason, setReason] = useState("");
   const [newRole, setNewRole] = useState<string>(() => {
     if (["ADMIN", "SUPPORT", "FINANCE"].includes(user.role)) {
@@ -90,10 +78,7 @@ function ActionFormContent({
     }
     return "";
   });
-
   const utils = api.useContext();
-
-  // Mutations
   const suspendMutation = api.user.suspendUser.useMutation({
     onSuccess: () => {
       toast.success("User suspended successfully");
@@ -102,7 +87,6 @@ function ActionFormContent({
     },
     onError: (err) => toast.error(err.message),
   });
-
   const deleteMutation = api.user.deleteUser.useMutation({
     onSuccess: () => {
       toast.success("User deleted successfully");
@@ -111,7 +95,6 @@ function ActionFormContent({
     },
     onError: (err) => toast.error(err.message),
   });
-
   const roleMutation = api.user.updateUserRole.useMutation({
     onSuccess: () => {
       toast.success("User role updated successfully");
@@ -120,12 +103,10 @@ function ActionFormContent({
     },
     onError: (err) => toast.error(err.message),
   });
-
   const isLoading =
     suspendMutation.isPending ||
     deleteMutation.isPending ||
     roleMutation.isPending;
-
   const handleSubmit = () => {
     if (type === "SUSPEND") {
       suspendMutation.mutate({
@@ -142,7 +123,6 @@ function ActionFormContent({
       });
     }
   };
-
   return (
     <>
       <DialogHeader>
@@ -157,7 +137,6 @@ function ActionFormContent({
           ({user.email})
         </DialogDescription>
       </DialogHeader>
-
       {/* --- DELETE FORM --- */}
       {type === "DELETE" && (
         <div className="py-4">
@@ -167,7 +146,6 @@ function ActionFormContent({
           </p>
         </div>
       )}
-
       {/* --- SUSPEND FORM --- */}
       {type === "SUSPEND" && (
         <div className="space-y-4 py-4">
@@ -181,7 +159,6 @@ function ActionFormContent({
           </div>
         </div>
       )}
-
       {/* --- ROLE FORM --- */}
       {type === "ROLE" && (
         <div className="space-y-4 py-4">
@@ -203,7 +180,6 @@ function ActionFormContent({
           </div>
         </div>
       )}
-
       <DialogFooter>
         <Button variant="outline" onClick={onClose} disabled={isLoading}>
           Cancel

@@ -1,17 +1,12 @@
 "use client";
-
 import React from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-
 const AccountActions = () => {
   const { signOut } = useAuth();
-
   const handleDeleteAccount = () => {
-    // TODO: Implement account deletion with a confirmation modal
     alert("Account deletion functionality not yet implemented.");
   };
-
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-gray-200 p-4">
@@ -49,5 +44,4 @@ const AccountActions = () => {
     </div>
   );
 };
-
 export default AccountActions;

@@ -1,5 +1,4 @@
 "use client";
-
 import React from "react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
@@ -7,22 +6,18 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { FaWallet } from "react-icons/fa";
 import { MdFiberManualRecord } from "react-icons/md";
 import { Lock } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type EventDetails = RouterOutput["event"]["getById"];
 type Budget = EventDetails["budget"];
-
 interface NewBudgetManagerCardProps {
   budget: Budget;
   _eventId: string;
   onManage: () => void;
   isPast?: boolean;
 }
-
 const COLORS = [
   "#0088FE",
   "#00C49F",
@@ -31,7 +26,6 @@ const COLORS = [
   "#8884d8",
   "#82ca9d",
 ];
-
 interface CustomTooltipPayload {
   name: string;
   value: number;
@@ -41,7 +35,6 @@ interface CustomTooltipPayload {
     total: number;
   };
 }
-
 const CustomTooltip = ({
   active,
   payload,
@@ -55,10 +48,8 @@ const CustomTooltip = ({
       firstPayloadItem?.name !== undefined &&
       firstPayloadItem.value !== undefined
     ) {
-      // Calculate percentage based on the payload's totalEstimated property
       const total = firstPayloadItem.payload.total ?? 1;
       const percentage = (firstPayloadItem.value / total) * 100;
-
       return (
         <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-xl">
           <p className="font-bold text-gray-900">{`${firstPayloadItem.name}`}</p>
@@ -70,7 +61,6 @@ const CustomTooltip = ({
   }
   return null;
 };
-
 export const NewBudgetManagerCard = ({
   budget,
   _eventId,
@@ -88,16 +78,13 @@ export const NewBudgetManagerCard = ({
   );
   const percentageSpent =
     totalEstimated > 0 ? (totalActual / totalEstimated) * 100 : 0;
-
-  // Prepare data for the pie chart
   const data = budgetItems
     .map((item) => ({
       name: item.description,
       value: item.estimatedCost,
-      total: totalEstimated, // Pass total estimated for use in the tooltip
+      total: totalEstimated,
     }))
     .filter((item) => item.value > 0);
-
   return (
     <Card>
       <CardHeader>
@@ -146,7 +133,6 @@ export const NewBudgetManagerCard = ({
                 <Tooltip content={<CustomTooltip />} />
               </PieChart>
             </ResponsiveContainer>
-
             {/* Center Summary */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
               <p className="text-sm font-semibold text-gray-500">Total Spent</p>
@@ -158,7 +144,6 @@ export const NewBudgetManagerCard = ({
               </p>
             </div>
           </div>
-
           {/* 1.2 Custom Legend/Budget Overview */}
           <div className="w-full space-y-3 md:w-1/2">
             <h3 className="mb-2 text-lg font-semibold">Budget Allocation</h3>
@@ -201,7 +186,6 @@ export const NewBudgetManagerCard = ({
             )}
           </div>
         </div>
-
         {/* --- SECTION 2: Global Progress Bar --- */}
         <div className="space-y-1">
           <div className="flex items-center justify-between">
@@ -221,7 +205,6 @@ export const NewBudgetManagerCard = ({
             </p>
           )}
         </div>
-
         {/* --- SECTION 3: Detailed Item List --- */}
         <div className="space-y-3 border-t border-gray-100 pt-4">
           <h3 className="text-lg font-semibold">Detailed Item Spending</h3>
@@ -250,7 +233,6 @@ export const NewBudgetManagerCard = ({
                         {item.description}
                       </span>
                     </div>
-
                     {/* Progress Bar */}
                     <div className="col-span-4 sm:col-span-2">
                       <Progress
@@ -258,7 +240,6 @@ export const NewBudgetManagerCard = ({
                         className="h-2 bg-gray-100"
                       />
                     </div>
-
                     {/* Actual / Estimated Cost */}
                     <div className="col-span-4 text-right sm:col-span-1">
                       <span className="font-mono text-sm text-gray-800">

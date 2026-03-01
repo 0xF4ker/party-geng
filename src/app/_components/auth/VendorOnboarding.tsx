@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { api } from "@/trpc/react";
 import { Button } from "@/components/ui/button";
@@ -16,16 +15,13 @@ import {
 import { toast } from "sonner";
 import { Loader2, Building2, FileText, LogOut, ArrowLeft } from "lucide-react";
 import { useAuthStore } from "@/stores/auth";
-
 interface VendorOnboardingProps {
   onSignOut?: () => void;
 }
-
 export function VendorOnboarding({ onSignOut }: VendorOnboardingProps) {
   const { profile, setProfile } = useAuthStore();
   const [step, setStep] = useState(1);
   const utils = api.useUtils();
-
   const [formData, setFormData] = useState({
     companyName: profile?.vendorProfile?.companyName ?? "",
     businessAddress: profile?.vendorProfile?.businessAddress ?? "",
@@ -34,7 +30,6 @@ export function VendorOnboarding({ onSignOut }: VendorOnboardingProps) {
     regNumber: profile?.vendorProfile?.regNumber ?? "",
     fullName: profile?.vendorProfile?.fullName ?? "",
   });
-
   const submitKyb = api.settings.submitKyb.useMutation({
     onSuccess: async (updatedVendor) => {
       toast.success("Verification submitted!");
@@ -52,10 +47,8 @@ export function VendorOnboarding({ onSignOut }: VendorOnboardingProps) {
     },
     onError: (err) => toast.error(err.message),
   });
-
   const handleNext = () => setStep((p) => p + 1);
   const handleBack = () => setStep((p) => p - 1);
-
   return (
     <div className="min-h-screen w-full bg-gray-50">
       {/* --- NEW HEADER SHELL --- */}
@@ -69,7 +62,6 @@ export function VendorOnboarding({ onSignOut }: VendorOnboardingProps) {
             Vendor Setup
           </span>
         </div>
-
         {/* High Visibility Logout Button */}
         {onSignOut && (
           <Button
@@ -82,7 +74,6 @@ export function VendorOnboarding({ onSignOut }: VendorOnboardingProps) {
           </Button>
         )}
       </header>
-
       {/* --- MAIN CONTENT --- */}
       <div className="flex flex-col items-center justify-center p-4 py-12">
         <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-xl">
@@ -105,7 +96,6 @@ export function VendorOnboarding({ onSignOut }: VendorOnboardingProps) {
               />
             </div>
           </div>
-
           {/* STEP 1: Account Details */}
           {step === 1 && (
             <div className="animate-in fade-in slide-in-from-right-4 space-y-4">
@@ -123,7 +113,6 @@ export function VendorOnboarding({ onSignOut }: VendorOnboardingProps) {
                   />
                 </div>
               </div>
-
               <div className="space-y-2">
                 <Label>Business Address</Label>
                 <Textarea
@@ -139,7 +128,6 @@ export function VendorOnboarding({ onSignOut }: VendorOnboardingProps) {
                   }
                 />
               </div>
-
               <div className="space-y-2">
                 <Label>About Business (Optional)</Label>
                 <Textarea
@@ -151,7 +139,6 @@ export function VendorOnboarding({ onSignOut }: VendorOnboardingProps) {
                   }
                 />
               </div>
-
               <Button
                 className="mt-4 w-full"
                 onClick={handleNext}
@@ -161,7 +148,6 @@ export function VendorOnboarding({ onSignOut }: VendorOnboardingProps) {
               </Button>
             </div>
           )}
-
           {/* STEP 2: KYB Submission */}
           {step === 2 && (
             <div className="animate-in fade-in slide-in-from-right-4 space-y-4">
@@ -186,7 +172,6 @@ export function VendorOnboarding({ onSignOut }: VendorOnboardingProps) {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-2">
                 <Label>RC / BN Number</Label>
                 <div className="relative">
@@ -201,7 +186,6 @@ export function VendorOnboarding({ onSignOut }: VendorOnboardingProps) {
                   />
                 </div>
               </div>
-
               <div className="space-y-2">
                 <Label>Contact Person Full Name</Label>
                 <Input
@@ -212,12 +196,10 @@ export function VendorOnboarding({ onSignOut }: VendorOnboardingProps) {
                   }
                 />
               </div>
-
               <div className="mt-4 rounded-md border border-yellow-100 bg-yellow-50 p-3 text-xs text-yellow-800">
                 By submitting, you agree to our verification terms. We verify
                 this number against the official registry.
               </div>
-
               <div className="mt-6 flex gap-3">
                 <Button
                   variant="outline"
@@ -248,7 +230,6 @@ export function VendorOnboarding({ onSignOut }: VendorOnboardingProps) {
             </div>
           )}
         </div>
-
         {/* --- OPTIONAL: Additional Footer Link for context --- */}
         <p className="mt-8 text-center text-xs text-gray-400">
           Need help?{" "}

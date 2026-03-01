@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import Image from "next/image";
 import { api } from "@/trpc/react";
@@ -27,11 +26,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-
-// --- 1. Define Types ---
-// These should ideally be inferred from your TRPC output helper,
-// but for this file, explicit interfaces clarify what we expect.
-
 interface ReportUser {
   id: string;
   username: string;
@@ -40,14 +34,12 @@ interface ReportUser {
   clientProfile?: { avatarUrl: string | null } | null;
   vendorProfile?: { avatarUrl: string | null } | null;
 }
-
 interface ReportPost {
   id: string;
   caption: string | null;
   author: { username: string };
   assets: { url: string }[];
 }
-
 interface Report {
   id: string;
   reason: string;
@@ -60,18 +52,13 @@ interface Report {
   targetUser?: ReportUser | null;
   targetPost?: ReportPost | null;
 }
-
 export default function AdminReportsPage() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
-
   const { data, isLoading, refetch } = api.report.getAll.useQuery({
     status: "PENDING",
     limit: 50,
   });
-
-  // Explicitly cast or validate the data if TRPC types aren't perfectly aligned yet
   const reports = (data?.reports ?? []) as unknown as Report[];
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -91,7 +78,6 @@ export default function AdminReportsPage() {
           </Badge>
         </div>
       </div>
-
       <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
         {isLoading ? (
           <div className="flex h-64 items-center justify-center">
@@ -177,7 +163,6 @@ export default function AdminReportsPage() {
           </table>
         )}
       </div>
-
       <ReportReviewSheet
         report={selectedReport}
         open={!!selectedReport}
@@ -189,7 +174,6 @@ export default function AdminReportsPage() {
     </div>
   );
 }
-
 function ReportReviewSheet({
   report,
   open,
@@ -200,9 +184,6 @@ function ReportReviewSheet({
   onClose: () => void;
 }) {
   const [notes, setNotes] = useState("");
-
-  // Using explicit generic params for useMutation would be ideal,
-  // but standard TRPC inference works well here.
   const resolveMutation = api.report.resolveReport.useMutation({
     onSuccess: () => {
       toast.success("Report resolved");
@@ -211,16 +192,13 @@ function ReportReviewSheet({
     },
     onError: (err) => toast.error(err.message),
   });
-
   const handleAction = (
     action: "DISMISS" | "BAN_USER" | "DELETE_POST" | "DELETE_POST_AND_BAN",
   ) => {
     if (!report) return;
     resolveMutation.mutate({ reportId: report.id, action, notes });
   };
-
   if (!report) return null;
-
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-[400px] overflow-y-auto sm:w-[540px]">
@@ -233,7 +211,6 @@ function ReportReviewSheet({
             </span>
           </SheetDescription>
         </SheetHeader>
-
         <div className="space-y-6 py-6">
           {/* Details Section */}
           <div className="rounded-lg border bg-gray-50 p-4">
@@ -244,13 +221,11 @@ function ReportReviewSheet({
               {report.details ?? "No additional details provided."}
             </p>
           </div>
-
           {/* Target Content Preview */}
           <div className="rounded-lg border p-4">
             <h4 className="mb-3 text-sm font-semibold text-gray-900">
               Reported Content
             </h4>
-
             {report.targetPost ? (
               <div className="space-y-3">
                 <div className="mb-2 flex items-center gap-2">
@@ -309,7 +284,6 @@ function ReportReviewSheet({
               </div>
             )}
           </div>
-
           {/* Admin Notes */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Resolution Notes</label>
@@ -320,7 +294,6 @@ function ReportReviewSheet({
             />
           </div>
         </div>
-
         <SheetFooter className="flex-col gap-3 sm:flex-col">
           <div className="grid w-full grid-cols-2 gap-3">
             <Button
@@ -331,7 +304,6 @@ function ReportReviewSheet({
               <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
               Dismiss Report
             </Button>
-
             {report.targetPost ? (
               <Button
                 variant="destructive"
@@ -352,7 +324,6 @@ function ReportReviewSheet({
               </Button>
             )}
           </div>
-
           {report.targetPost && (
             <Button
               variant="destructive"

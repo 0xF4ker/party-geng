@@ -1,9 +1,7 @@
 "use client";
-
 import Image from "next/image";
 import { api } from "@/trpc/react";
 import { Loader2, Send } from "lucide-react";
-
 const PostModal = ({
   postId,
   onClose,
@@ -16,10 +14,6 @@ const PostModal = ({
     isLoading,
     isError,
   } = api.post.getById.useQuery({ id: postId });
-
-  // Mutations for like, unlike, bookmark, etc. would go here, similar to PostPage
-  // For brevity, they are omitted, but would be implemented with optimistic updates
-
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -27,7 +21,6 @@ const PostModal = ({
       </div>
     );
   }
-
   if (isError || !post) {
     return (
       <div className="flex h-full items-center justify-center text-red-500">
@@ -35,9 +28,7 @@ const PostModal = ({
       </div>
     );
   }
-
   const authorProfile = post.author.vendorProfile ?? post.author.clientProfile;
-
   return (
     <div
       className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl lg:flex-row"
@@ -131,5 +122,4 @@ const PostModal = ({
     </div>
   );
 };
-
 export default PostModal;

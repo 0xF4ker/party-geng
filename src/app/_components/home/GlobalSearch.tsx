@@ -1,5 +1,4 @@
 "use client";
-
 import * as React from "react";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,26 +16,19 @@ import { useRouter } from "next/navigation";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { api } from "@/trpc/react";
-
-// --- Types ---
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type searchItems = RouterOutput["category"]["getSearchList"];
-
 type SearchItem = NonNullable<searchItems>[number];
-
 interface GlobalSearchProps {
   items: SearchItem[];
   className?: string;
 }
-
 const GlobalSearch: React.FC<GlobalSearchProps> = ({ items, className }) => {
   const [open, setOpen] = React.useState(false);
   const [inputValue, setInputValue] = React.useState("");
   const router = useRouter();
-
   const { data: popularServices, isLoading: isLoadingPopular } =
     api.category.getPopularServices.useQuery();
-
   const handleSelect = (currentValue: string) => {
     setOpen(false);
     const selectedItem = items.find(
@@ -52,8 +44,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ items, className }) => {
       }
     }
   };
-
-  // Close dialog on escape key
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -63,8 +53,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ items, className }) => {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -88,7 +76,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ items, className }) => {
           />
           <CommandList className="max-h-[50vh]">
             <CommandEmpty>No service found.</CommandEmpty>
-
             {inputValue.length === 0 ? (
               <CommandGroup heading="Popular Searches">
                 {isLoadingPopular && <CommandItem disabled>Loading...</CommandItem>}
@@ -122,5 +109,4 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({ items, className }) => {
     </Dialog>
   );
 };
-
 export default GlobalSearch;

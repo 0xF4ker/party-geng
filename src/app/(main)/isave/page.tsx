@@ -1,17 +1,13 @@
 "use client";
-
 import React, { useState } from "react";
 import { Plus, PiggyBank, Calendar, ArrowUpRight } from "lucide-react";
 import { api } from "@/trpc/react";
 import { CreatePlanModal } from "@/app/_components/isave/CreatePlanModal";
 import Link from "next/link";
 import { toast } from "sonner";
-
 const ISavePage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
   const { data: plans, isLoading, refetch } = api.savePlan.getAll.useQuery();
-
   return (
     <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
       <div className="container mx-auto px-4 py-8 sm:px-8">
@@ -33,7 +29,6 @@ const ISavePage = () => {
             Create Plan
           </button>
         </div>
-
         {/* Plans Grid */}
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
@@ -62,7 +57,6 @@ const ISavePage = () => {
                       }}
                     />
                   </div>
-
                   <div className="mb-4 flex items-start justify-between">
                     <div>
                       <h3 className="text-lg font-bold text-gray-900 group-hover:text-pink-600">
@@ -77,7 +71,6 @@ const ISavePage = () => {
                       <ArrowUpRight className="h-5 w-5" />
                     </div>
                   </div>
-
                   <div className="mb-4">
                     <p className="text-3xl font-bold text-gray-900">
                       ₦{plan.currentAmount.toLocaleString()}
@@ -86,7 +79,6 @@ const ISavePage = () => {
                       of ₦{plan.targetAmount.toLocaleString()} goal
                     </p>
                   </div>
-
                   <div className="flex items-center gap-2 text-xs text-gray-400">
                     <Calendar className="h-3.5 w-3.5" />
                     Target:{" "}
@@ -119,7 +111,6 @@ const ISavePage = () => {
           </div>
         )}
       </div>
-
       {isCreateModalOpen && (
         <CreatePlanModal
           isOpen={isCreateModalOpen}
@@ -134,5 +125,4 @@ const ISavePage = () => {
     </div>
   );
 };
-
 export default ISavePage;

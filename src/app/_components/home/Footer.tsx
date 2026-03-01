@@ -10,7 +10,6 @@ import {
 import { Accessibility, Globe } from "lucide-react";
 import Image from "next/image";
 import ClientOnly from "@/components/ui/ClientOnly";
-
 const footerSections = [
   {
     title: "About",
@@ -41,7 +40,6 @@ const footerSections = [
     ],
   },
 ];
-
 const socialLinks = [
   {
     href: "https://x.com/partygeng",
@@ -59,7 +57,6 @@ const socialLinks = [
     label: "Instagram",
   },
 ];
-
 const Icon = ({ path, className }: { path: string; className?: string }) => (
   <svg
     className={className}
@@ -72,7 +69,6 @@ const Icon = ({ path, className }: { path: string; className?: string }) => (
     <path d={path} />
   </svg>
 );
-
 const Footer = () => {
   return (
     <footer className="border-border/40 border-t bg-gray-100">
@@ -105,7 +101,6 @@ const Footer = () => {
             </Accordion>
           </ClientOnly>
         </div>
-
         {/* Desktop Grid View */}
         <div className="hidden gap-8 py-16 lg:grid lg:grid-cols-4">
           {footerSections.map((section) => (
@@ -126,7 +121,6 @@ const Footer = () => {
             </div>
           ))}
         </div>
-
         <div className="border-border/40 flex flex-col items-center justify-between border-t py-8 lg:flex-row">
           <div className="mb-6 flex flex-col items-center lg:mb-0 lg:flex-row">
             {/* <h2 className="brand-text-gradient text-3xl font-bold">
@@ -181,5 +175,4 @@ const Footer = () => {
     </footer>
   );
 };
-
 export default Footer;

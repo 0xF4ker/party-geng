@@ -1,5 +1,4 @@
 "use client";
-
 import { api } from "@/trpc/react";
 import { useAuthStore } from "@/stores/auth";
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -19,11 +18,9 @@ import {
 import { ImageUpload } from "@/components/ImageUpload";
 import { toast } from "sonner";
 import { NIGERIA_STATES_LGAS } from "@/lib/geo/nigeria";
-
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Skeleton } from "@/components/ui/skeleton";
-
 import {
   profileUpdateSchema,
   passwordUpdateSchema,
@@ -36,31 +33,21 @@ import LocationSearchInput, {
 } from "@/components/ui/LocationSearchInput";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-
-// Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
   return inputs.filter(Boolean).join(" ");
 };
-
-// --- TYPES ---
-// Explicit interfaces to satisfy "no-unsafe-*" rules
 interface ServiceItem {
   serviceId: number;
   name?: string;
 }
-
 interface VendorProfileData {
   id: string;
   services: ServiceItem[];
 }
-
 interface UserProfileData {
   id: string;
   vendorProfile?: VendorProfileData | null;
 }
-
-// --- SKELETON COMPONENTS ---
-
 const SettingsSidebarSkeleton = () => (
   <div className="sticky top-[127px] rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
     <div className="flex flex-col space-y-1">
@@ -73,7 +60,6 @@ const SettingsSidebarSkeleton = () => (
     </div>
   </div>
 );
-
 const PublicProfileFormSkeleton = () => (
   <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
     <div className="border-b border-gray-200 p-6">
@@ -100,7 +86,6 @@ const PublicProfileFormSkeleton = () => (
     </div>
   </div>
 );
-
 const SettingsPageSkeleton = () => (
   <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
     <div className="container mx-auto px-4 py-8 sm:px-8">
@@ -115,31 +100,21 @@ const SettingsPageSkeleton = () => (
     </div>
   </div>
 );
-
-// --- Main Page Component ---
 const SettingsPage = () => {
   const { profile, isLoading } = useAuthStore();
-
   const initialSection = useMemo(() => {
     return profile?.role === "VENDOR" ? "profile" : "profile";
   }, [profile?.role]);
-
   const [activeSection, setActiveSection] = useState(initialSection);
-
   if (isLoading) {
     return <SettingsPageSkeleton />;
   }
-
   const renderSection = () => {
     switch (activeSection) {
       case "profile":
         return <PublicProfileForm isVendor={profile?.role === "VENDOR"} />;
-      // case "verification":
-      //   return profile?.role === "VENDOR" ? <KycForm /> : null;
       case "security":
         return <SecuritySettings />;
-      // case "payments":
-      //   return <PaymentSettings />;
       case "notifications":
         return <NotificationSettings />;
       case "services":
@@ -148,7 +123,6 @@ const SettingsPage = () => {
         return <PublicProfileForm isVendor={profile?.role === "VENDOR"} />;
     }
   };
-
   return (
     <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
       <div className="container mx-auto px-4 py-8 sm:px-8">
@@ -160,7 +134,6 @@ const SettingsPage = () => {
               userType={profile?.role}
             />
           </div>
-
           <div className="space-y-8 lg:col-span-3">
             {profile?.role === "VENDOR" &&
               profile.vendorProfile?.kybStatus !== "APPROVED" &&
@@ -182,7 +155,6 @@ const SettingsPage = () => {
                   </div>
                 </div>
               )}
-
             {renderSection()}
             <AccountActions />
           </div>
@@ -191,9 +163,6 @@ const SettingsPage = () => {
     </div>
   );
 };
-
-// --- Sub-Components ---
-
 const SettingsSidebar = ({
   activeSection,
   setActiveSection,
@@ -210,12 +179,6 @@ const SettingsSidebar = ({
       icon: User,
       for: ["client", "vendor"],
     },
-    // {
-    //   id: "verification",
-    //   name: "Verification (KYC)",
-    //   icon: ShieldCheck,
-    //   for: ["vendor"],
-    // },
     {
       id: "services",
       name: "My Services",
@@ -228,12 +191,6 @@ const SettingsSidebar = ({
       icon: Lock,
       for: ["client", "vendor"],
     },
-    // {
-    //   id: "payments",
-    //   name: "Payment Methods",
-    //   icon: CreditCard,
-    //   for: ["client", "vendor"],
-    // },
     {
       id: "notifications",
       name: "Notifications",
@@ -241,11 +198,9 @@ const SettingsSidebar = ({
       for: ["client", "vendor"],
     },
   ];
-
   const visibleLinks = allLinks.filter(
     (link) => userType && link.for.includes(userType.toLowerCase()),
   );
-
   return (
     <div className="sticky top-[127px] rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <nav className="flex flex-col space-y-1">
@@ -268,236 +223,12 @@ const SettingsSidebar = ({
     </div>
   );
 };
-
-// // --- VENDOR-ONLY SETTINGS ---
-// const KycForm = () => {
-//   const { profile } = useAuthStore();
-
-//   const {
-//     register,
-//     handleSubmit,
-//     control,
-//     setValue,
-//     reset,
-//     formState: { errors, isValid },
-//   } = useForm({
-//     resolver: zodResolver(kycSchema),
-//     mode: "onChange",
-//   });
-
-//   const idCardUrl = useWatch({ control, name: "idCardUrl" });
-//   const cacDocumentUrl = useWatch({ control, name: "cacDocumentUrl" });
-//   const state = useWatch({ control, name: "state" });
-
-//   useEffect(() => {
-//     const kyc = profile?.vendorProfile;
-//     if (kyc) {
-//       reset({
-//         fullName: kyc.fullName ?? "",
-//         businessAddress: kyc.businessAddress ?? "",
-//         cacNumber: kyc.cacNumber ?? "",
-//         meansOfId: kyc.meansOfId ?? "",
-//         idNumber: kyc.idNumber ?? "",
-//         state: kyc.state ?? "",
-//         lga: kyc.lga ?? "",
-//         idCardUrl: kyc.idCardUrl ?? undefined,
-//         cacDocumentUrl: kyc.cacDocumentUrl ?? undefined,
-//       });
-//     }
-//   }, [profile, reset]);
-
-//   const { mutate, isPending } = api.settings.submitKyc.useMutation({
-//     onSuccess: () => {
-//       toast.success("KYC submitted successfully! We'll review shortly.");
-//     },
-//     onError: (err) => toast.error(err.message),
-//   });
-
-//   const onSubmit = (data: z.infer<typeof kycSchema>) => {
-//     mutate(data);
-//   };
-
-//   return (
-//     <form
-//       onSubmit={handleSubmit(onSubmit)}
-//       className="rounded-lg border border-gray-200 bg-white shadow-sm"
-//     >
-//       <div className="border-b border-gray-200 p-6">
-//         <h2 className="text-xl font-semibold">Verification (KYC)</h2>
-//         <p className="mt-1 text-sm text-gray-500">
-//           Submit your details to get verified as a Partygeng vendor.
-//         </p>
-//       </div>
-//       <div className="space-y-6 p-6">
-//         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-//           <div>
-//             <FormInput
-//               label="Full Name (as on ID)"
-//               id="fullName"
-//               placeholder="Adebayo Popoola"
-//               {...register("fullName")}
-//             />
-//             {errors.fullName && (
-//               <p className="mt-1 text-sm text-red-600">
-//                 {errors.fullName.message!}
-//               </p>
-//             )}
-//           </div>
-//           <div>
-//             <FormInput
-//               label="Business Address"
-//               id="address"
-//               placeholder="123, Main Street"
-//               {...register("businessAddress")}
-//             />
-//             {errors.businessAddress && (
-//               <p className="mt-1 text-sm text-red-600">
-//                 {errors.businessAddress.message!}
-//               </p>
-//             )}
-//           </div>
-//         </div>
-
-//         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-//           <div>
-//             <FormSelect
-//               label="Means of ID"
-//               id="meansOfId"
-//               options={[
-//                 "NIN",
-//                 "BVN",
-//                 "International Passport",
-//                 "Driver's License",
-//                 "Voter's Card",
-//               ]}
-//               {...register("meansOfId")}
-//             />
-//             {errors.meansOfId && (
-//               <p className="mt-1 text-sm text-red-600">
-//                 {errors.meansOfId.message!}
-//               </p>
-//             )}
-//           </div>
-//           <div>
-//             <FormInput
-//               label="ID Number"
-//               id="idNumber"
-//               placeholder="Enter ID number"
-//               {...register("idNumber")}
-//             />
-//             {errors.idNumber && (
-//               <p className="mt-1 text-sm text-red-600">
-//                 {errors.idNumber.message!}
-//               </p>
-//             )}
-//           </div>
-//           <div>
-//             <FormInput
-//               label="CAC Number (if registered)"
-//               id="cacNumber"
-//               placeholder="RC123456"
-//               {...register("cacNumber")}
-//             />
-//             {errors.cacNumber && (
-//               <p className="mt-1 text-sm text-red-600">
-//                 {errors.cacNumber.message!}
-//               </p>
-//             )}
-//           </div>
-//         </div>
-
-//         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-//           <div>
-//             <FormSelect
-//               label="State"
-//               id="state"
-//               options={Object.keys(NIGERIA_STATES_LGAS)}
-//               {...register("state")}
-//               onChange={(e) => {
-//                 setValue("state", e.target.value);
-//                 setValue("lga", "");
-//               }}
-//             />
-//             {errors.state && (
-//               <p className="mt-1 text-sm text-red-600">
-//                 {errors.state.message!}
-//               </p>
-//             )}
-//           </div>
-//           <div>
-//             <FormSelect
-//               label="LGA"
-//               id="lga"
-//               options={state ? (NIGERIA_STATES_LGAS[state] ?? []) : []}
-//               {...register("lga")}
-//             />
-//             {errors.lga && (
-//               <p className="mt-1 text-sm text-red-600">{errors.lga.message!}</p>
-//             )}
-//           </div>
-//         </div>
-
-//         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-//           <div>
-//             <ImageUpload
-//               label="Upload ID Card"
-//               description="PNG, JPG, PDF up to 10MB"
-//               bucket="kyc-documents"
-//               currentImage={idCardUrl as string | null}
-//               accept="image/*,application/pdf"
-//               onUploadComplete={(url) => {
-//                 setValue("idCardUrl", url, { shouldValidate: true });
-//               }}
-//               fileName={`id_card-${profile?.id}`}
-//             />
-//             {errors.idCardUrl && (
-//               <p className="mt-1 text-sm text-red-600">
-//                 {errors.idCardUrl.message!}
-//               </p>
-//             )}
-//           </div>
-//           <div>
-//             <ImageUpload
-//               label="Upload CAC Document"
-//               description="PNG, JPG, PDF up to 10MB"
-//               bucket="kyc-documents"
-//               currentImage={cacDocumentUrl as string | null}
-//               accept="image/*,application/pdf"
-//               onUploadComplete={(url) => {
-//                 setValue("cacDocumentUrl", url, { shouldValidate: true });
-//               }}
-//               fileName={`cac_document-${profile?.id}`}
-//             />
-//             {errors.cacDocumentUrl && (
-//               <p className="mt-1 text-sm text-red-600">
-//                 {errors.cacDocumentUrl.message!}
-//               </p>
-//             )}
-//           </div>
-//         </div>
-//       </div>
-//       <div className="flex justify-end border-t border-gray-200 bg-gray-50 p-6">
-//         <button
-//           type="submit"
-//           className="rounded-md bg-pink-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-pink-700 disabled:opacity-50"
-//           disabled={!isValid || isPending}
-//         >
-//           {isPending ? "Submitting..." : "Submit for Verification"}
-//         </button>
-//       </div>
-//     </form>
-//   );
-// };
-
-// --- SHARED SETTINGS PAGES ---
-
 const SkillsInput: React.FC<{
   skills: string[];
   setSkills: React.Dispatch<React.SetStateAction<string[]>>;
 }> = ({ skills, setSkills }) => {
   const [skillInput, setSkillInput] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
-
   const addSkill = () => {
     const trimmedInput = skillInput.trim();
     if (trimmedInput && !skills.includes(trimmedInput)) {
@@ -505,11 +236,9 @@ const SkillsInput: React.FC<{
       setSkillInput("");
     }
   };
-
   const removeSkill = (skillToRemove: string) => {
     setSkills(skills.filter((skill) => skill !== skillToRemove));
   };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
@@ -519,7 +248,6 @@ const SkillsInput: React.FC<{
       removeSkill(skills[skills.length - 1] ?? "");
     }
   };
-
   return (
     <div>
       <label
@@ -571,10 +299,8 @@ const SkillsInput: React.FC<{
     </div>
   );
 };
-
 const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   const { profile } = useAuthStore();
-
   const [selectedLocation, setSelectedLocation] =
     useState<LocationSearchResult | null>(() => {
       const loc = isVendor
@@ -590,7 +316,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
       }
       return null;
     });
-
   const {
     register,
     handleSubmit,
@@ -602,18 +327,14 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
     resolver: zodResolver(profileUpdateSchema),
     mode: "onChange",
   });
-
   const avatarUrl = useWatch({ control, name: "avatarUrl" });
-
   useEffect(() => {
     if (profile) {
       const clientProfile = profile.clientProfile;
       const vendorProfile = profile.vendorProfile;
-
       const userLocation = isVendor
         ? vendorProfile?.location
         : clientProfile?.location;
-
       const commonData = {
         username: profile.username ?? "",
         avatarUrl: isVendor
@@ -622,7 +343,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
         location:
           (userLocation as unknown as LocationSearchResult)?.display_name ?? "",
       };
-
       const specificData = isVendor
         ? {
             companyName: vendorProfile?.companyName ?? "",
@@ -633,13 +353,11 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
           }
         : {
             name: clientProfile?.name ?? "",
-            bio: clientProfile?.bio ?? "", // Load Client Bio
+            bio: clientProfile?.bio ?? "",
           };
-
       reset({ ...commonData, ...specificData });
     }
   }, [profile, isVendor, reset]);
-
   const utils = api.useUtils();
   const updateProfile = api.settings.updateProfile.useMutation({
     onSuccess: async () => {
@@ -648,9 +366,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
     },
     onError: (err) => toast.error(err.message),
   });
-
   const onSubmit = (data: z.infer<typeof profileUpdateSchema>) => {
-    // Filter data based on role to avoid sending empty fields for the wrong profile type
     const payload = isVendor
       ? {
           username: data.username,
@@ -669,10 +385,8 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
           avatarUrl: data.avatarUrl,
           location: selectedLocation,
         };
-
     updateProfile.mutate(payload);
   };
-
   return (
     <form
       className="rounded-lg border border-gray-200 bg-white shadow-sm"
@@ -694,7 +408,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
           bucket="profile-images"
           fileName={`avatar-${profile?.id}`}
         />
-
         <div>
           <FormInput
             label="Username"
@@ -708,7 +421,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
             </p>
           )}
         </div>
-
         <div>
           <label
             htmlFor="location"
@@ -724,7 +436,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
             }}
           />
         </div>
-
         {/* --- CLIENT FIELDS --- */}
         {!isVendor && (
           <>
@@ -736,7 +447,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                 {...register("name")}
               />
             </div>
-
             <div className="space-y-1.5">
               <Label
                 htmlFor="bio"
@@ -757,7 +467,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
             </div>
           </>
         )}
-
         {/* --- VENDOR FIELDS --- */}
         {isVendor && (
           <>
@@ -774,7 +483,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                 Verified business name. Contact support to change.
               </p>
             </div>
-
             <div>
               <FormInput
                 label="Professional Title"
@@ -783,7 +491,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                 {...register("title")}
               />
             </div>
-
             <div className="space-y-1.5">
               <Label
                 htmlFor="about"
@@ -802,7 +509,6 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                 <p className="text-sm text-red-600">{errors.about.message!}</p>
               )}
             </div>
-
             <div>
               <Label className="mb-2 block text-sm font-semibold text-gray-700">
                 Languages Spoken
@@ -836,31 +542,11 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
     </form>
   );
 };
-
-// Placeholder for Payments
-// const PaymentSettings = () => (
-//   <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-//     <div className="border-b border-gray-200 p-6">
-//       <h2 className="text-xl font-semibold">Payment Methods</h2>
-//     </div>
-//     <div className="p-6">
-//       <p className="text-gray-600">
-//         Manage your payment methods and payout accounts here.
-//       </p>
-//     </div>
-//   </div>
-// );
-
-// --- VENDOR-ONLY SETTINGS ---
 const VendorServicesForm = () => {
   const { profile } = useAuthStore();
   const { data: rawUserProfile, isLoading: isLoadingUserProfile } =
     api.user.getProfile.useQuery();
-
-  // FIX: Cast TRPC result to specific type for linter
   const userProfile = rawUserProfile as unknown as UserProfileData | undefined;
-
-  // Helper to safely extract IDs
   const getIdsFromData = (data: unknown): number[] => {
     const typedData = data as UserProfileData | undefined;
     if (
@@ -871,21 +557,14 @@ const VendorServicesForm = () => {
     }
     return [];
   };
-
-  // 1. Initialize state lazily.
-  // This grabs data if it exists in cache (isLoading might be false, but data exists).
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>(() => {
     const fromUser = getIdsFromData(userProfile);
     if (fromUser.length > 0) return fromUser;
-
-    // Fallback to store profile if query result is empty/loading
     const fromStore = getIdsFromData(profile);
     return fromStore;
   });
-
   const { data: allServices, isLoading: isLoadingAllServices } =
     api.category.getAll.useQuery();
-
   const utils = api.useUtils();
   const updateServices = api.settings.updateVendorServices.useMutation({
     onSuccess: async () => {
@@ -894,7 +573,6 @@ const VendorServicesForm = () => {
     },
     onError: (err) => toast.error(err.message),
   });
-
   const handleServiceToggle = (serviceId: number) => {
     setSelectedServiceIds((prev) =>
       prev.includes(serviceId)
@@ -902,12 +580,10 @@ const VendorServicesForm = () => {
         : [...prev, serviceId],
     );
   };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateServices.mutate({ serviceIds: selectedServiceIds });
   };
-
   if (isLoadingAllServices || isLoadingUserProfile) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -924,7 +600,6 @@ const VendorServicesForm = () => {
       </div>
     );
   }
-
   if (profile?.role !== "VENDOR") {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -932,9 +607,6 @@ const VendorServicesForm = () => {
       </div>
     );
   }
-
-  // FIX: Using `key` to reset form state when userProfile loads.
-  // This eliminates the need for useEffect to sync state.
   return (
     <form
       key={userProfile?.id ?? "loading"}
@@ -992,8 +664,6 @@ const VendorServicesForm = () => {
     </form>
   );
 };
-
-// Placeholder for Security
 const SecuritySettings = () => {
   const {
     register,
@@ -1008,19 +678,16 @@ const SecuritySettings = () => {
       confirmPassword: "",
     },
   });
-
   const updatePassword = api.settings.updatePassword.useMutation({
     onSuccess: () => toast.success("Password updated"),
     onError: (err) => toast.error(err.message),
   });
-
   const onSubmit = (data: z.infer<typeof passwordUpdateSchema>) => {
     updatePassword.mutate({
       currentPassword: data.currentPassword,
       newPassword: data.newPassword,
     });
   };
-
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
@@ -1082,19 +749,15 @@ const SecuritySettings = () => {
     </form>
   );
 };
-
-// Placeholder for Notifications
 const NotificationSettings = () => {
   const [toggles, setToggles] = useState({
     newMessages: true,
     quoteRequests: true,
     marketing: false,
   });
-
   const handleToggle = (key: keyof typeof toggles) => {
     setToggles((prev) => ({ ...prev, [key]: !prev[key] }));
   };
-
   return (
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
       <div className="border-b border-gray-200 p-6">
@@ -1161,9 +824,6 @@ const NotificationSettings = () => {
     </div>
   );
 };
-
-// --- Shared Form Utilities ---
-
 const FormInput = React.forwardRef<
   HTMLInputElement,
   {
@@ -1188,7 +848,6 @@ const FormInput = React.forwardRef<
   </div>
 ));
 FormInput.displayName = "FormInput";
-
 const FormSelect = React.forwardRef<
   HTMLSelectElement,
   {
@@ -1225,5 +884,4 @@ const FormSelect = React.forwardRef<
   </div>
 ));
 FormSelect.displayName = "FormSelect";
-
 export default SettingsPage;

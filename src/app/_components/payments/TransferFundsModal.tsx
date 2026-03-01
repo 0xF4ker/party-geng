@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,14 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-
 interface TransferFundsModalProps {
   isOpen: boolean;
   onClose: () => void;
   availableBalance: number;
   onSuccess: () => void;
 }
-
 export const TransferFundsModal: React.FC<TransferFundsModalProps> = ({
   isOpen,
   onClose,
@@ -26,7 +23,6 @@ export const TransferFundsModal: React.FC<TransferFundsModalProps> = ({
   const [recipientUsername, setRecipientUsername] = useState("");
   const [amount, setAmount] = useState<string>("");
   const [description, setDescription] = useState("");
-
   const transferMutation = api.payment.transferFunds.useMutation({
     onSuccess: () => {
       toast.success("Transfer successful!");
@@ -36,28 +32,23 @@ export const TransferFundsModal: React.FC<TransferFundsModalProps> = ({
       toast.error(error.message || "Transfer failed");
     },
   });
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const numAmount = Number(amount);
-
     if (numAmount < 100) {
       toast.error("Minimum transfer amount is ₦100");
       return;
     }
-
     if (numAmount > availableBalance) {
       toast.error("Insufficient balance");
       return;
     }
-
     transferMutation.mutate({
       recipientUsername,
       amount: numAmount,
       description,
     });
   };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">

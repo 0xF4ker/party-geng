@@ -17,20 +17,16 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
-
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { useRouter } from "next/navigation";
-
 type routerOutput = inferRouterOutputs<AppRouter>;
 type conversationOutput = routerOutput["chat"]["getConversations"][number];
-
 interface UserInfoSidebarProps {
-  conversation: conversationOutput; // Replace with your strict TRPC type
+  conversation: conversationOutput;
   currentUserId: string;
   onClose?: () => void;
 }
-
 export const UserInfoSidebar = ({
   conversation,
   currentUserId,
@@ -38,7 +34,6 @@ export const UserInfoSidebar = ({
 }: UserInfoSidebarProps) => {
   const router = useRouter();
   const utils = api.useUtils();
-
   const removeParticipantMutation = api.chat.removeParticipant.useMutation({
     onSuccess: () => {
       toast.success("Participant removed.");
@@ -46,7 +41,6 @@ export const UserInfoSidebar = ({
     },
     onError: (err) => toast.error(err.message),
   });
-
   const handleRemoveParticipant = (userIdToRemove: string) => {
     if (confirm("Are you sure you want to remove this user from the group?")) {
       removeParticipantMutation.mutate({
@@ -55,13 +49,10 @@ export const UserInfoSidebar = ({
       });
     }
   };
-
-  // 1. Find the "Other" user
   const otherParticipant = conversation.participants.find(
     (p) => p.userId !== currentUserId,
   );
   const otherUser = otherParticipant?.user;
-
   const { data: orders } = api.order.getOrdersBetweenUsers.useQuery(
     {
       userOneId: currentUserId,
@@ -71,12 +62,9 @@ export const UserInfoSidebar = ({
       enabled: !!otherUser?.id && !conversation.isGroup,
     },
   );
-
   const activeOrders = orders?.filter((o) => o.status === "ACTIVE");
-
   if (conversation.isGroup && conversation.clientEvent) {
     const isGroupAdmin = conversation.groupAdminId === currentUserId;
-
     return (
       <div className="flex h-full flex-col bg-white">
         {onClose && (
@@ -158,31 +146,23 @@ export const UserInfoSidebar = ({
       </div>
     );
   }
-
   if (!otherUser) return null;
-
-  // 2. Extract Data with Fallbacks
   const vendorProfile = otherUser.vendorProfile;
   const clientProfile = otherUser.clientProfile;
   const isVendor = !!vendorProfile;
-
-  // Safe extraction logic
   const displayName =
     vendorProfile?.companyName ??
     clientProfile?.name ??
     otherUser.username ??
     "Unknown";
-
   const avatarUrl = vendorProfile?.avatarUrl ?? clientProfile?.avatarUrl;
   const locationData = vendorProfile?.location ?? clientProfile?.location;
   const location =
     (locationData as unknown as { display_name: string } | null)
       ?.display_name ?? "Nigeria";
-
   const joinedDate = otherUser.createdAt
     ? new Date(otherUser.createdAt)
     : new Date();
-
   return (
     <div className="flex h-full flex-col bg-white">
       {onClose && (
@@ -218,14 +198,12 @@ export const UserInfoSidebar = ({
             title="Online"
           />
         </div>
-
         <h2 className="text-center text-xl font-bold text-gray-900">
           {displayName}
         </h2>
         <p className="mt-1 text-sm font-medium text-gray-500">
           {isVendor ? "Event Vendor" : "Client"}
         </p>
-
         {/* Vendor Rating Badge */}
         {isVendor && vendorProfile?.rating && (
           <div className="mt-3 flex items-center gap-2 rounded-full border border-yellow-100 bg-yellow-50 px-3 py-1 text-sm font-semibold text-yellow-700">
@@ -238,7 +216,6 @@ export const UserInfoSidebar = ({
           </div>
         )}
       </div>
-
       {/* --- Action Buttons --- */}
       <div className="p-6 pb-2">
         <Link
@@ -249,7 +226,6 @@ export const UserInfoSidebar = ({
           View Full Profile <ExternalLink className="h-4 w-4" />
         </Link>
       </div>
-
       {/* --- Details List --- */}
       <div className="flex-1 overflow-y-auto p-6 pt-2">
         <div className="space-y-6">
@@ -280,7 +256,6 @@ export const UserInfoSidebar = ({
               />
             </ul>
           </div>
-
           {/* Active Orders */}
           {activeOrders && activeOrders.length > 0 && (
             <div>
@@ -315,7 +290,6 @@ export const UserInfoSidebar = ({
               </ul>
             </div>
           )}
-
           {/* Section: Vendor Specifics */}
           {isVendor && vendorProfile && (
             <div>
@@ -344,8 +318,6 @@ export const UserInfoSidebar = ({
     </div>
   );
 };
-
-// --- Helper Component for List Items ---
 const InfoItem = ({
   icon: Icon,
   label,

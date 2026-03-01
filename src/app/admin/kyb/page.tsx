@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { api } from "@/trpc/react";
 import {
@@ -32,13 +31,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { type inferRouterOutputs } from "@trpc/server";
 import { type AppRouter } from "@/server/api/root";
-
-// --- TYPES ---
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type KybRequest = RouterOutputs["kyb"]["getRequests"][number];
 type RegistryData = NonNullable<RouterOutputs["kyb"]["verifyRegistry"]>;
-
-// --- HELPER COMPONENT ---
 const KybStatusBadge = ({ status }: { status: string }) => {
   const styles: Record<string, string> = {
     IN_REVIEW: "bg-blue-100 text-blue-700 border-blue-200",
@@ -46,16 +41,13 @@ const KybStatusBadge = ({ status }: { status: string }) => {
     REJECTED: "bg-red-100 text-red-700 border-red-200",
     PENDING: "bg-gray-100 text-gray-600 border-gray-200",
   };
-
   const icons: Record<string, LucideIcon> = {
     IN_REVIEW: Clock,
     APPROVED: CheckCircle,
     REJECTED: XCircle,
     PENDING: Loader2,
   };
-
   const Icon = icons[status] ?? Clock;
-
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
@@ -67,8 +59,6 @@ const KybStatusBadge = ({ status }: { status: string }) => {
     </span>
   );
 };
-
-// --- MOBILE CARD COMPONENT ---
 const MobileKybCard = ({
   vendor,
   onClick,
@@ -92,7 +82,6 @@ const MobileKybCard = ({
         </div>
         <KybStatusBadge status={vendor.vendorProfile?.kybStatus ?? "PENDING"} />
       </div>
-
       <div className="grid grid-cols-2 gap-y-2 text-xs text-gray-500">
         <div>
           <span className="block font-medium tracking-wider text-gray-400 uppercase">
@@ -114,7 +103,6 @@ const MobileKybCard = ({
           </span>
         </div>
       </div>
-
       <div className="flex items-center justify-between border-t border-gray-50 pt-3 text-sm">
         <span className="text-gray-600">
           {vendor.vendorProfile?.fullName ?? vendor.username}
@@ -126,8 +114,6 @@ const MobileKybCard = ({
     </div>
   );
 };
-
-// --- MAIN PAGE COMPONENT ---
 export default function AdminKybPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<
@@ -135,10 +121,7 @@ export default function AdminKybPage() {
   >(undefined);
   const [selectedVendor, setSelectedVendor] = useState<KybRequest | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-
-  // Verification State
   const [registryData, setRegistryData] = useState<RegistryData | null>(null);
-
   const {
     data: vendors,
     isLoading,
@@ -148,7 +131,6 @@ export default function AdminKybPage() {
     search: search || undefined,
     status: statusFilter,
   });
-
   const processMutation = api.kyb.processDecision.useMutation({
     onSuccess: () => {
       toast.success("Vendor status updated successfully");
@@ -157,8 +139,6 @@ export default function AdminKybPage() {
     },
     onError: (e) => toast.error(e.message),
   });
-
-  // New Verification Mutation
   const verifyMutation = api.kyb.verifyRegistry.useMutation({
     onSuccess: (data) => {
       setRegistryData(data ?? null);
@@ -168,12 +148,10 @@ export default function AdminKybPage() {
       toast.error(e.message || "Failed to fetch from registry.");
     },
   });
-
   const handleOpenDetail = (vendor: KybRequest) => {
     setSelectedVendor(vendor);
     setIsSheetOpen(true);
   };
-
   const handleDecision = (decision: "APPROVED" | "REJECTED") => {
     if (!selectedVendor) return;
     let reason = "";
@@ -188,23 +166,18 @@ export default function AdminKybPage() {
       rejectionReason: reason,
     });
   };
-
   const handleRunVerification = () => {
     if (selectedVendor) {
       verifyMutation.mutate({ userId: selectedVendor.id });
     }
   };
-
   const handleCloseSheet = () => {
     setIsSheetOpen(false);
-
     setTimeout(() => {
       setRegistryData(null);
       verifyMutation.reset();
-      // setSelectedVendor(null);
     }, 300);
   };
-
   return (
     <div className="space-y-6 p-4 sm:p-6">
       {/* 1. HEADER & FILTERS */}
@@ -215,7 +188,6 @@ export default function AdminKybPage() {
             Review and verify vendor business documentation.
           </p>
         </div>
-
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-64">
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -226,7 +198,6 @@ export default function AdminKybPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-
           <div className="relative w-full sm:w-48">
             <Filter className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <select
@@ -256,7 +227,6 @@ export default function AdminKybPage() {
           </div>
         </div>
       </div>
-
       {/* 2. DESKTOP DATA TABLE */}
       <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm md:block">
         <table className="w-full text-left text-sm text-gray-600">
@@ -328,7 +298,6 @@ export default function AdminKybPage() {
           </tbody>
         </table>
       </div>
-
       {/* 3. MOBILE CARD GRID */}
       <div className="grid gap-4 md:hidden">
         {isLoading ? (
@@ -349,7 +318,6 @@ export default function AdminKybPage() {
           ))
         )}
       </div>
-
       {/* 4. DETAILS SHEET */}
       <Sheet
         open={isSheetOpen}
@@ -387,7 +355,6 @@ export default function AdminKybPage() {
                   </SheetDescription>
                 </div>
               </div>
-
               {/* Sheet Body (Scrollable) */}
               <div className="flex-1 overflow-y-auto px-8 py-8">
                 <div className="space-y-8">
@@ -428,14 +395,12 @@ export default function AdminKybPage() {
                       </div>
                     </div>
                   </div>
-
                   {/* Section B: Manual Check Execution */}
                   <div className="space-y-4">
                     <h4 className="flex items-center gap-2 text-xs font-semibold tracking-wider text-gray-900 uppercase">
                       <ShieldCheck className="h-3.5 w-3.5" /> Live Registry
                       Check
                     </h4>
-
                     {!registryData &&
                       !verifyMutation.isPending &&
                       !verifyMutation.isError && (
@@ -453,7 +418,6 @@ export default function AdminKybPage() {
                           </Button>
                         </div>
                       )}
-
                     {verifyMutation.isPending && (
                       <div className="flex flex-col items-center justify-center rounded-xl border border-blue-100 bg-blue-50 p-8">
                         <Loader2 className="mb-2 h-8 w-8 animate-spin text-blue-600" />
@@ -462,7 +426,6 @@ export default function AdminKybPage() {
                         </p>
                       </div>
                     )}
-
                     {verifyMutation.isError && (
                       <div className="rounded-xl border border-red-100 bg-red-50 p-6 text-center">
                         <XCircle className="mx-auto mb-2 h-8 w-8 text-red-500" />
@@ -481,7 +444,6 @@ export default function AdminKybPage() {
                         </Button>
                       </div>
                     )}
-
                     {registryData && (
                       <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
                         <div className="flex items-start gap-3">
@@ -498,7 +460,6 @@ export default function AdminKybPage() {
                                 Verified
                               </Badge>
                             </h5>
-
                             <div className="mt-4 grid grid-cols-1 gap-y-3 border-t border-emerald-100 pt-3 text-sm">
                               <div>
                                 <span className="block text-xs font-medium text-emerald-700/70">
@@ -553,14 +514,12 @@ export default function AdminKybPage() {
                       </div>
                     )}
                   </div>
-
                   {/* Section C: Admin Actions */}
                   {selectedVendor.vendorProfile.kybStatus === "IN_REVIEW" && (
                     <div className="space-y-4">
                       <h4 className="flex items-center gap-2 text-xs font-semibold tracking-wider text-orange-600 uppercase">
                         <AlertTriangle className="h-3.5 w-3.5" /> Adjudication
                       </h4>
-
                       <div className="flex flex-col gap-3 rounded-xl border border-orange-100 bg-orange-50/30 p-5">
                         <p className="text-sm text-gray-600">
                           Please ensure the submitted details match the official
@@ -593,7 +552,6 @@ export default function AdminKybPage() {
                   )}
                 </div>
               </div>
-
               {/* Sheet Footer */}
               <SheetFooter className="flex-none border-t border-gray-100 bg-gray-50/50 px-8 py-4">
                 {/* Update the onClick handler */}

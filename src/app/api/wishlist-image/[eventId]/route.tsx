@@ -1,32 +1,20 @@
 import React from "react";
-import { ImageResponse } from "next/og"; // Removed 'Image'
+import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
-
-// Define the expected type for the dynamic parameters with Promise wrapping
 type RouteContext = { params: Promise<{ eventId: string }> };
-
-// Define the structure of the data fetched from the internal API
 type EventData = {
   title: string;
   clientName: string;
   wishlistItems: { name: string; itemType: string }[];
 };
-
-// Define runtime for Edge
 export const runtime = "edge";
-
 export async function GET(request: NextRequest, { params }: RouteContext) {
-  // Accessing params using await
   const { eventId } = await params;
-
   if (!eventId) {
     return new Response("Event ID is required", { status: 400 });
   }
-
-  // 1. FETCH DATA from the separate, Node.js API Route
   const dataApiUrl = `${request.nextUrl.origin}/api/event-data/${eventId}`;
   const response = await fetch(dataApiUrl);
-
   if (!response.ok) {
     console.error(
       "Failed to fetch data from internal API:",
@@ -38,25 +26,18 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       { status: 500 },
     );
   }
-
   const eventData = (await response.json()) as EventData;
   const { title, clientName, wishlistItems } = eventData;
-
   console.log("Generating image with data:", {
     title,
     clientName,
     wishlistItems,
   });
-
-  // 2. Prepare Logo (Fetch and convert to Base64 for the <img> tag)
   const logoUrl = new URL("/logo.png", request.nextUrl.origin);
   const logoResponse = await fetch(logoUrl);
   const logoBuffer = await logoResponse.arrayBuffer();
-  // Convert buffer to base64 string
   const logoBase64 = Buffer.from(logoBuffer).toString("base64");
   const logoSrc = `data:image/png;base64,${logoBase64}`;
-
-  // 3. Render the image
   return new ImageResponse(
     (
       <div
@@ -82,7 +63,6 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logoSrc} width="150" alt="logo" />
         </div>
-
         <div
           style={{
             display: "flex",
@@ -103,7 +83,6 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
             </b>
           </div>
         </div>
-
         {wishlistItems.length > 0 && (
           <div
             style={{
@@ -139,7 +118,6 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
             </div>
           </div>
         )}
-
         <div
           style={{
             alignSelf: "flex-end",

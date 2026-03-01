@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useEffect, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,8 +21,6 @@ import { useCreatePostModal } from "@/stores/createPostModal";
 import { uploadPostAsset } from "@/lib/supabase-upload";
 import { useAuthStore } from "@/stores/auth";
 import { createClient } from "@/utils/supabase/client";
-
-// --- VALIDATION SCHEMA ---
 const createPostSchema = z.object({
   caption: z
     .string()
@@ -40,21 +37,15 @@ const createPostSchema = z.object({
     .min(1, "Please add at least one photo or video.")
     .max(10, "You can only upload up to 10 items."),
 });
-
 type CreatePostFormValues = z.infer<typeof createPostSchema>;
-
 export const CreatePostModal = () => {
   const { isOpen, onClose, postToEdit } = useCreatePostModal();
-
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0); // Optional: Track X/Y files
+  const [uploadProgress, setUploadProgress] = useState(0);
   const utils = api.useUtils();
-
   const { profile } = useAuthStore();
   const userId = profile?.id;
-
   const supabase = createClient();
-
   const {
     register,
     control,
@@ -69,15 +60,11 @@ export const CreatePostModal = () => {
       assets: [],
     },
   });
-
   const { fields, append, remove } = useFieldArray({
     control,
     name: "assets",
   });
-
   const captionValue = watch("caption") ?? "";
-
-  // Sync Form with Store
   useEffect(() => {
     if (isOpen) {
       if (postToEdit) {
@@ -94,13 +81,10 @@ export const CreatePostModal = () => {
       }
     }
   }, [isOpen, postToEdit, reset]);
-
   const handleClose = () => {
     reset();
     onClose();
   };
-
-  // --- TRPC MUTATIONS ---
   const createPost = api.post.create.useMutation({
     onSuccess: () => {
       toast.success("Post created successfully!");
@@ -109,7 +93,6 @@ export const CreatePostModal = () => {
     },
     onError: (err) => toast.error(err.message),
   });
-
   const updatePost = api.post.update.useMutation({
     onSuccess: () => {
       toast.success("Post updated successfully!");
@@ -121,31 +104,24 @@ export const CreatePostModal = () => {
     },
     onError: (err) => toast.error(err.message),
   });
-
-  // --- REAL SUPABASE UPLOAD ---
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-
     if (!userId) {
       toast.error("You must be logged in to upload.");
       return;
     }
-
     if (fields.length + files.length > 10) {
       toast.error("You can only have up to 10 items in a post.");
       return;
     }
-
     setIsUploading(true);
     setUploadProgress(0);
-
     try {
       const fileArray = Array.from(files);
       const uploadPromises = fileArray.map(async (file, index) => {
         try {
           const result = await uploadPostAsset(file, userId, supabase);
-          // Update progress purely for visual feedback logic if needed
           setUploadProgress((prev) => prev + 1);
           return {
             ...result,
@@ -156,14 +132,10 @@ export const CreatePostModal = () => {
           return null;
         }
       });
-
       const results = await Promise.all(uploadPromises);
-
-      // Filter out failed uploads (nulls)
       const successfulUploads = results.filter(
         (res): res is NonNullable<typeof res> => res !== null,
       );
-
       if (successfulUploads.length > 0) {
         append(successfulUploads);
       }
@@ -171,16 +143,14 @@ export const CreatePostModal = () => {
       toast.error("An error occurred during upload.");
     } finally {
       setIsUploading(false);
-      e.target.value = ""; // Reset input
+      e.target.value = "";
     }
   };
-
   const onSubmit = (data: CreatePostFormValues) => {
     const orderedAssets = data.assets.map((asset, index) => ({
       ...asset,
       order: index,
     }));
-
     if (postToEdit) {
       updatePost.mutate({
         postId: postToEdit.id,
@@ -194,10 +164,8 @@ export const CreatePostModal = () => {
       });
     }
   };
-
   const isLoading =
     createPost.isPending || updatePost.isPending || isSubmitting;
-
   return (
     <Dialog
       open={isOpen}
@@ -209,7 +177,6 @@ export const CreatePostModal = () => {
             {postToEdit ? "Edit Post" : "Create New Post"}
           </DialogTitle>
         </DialogHeader>
-
         <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-6">
           {/* --- ASSET GRID --- */}
           <div className="space-y-2">
@@ -239,12 +206,11 @@ export const CreatePostModal = () => {
                     <video
                       src={field.url}
                       className="h-full w-full object-cover"
-                      controls={false} // Hide native controls for preview
+                      controls={false}
                       muted
                       playsInline
                     />
                   )}
-
                   <button
                     type="button"
                     onClick={() => remove(index)}
@@ -252,13 +218,11 @@ export const CreatePostModal = () => {
                   >
                     <X className="h-4 w-4" />
                   </button>
-
                   <div className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
                     {index + 1}
                   </div>
                 </div>
               ))}
-
               {/* UPLOAD BUTTON / DROPZONE */}
               {fields.length < 10 && (
                 <label
@@ -314,7 +278,6 @@ export const CreatePostModal = () => {
               </div>
             )}
           </div>
-
           {/* --- CAPTION --- */}
           <div className="space-y-2">
             <div className="relative">
@@ -341,7 +304,6 @@ export const CreatePostModal = () => {
               <p className="text-sm text-red-500">{errors.caption.message}</p>
             )}
           </div>
-
           {/* --- FOOTER --- */}
           <div className="flex items-center justify-end border-t border-gray-100 pt-4">
             <Button

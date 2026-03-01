@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -24,7 +23,6 @@ import Image from "next/image";
 import { api } from "@/trpc/react";
 import { useUiStore } from "@/stores/ui";
 import { Button } from "@/components/ui/button";
-
 const Modal = ({
   children,
   onClose,
@@ -35,7 +33,6 @@ const Modal = ({
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) onClose();
   };
-
   useEffect(() => {
     const originalOverflow = window.getComputedStyle(document.body).overflow;
     document.body.style.overflow = "hidden";
@@ -43,7 +40,6 @@ const Modal = ({
       document.body.style.overflow = originalOverflow;
     };
   }, []);
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 sm:items-center sm:p-4"
@@ -58,20 +54,15 @@ const Modal = ({
     </div>
   );
 };
-
 const Header = () => {
   const { user, loading, signOut } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalView, setModalView] = useState<"login" | "join">("login");
-
-  // Controls the dropdown menu next to profile
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const { setHeaderHeight } = useUiStore();
-
   useEffect(() => {
     if (!headerRef.current) return;
     const resizeObserver = new ResizeObserver(() => {
@@ -80,25 +71,20 @@ const Header = () => {
     resizeObserver.observe(headerRef.current);
     return () => resizeObserver.disconnect();
   }, [setHeaderHeight]);
-
   const { data: unreadConvoCount } =
     api.chat.getUnreadConversationCount.useQuery(undefined, {
       enabled: !!user,
     });
-
   const { data: searchList } = api.category.getSearchList.useQuery();
-
   const isVendor =
     user?.vendorProfile !== null && user?.vendorProfile !== undefined;
   const isGuest = !user;
-
   const avatarUrl = isVendor
     ? user?.vendorProfile?.avatarUrl
     : user?.clientProfile?.avatarUrl;
   const displayName = isVendor
     ? (user?.vendorProfile?.companyName ?? user?.username)
     : (user?.clientProfile?.name ?? user?.username);
-
   const openModal = (view: "login" | "join") => {
     setModalView(view);
     setIsModalOpen(true);
@@ -106,8 +92,6 @@ const Header = () => {
   };
   const closeModal = () => setIsModalOpen(false);
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
-
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -121,11 +105,9 @@ const Header = () => {
       document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isProfileDropdownOpen]);
-
   const toggleProfileDropdown = () => {
     setIsProfileDropdownOpen(!isProfileDropdownOpen);
   };
-
   return (
     <>
       <header
@@ -158,7 +140,6 @@ const Header = () => {
                 />
               </Link>
             </div>
-
             {/* MIDDLE: Search (Hidden on Mobile) */}
             {loading ? (
               <div className="mx-4 hidden grow sm:flex lg:mx-16">
@@ -176,7 +157,6 @@ const Header = () => {
                 </div>
               )
             )}
-
             {/* RIGHT: Actions */}
             {loading ? (
               <div className="flex items-center gap-4">
@@ -240,7 +220,6 @@ const Header = () => {
                     </Link>
                   )}
                 </nav>
-
                 {/* Icons Area */}
                 <div className="flex items-center gap-1 sm:gap-2">
                   {/* Desktop Inbox */}
@@ -253,11 +232,9 @@ const Header = () => {
                       <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-pink-600 ring-1 ring-white" />
                     )}
                   </Link>
-
                   {/* NOTIFICATION BELL */}
                   <NotificationDropdown className="flex text-gray-600 hover:bg-gray-100 hover:text-pink-600" />
                 </div>
-
                 {/* Plan Event (Desktop Client Only) */}
                 {!isVendor && (
                   <div className="ml-2 hidden items-center lg:flex">
@@ -268,7 +245,6 @@ const Header = () => {
                     </Link>
                   </div>
                 )}
-
                 {/* Profile Picture & Dropdown */}
                 <div
                   className="relative flex items-center gap-1"
@@ -298,7 +274,6 @@ const Header = () => {
                       )}
                     </div>
                   </Link>
-
                   {/* Caret Dropdown Trigger */}
                   <button
                     onClick={toggleProfileDropdown}
@@ -310,7 +285,6 @@ const Header = () => {
                   >
                     <ChevronDown className="h-4 w-4" />
                   </button>
-
                   {/* Dropdown Menu */}
                   {isProfileDropdownOpen && (
                     <div className="absolute top-full right-0 z-50 mt-2 w-56 origin-top-right rounded-xl border border-gray-100 bg-white shadow-lg ring-1 ring-black/5 focus:outline-none">
@@ -322,7 +296,6 @@ const Header = () => {
                           @{user?.username}
                         </p>
                       </div>
-
                       <div className="p-1">
                         {/* <Link
                           href={
@@ -335,7 +308,6 @@ const Header = () => {
                         >
                           <User className="h-4 w-4" /> Profile
                         </Link> */}
-
                         <Link
                           href="/settings"
                           className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -344,7 +316,6 @@ const Header = () => {
                           <Settings className="h-4 w-4" /> Settings
                         </Link>
                       </div>
-
                       <div className="border-t border-gray-100 p-1">
                         <button
                           onClick={() => {
@@ -362,7 +333,6 @@ const Header = () => {
               </div>
             )}
           </div>
-
           {/* Mobile Search Bar (Client Only) */}
           {loading ? (
             <div className="mt-3 w-full sm:hidden">
@@ -381,10 +351,8 @@ const Header = () => {
             )
           )}
         </div>
-
         {/* Carousel Divider */}
         <div className="w-full border-b border-gray-200"></div>
-
         {/* Categories (Desktop Client Only) */}
         {loading ? (
           <div className="hidden w-full sm:block">
@@ -398,7 +366,6 @@ const Header = () => {
           )
         )}
       </header>
-
       <MobileMenu
         isOpen={isMobileMenuOpen}
         onClose={toggleMobileMenu}
@@ -406,7 +373,6 @@ const Header = () => {
         user={user}
         signOut={signOut}
       />
-
       {isModalOpen && (
         <Modal onClose={closeModal}>
           <LoginJoinComponent
@@ -419,5 +385,4 @@ const Header = () => {
     </>
   );
 };
-
 export default Header;

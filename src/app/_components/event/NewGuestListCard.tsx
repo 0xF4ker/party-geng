@@ -1,22 +1,18 @@
 "use client";
-
 import React from "react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Lock } from "lucide-react";
-
 type RouterOutput = inferRouterOutputs<AppRouter>;
 type EventGuestList = RouterOutput["event"]["getById"]["guestLists"];
-
 interface NewGuestListCardProps {
   guestLists: EventGuestList;
   _eventId: string;
   onManage: () => void;
-  isPast?: boolean; // Added Prop
+  isPast?: boolean;
 }
-
 const Stat = ({
   label,
   value,
@@ -31,7 +27,6 @@ const Stat = ({
     <p className="text-muted-foreground text-sm">{label}</p>
   </div>
 );
-
 export const NewGuestListCard = ({
   guestLists,
   _eventId,
@@ -43,7 +38,6 @@ export const NewGuestListCard = ({
   const attending = allGuests.filter((g) => g.status === "ATTENDING").length;
   const maybe = allGuests.filter((g) => g.status === "MAYBE").length;
   const declined = allGuests.filter((g) => g.status === "DECLINED").length;
-
   return (
     <Card className="relative">
       {/* {isPast && <div className="absolute inset-0 bg-white/50 z-10 pointer-events-none rounded-xl" />} */}

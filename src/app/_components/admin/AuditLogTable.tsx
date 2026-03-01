@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { api } from "@/trpc/react";
 import {
@@ -36,14 +35,10 @@ import {
 import { Input } from "@/components/ui/input";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
-
 type AppRouterOutputs = inferRouterOutputs<AppRouter>;
 type AuditLogEntry = AppRouterOutputs["activityLog"]["getAllLogs"]["logs"][0];
-
-// --- HELPERS ---
 const ActionBadge = ({ action }: { action: string }) => {
-  let colorClass = "bg-gray-100 text-gray-600 border-gray-200"; // Default
-
+  let colorClass = "bg-gray-100 text-gray-600 border-gray-200";
   if (action.includes("CREATE"))
     colorClass = "bg-emerald-100 text-emerald-700 border-emerald-200";
   if (action.includes("UPDATE"))
@@ -56,7 +51,6 @@ const ActionBadge = ({ action }: { action: string }) => {
     colorClass = "bg-orange-100 text-orange-700 border-orange-200";
   if (action.includes("SUSPEND") || action.includes("BAN"))
     colorClass = "bg-red-100 text-red-800 border-red-200";
-
   return (
     <span
       className={`inline-flex items-center rounded-md border px-2 py-1 text-[10px] font-medium sm:text-xs ${colorClass}`}
@@ -65,34 +59,24 @@ const ActionBadge = ({ action }: { action: string }) => {
     </span>
   );
 };
-
 export function AuditLogTable() {
   const [page, setPage] = useState(1);
   const pageSize = 20;
-
-  // Filters
   const [entityFilter, setEntityFilter] = useState<string>("ALL");
   const [userSearch, setUserSearch] = useState("");
-
-  // Detail View State
   const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-
-  // Query
   const { data, isLoading } = api.activityLog.getAllLogs.useQuery({
     limit: pageSize,
     offset: (page - 1) * pageSize,
     entityType: entityFilter === "ALL" ? undefined : entityFilter,
     userId: userSearch || undefined,
   });
-
   const totalPages = data ? Math.ceil(data.totalCount / pageSize) : 0;
-
   const handleViewLog = (log: AuditLogEntry) => {
     setSelectedLog(log);
     setIsSheetOpen(true);
   };
-
   return (
     <div className="space-y-4">
       {/* 1. RESPONSIVE TOOLBAR */}
@@ -111,7 +95,6 @@ export function AuditLogTable() {
               }}
             />
           </div>
-
           <Select
             value={entityFilter}
             onValueChange={(val) => {
@@ -136,14 +119,12 @@ export function AuditLogTable() {
             </SelectContent>
           </Select>
         </div>
-
         {/* Count Badge */}
         <div className="hidden items-center gap-2 rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-500 md:flex">
           <Database className="h-3.5 w-3.5" />
           <span>{isLoading ? "..." : data?.totalCount} Records</span>
         </div>
       </div>
-
       {isLoading ? (
         <div className="p-12 text-center">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-pink-600" />
@@ -223,7 +204,6 @@ export function AuditLogTable() {
               </tbody>
             </table>
           </div>
-
           {/* --- VIEW 2: MOBILE CARDS --- */}
           <div className="grid gap-3 md:hidden">
             {data?.logs.map((log) => (
@@ -237,7 +217,6 @@ export function AuditLogTable() {
                     {format(new Date(log.createdAt), "MMM d, HH:mm")}
                   </span>
                 </div>
-
                 <div className="flex items-center gap-3 py-1">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">
                     {log.user.username[0]?.toUpperCase()}
@@ -249,7 +228,6 @@ export function AuditLogTable() {
                     <p className="text-xs text-gray-500">{log.user.role}</p>
                   </div>
                 </div>
-
                 <div className="flex items-center justify-between border-t border-gray-50 pt-3">
                   <div className="flex items-center gap-2">
                     {log.entityType ? (
@@ -280,7 +258,6 @@ export function AuditLogTable() {
               </div>
             ))}
           </div>
-
           {/* PAGINATION (Shared) */}
           <div className="mt-2 flex items-center justify-between rounded-lg border-t border-gray-100 bg-gray-50 p-4">
             <div className="text-xs text-gray-500">
@@ -309,7 +286,6 @@ export function AuditLogTable() {
           </div>
         </>
       )}
-
       {/* 3. LOG DETAIL SHEET (Responsive) */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="flex h-full w-full flex-col border-l border-gray-100 sm:max-w-md">
@@ -331,7 +307,6 @@ export function AuditLogTable() {
                   Full audit trail for this system event.
                 </SheetDescription>
               </SheetHeader>
-
               <div className="flex-1 space-y-6 overflow-y-auto py-6">
                 {/* Meta Information Block */}
                 <div className="space-y-3">
@@ -375,7 +350,6 @@ export function AuditLogTable() {
                     )}
                   </div>
                 </div>
-
                 {/* JSON Details Block */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -396,7 +370,6 @@ export function AuditLogTable() {
                   </p>
                 </div>
               </div>
-
               <SheetFooter className="border-t border-gray-100 pt-4 sm:justify-center">
                 <Button
                   variant="outline"

@@ -1,5 +1,4 @@
 "use client";
-
 import React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
@@ -16,26 +15,17 @@ import {
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-
 const OrderDetailPage = () => {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
   const orderId = params.orderId as string;
-
-  // const { data: cart } = api.cart.get.useQuery();
-
-  // useEffect(() => {
-  //   console.log("Current cart data:", cart);
-  // }, [cart]);
-
   const {
     data: order,
     isLoading,
     isError,
     error,
   } = api.order.getById.useQuery({ id: orderId });
-
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -43,7 +33,6 @@ const OrderDetailPage = () => {
       </div>
     );
   }
-
   if (isError) {
     return (
       <div className="flex h-screen items-center justify-center text-red-500">
@@ -51,7 +40,6 @@ const OrderDetailPage = () => {
       </div>
     );
   }
-
   if (!order || !user) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -59,9 +47,7 @@ const OrderDetailPage = () => {
       </div>
     );
   }
-
   const quote = order.quote;
-
   if (!quote) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -69,9 +55,7 @@ const OrderDetailPage = () => {
       </div>
     );
   }
-
   const services = quote.services as { id: number; name: string }[];
-
   return (
     <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
       <div className="container mx-auto max-w-4xl px-4 py-8 sm:px-8">
@@ -82,14 +66,12 @@ const OrderDetailPage = () => {
           <ArrowLeft className="h-4 w-4" />
           Back to Orders
         </button>
-
         <div className="rounded-xl border border-gray-200 bg-white shadow-lg">
           {/* Header */}
           <div className="border-b p-6">
             <h1 className="text-3xl font-bold">{quote.title}</h1>
             <p className="text-gray-500">Order #{order.id.substring(0, 8)}</p>
           </div>
-
           {/* Body */}
           <div className="grid gap-8 p-6 md:grid-cols-3">
             {/* Left Column */}
@@ -122,7 +104,6 @@ const OrderDetailPage = () => {
                 </div>
               </div>
             </div>
-
             {/* Right Column */}
             <div className="space-y-6">
               <div>
@@ -213,7 +194,6 @@ const OrderDetailPage = () => {
               </div>
             </div>
           </div>
-
           {/* Footer */}
           <div className="flex items-center justify-end bg-gray-50 p-6">
             <div>
@@ -228,5 +208,4 @@ const OrderDetailPage = () => {
     </div>
   );
 };
-
 export default OrderDetailPage;

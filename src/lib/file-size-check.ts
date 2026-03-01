@@ -1,5 +1,4 @@
 const MAX_FILE_SIZE_MB = 10;
-
 export const checkFileSize = (
   file: File,
   limitInMB: number = MAX_FILE_SIZE_MB,

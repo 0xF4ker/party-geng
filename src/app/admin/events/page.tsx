@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { api } from "@/trpc/react";
@@ -40,22 +39,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { type inferRouterOutputs } from "@trpc/server";
 import { type AppRouter } from "@/server/api/root";
-
-// --- TYPES ---
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type EventData = RouterOutputs["event"]["adminGetEvents"]["items"][number];
-
 interface LocationData {
   display_name?: string;
   lat?: string;
   lon?: string;
 }
-
-// --- HELPER: Date Formatter ---
 const formatEventDateRange = (start: Date | string, end: Date | string) => {
   const s = new Date(start);
   const e = new Date(end);
-
   if (s.toDateString() === e.toDateString()) {
     return format(s, "MMM d, yyyy");
   } else if (
@@ -69,25 +62,19 @@ const formatEventDateRange = (start: Date | string, end: Date | string) => {
     return `${format(s, "MMM d, yyyy")} - ${format(e, "MMM d, yyyy")}`;
   }
 };
-
-// --- MAIN COMPONENT ---
 export default function AdminEventsPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null);
-
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 500);
     return () => clearTimeout(timer);
   }, [search]);
-
   const { data, isLoading, refetch } = api.event.adminGetEvents.useQuery({
     limit: 50,
     search: debouncedSearch,
   });
-
   const events: EventData[] = data?.items ?? [];
-
   return (
     <div className="space-y-6 p-4 sm:p-6">
       {/* Header & Search */}
@@ -108,7 +95,6 @@ export default function AdminEventsPage() {
           />
         </div>
       </div>
-
       {/* Content */}
       <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
         {isLoading ? (
@@ -145,7 +131,6 @@ export default function AdminEventsPage() {
                 </tbody>
               </table>
             </div>
-
             {/* Mobile Cards */}
             <div className="grid gap-4 p-4 md:hidden">
               {events.map((event) => (
@@ -159,7 +144,6 @@ export default function AdminEventsPage() {
           </>
         )}
       </div>
-
       {/* Details Sheet */}
       <EventDetailsSheet
         event={selectedEvent}
@@ -172,9 +156,6 @@ export default function AdminEventsPage() {
     </div>
   );
 }
-
-// --- SUB-COMPONENTS ---
-
 const EventRow = ({
   event,
   onSelect,
@@ -183,7 +164,6 @@ const EventRow = ({
   onSelect: () => void;
 }) => {
   const location = event.location as unknown as LocationData | null;
-
   return (
     <tr className="group hover:bg-gray-50/50">
       <td className="px-6 py-4">
@@ -256,7 +236,6 @@ const EventRow = ({
     </tr>
   );
 };
-
 const EventCard = ({
   event,
   onSelect,
@@ -289,9 +268,6 @@ const EventCard = ({
     <MoreHorizontal className="h-5 w-5 text-gray-400" />
   </div>
 );
-
-// --- IMPROVED DRAWER COMPONENT ---
-
 function EventDetailsSheet({
   event,
   isOpen,
@@ -304,7 +280,6 @@ function EventDetailsSheet({
   const [deleteReason, setDeleteReason] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const utils = api.useUtils();
-
   const deleteMutation = api.event.adminDeleteEvent.useMutation({
     onSuccess: () => {
       toast.success("Event removed successfully");
@@ -316,7 +291,6 @@ function EventDetailsSheet({
       toast.error(err.message);
     },
   });
-
   const handleDelete = () => {
     if (!event) return;
     deleteMutation.mutate({
@@ -324,11 +298,8 @@ function EventDetailsSheet({
       reason: deleteReason || "Violates community guidelines",
     });
   };
-
   if (!event) return null;
-
   const location = event.location as unknown as LocationData | null;
-
   return (
     <>
       <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -345,7 +316,6 @@ function EventDetailsSheet({
               </span>
             </SheetDescription>
           </SheetHeader>
-
           {/* SCROLLABLE BODY */}
           <div className="flex-1 overflow-y-auto bg-gray-50/50 px-6 py-6">
             <div className="flex flex-col gap-6">
@@ -375,7 +345,6 @@ function EventDetailsSheet({
                   </div>
                 </div>
               </div>
-
               {/* Client Card */}
               <div className="flex items-center gap-4 rounded-xl border bg-white p-4 shadow-sm">
                 <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border bg-gray-100">
@@ -411,7 +380,6 @@ function EventDetailsSheet({
                   Profile
                 </Button>
               </div>
-
               {/* Stats Grid */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -431,7 +399,6 @@ function EventDetailsSheet({
                   </p>
                 </div>
               </div>
-
               {/* Location */}
               <div className="rounded-xl border bg-white p-4 shadow-sm">
                 <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
@@ -442,7 +409,6 @@ function EventDetailsSheet({
                     "No specific location set for this event."}
                 </div>
               </div>
-
               {/* Danger Zone */}
               <div className="rounded-xl border border-red-100 bg-red-50/50 p-4">
                 <h4 className="mb-2 flex items-center gap-2 text-sm font-semibold text-red-800">
@@ -473,7 +439,6 @@ function EventDetailsSheet({
           </div>
         </SheetContent>
       </Sheet>
-
       {/* Confirmation Dialog */}
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
         <AlertDialogContent>

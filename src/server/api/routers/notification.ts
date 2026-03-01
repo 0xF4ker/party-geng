@@ -1,11 +1,9 @@
 import { z } from "zod";
-
 import {
   createTRPCRouter,
   protectedProcedure,
 } from "@/server/api/trpc";
 import { NotificationType } from "@prisma/client";
-
 export const notificationRouter = createTRPCRouter({
   getAll: protectedProcedure.query(async ({ ctx }) => {
     const notifications = await ctx.db.notification.findMany({
@@ -21,7 +19,6 @@ export const notificationRouter = createTRPCRouter({
     });
     return notifications;
   }),
-
   getUnreadCount: protectedProcedure.query(async ({ ctx }) => {
     const count = await ctx.db.notification.count({
       where: {
@@ -34,7 +31,6 @@ export const notificationRouter = createTRPCRouter({
     });
     return count;
   }),
-
   markAsRead: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -49,7 +45,6 @@ export const notificationRouter = createTRPCRouter({
       });
       return true;
     }),
-
   markManyAsRead: protectedProcedure
     .input(z.object({ ids: z.array(z.string()) }))
     .mutation(async ({ ctx, input }) => {
@@ -66,7 +61,6 @@ export const notificationRouter = createTRPCRouter({
       });
       return true;
     }),
-
   markAllAsRead: protectedProcedure.mutation(async ({ ctx }) => {
     await ctx.db.notification.updateMany({
       where: {

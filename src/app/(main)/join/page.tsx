@@ -1,7 +1,6 @@
 "use client";
 import { useUiStore } from "@/stores/ui";
 import LoginJoinComponent from "../../_components/LoginJoinComponent";
-
 export default function JoinPage() {
   const { headerHeight } = useUiStore();
   return (

@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { api } from "@/trpc/react";
 import {
@@ -29,21 +28,15 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-// --- TYPE INFERENCE ---
 import { type inferRouterOutputs } from "@trpc/server";
 import { type AppRouter } from "@/server/api/root";
-
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type TransactionItem =
   RouterOutputs["payment"]["adminGetAllTransactions"]["items"][number];
-
-// --- HELPERS ---
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(
     Math.abs(amount),
   );
-
 const TransactionStatusBadge = ({ status }: { status: string }) => {
   const styles: Record<string, string> = {
     COMPLETED: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -51,15 +44,12 @@ const TransactionStatusBadge = ({ status }: { status: string }) => {
     FAILED: "bg-red-100 text-red-700 border-red-200",
     HELD: "bg-gray-100 text-gray-700 border-gray-200",
   };
-
   const icons: Record<string, LucideIcon> = {
     COMPLETED: CheckCircle,
     PENDING: Clock,
     FAILED: XCircle,
   };
-
   const Icon = icons[status] ?? Clock;
-
   return (
     <span
       className={cn(
@@ -71,12 +61,9 @@ const TransactionStatusBadge = ({ status }: { status: string }) => {
     </span>
   );
 };
-
 export default function AdminFinancePage() {
   const [activeTab, setActiveTab] = useState("transactions");
   const [search, setSearch] = useState("");
-
-  // Queries
   const { data: stats, isLoading: statsLoading } =
     api.payment.adminGetStats.useQuery();
   const {
@@ -89,9 +76,7 @@ export default function AdminFinancePage() {
     type: activeTab === "payouts" ? "PAYOUT" : undefined,
     status: activeTab === "payouts" ? "PENDING" : undefined,
   });
-
   const transactions = transactionsData?.items ?? [];
-
   return (
     <div className="space-y-6">
       <div>
@@ -100,7 +85,6 @@ export default function AdminFinancePage() {
           Manage system funds, track payouts, and audit transactions.
         </p>
       </div>
-
       {/* 1. STATS CARDS */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -137,7 +121,6 @@ export default function AdminFinancePage() {
           loading={statsLoading}
         />
       </div>
-
       {/* 2. MAIN CONTENT TABS */}
       <Tabs
         defaultValue="transactions"
@@ -161,7 +144,6 @@ export default function AdminFinancePage() {
               )}
             </TabsTrigger>
           </TabsList>
-
           <div className="relative w-full sm:w-64">
             <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
@@ -172,7 +154,6 @@ export default function AdminFinancePage() {
             />
           </div>
         </div>
-
         {/* TAB 1: ALL TRANSACTIONS */}
         <TabsContent value="transactions">
           <TransactionTable
@@ -182,7 +163,6 @@ export default function AdminFinancePage() {
             onActionComplete={refetch}
           />
         </TabsContent>
-
         {/* TAB 2: PAYOUT REQUESTS */}
         <TabsContent value="payouts">
           <TransactionTable
@@ -196,9 +176,6 @@ export default function AdminFinancePage() {
     </div>
   );
 }
-
-// --- SUB-COMPONENTS ---
-
 interface StatCardProps {
   label: string;
   value?: number;
@@ -208,7 +185,6 @@ interface StatCardProps {
   isCurrency?: boolean;
   loading: boolean;
 }
-
 function StatCard({
   label,
   value,
@@ -238,16 +214,13 @@ function StatCard({
     </div>
   );
 }
-
 interface TransactionTableProps {
   data?: TransactionItem[];
   isLoading: boolean;
   showActions: boolean;
   onActionComplete?: () => void;
 }
-
 type PayoutActionType = "APPROVE" | "REJECT" | null;
-
 function TransactionTable({
   data,
   isLoading,
@@ -256,8 +229,6 @@ function TransactionTable({
 }: TransactionTableProps) {
   const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null);
   const [actionType, setActionType] = useState<PayoutActionType>(null);
-
-  // New Mutation for verification
   const verifyMutation = api.payment.checkWithdrawalStatus.useMutation({
     onSuccess: (res) => {
       toast.success(res.message);
@@ -265,7 +236,6 @@ function TransactionTable({
     },
     onError: (err) => toast.error(err.message),
   });
-
   if (isLoading)
     return (
       <div className="p-12 text-center">
@@ -278,16 +248,13 @@ function TransactionTable({
         No transactions found.
       </div>
     );
-
   const handleAction = (tx: TransactionItem, type: "APPROVE" | "REJECT") => {
     setSelectedTx(tx);
     setActionType(type);
   };
-
   const handleVerify = (tx: TransactionItem) => {
     verifyMutation.mutate({ transactionId: tx.id });
   };
-
   return (
     <>
       {/* --- DESKTOP VIEW (Table) --- */}
@@ -311,10 +278,8 @@ function TransactionTable({
                 tx.wallet.user.clientProfile?.name ??
                 tx.wallet.user.vendorProfile?.companyName ??
                 tx.wallet.user.username;
-
               const isPendingPayout =
                 tx.type === "PAYOUT" && tx.status === "PENDING";
-
               return (
                 <tr key={tx.id} className="hover:bg-gray-50/50">
                   <td className="px-6 py-4 font-mono text-xs whitespace-nowrap">
@@ -385,7 +350,6 @@ function TransactionTable({
           </tbody>
         </table>
       </div>
-
       {/* --- MOBILE VIEW (Card Grid) --- */}
       <div className="grid gap-3 md:hidden">
         {data.map((tx) => {
@@ -396,7 +360,6 @@ function TransactionTable({
             tx.wallet.user.username;
           const isPendingPayout =
             tx.type === "PAYOUT" && tx.status === "PENDING";
-
           return (
             <div
               key={tx.id}
@@ -418,7 +381,6 @@ function TransactionTable({
                   {tx.type}
                 </Badge>
               </div>
-
               <div className="flex items-center justify-between border-t border-gray-50 pt-3">
                 <div
                   className={`text-lg font-bold ${isPositive ? "text-emerald-600" : "text-gray-900"}`}
@@ -428,11 +390,9 @@ function TransactionTable({
                 </div>
                 <TransactionStatusBadge status={tx.status} />
               </div>
-
               <div className="rounded bg-gray-50 p-2 text-xs text-gray-500">
                 {tx.description}
               </div>
-
               {showActions && isPendingPayout && (
                 <div className="grid grid-cols-1 pt-1">
                   <Button
@@ -455,7 +415,6 @@ function TransactionTable({
           );
         })}
       </div>
-
       {/* ACTION MODAL (Kept for manual overrides if needed) */}
       <PayoutActionModal
         isOpen={!!selectedTx}
@@ -470,7 +429,6 @@ function TransactionTable({
     </>
   );
 }
-
 interface PayoutActionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -478,7 +436,6 @@ interface PayoutActionModalProps {
   action: PayoutActionType;
   onSuccess?: () => void;
 }
-
 function PayoutActionModal({
   isOpen,
   onClose,
@@ -488,7 +445,6 @@ function PayoutActionModal({
 }: PayoutActionModalProps) {
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
-
   const mutation = api.payment.adminProcessPayout.useMutation({
     onSuccess: () => {
       toast.success(
@@ -499,12 +455,10 @@ function PayoutActionModal({
     },
     onError: (e) => toast.error(e.message),
   });
-
   const handleSubmit = () => {
     if (!tx || !action) return;
     if (action === "REJECT" && !reason)
       return toast.error("Reason required for rejection");
-
     setLoading(true);
     mutation.mutate({
       transactionId: tx.id,
@@ -512,9 +466,7 @@ function PayoutActionModal({
       rejectionReason: reason,
     });
   };
-
   if (!tx || !action) return null;
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -528,7 +480,6 @@ function PayoutActionModal({
               : `Refund ${formatCurrency(tx.amount)} back to the user's wallet?`}
           </DialogDescription>
         </DialogHeader>
-
         <div className="mb-4 space-y-2 rounded-lg bg-gray-50 p-4 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-500">User</span>
@@ -547,7 +498,6 @@ function PayoutActionModal({
             <span className="block text-sm font-medium">{tx.description}</span>
           </div>
         </div>
-
         {action === "REJECT" && (
           <Textarea
             placeholder="Reason for rejection (sent to user)..."
@@ -555,7 +505,6 @@ function PayoutActionModal({
             onChange={(e) => setReason(e.target.value)}
           />
         )}
-
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel

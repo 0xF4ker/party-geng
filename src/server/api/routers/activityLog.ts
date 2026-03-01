@@ -4,7 +4,6 @@ import {
   adminProcedure,
   protectedProcedure,
 } from "@/server/api/trpc";
-
 export const activityLogRouter = createTRPCRouter({
   getAllLogs: adminProcedure
     .input(
@@ -17,12 +16,10 @@ export const activityLogRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { limit, offset, ...filters } = input;
-
       const whereClause = {
         userId: filters.userId,
         entityType: filters.entityType,
       };
-
       const [logs, totalCount] = await Promise.all([
         ctx.db.activityLog.findMany({
           where: whereClause,
@@ -35,10 +32,8 @@ export const activityLogRouter = createTRPCRouter({
         }),
         ctx.db.activityLog.count({ where: whereClause }),
       ]);
-
       return { logs, totalCount };
     }),
-  // For Users: View their own security history (Logins, Payouts)
   getMyHistory: protectedProcedure
     .input(z.object({ limit: z.number().default(10) }))
     .query(async ({ ctx, input }) => {

@@ -7,18 +7,14 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { OrderStatus, NotificationType, type Prisma } from "@prisma/client";
 import { logActivity } from "../services/activityLogger";
-
 export const orderRouter = createTRPCRouter({
   getOrdersBetweenUsers: protectedProcedure
     .input(z.object({ userOneId: z.string(), userTwoId: z.string() }))
     .query(async ({ ctx, input }) => {
       const { userOneId, userTwoId } = input;
-
-      // Ensure the current user is one of the two users
       if (ctx.user.id !== userOneId && ctx.user.id !== userTwoId) {
         throw new TRPCError({ code: "FORBIDDEN" });
       }
-
       return ctx.db.order.findMany({
         where: {
           OR: [
@@ -57,13 +53,10 @@ export const orderRouter = createTRPCRouter({
           quote: true,
         },
       });
-
       if (!order) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Order not found." });
       }
-
       const isAdmin = ["ADMIN", "SUPPORT", "FINANCE"].includes(ctx.user.role);
-
       if (
         !isAdmin &&
         order.clientId !== ctx.user.id &&
@@ -76,18 +69,15 @@ export const orderRouter = createTRPCRouter({
       }
       return order;
     }),
-
   createFromQuote: protectedProcedure
     .input(z.object({ quoteId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const quote = await ctx.db.quote.findUnique({
         where: { id: input.quoteId },
       });
-
       if (!quote) {
         throw new Error("Quote not found");
       }
-
       const order = await ctx.db.order.create({
         data: {
           vendorId: quote.vendorId,
@@ -97,13 +87,8 @@ export const orderRouter = createTRPCRouter({
           eventDate: quote.eventDate,
         },
       });
-
-      // No payment received notification here as payment is now separate
-
       return order;
     }),
-
-  // Get active orders for vendor
   getMyActiveOrders: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.order.findMany({
       where: {
@@ -125,8 +110,6 @@ export const orderRouter = createTRPCRouter({
       },
     });
   }),
-
-  // Get all orders for both vendor and client
   getMyOrders: protectedProcedure
     .input(
       z
@@ -139,7 +122,6 @@ export const orderRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const isVendor = ctx.user.role === "VENDOR";
-
       return ctx.db.order.findMany({
         where: {
           ...(isVendor ? { vendorId: ctx.user.id } : { clientId: ctx.user.id }),
@@ -179,8 +161,6 @@ export const orderRouter = createTRPCRouter({
         },
       });
     }),
-
-  // Get pending quotes (new leads for vendors)
   getMyQuotes: protectedProcedure
     .input(
       z
@@ -193,7 +173,6 @@ export const orderRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const isVendor = ctx.user.role === "VENDOR";
-
       return ctx.db.quote.findMany({
         where: {
           ...(isVendor ? { vendorId: ctx.user.id } : { clientId: ctx.user.id }),
@@ -231,61 +210,46 @@ export const orderRouter = createTRPCRouter({
         },
       });
     }),
-
   completeOrder: protectedProcedure
     .input(z.object({ orderId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const { orderId } = input;
       const clientId = ctx.user.id;
-
       const order = await ctx.db.order.findUnique({
         where: { id: orderId },
         include: { quote: { select: { title: true } } },
       });
-
       if (!order) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Order not found." });
       }
-
       if (order.clientId !== clientId) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You are not authorized to complete this order.",
         });
       }
-
       if (order.status !== OrderStatus.ACTIVE) {
         throw new TRPCError({
           code: "CONFLICT",
           message: "Order is not active and cannot be completed.",
         });
       }
-
-      // NO ESCROW RELEASE HERE ANYMORE.
-      // Payment is handled separately via transfers.
-
       return ctx.db.$transaction(async (prisma) => {
-        // 1. Update order status
         const updatedOrder = await prisma.order.update({
           where: { id: orderId },
           data: { status: OrderStatus.COMPLETED },
         });
-
-        // 2. Notify vendor
         await prisma.notification.create({
           data: {
             userId: order.vendorId,
             type: NotificationType.ORDER_COMPLETED,
             message: `Your order for "${order.quote.title}" has been marked as complete by the client.`,
-            link: `/orders/${order.id}`, // Link to order details
+            link: `/orders/${order.id}`,
           },
         });
-
         return updatedOrder;
       });
     }),
-  // --- NEW ADMIN PROCEDURES ---
-
   /**
    * Get All Orders (Admin)
    * Supports pagination, status filtering, and search by ID/Client/Vendor
@@ -301,7 +265,6 @@ export const orderRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { limit, cursor, status, search } = input;
-
       const where: Prisma.OrderWhereInput = {
         status: status ?? undefined,
         OR: search
@@ -323,7 +286,6 @@ export const orderRouter = createTRPCRouter({
             ]
           : undefined,
       };
-
       const items = await ctx.db.order.findMany({
         take: limit + 1,
         cursor: cursor ? { id: cursor } : undefined,
@@ -347,16 +309,13 @@ export const orderRouter = createTRPCRouter({
           quote: { select: { title: true, price: true, eventDate: true } },
         },
       });
-
       let nextCursor: typeof cursor | undefined = undefined;
       if (items.length > limit) {
         const nextItem = items.pop();
         nextCursor = nextItem!.id;
       }
-
       return { items, nextCursor };
     }),
-
   /**
    * Admin Force Update Order Status
    * Used for dispute resolution or manual cancellations
@@ -371,19 +330,14 @@ export const orderRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       ctx.auditFlags.disabled = true;
-
       const { orderId, status, reason } = input;
-
       const order = await ctx.db.order.findUnique({ where: { id: orderId } });
       if (!order)
         throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
-
       const updated = await ctx.db.order.update({
         where: { id: orderId },
         data: { status },
       });
-
-      // Log the admin action
       await logActivity({
         ctx,
         action: "ORDER_ADMIN_UPDATE",
@@ -395,8 +349,6 @@ export const orderRouter = createTRPCRouter({
           reason,
         },
       });
-
-      // Notify parties (Simplified)
       const message = `Order #${orderId.slice(0, 8)} status changed to ${status} by Admin. Reason: ${reason}`;
       await ctx.db.notification.createMany({
         data: [
@@ -414,7 +366,6 @@ export const orderRouter = createTRPCRouter({
           },
         ],
       });
-
       return updated;
     }),
 });

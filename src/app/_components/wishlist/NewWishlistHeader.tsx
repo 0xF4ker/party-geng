@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -16,11 +15,8 @@ import MobileMenu from "../home/MobileMenu";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-
 type routerOutput = inferRouterOutputs<AppRouter>;
 type EventWithWishlist = routerOutput["wishlist"]["getByEventId"];
-
-// Modal from Header.tsx
 const Modal = ({
   children,
   onClose,
@@ -33,14 +29,12 @@ const Modal = ({
       onClose();
     }
   };
-
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "unset";
     };
   }, []);
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 sm:items-center sm:p-4"
@@ -55,31 +49,21 @@ const Modal = ({
     </div>
   );
 };
-
-// Main component
 const NewWishlistHeader = ({ event }: { event: EventWithWishlist }) => {
   const { user, loading, signOut } = useAuth();
-
-  // States from Header.tsx
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalView, setModalView] = useState<"login" | "join">("login");
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
-
-  // States from ProfileHeader.tsx
   const [isHeaderSticky, setIsHeaderSticky] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const bannerRef = useRef<HTMLDivElement>(null);
-
-  // --- Data Fetching ---
   const { data: unreadConvoCount } =
     api.chat.getUnreadConversationCount.useQuery(undefined, {
       enabled: !!user,
     });
   const { data: searchList } = api.category.getSearchList.useQuery();
-
-  // --- Derived State ---
   const isVendor =
     user?.vendorProfile !== null && user?.vendorProfile !== undefined;
   const isGuest = !user;
@@ -89,8 +73,6 @@ const NewWishlistHeader = ({ event }: { event: EventWithWishlist }) => {
   const displayName = isVendor
     ? (user?.vendorProfile?.companyName ?? user?.username)
     : (user?.clientProfile?.name ?? user?.username);
-
-  // --- Handlers from Header.tsx ---
   const openModal = (view: "login" | "join") => {
     setModalView(view);
     setIsModalOpen(true);
@@ -98,28 +80,21 @@ const NewWishlistHeader = ({ event }: { event: EventWithWishlist }) => {
   };
   const closeModal = () => setIsModalOpen(false);
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
-
   const handleShare = () => {
     void navigator.clipboard.writeText(window.location.href);
     toast.success("Link copied to clipboard!");
   };
-
-  // --- Scroll Effects ---
   useEffect(() => {
     const handleScroll = () => {
-      // Header stickiness
       if (window.scrollY > 50) {
         setIsHeaderSticky(true);
       } else {
         setIsHeaderSticky(false);
       }
     };
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  // --- Other Effects ---
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -136,12 +111,10 @@ const NewWishlistHeader = ({ event }: { event: EventWithWishlist }) => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isProfileDropdownOpen]);
-
   const headerTextColor = isHeaderSticky ? "text-gray-800" : "text-white";
   const headerIconColor = isHeaderSticky
     ? "text-gray-600 hover:text-pink-500"
     : "text-white hover:text-pink-300";
-
   return (
     <>
       <div ref={headerRef} className="relative bg-white">
@@ -172,7 +145,6 @@ const NewWishlistHeader = ({ event }: { event: EventWithWishlist }) => {
                 />
               </Link>
             </div>
-
             {/* Middle: Search Bar (hidden on profile page for now) */}
             <div className="mx-4 hidden grow sm:flex lg:mx-16">
               {searchList && (
@@ -182,7 +154,6 @@ const NewWishlistHeader = ({ event }: { event: EventWithWishlist }) => {
                 />
               )}
             </div>
-
             {/* Right Side: Nav Links */}
             {loading ? (
               <div className="flex items-center space-x-6">
@@ -241,7 +212,6 @@ const NewWishlistHeader = ({ event }: { event: EventWithWishlist }) => {
                 <NotificationDropdown
                   className={cn("hidden md:flex", headerIconColor)}
                 />
-
                 {/* Profile Dropdown */}
                 <div className="relative ml-2" ref={profileDropdownRef}>
                   <button
@@ -269,7 +239,6 @@ const NewWishlistHeader = ({ event }: { event: EventWithWishlist }) => {
             )}
           </div>
         </header>
-
         {/* Banner Image */}
         <div
           ref={bannerRef}
@@ -278,7 +247,6 @@ const NewWishlistHeader = ({ event }: { event: EventWithWishlist }) => {
           <Image
             src={
               event.coverImage ?? "/banner.jpg"
-              // "https://images.unsplash.com/photo-1505238680356-667803448bb6?q=80&w=2070&auto=format&fit=crop"
             }
             alt="Banner"
             className="h-full w-full object-cover"
@@ -287,7 +255,6 @@ const NewWishlistHeader = ({ event }: { event: EventWithWishlist }) => {
           />
           <div className="absolute inset-0 bg-linear-to-t from-gray-50 via-gray-50/50 to-black/30"></div>
         </div>
-
         <div className="relative container mx-auto max-w-4xl px-4">
           {/* Avatar & Actions */}
           <div className="-mt-24 flex flex-col items-center justify-center sm:-mt-28">
@@ -316,7 +283,6 @@ const NewWishlistHeader = ({ event }: { event: EventWithWishlist }) => {
           </div>
         </div>
       </div>
-
       {/* --- Floating Components from Header.tsx --- */}
       <MobileMenu
         isOpen={isMobileMenuOpen}
@@ -337,5 +303,4 @@ const NewWishlistHeader = ({ event }: { event: EventWithWishlist }) => {
     </>
   );
 };
-
 export default NewWishlistHeader;

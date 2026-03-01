@@ -3,9 +3,7 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { NotificationType } from "@prisma/client";
-
 export const quoteRouter = createTRPCRouter({
-  // Create a new quote (vendor sends to client)
   create: protectedProcedure
     .input(
       z.object({
@@ -29,38 +27,29 @@ export const quoteRouter = createTRPCRouter({
         includes,
       } = input;
       const vendorId = ctx.user.id;
-
-      // 1. Verify that the conversation exists and the vendor is a participant
       const conversation = await ctx.db.conversation.findFirst({
         where: {
           id: conversationId,
           participants: { some: { userId: vendorId } },
         },
       });
-
       if (!conversation) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You are not part of this conversation.",
         });
       }
-
-      // 2. Fetch service details
       const services = await ctx.db.service.findMany({
         where: { id: { in: serviceIds } },
         select: { id: true, name: true },
       });
-
       if (services.length !== serviceIds.length) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "One or more services not found.",
         });
       }
-
-      // 3. Create Quote and Message in a transaction
       const result = await ctx.db.$transaction(async (prisma) => {
-        // Create the Quote first
         const quote = await prisma.quote.create({
           data: {
             vendorId,
@@ -73,17 +62,14 @@ export const quoteRouter = createTRPCRouter({
             services: services as Prisma.JsonArray,
           },
         });
-
-        // Then create the Message linked to the Quote
         const message = await prisma.message.create({
           data: {
             conversationId,
             senderId: vendorId,
-            text: `Quote: ${title} - ₦${price.toLocaleString()}`, // A descriptive text for the message
+            text: `Quote: ${title} - ₦${price.toLocaleString()}`,
           },
         });
         
-        // Now, link the message back to the quote
         const updatedQuote = await prisma.quote.update({
             where: { id: quote.id },
             data: { messageId: message.id },
@@ -97,7 +83,6 @@ export const quoteRouter = createTRPCRouter({
                 },
             },
         });
-
         await prisma.notification.create({
             data: {
                 userId: clientId,
@@ -106,37 +91,29 @@ export const quoteRouter = createTRPCRouter({
                 link: `/inbox?conversation=${conversationId}`,
             },
         });
-
         return { quote: updatedQuote, message };
       });
-
       return result.quote;
     }),
-
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const quote = await ctx.db.quote.findUnique({
         where: { id: input.id },
       });
-
       if (!quote) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Quote not found." });
       }
-
       if (quote.vendorId !== ctx.user.id) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You are not authorized to delete this quote.",
         });
       }
-
       return ctx.db.quote.delete({
         where: { id: input.id },
       });
     }),
-
-  // Update quote status
   updateStatus: protectedProcedure
     .input(
       z.object({
@@ -153,85 +130,67 @@ export const quoteRouter = createTRPCRouter({
       const quote = await ctx.db.quote.findUnique({
         where: { id: input.id },
       });
-
       if (!quote) {
         throw new Error("Quote not found");
       }
-
-      // Verify authorization (vendor or client can update status)
       if (quote.vendorId !== ctx.user.id && quote.clientId !== ctx.user.id) {
         throw new Error("Unauthorized");
       }
-
       const updatedQuote = await ctx.db.quote.update({
         where: { id: input.id },
         data: { status: input.status },
       });
-
       const isClientAction = quote.clientId === ctx.user.id;
       const notificationRecipientId = isClientAction ? quote.vendorId : quote.clientId;
       const message = isClientAction
           ? `Your quote has been ${input.status.toLowerCase()} by the client.`
           : `The vendor has updated the quote status to ${input.status.toLowerCase()}.`;
-
       await ctx.db.notification.create({
           data: {
               userId: notificationRecipientId,
-              type: NotificationType.ORDER_UPDATE, // This should be a more generic type
+              type: NotificationType.ORDER_UPDATE,
               message: message,
               link: `/inbox?conversation=${quote.conversationId}`,
           },
       });
-
       return updatedQuote;
     }),
-
-  // Accept quote (creates order without payment)
   accept: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const quote = await ctx.db.quote.findUnique({
         where: { id: input.id },
       });
-
       if (!quote) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Quote not found." });
       }
-
       if (quote.clientId !== ctx.user.id) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Only the client can accept this quote.",
         });
       }
-
       if (quote.status !== "PENDING") {
         throw new TRPCError({
           code: "CONFLICT",
           message: "Quote is not pending and cannot be accepted.",
         });
       }
-
       return ctx.db.$transaction(async (prisma) => {
-        // 1. Update quote status
         const updatedQuote = await prisma.quote.update({
           where: { id: input.id },
           data: { status: "ACCEPTED" },
         });
-
-        // 2. Create the Order (Active immediately, no payment check)
         const order = await prisma.order.create({
           data: {
             quoteId: quote.id,
             clientId: quote.clientId,
             vendorId: quote.vendorId,
             amount: quote.price,
-            status: "ACTIVE", // Or define an enum for "AWAITING_PAYMENT" if preferred, but user said "ACTIVE"
+            status: "ACTIVE",
             eventDate: quote.eventDate,
           },
         });
-
-        // 3. Notify Vendor
         await prisma.notification.create({
           data: {
             userId: quote.vendorId,
@@ -240,18 +199,11 @@ export const quoteRouter = createTRPCRouter({
             link: `/orders/${order.id}`,
           },
         });
-
-        // 4. Update conversation message if linked
         if (quote.messageId) {
-             // Optional: Update the message to reflect status change if needed, 
-             // but the Quote bubble likely reacts to the Quote status itself.
         }
-
         return { success: true, order, quote: updatedQuote };
       });
     }),
-
-  // Get all quotes for vendor
   getMyQuotesAsVendor: protectedProcedure
     .input(
       z
@@ -283,8 +235,6 @@ export const quoteRouter = createTRPCRouter({
         },
       });
     }),
-
-  // Get all quotes for client
   getMyQuotesAsClient: protectedProcedure
     .input(
       z
@@ -316,8 +266,6 @@ export const quoteRouter = createTRPCRouter({
         },
       });
     }),
-
-  // Get a single quote by ID
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -341,20 +289,14 @@ export const quoteRouter = createTRPCRouter({
           conversation: true,
         },
       });
-
       if (!quote) {
         throw new Error("Quote not found");
       }
-
-      // Verify authorization
       if (quote.vendorId !== ctx.user.id && quote.clientId !== ctx.user.id) {
         throw new Error("Unauthorized");
       }
-
       return quote;
     }),
-
-  // Get quote count by status for vendor dashboard
   getVendorQuoteStats: protectedProcedure.query(async ({ ctx }) => {
     const [pending, accepted, rejected, revisionRequested] = await Promise.all([
       ctx.db.quote.count({
@@ -370,7 +312,6 @@ export const quoteRouter = createTRPCRouter({
         where: { vendorId: ctx.user.id, status: "REVISION_REQUESTED" },
       }),
     ]);
-
     return {
       pending,
       accepted,

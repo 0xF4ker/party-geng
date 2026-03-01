@@ -2,8 +2,6 @@ import { z } from "zod";
 import { adminProcedure, createTRPCRouter } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { type Prisma } from "@prisma/client";
-
-// Define the expected response shape from the external API
 interface ExternalKybResponse {
   statusCode: number;
   status: string;
@@ -18,9 +16,7 @@ interface ExternalKybResponse {
     objectives: string[];
   };
 }
-
 export const kybRouter = createTRPCRouter({
-  // 1. Fetch KYB Requests
   getRequests: adminProcedure
     .input(
       z.object({
@@ -32,29 +28,20 @@ export const kybRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      // --- Strict Type Construction ---
-      // We build the vendor profile filter first
       const vendorProfileFilter: Prisma.VendorProfileWhereInput = {};
-
-      // 1. Status Filter
       if (input.status) {
         vendorProfileFilter.kybStatus = input.status;
       } else {
-        // Default view: Everything except PENDING
         vendorProfileFilter.kybStatus = {
           in: ["IN_REVIEW", "APPROVED", "REJECTED"],
         };
       }
-
-      // 2. Search Filter (Company Name OR Reg Number)
       if (input.search) {
         vendorProfileFilter.OR = [
           { companyName: { contains: input.search, mode: "insensitive" } },
           { regNumber: { contains: input.search, mode: "insensitive" } },
         ];
       }
-
-      // 3. Assemble User Where Input
       const where: Prisma.UserWhereInput = {
         role: "VENDOR",
         vendorProfile: {
@@ -62,7 +49,6 @@ export const kybRouter = createTRPCRouter({
           is: vendorProfileFilter,
         },
       };
-
       return ctx.db.user.findMany({
         take: input.limit,
         where,
@@ -76,37 +62,28 @@ export const kybRouter = createTRPCRouter({
         },
       });
     }),
-
-  // 2. NEW: Manually Verify Registry
   verifyRegistry: adminProcedure
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // 1. Get the vendor's RC Number from our DB
       const user = await ctx.db.user.findUnique({
         where: { id: input.userId },
         select: { vendorProfile: true },
       });
-
       if (!user?.vendorProfile?.regNumber) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
           message: "Vendor does not have a registration number on file.",
         });
       }
-
       const rcNumber = user.vendorProfile.regNumber;
-
-      // 2. Fetch from External API securely
-      const baseUrl = process.env.KYB_BASE_URL; // e.g. "https://api.vendorprovider.com"
+      const baseUrl = process.env.KYB_BASE_URL;
       const apiKey = process.env.KYB_API_KEY;
-
       if (!baseUrl || !apiKey) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Server missing KYB integration credentials.",
         });
       }
-
       try {
         const response = await fetch(
           `${baseUrl}/api/vas/validation/secure/company`,
@@ -117,17 +94,14 @@ export const kybRouter = createTRPCRouter({
               X_API_KEY: apiKey,
             },
             body: JSON.stringify({
-              vrc: rcNumber, // Passing the Reg Number as requested
+              vrc: rcNumber,
             }),
           },
         );
-
         const result = (await response.json()) as ExternalKybResponse;
-
         if (!response.ok || !result.success) {
           throw new Error(result.message || "External API verification failed");
         }
-
         return result.data;
       } catch (error) {
         console.error("KYB API Error:", error);
@@ -140,8 +114,6 @@ export const kybRouter = createTRPCRouter({
         });
       }
     }),
-
-  // 3. Process Decision
   processDecision: adminProcedure
     .input(
       z.object({
@@ -155,20 +127,16 @@ export const kybRouter = createTRPCRouter({
         where: { id: input.userId },
         include: { vendorProfile: true },
       });
-
       if (!user || !user.vendorProfile) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Vendor profile not found",
         });
       }
-
       return ctx.db.vendorProfile.update({
         where: { id: user.vendorProfile.id },
         data: {
           kybStatus: input.decision,
-          // If we add a rejectionReason column later, map it here:
-          // rejectionReason: input.decision === "REJECTED" ? input.rejectionReason : null,
         },
       });
     }),

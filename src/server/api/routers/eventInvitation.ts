@@ -3,9 +3,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { NotificationType, QuoteStatus } from "@prisma/client";
 import { appRouter } from "@/server/api/root";
-
 export const eventInvitationRouter = createTRPCRouter({
-  // Create a new invitation (client sends to vendor)
   create: protectedProcedure
     .input(
       z.object({
@@ -17,8 +15,6 @@ export const eventInvitationRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { eventId, vendorId, message } = input;
       const clientId = ctx.user.id;
-
-      // 1. Verify that the event exists and the user is the owner
       const event = await ctx.db.clientEvent.findFirst({
         where: {
           id: eventId,
@@ -28,41 +24,33 @@ export const eventInvitationRouter = createTRPCRouter({
         },
         select: { title: true },
       });
-
       if (!event) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Event not found or you do not own this event.",
         });
       }
-
-      // 2. Handle existing pending invitations
       const existingInvitation = await ctx.db.eventInvitation.findFirst({
         where: { eventId, vendorId, status: "PENDING" },
         include: { conversation: { include: { participants: true } } },
       });
-
       if (existingInvitation) {
         const isVendorParticipant =
           existingInvitation.conversation.participants.some(
             (p) => p.userId === vendorId,
           );
         if (isVendorParticipant) {
-          // The invitation and conversation are valid. Just inform the user.
           throw new TRPCError({
             code: "CONFLICT",
             message:
               "A pending invitation has already been sent to this vendor for this event.",
           });
         } else {
-          // The conversation is broken (vendor is not a participant). Delete the old invitation.
           await ctx.db.eventInvitation.delete({
             where: { id: existingInvitation.id },
           });
         }
       }
-
-      // 3. Find or create a conversation between the client and vendor
       let conversation = await ctx.db.conversation.findFirst({
         where: {
           isGroup: false,
@@ -75,7 +63,6 @@ export const eventInvitationRouter = createTRPCRouter({
           ],
         },
       });
-
       conversation ??= await ctx.db.conversation.create({
         data: {
           participants: {
@@ -83,8 +70,6 @@ export const eventInvitationRouter = createTRPCRouter({
           },
         },
       });
-
-      // 4. Create Invitation and Message in a transaction
       const result = await ctx.db.$transaction(async (prisma) => {
         const invitation = await prisma.eventInvitation.create({
           data: {
@@ -95,7 +80,6 @@ export const eventInvitationRouter = createTRPCRouter({
             status: QuoteStatus.PENDING,
           },
         });
-
         const msgText =
           message ?? `You've been invited to join the event: "${event.title}"`;
         const createdMessage = await prisma.message.create({
@@ -105,7 +89,6 @@ export const eventInvitationRouter = createTRPCRouter({
             text: msgText,
           },
         });
-
         const updatedInvitation = await prisma.eventInvitation.update({
           where: { id: invitation.id },
           data: { messageId: createdMessage.id },
@@ -117,7 +100,6 @@ export const eventInvitationRouter = createTRPCRouter({
             },
           },
         });
-
         await prisma.notification.create({
           data: {
             userId: vendorId,
@@ -126,14 +108,10 @@ export const eventInvitationRouter = createTRPCRouter({
             link: `/inbox?conversation=${conversation.id}`,
           },
         });
-
         return { invitation: updatedInvitation, message: createdMessage };
       });
-
       return result.invitation;
     }),
-
-  // Update invitation status (for vendors)
   updateStatus: protectedProcedure
     .input(
       z.object({
@@ -144,12 +122,10 @@ export const eventInvitationRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { id, status } = input;
       const vendorId = ctx.user.id;
-
       const invitation = await ctx.db.eventInvitation.findFirst({
         where: { id: id, vendorId: vendorId },
         include: { event: { select: { title: true } } },
       });
-
       if (!invitation) {
         throw new TRPCError({
           code: "NOT_FOUND",
@@ -157,7 +133,6 @@ export const eventInvitationRouter = createTRPCRouter({
             "Invitation not found or you are not authorized to update it.",
         });
       }
-
       if (invitation.status !== QuoteStatus.PENDING) {
         if (
           invitation.status === QuoteStatus.ACCEPTED &&
@@ -175,14 +150,10 @@ export const eventInvitationRouter = createTRPCRouter({
           message: `This invitation has already been ${invitation.status.toLowerCase()}.`,
         });
       }
-
-      // Update the invitation status first
       const updatedInvitation = await ctx.db.eventInvitation.update({
         where: { id: id },
         data: { status: status },
       });
-
-      // If accepted, add vendor to the event
       if (status === QuoteStatus.ACCEPTED) {
         const caller = appRouter.createCaller(ctx);
         await caller.event.addVendor({
@@ -190,7 +161,6 @@ export const eventInvitationRouter = createTRPCRouter({
           vendorId: invitation.vendorId,
         });
       }
-
       await ctx.db.notification.create({
         data: {
           userId: invitation.clientId,
@@ -199,7 +169,6 @@ export const eventInvitationRouter = createTRPCRouter({
           link: `/inbox?conversation=${invitation.conversationId}`,
         },
       });
-
       return updatedInvitation;
     }),
 });

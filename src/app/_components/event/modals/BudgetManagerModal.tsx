@@ -1,5 +1,4 @@
 "use client";
-
 import React from "react";
 import { api } from "@/trpc/react";
 import { Loader2, Trash2 } from "lucide-react";
@@ -13,16 +12,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-
 type routerOutput = inferRouterOutputs<AppRouter>;
 type event = routerOutput["event"]["getById"];
-
 interface BudgetManagerModalProps {
   event: event;
   isOpen: boolean;
   onClose: () => void;
 }
-
 export const BudgetManagerModal = ({
   event,
   isOpen,
@@ -30,7 +26,6 @@ export const BudgetManagerModal = ({
 }: BudgetManagerModalProps) => {
   const utils = api.useUtils();
   const budget = event.budget;
-
   const addBudgetItem = api.event.addBudgetItem.useMutation({
     onMutate: async (newItem) => {
       await utils.event.getById.cancel({ id: event.id });
@@ -99,7 +94,6 @@ export const BudgetManagerModal = ({
   const deleteBudgetItem = api.event.deleteBudgetItem.useMutation({
     onSuccess: () => void utils.event.getById.invalidate({ id: event.id }),
   });
-
   const handleAddItem = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!budget) return;
@@ -110,9 +104,7 @@ export const BudgetManagerModal = ({
     const estimatedCost = (
       form.elements.namedItem("estimatedCost") as HTMLInputElement
     )?.value;
-
     if (!description || !estimatedCost) return;
-
     addBudgetItem.mutate({
       budgetId: budget.id,
       description,
@@ -120,21 +112,17 @@ export const BudgetManagerModal = ({
     });
     form.reset();
   };
-
   const totalEstimated =
     budget?.items.reduce((acc, item) => acc + item.estimatedCost, 0) ?? 0;
   const totalActual =
     budget?.items.reduce((acc, item) => acc + (item.actualCost ?? 0), 0) ?? 0;
-
   if (!budget) return null;
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="flex h-dvh w-screen max-w-none flex-col gap-0 rounded-none border-0 p-0 sm:h-auto sm:max-w-[625px] sm:rounded-lg sm:border sm:p-6">
         <DialogHeader className="p-6 pb-4 sm:p-0 sm:pb-4">
           <DialogTitle>Budget Manager</DialogTitle>
         </DialogHeader>
-
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-2">
             <div className="space-y-4">
             <div className="flex justify-between font-semibold">
@@ -150,7 +138,6 @@ export const BudgetManagerModal = ({
                 <p>₦{(totalEstimated - totalActual).toLocaleString()}</p>
             </div>
             </div>
-
             <div className="space-y-4">
             <div className="hidden sm:flex items-center gap-2 text-sm font-semibold text-gray-500">
                 <p className="flex-grow">Description</p>
@@ -209,7 +196,6 @@ export const BudgetManagerModal = ({
             ))}
             </div>
         </div>
-
         <form onSubmit={handleAddItem} className="mt-auto border-t bg-gray-50 p-4 sm:mt-4 sm:border-t-0 sm:bg-transparent sm:p-0 flex flex-col sm:flex-row gap-2">
           <Input name="description" placeholder="Description" required />
           <Input

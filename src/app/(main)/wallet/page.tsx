@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -20,18 +19,15 @@ import {
 import { api } from "@/trpc/react";
 import { useAuthStore } from "@/stores/auth";
 import { AddFundsModal } from "@/app/_components/payments/AddFundsModal";
-import { WithdrawModal } from "@/app/_components/payments/WithdrawModal"; // Ensure path matches
+import { WithdrawModal } from "@/app/_components/payments/WithdrawModal";
 import { TransferFundsModal } from "@/app/_components/payments/TransferFundsModal";
 import { RequestFundsModal } from "@/app/_components/payments/RequestFundsModal";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-
-// --- HELPERS ---
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(
     Math.abs(amount),
   );
-
 const TransactionTypeBadge = ({ type }: { type: string }) => {
   const styles: Record<string, string> = {
     PAYMENT: "bg-blue-100 text-blue-700 border-blue-200",
@@ -41,7 +37,6 @@ const TransactionTypeBadge = ({ type }: { type: string }) => {
     REFUND: "bg-purple-100 text-purple-700 border-purple-200",
     TRANSFER: "bg-indigo-100 text-indigo-700 border-indigo-200",
   };
-
   return (
     <span
       className={cn(
@@ -53,28 +48,21 @@ const TransactionTypeBadge = ({ type }: { type: string }) => {
     </span>
   );
 };
-
-// --- MAIN CONTENT ---
-
 const WalletPageContent = () => {
   const { profile } = useAuthStore();
   const userType = profile?.role === "VENDOR" ? "vendor" : "client";
   const [activeTab, setActiveTab] = useState("overview");
   const searchParams = useSearchParams();
-
   const initialShowAddFunds = useMemo(() => {
     return searchParams.get("modal") === "addFunds";
   }, [searchParams]);
-
   const [showAddFundsModal, setShowAddFundsModal] =
     useState(initialShowAddFunds);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
-
   const initialAmount = searchParams.get("amount");
   const quoteId = searchParams.get("quoteId");
-
   const {
     data: wallet,
     isLoading: walletLoading,
@@ -88,11 +76,9 @@ const WalletPageContent = () => {
     limit: 20,
     offset: 0,
   });
-
   const availableBalance = wallet?.availableBalance ?? 0;
   const totalExpenses = wallet?.totalExpenses ?? 0;
   const totalEarnings = wallet?.totalEarnings ?? 0;
-
   if (walletLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 pt-[120px]">
@@ -103,12 +89,10 @@ const WalletPageContent = () => {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gray-50 pt-[100px] pb-20 text-gray-900 lg:pt-[120px]">
       <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <h1 className="mb-6 text-3xl font-bold">Wallet</h1>
-
         {/* Tabs */}
         <div className="flex items-center border-b border-gray-200">
           <TabButton
@@ -122,7 +106,6 @@ const WalletPageContent = () => {
             onClick={() => setActiveTab("docs")}
           />
         </div>
-
         {/* Content */}
         {activeTab === "overview" && (
           <div className="mt-8 space-y-8">
@@ -143,7 +126,6 @@ const WalletPageContent = () => {
                 View Plans
               </button>
             </div>
-
             {/* Stats Cards Grid */}
             <div
               className={cn(
@@ -165,7 +147,6 @@ const WalletPageContent = () => {
                 />
               )}
             </div>
-
             {/* Transactions Section */}
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
               <div className="flex flex-col gap-4 border-b border-gray-200 bg-gray-50/50 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -177,7 +158,6 @@ const WalletPageContent = () => {
                   <FilterDropdown title="Type" icon={ArrowDownUp} />
                 </div>
               </div>
-
               {transactionsLoading ? (
                 <div className="flex justify-center p-12">
                   <div className="h-6 w-6 animate-spin rounded-full border-2 border-pink-600 border-r-transparent" />
@@ -239,7 +219,6 @@ const WalletPageContent = () => {
                       </tbody>
                     </table>
                   </div>
-
                   {/* Mobile Cards */}
                   <div className="divide-y divide-gray-100 md:hidden">
                     {transactionsData.map((tx) => (
@@ -281,7 +260,6 @@ const WalletPageContent = () => {
             </div>
           </div>
         )}
-
         {/* Modals */}
         {showAddFundsModal && (
           <AddFundsModal
@@ -324,15 +302,11 @@ const WalletPageContent = () => {
     </div>
   );
 };
-
-// --- SUB-COMPONENTS ---
-
 interface TabButtonProps {
   title: string;
   isActive: boolean;
   onClick: () => void;
 }
-
 const TabButton = ({ title, isActive, onClick }: TabButtonProps) => (
   <button
     onClick={onClick}
@@ -346,7 +320,6 @@ const TabButton = ({ title, isActive, onClick }: TabButtonProps) => (
     {title}
   </button>
 );
-
 interface AvailableFundsCardProps {
   availableBalance: number;
   onAddFunds: () => void;
@@ -354,7 +327,6 @@ interface AvailableFundsCardProps {
   onTransfer: () => void;
   onRequest: () => void;
 }
-
 const AvailableFundsCard = ({
   availableBalance,
   onAddFunds,
@@ -385,12 +357,10 @@ const AvailableFundsCard = ({
     </div>
   </div>
 );
-
 interface ClientEarningsExpensesCardProps {
   totalEarnings: number;
   totalExpenses: number;
 }
-
 const ClientEarningsExpensesCard = ({
   totalEarnings,
   totalExpenses,
@@ -421,14 +391,12 @@ const ClientEarningsExpensesCard = ({
     </div>
   </div>
 );
-
 interface ActionButtonProps {
   icon: LucideIcon;
   label: string;
   primary?: boolean;
   onClick: () => void;
 }
-
 const ActionButton = ({
   icon: Icon,
   label,
@@ -448,12 +416,10 @@ const ActionButton = ({
     {label}
   </button>
 );
-
 interface FilterDropdownProps {
   title: string;
   icon: LucideIcon;
 }
-
 const FilterDropdown = ({ title, icon: Icon }: FilterDropdownProps) => (
   <button className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
     <Icon className="h-3.5 w-3.5 text-gray-400" />
@@ -461,11 +427,9 @@ const FilterDropdown = ({ title, icon: Icon }: FilterDropdownProps) => (
     <ChevronDown className="h-3 w-3 text-gray-300" />
   </button>
 );
-
 const WalletPage = () => (
   <Suspense fallback={<div className="p-10 text-center">Loading...</div>}>
     <WalletPageContent />
   </Suspense>
 );
-
 export default WalletPage;

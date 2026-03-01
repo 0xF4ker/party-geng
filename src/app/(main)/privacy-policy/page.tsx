@@ -1,9 +1,7 @@
 "use client";
-
 import React, { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui";
-
 const sections = [
   { id: "info-collect", title: "1. Information We Collect" },
   { id: "how-use", title: "2. How We Use Your Information" },
@@ -18,11 +16,9 @@ const sections = [
   { id: "third-party", title: "11. Third-Party Links" },
   { id: "changes", title: "12. Changes to This Privacy Policy" },
 ];
-
 export default function PrivacyPolicyPage() {
   const [activeSection, setActiveSection] = useState("");
   const { headerHeight } = useUiStore();
-
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -34,15 +30,12 @@ export default function PrivacyPolicyPage() {
       },
       { rootMargin: "-20% 0px -35% 0px" },
     );
-
     sections.forEach(({ id }) => {
       const element = document.getElementById(id);
       if (element) observer.observe(element);
     });
-
     return () => observer.disconnect();
   }, []);
-
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
@@ -50,7 +43,6 @@ export default function PrivacyPolicyPage() {
       setActiveSection(id);
     }
   };
-
   return (
     <div className="min-h-screen bg-white" style={{ paddingTop: headerHeight }}>
       {/* Header */}
@@ -66,7 +58,6 @@ export default function PrivacyPolicyPage() {
           </div>
         </div>
       </div>
-
       <div className="container mx-auto flex flex-col gap-12 px-4 py-12 md:px-6 lg:flex-row">
         {/* Table of Contents - Sticky Sidebar */}
         <aside className="hidden w-1/4 min-w-[250px] shrink-0 lg:block">
@@ -92,7 +83,6 @@ export default function PrivacyPolicyPage() {
             </nav>
           </div>
         </aside>
-
         {/* Main Content */}
         <main className="mx-auto max-w-4xl flex-1 lg:mx-0">
           <div className="prose prose-pink prose-lg max-w-none space-y-12 text-gray-600">
@@ -105,7 +95,6 @@ export default function PrivacyPolicyPage() {
                 to the data practices described in this policy.
               </p>
             </div>
-
             <section id="info-collect" className="scroll-mt-24">
               <h2 className="mb-6 text-2xl font-bold text-gray-900">
                 1. Information We Collect
@@ -114,7 +103,6 @@ export default function PrivacyPolicyPage() {
                 We collect the following categories of information to provide
                 and improve our services:
               </p>
-
               <div className="space-y-8">
                 <div>
                   <h3 className="mb-3 text-xl font-semibold text-gray-900">
@@ -153,7 +141,6 @@ export default function PrivacyPolicyPage() {
                       </ul>
                     </div>
                   </div>
-
                   <div className="mt-6 grid gap-6 md:grid-cols-2">
                     <div className="rounded-xl bg-gray-50 p-6">
                       <h4 className="mb-2 font-bold text-gray-900">
@@ -181,7 +168,6 @@ export default function PrivacyPolicyPage() {
                       </ul>
                     </div>
                   </div>
-
                   <div className="mt-6 rounded-xl bg-gray-50 p-6">
                     <h4 className="mb-2 font-bold text-gray-900">
                       Customer Support
@@ -192,7 +178,6 @@ export default function PrivacyPolicyPage() {
                     </p>
                   </div>
                 </div>
-
                 <div>
                   <h3 className="mb-3 text-xl font-semibold text-gray-900">
                     1.2 Information We Collect Automatically
@@ -240,7 +225,6 @@ export default function PrivacyPolicyPage() {
                     </p>
                   </div>
                 </div>
-
                 <div>
                   <h3 className="mb-3 text-xl font-semibold text-gray-900">
                     1.3 Payment & Financial Information
@@ -280,7 +264,6 @@ export default function PrivacyPolicyPage() {
                     protection and banking regulations.
                   </p>
                 </div>
-
                 <div>
                   <h3 className="mb-3 text-xl font-semibold text-gray-900">
                     1.4 Information from Third Parties
@@ -293,7 +276,6 @@ export default function PrivacyPolicyPage() {
                 </div>
               </div>
             </section>
-
             <section
               id="how-use"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -305,7 +287,6 @@ export default function PrivacyPolicyPage() {
                 We use collected data to provide, manage, and improve PartyGeng
                 services:
               </p>
-
               <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
                 <div>
                   <h3 className="mb-2 font-bold text-gray-900">
@@ -364,7 +345,6 @@ export default function PrivacyPolicyPage() {
                 </div>
               </div>
             </section>
-
             <section
               id="how-share"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -378,7 +358,6 @@ export default function PrivacyPolicyPage() {
                   with trusted third parties.
                 </p>
               </div>
-
               <div className="space-y-6">
                 <div>
                   <h3 className="mb-2 font-bold text-gray-900">
@@ -433,7 +412,6 @@ export default function PrivacyPolicyPage() {
                 </div>
               </div>
             </section>
-
             <section
               id="how-protect"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -466,7 +444,6 @@ export default function PrivacyPolicyPage() {
                 protect their passwords and devices.
               </p>
             </section>
-
             <section
               id="privacy-rights"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -498,7 +475,6 @@ export default function PrivacyPolicyPage() {
                 Contact support for any of the above actions.
               </p>
             </section>
-
             <section
               id="data-retention"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -527,7 +503,6 @@ export default function PrivacyPolicyPage() {
                 </li>
               </ul>
             </section>
-
             <section
               id="childrens-privacy"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -545,7 +520,6 @@ export default function PrivacyPolicyPage() {
                 </p>
               </div>
             </section>
-
             <section
               id="cookies"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -574,7 +548,6 @@ export default function PrivacyPolicyPage() {
                 features may not function properly.
               </p>
             </section>
-
             <section
               id="international"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -588,7 +561,6 @@ export default function PrivacyPolicyPage() {
                 protect your information.
               </p>
             </section>
-
             <section
               id="social"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -605,7 +577,6 @@ export default function PrivacyPolicyPage() {
                 Please avoid sharing sensitive or personal information publicly.
               </p>
             </section>
-
             <section
               id="third-party"
               className="scroll-mt-24 border-t border-gray-100 pt-8"
@@ -618,7 +589,6 @@ export default function PrivacyPolicyPage() {
                 responsible for the privacy practices of such external sites.
               </p>
             </section>
-
             <section
               id="changes"
               className="scroll-mt-24 border-t border-gray-100 pt-8"

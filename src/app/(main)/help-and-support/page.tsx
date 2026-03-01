@@ -1,11 +1,9 @@
 "use client";
-
 import React, { useState } from "react";
 import { Mail, Phone, MapPin, Send, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/ui";
-
 export default function HelpSupportPage() {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -15,7 +13,6 @@ export default function HelpSupportPage() {
     message: "",
   });
   const { headerHeight } = useUiStore();
-
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -24,19 +21,14 @@ export default function HelpSupportPage() {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1500));
-
     toast.success("Message sent successfully! We'll get back to you soon.");
     setFormData({ name: "", email: "", subject: "", message: "" });
     setLoading(false);
   };
-
   return (
     <div className="min-h-screen bg-white" style={{ paddingTop: headerHeight }}>
       {/* Header */}
@@ -53,7 +45,6 @@ export default function HelpSupportPage() {
           </div>
         </div>
       </div>
-
       <div className="container mx-auto px-4 py-12 md:px-6">
         <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-2 lg:gap-20">
           {/* Contact Form */}
@@ -101,7 +92,6 @@ export default function HelpSupportPage() {
                   />
                 </div>
               </div>
-
               <div className="space-y-2">
                 <label
                   htmlFor="subject"
@@ -127,7 +117,6 @@ export default function HelpSupportPage() {
                   <option value="Other">Other</option>
                 </select>
               </div>
-
               <div className="space-y-2">
                 <label
                   htmlFor="message"
@@ -146,7 +135,6 @@ export default function HelpSupportPage() {
                   className="w-full resize-none rounded-lg border border-gray-300 p-3 transition-all outline-none focus:border-transparent focus:ring-2 focus:ring-pink-500"
                 />
               </div>
-
               <button
                 type="submit"
                 disabled={loading}
@@ -166,7 +154,6 @@ export default function HelpSupportPage() {
               </button>
             </form>
           </div>
-
           {/* Contact Details & Map */}
           <div className="space-y-8">
             <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 md:p-8">
@@ -187,7 +174,6 @@ export default function HelpSupportPage() {
                     </p>
                   </div>
                 </div>
-
                 <div className="flex items-start gap-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-100 bg-white text-pink-600 shadow-sm">
                     <Mail className="h-5 w-5" />
@@ -207,7 +193,6 @@ export default function HelpSupportPage() {
                     </p>
                   </div>
                 </div>
-
                 <div className="flex items-start gap-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-100 bg-white text-pink-600 shadow-sm">
                     <Phone className="h-5 w-5" />
@@ -229,7 +214,6 @@ export default function HelpSupportPage() {
                 </div>
               </div>
             </div>
-
             {/* Map Section */}
             <div className="relative h-[300px] overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 shadow-sm">
               <iframe

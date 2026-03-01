@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import {
   Dialog,
@@ -13,14 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Copy, Check } from "lucide-react";
 import { FaFacebook, FaTwitter, FaWhatsapp } from "react-icons/fa";
 import { toast } from "sonner";
-
 interface ShareWishlistModalProps {
   isOpen: boolean;
   onClose: () => void;
   wishlistUrl: string;
   eventName: string;
 }
-
 export const ShareWishlistModal = ({
   isOpen,
   onClose,
@@ -28,7 +25,6 @@ export const ShareWishlistModal = ({
   eventName,
 }: ShareWishlistModalProps) => {
   const [copied, setCopied] = useState(false);
-
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(wishlistUrl);
@@ -40,9 +36,7 @@ export const ShareWishlistModal = ({
       console.error("Failed to copy:", err);
     }
   };
-
   const shareText = `Check out the wishlist for ${eventName}!`;
-
   const socialLinks = [
     {
       name: "Facebook",
@@ -60,7 +54,6 @@ export const ShareWishlistModal = ({
       url: `https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${wishlistUrl}`)}`,
     },
   ];
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">

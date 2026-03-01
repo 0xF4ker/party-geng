@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import {
   Star,
@@ -15,17 +14,13 @@ import type { AppRouter } from "@/server/api/root";
 import VendorProfileHeader from "@/app/_components/profile/VendorProfileHeader";
 import { GalleryTab } from "@/app/_components/profile/GalleryTab";
 import { formatDistanceToNow } from "date-fns";
-
 type routerOutput = inferRouterOutputs<AppRouter>;
 type review = routerOutput["review"]["getForVendor"][0];
-
-// --- Main Page Component ---
 const VendorProfilePage = () => {
   const params = useParams();
   const username = params.user as string;
   const { user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState("gallery");
-
   const {
     data: vendorProfile,
     isLoading: vendorLoading,
@@ -37,9 +32,7 @@ const VendorProfilePage = () => {
   }, {
       enabled: !!vendorProfile?.userId,
   });
-
   const isOwnProfile = currentUser?.id === vendorProfile?.userId;
-
   if (vendorLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -47,7 +40,6 @@ const VendorProfilePage = () => {
       </div>
     );
   }
-
   if (vendorError || !vendorProfile) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50">
@@ -60,7 +52,6 @@ const VendorProfilePage = () => {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <VendorProfileHeader
@@ -70,7 +61,6 @@ const VendorProfilePage = () => {
         setActiveTab={setActiveTab}
         reviews={reviews}
       />
-
       <main className="container mx-auto max-w-4xl px-4">
         <div className="py-8">
           {activeTab === "gallery" && <GalleryTab username={username} />}
@@ -82,9 +72,6 @@ const VendorProfilePage = () => {
     </div>
   );
 };
-
-// --- Sub-Components ---
-
 const ReviewsSection = ({ reviews, isLoading }: { reviews: review[], isLoading: boolean }) => {
   if (isLoading) {
       return <div className="flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin"/></div>
@@ -108,7 +95,6 @@ const ReviewsSection = ({ reviews, isLoading }: { reviews: review[], isLoading: 
     </div>
   );
 };
-
 const ReviewCard = ({ review }: { review: review }) => (
   <div className="rounded-xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-md">
     <div className="flex items-start justify-between">
@@ -144,5 +130,4 @@ const ReviewCard = ({ review }: { review: review }) => (
     <p className="mt-4 text-gray-600">&quot;{review.comment}&quot;</p>
   </div>
 );
-
 export default VendorProfilePage;

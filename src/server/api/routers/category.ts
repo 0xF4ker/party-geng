@@ -10,9 +10,7 @@ import { logActivity } from "../services/activityLogger";
 import { revalidateTag, unstable_cache } from "next/cache";
 import { db } from "@/server/db";
 
-// --- 1. CACHED QUERIES (Defined outside the router) ---
 
-// Cache: All Categories (Heavy query with includes)
 const getCachedAllCategories = unstable_cache(
   async () => {
     return await db.category.findMany({
@@ -32,14 +30,13 @@ const getCachedAllCategories = unstable_cache(
       },
     });
   },
-  ["all-categories-full"], // Cache Key
+  ["all-categories-full"],
   {
-    revalidate: 3600, // Default 1 hour
-    tags: ["categories"], // Tag for invalidation
+    revalidate: 3600,
+    tags: ["categories"],
   },
 );
 
-// Cache: Popular Services (Computationally expensive sorting)
 const getCachedPopularServices = unstable_cache(
   async () => {
     const popularServices = await db.service.findMany({
@@ -79,7 +76,6 @@ const getCachedPopularServices = unstable_cache(
   },
 );
 
-// Cache: Search List (Combines two tables)
 const getCachedSearchList = unstable_cache(
   async () => {
     const categories = await db.category.findMany({
@@ -115,25 +111,20 @@ const getCachedSearchList = unstable_cache(
   },
 );
 
-// --- 2. ROUTER IMPLEMENTATION ---
 
 export const categoryRouter = createTRPCRouter({
-  // Get all categories (Uses Cache)
   getAll: publicProcedure.query(async () => {
     return await getCachedAllCategories();
   }),
 
-  // Get popular services (Uses Cache)
   getPopularServices: publicProcedure.query(async () => {
     return await getCachedPopularServices();
   }),
 
-  // Get search list (Uses Cache)
   getSearchList: publicProcedure.query(async () => {
     return await getCachedSearchList();
   }),
 
-  // Get category by slug (Direct DB - Cursors/Slugs are hard to cache efficiently)
   getBySlug: publicProcedure
     .input(z.object({ slug: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -211,9 +202,7 @@ export const categoryRouter = createTRPCRouter({
       return service;
     }),
 
-  // --- NEW ADMIN MUTATIONS (With Cache Invalidation) ---
 
-  // 1. Manage Categories
   upsertCategory: adminProcedure
     .input(
       z.object({
@@ -243,7 +232,6 @@ export const categoryRouter = createTRPCRouter({
 
       let result;
       if (input.id) {
-        // UPDATE
         result = await ctx.db.category.update({
           where: { id: input.id },
           data: { name: input.name, slug },
@@ -256,7 +244,6 @@ export const categoryRouter = createTRPCRouter({
           details: { name: input.name },
         });
       } else {
-        // CREATE
         result = await ctx.db.category.create({
           data: { name: input.name, slug },
         });
@@ -269,8 +256,6 @@ export const categoryRouter = createTRPCRouter({
         });
       }
 
-      // INVALIDATE CACHE
-      // We pass { expire: 0 } to force immediate expiration (Standard in Next.js 15+ for Admin actions)
       revalidateTag("categories", { expire: 0 });
       revalidateTag("search-list", { expire: 0 });
 
@@ -305,14 +290,12 @@ export const categoryRouter = createTRPCRouter({
         details: { name: deleted.name },
       });
 
-      // INVALIDATE CACHE
       revalidateTag("categories", { expire: 0 });
       revalidateTag("search-list", { expire: 0 });
 
       return deleted;
     }),
 
-  // 2. Manage Services
   upsertService: adminProcedure
     .input(
       z.object({
@@ -343,7 +326,6 @@ export const categoryRouter = createTRPCRouter({
 
       let result;
       if (input.id) {
-        // UPDATE
         result = await ctx.db.service.update({
           where: { id: input.id },
           data: {
@@ -360,7 +342,6 @@ export const categoryRouter = createTRPCRouter({
           details: { name: input.name, categoryId: input.categoryId },
         });
       } else {
-        // CREATE
         result = await ctx.db.service.create({
           data: {
             name: input.name,
@@ -377,8 +358,6 @@ export const categoryRouter = createTRPCRouter({
         });
       }
 
-      // INVALIDATE CACHE
-      // Services affect "services", "categories" (via counts), and "search-list"
       revalidateTag("services", { expire: 0 });
       revalidateTag("categories", { expire: 0 });
       revalidateTag("search-list", { expire: 0 });
@@ -414,7 +393,6 @@ export const categoryRouter = createTRPCRouter({
         details: { name: deleted.name },
       });
 
-      // INVALIDATE CACHE
       revalidateTag("services", { expire: 0 });
       revalidateTag("categories", { expire: 0 });
       revalidateTag("search-list", { expire: 0 });

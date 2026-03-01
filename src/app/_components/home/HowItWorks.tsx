@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   MessageSquare,
@@ -12,25 +11,17 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Image from "next/image";
-
-// Mock cn function for demonstration
 const cn = (...inputs: (string | boolean | undefined | null)[]) => {
   return inputs.filter(Boolean).join(" ");
 };
-
-// --- NEW: Animated Phone Mockup Component (Now auto-plays) ---
 const AnimatedStepIllustration = () => {
   const [currentStep, setCurrentStep] = useState(1);
-
   useEffect(() => {
-    // This timer will cycle through the steps
     const timer = setTimeout(() => {
-      setCurrentStep((prevStep) => (prevStep % 4) + 1); // Loops 1, 2, 3, 4, 1...
-    }, 3000); // Change screen every 3 seconds
-
+      setCurrentStep((prevStep) => (prevStep % 4) + 1);
+    }, 3000);
     return () => clearTimeout(timer);
-  }, [currentStep]); // Re-run effect when currentStep changes
-
+  }, [currentStep]);
   return (
     <>
       <style>
@@ -47,7 +38,6 @@ const AnimatedStepIllustration = () => {
             flex-direction: column;
             overflow: hidden; /* Prevent content spillover */
           }
-
           /* Little animation for vendor cards */
            @keyframes card-slide-in {
              from { opacity: 0; transform: translateY(10px); }
@@ -59,7 +49,6 @@ const AnimatedStepIllustration = () => {
            }
            .vendor-card-anim:nth-child(1) { animation-delay: 0.1s; }
            .vendor-card-anim:nth-child(2) { animation-delay: 0.25s; }
-
           /* Chat bubble animation */
            @keyframes bubble-in {
               from { opacity: 0; transform: scale(0.8) translateY(5px); }
@@ -71,7 +60,6 @@ const AnimatedStepIllustration = () => {
            }
            .chat-bubble:nth-child(1) { animation-delay: 0.2s; }
            .chat-bubble:nth-child(2) { animation-delay: 0.5s; }
-
            /* Payment animation */
             @keyframes pay-success {
               0% { transform: scale(0.8); opacity: 0;}
@@ -83,7 +71,6 @@ const AnimatedStepIllustration = () => {
               animation: pay-success 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
               transform-origin: center;
             }
-
             /* Success animation */
              @keyframes success-pop {
                0% { transform: scale(0.7); opacity: 0; }
@@ -102,7 +89,6 @@ const AnimatedStepIllustration = () => {
             -ms-overflow-style: none;  /* IE and Edge */
             scrollbar-width: none;  /* Firefox */
           }
-
         `}
       </style>
       {/* Phone Mockup */}
@@ -185,7 +171,6 @@ const AnimatedStepIllustration = () => {
                 </div>
               </div>
             </div>
-
             {/* --- Step 2 Screen: Get Quote --- */}
             <div
               className={cn(
@@ -237,11 +222,10 @@ const AnimatedStepIllustration = () => {
                 </button>
               </div>
             </div>
-
             {/* --- Step 3 Screen: Pay Securely --- */}
             <div
               className={cn(
-                "phone-screen items-center justify-center text-center", // Centered content
+                "phone-screen items-center justify-center text-center",
                 currentStep === 3
                   ? "opacity-100"
                   : "pointer-events-none opacity-0",
@@ -271,11 +255,10 @@ const AnimatedStepIllustration = () => {
                 </button>
               </div>
             </div>
-
             {/* --- Step 4 Screen: Event Success --- */}
             <div
               className={cn(
-                "phone-screen items-center justify-center text-center", // Centered content
+                "phone-screen items-center justify-center text-center",
                 currentStep === 4
                   ? "opacity-100"
                   : "pointer-events-none opacity-0",
@@ -317,12 +300,7 @@ const AnimatedStepIllustration = () => {
     </>
   );
 };
-
-// --- Main Component ---
 const HowItWorks = () => {
-  // REMOVED: All state and useEffect logic for IntersectionObserver
-
-  // Simplified steps for the horizontal diagram
   const simpleSteps = [
     {
       icon: Search,
@@ -347,35 +325,23 @@ const HowItWorks = () => {
         "Enjoy your event! Payment is released and you leave a review.",
     },
   ];
-
   const carouselRef = useRef<HTMLDivElement | null>(null);
   const [activeSlide, setActiveSlide] = useState(0);
-
-  // Autoplay
   useEffect(() => {
     const carousel = carouselRef.current;
     if (!carousel) return;
-
     const interval = setInterval(() => {
-      // Calculate next slide index
       const nextSlide = (activeSlide + 1) % simpleSteps.length;
-
       carousel.scrollTo({
         left: carousel.clientWidth * nextSlide,
         behavior: "smooth",
       });
-      // We'll let the scroll listener update the active slide
-    }, 4000); // Change slide every 4 seconds
-
+    }, 4000);
     return () => clearInterval(interval);
-  }, [activeSlide, simpleSteps.length]); // Rerun interval when activeSlide changes
-
-  // Listen to scroll to update dots
+  }, [activeSlide, simpleSteps.length]);
   useEffect(() => {
     const carousel = carouselRef.current;
     if (!carousel) return;
-
-    // Function to handle scroll and update active dot
     const handleScroll = () => {
       const slideWidth = carousel.clientWidth;
       const newIndex = Math.round(carousel.scrollLeft / slideWidth);
@@ -383,14 +349,10 @@ const HowItWorks = () => {
         setActiveSlide(newIndex);
       }
     };
-
     carousel.addEventListener("scroll", handleScroll);
     return () => carousel.removeEventListener("scroll", handleScroll);
-    // activeSlide is a dependency to ensure the listener always has the current slide index
   }, [activeSlide]);
-
   return (
-    // FIX: Added gradient background, text-white, and custom clip-path class
     <section className="slanted-bottom relative bg-gradient-to-br from-pink-600 to-purple-700 py-24 text-white">
       <style>
         {`
@@ -426,7 +388,6 @@ const HowItWorks = () => {
             perfect vendor to secure payments and post-event reviews, all in one
             place.
           </p>
-
           {/* NEW: Carousel Steps Diagram */}
           <div className="mt-12">
             {/* Outer container for overflow and scroll snap */}
@@ -435,17 +396,16 @@ const HowItWorks = () => {
               className="scrollbar-hide flex w-full snap-x snap-mandatory overflow-x-auto scroll-smooth"
             >
               {simpleSteps.map((step) => (
-                // Each Slide
                 <div
                   key={step.title}
-                  className="w-full flex-shrink-0 snap-center" // Each slide takes full width
+                  className="w-full flex-shrink-0 snap-center"
                 >
                   <div className="flex flex-col items-center px-4 py-6 text-center">
                     {/* FIX: Adjusted icon colors for dark background */}
                     <div
                       className={cn(
                         "flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full transition-all duration-300",
-                        "bg-white/20 text-white", // Use light colors on dark bg
+                        "bg-white/20 text-white",
                       )}
                     >
                       <step.icon className="h-8 w-8" />
@@ -460,7 +420,6 @@ const HowItWorks = () => {
                 </div>
               ))}
             </div>
-
             {/* Dots for carousel */}
             <div className="mt-6 flex justify-center space-x-3">
               {simpleSteps.map((_, index) => (
@@ -473,11 +432,10 @@ const HowItWorks = () => {
                         behavior: "smooth",
                       });
                     }
-                    setActiveSlide(index); // Manually set for instant dot feedback
+                    setActiveSlide(index);
                   }}
                   className={cn(
                     "h-2.5 w-2.5 rounded-full transition-all",
-                    // FIX: Adjusted dot colors for dark background
                     activeSlide === index
                       ? "scale-125 bg-white"
                       : "bg-white/50",
@@ -488,7 +446,6 @@ const HowItWorks = () => {
             </div>
           </div>
         </div>
-
         {/* --- Right Column: AUTO-PLAYING Animation --- */}
         <div className="flex items-center justify-center">
           <div className="h-[600px] w-full max-w-md">
@@ -501,5 +458,4 @@ const HowItWorks = () => {
     </section>
   );
 };
-
 export default HowItWorks;
