@@ -1,5 +1,5 @@
 -- Create storage buckets for profile images and KYC documents
--- Run this in Supabase SQL Editor
+-- To be Run in Supabase SQL Editor
 
 -- 1. Create profile-images bucket (public)
 INSERT INTO storage.buckets (id, name, public)

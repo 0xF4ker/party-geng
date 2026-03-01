@@ -1,6 +1,6 @@
--- ===== NEW: BOARD IMAGES BUCKET AND POLICIES =====
+-- ===== BOARD IMAGES BUCKET AND POLICIES =====
 
--- 5. Create board-images bucket (public)
+-- Create board-images bucket (public)
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('board-images', 'board-images', true)
 ON CONFLICT (id) DO NOTHING;
