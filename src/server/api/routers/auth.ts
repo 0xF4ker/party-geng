@@ -7,7 +7,6 @@ import {
   onboardingProcedure,
 } from "@/server/api/trpc";
 import { createClient } from "@/utils/supabase/server";
-import { supabase } from "@/lib/supabase";
 
 export const authRouter = createTRPCRouter({
   /**
@@ -118,7 +117,8 @@ export const authRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ input }) => {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const supabaseServer = await createClient();
+      const { data, error } = await supabaseServer.auth.signInWithPassword({
         email: input.email,
         password: input.password,
       });
