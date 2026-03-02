@@ -4,8 +4,10 @@ import {
   createTRPCRouter,
   publicProcedure,
   protectedProcedure,
+  onboardingProcedure,
 } from "@/server/api/trpc";
 import { createClient } from "@/utils/supabase/server";
+import { supabase } from "@/lib/supabase";
 
 export const authRouter = createTRPCRouter({
   /**
@@ -14,25 +16,25 @@ export const authRouter = createTRPCRouter({
    * but this mutation ensures the record exists and related profiles are set up
    * correctly, handling any race conditions or trigger failures.
    */
-  createUser: publicProcedure
+  createUser: onboardingProcedure
     .input(
       z.object({
-        id: z.string(),
         email: z.string().email(),
         username: z.string().min(3).max(30),
         role: z.enum(["CLIENT", "VENDOR"]),
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const userId = ctx.authUser?.id;
       const user = await ctx.db.user.upsert({
-        where: { id: input.id },
+        where: { id: userId },
         update: {
           email: input.email,
           username: input.username,
           role: input.role,
         },
         create: {
-          id: input.id,
+          id: userId,
           email: input.email,
           username: input.username,
           role: input.role,
@@ -108,6 +110,29 @@ export const authRouter = createTRPCRouter({
     return ctx.user;
   }),
 
+  signIn: publicProcedure
+    .input(
+      z.object({
+        email: z.string().email(),
+        password: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: input.email,
+        password: input.password,
+      });
+
+      if (error) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: error.message,
+        });
+      }
+
+      return data.session;
+    }),
+
   /**
    * Sign out (clear session)
    */
@@ -161,7 +186,6 @@ export const authRouter = createTRPCRouter({
 
       return { success: true, status: "repaired" };
     }
-
 
     const metadata = (authUser.user_metadata || {}) as {
       username?: string;
