@@ -10,6 +10,7 @@ import { cookies } from "next/headers";
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   const cookieStore = await cookies();
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -21,29 +22,41 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
         set(name: string, value: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value, ...options });
-          } catch {
-          }
+          } catch {}
         },
         remove(name: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value: "", ...options });
-          } catch {
-          }
+          } catch {}
         },
       },
     },
   );
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const profile = user
-    ? await db.user.findUnique({ where: { id: user.id } })
+
+  const authHeader = opts.headers.get("authorization");
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.split(" ")[1]
     : null;
+
+  let authUser = null;
+
+  if (token) {
+    const { data } = await supabase.auth.getUser(token);
+    authUser = data.user;
+  } else {
+    const { data } = await supabase.auth.getUser();
+    authUser = data.user;
+  }
+
+  const profile = authUser
+    ? await db.user.findUnique({ where: { id: authUser.id } })
+    : null;
+
   return {
     db,
     supabase,
     user: profile,
-    authUser: user,
+    authUser: authUser,
     auditFlags: { disabled: false },
     ...opts,
   };
