@@ -74,7 +74,7 @@ export default function CategoryPage({
   return (
     <main className="bg-white py-44">
       <div
-        className="container mx-auto flex items-center justify-center bg-linear-to-r from-pink-500 to-purple-600 px-4 py-12 text-white"
+        className="container mx-auto flex items-center justify-center bg-gradient-to-r from-pink-500 to-purple-600 px-4 py-12 text-white"
         style={{ backgroundColor: "#003916" }}
       >
         <div className="flex flex-col items-center text-center">

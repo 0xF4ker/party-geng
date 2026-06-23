@@ -52,6 +52,7 @@ export const CreatePostModal = () => {
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<CreatePostFormValues>({
     resolver: zodResolver(createPostSchema),
@@ -60,6 +61,17 @@ export const CreatePostModal = () => {
       assets: [],
     },
   });
+
+  const SUGGESTED_TAGS = ["#trending", "#party", "#wedding", "#dj", "#decor", "#photography", "#celebration", "#lagos"];
+
+  const handleAddTag = (tag: string) => {
+    const currentCaption = watch("caption") || "";
+    const separator = currentCaption.endsWith(" ") || currentCaption === "" ? "" : " ";
+    if (currentCaption.toLowerCase().includes(tag.toLowerCase())) {
+      return;
+    }
+    setValue("caption", currentCaption + separator + tag);
+  };
   const { fields, append, remove } = useFieldArray({
     control,
     name: "assets",
@@ -279,7 +291,7 @@ export const CreatePostModal = () => {
             )}
           </div>
           {/* --- CAPTION --- */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="relative">
               <Textarea
                 {...register("caption")}
@@ -303,6 +315,43 @@ export const CreatePostModal = () => {
             {errors.caption && (
               <p className="text-sm text-red-500">{errors.caption.message}</p>
             )}
+
+            {/* Suggested Tags & Info Banner */}
+            <div className="space-y-3 pt-1">
+              <div className="flex flex-wrap gap-1.5 items-center">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider mr-1">Suggests:</span>
+                {SUGGESTED_TAGS.map((tag) => {
+                  const isIncluded = captionValue.toLowerCase().includes(tag.toLowerCase());
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => handleAddTag(tag)}
+                      disabled={isIncluded}
+                      className={cn(
+                        "rounded-full px-2.5 py-1 text-xs font-medium transition-all duration-200 border",
+                        isIncluded
+                          ? "bg-gray-100 text-gray-400 border-transparent cursor-not-allowed"
+                          : tag === "#trending"
+                            ? "bg-pink-50 text-pink-600 border-pink-100 hover:bg-pink-100 hover:border-pink-200 active:scale-95"
+                            : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100 hover:border-gray-300 active:scale-95"
+                      )}
+                    >
+                      {tag}
+                      {tag === "#trending" && " 🔥"}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Informative banner about #trending */}
+              <div className="flex items-start gap-2.5 rounded-xl bg-pink-50/50 border border-pink-100/60 p-3 text-xs text-pink-700 leading-normal">
+                <AlertCircle className="h-4 w-4 shrink-0 text-pink-500 mt-0.5" />
+                <div>
+                  <span className="font-semibold text-pink-800">Boost your reach:</span> Posts containing the <span className="font-bold text-pink-600">#trending</span> tag are automatically featured on the public explore feed for all users to discover!
+                </div>
+              </div>
+            </div>
           </div>
           {/* --- FOOTER --- */}
           <div className="flex items-center justify-end border-t border-gray-100 pt-4">

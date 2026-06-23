@@ -22,6 +22,7 @@ import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
 import { activityLogRouter } from "./routers/activityLog";
 import { reportRouter } from "./routers/report";
 import { kybRouter } from "./routers/kyb";
+import { socialRouter } from "@/server/api/routers/social";
 /**
  * This is the primary router for your server.
  *
@@ -50,6 +51,7 @@ export const appRouter = createTRPCRouter({
   activityLog: activityLogRouter,
   report: reportRouter,
   kyb: kybRouter,
+  social: socialRouter,
 });
 export type AppRouter = typeof appRouter;
 /**

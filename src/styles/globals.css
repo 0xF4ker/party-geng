@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap");
+@import url("https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap");
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -58,26 +59,26 @@
   --pink: #ec4899;
   --purple: #7c3aed;
 
-  /* Tailwind theme base (mapped to sys tokens) */
+  /* Tailwind theme base (mapped to dark tokens globally for clinical redesign) */
   --radius: var(--sys-radius-default);
-  --background: var(--sys-color-background-default);
-  --foreground: var(--sys-color-text-default);
-  --card: var(--sys-color-background-surface);
-  --card-foreground: var(--sys-color-text-default);
-  --popover: var(--sys-color-background-surface);
-  --popover-foreground: var(--sys-color-text-default);
-  --primary: var(--sys-color-primary-default);
-  --primary-foreground: var(--sys-color-primary-foreground);
-  --secondary: var(--sys-color-secondary-default);
-  --secondary-foreground: var(--sys-color-secondary-foreground);
-  --muted: #f3f4f6; /* gray.100 */
-  --muted-foreground: var(--sys-color-text-muted);
-  --accent: #f3f4f6; /* gray.100 */
-  --accent-foreground: var(--sys-color-text-default);
+  --background: var(--l-bg);
+  --foreground: var(--l-text);
+  --card: var(--l-surface);
+  --card-foreground: var(--l-text);
+  --popover: var(--l-surface-raised);
+  --popover-foreground: var(--l-text);
+  --primary: var(--l-brand-pink);
+  --primary-foreground: #ffffff;
+  --secondary: var(--l-brand-purple);
+  --secondary-foreground: #ffffff;
+  --muted: rgba(255, 255, 255, 0.05);
+  --muted-foreground: var(--l-text-muted);
+  --accent: rgba(255, 255, 255, 0.05);
+  --accent-foreground: var(--l-text);
   --destructive: var(--sys-color-destructive-default);
-  --border: var(--sys-color-border-default);
-  --input: var(--sys-color-border-default);
-  --ring: var(--sys-color-interactive-ring);
+  --border: var(--l-border);
+  --input: var(--l-border);
+  --ring: var(--l-brand-pink);
 
   /* Charts & sidebar (placeholders, not core to tokens) */
   --chart-1: #f59e0b; /* amber */
@@ -236,6 +237,31 @@
   }
 }
 
+/* =========================================================================
+   CLINICAL DARK THEME OVERRIDES 
+   Force all legacy hardcoded light utility classes to adopt the new Dark Glass 
+   variables without redefining the global color palette (which would break text-white)
+   ========================================================================= */
+@layer utilities {
+  .bg-white { background-color: var(--l-surface) !important; border-color: var(--l-border) !important; }
+  .bg-gray-50 { background-color: var(--l-bg) !important; }
+  .bg-gray-50\/50 { background-color: var(--l-bg) !important; }
+  .bg-white\/50 { background-color: var(--l-surface) !important; }
+  .bg-gray-100 { background-color: rgba(255, 255, 255, 0.05) !important; }
+  .bg-gray-200 { background-color: rgba(255, 255, 255, 0.1) !important; }
+  
+  .text-gray-900 { color: var(--l-text) !important; }
+  .text-gray-800 { color: var(--l-text) !important; }
+  .text-gray-700 { color: var(--l-text-muted) !important; }
+  .text-gray-600 { color: var(--l-text-muted) !important; }
+  .text-gray-500 { color: var(--l-text-muted) !important; }
+  
+  .border-gray-100 { border-color: var(--l-border) !important; }
+  .border-gray-200 { border-color: var(--l-border) !important; }
+  .border-gray-300 { border-color: var(--l-border) !important; }
+  .border-gray-400 { border-color: rgba(255,255,255,0.15) !important; }
+}
+
 /* Utilities bound to tokens */
 .hero-gradient {
   background: linear-gradient(180deg, var(--sys-color-background-surface) 0%, var(--sys-color-background-default) 100%);
@@ -291,6 +317,208 @@
   100% { transform: translateY(0) rotate(360deg); }
 }
 
+/* =====================================================
+   LANDING PAGE & GLOBAL LIGHT THEME TOKENS
+   These replace the old dark theme and inject a premium light aesthetic
+   ===================================================== */
+
+/* Light global tokens */
+:root {
+  --l-bg: #fdfcfd; /* Warm off-white base */
+  --l-surface: #ffffff;
+  --l-surface-raised: #ffffff;
+  --l-brand-pink: #f72585;
+  --l-brand-purple: #7209b7;
+  --l-gold: #ffbe0b;
+  --l-text: #111827;
+  --l-text-muted: #6b7280;
+  --l-border: rgba(0, 0, 0, 0.08);
+  --l-glow-pink: rgba(247, 37, 133, 0.15);
+  --l-glow-purple: rgba(114, 9, 183, 0.35);
+}
+
+/* Keyframes */
+@keyframes word-rise {
+  from { transform: translateY(110%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes orb-breathe {
+  0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.55; }
+  33%       { transform: scale(1.12) translate(2%, -3%); opacity: 0.7; }
+  66%       { transform: scale(0.92) translate(-2%, 2%); opacity: 0.5; }
+}
+
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 14px var(--l-glow-pink); }
+  50%       { box-shadow: 0 0 28px var(--l-glow-pink), 0 0 48px rgba(247,37,133,0.2); }
+}
+
+@keyframes card-float {
+  0%, 100% { transform: translateY(0px) rotate(var(--card-rot, 0deg)); }
+  50%       { transform: translateY(-8px) rotate(var(--card-rot, 0deg)); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer-move {
+  from { transform: translateX(-100%) skewX(-15deg); }
+  to   { transform: translateX(200%) skewX(-15deg); }
+}
+
+/* Premium Light Frost Glass */
+.l-glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--l-border);
+}
+
+.l-glass-nav {
+  background: var(--l-surface);
+  border-bottom: 1px solid var(--l-border);
+}
+
+/* Cards with soft ambient shadow for light mode */
+.l-card {
+  background: var(--l-surface);
+  border: 1px solid var(--l-border);
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.l-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.l-btn-primary {
+  background: linear-gradient(135deg, var(--l-brand-pink), var(--l-brand-purple));
+  color: #fff;
+  border: none;
+  border-radius: 9999px;
+  padding: 14px 32px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 0 20px rgba(247, 37, 133, 0.35);
+}
+.l-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 32px rgba(247, 37, 133, 0.55), 0 8px 24px rgba(0,0,0,0.4);
+}
+.l-btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+  transform: translateX(-100%) skewX(-15deg);
+  transition: transform 0s;
+}
+.l-btn-primary:hover::after {
+  animation: shimmer-move 0.55s ease forwards;
+}
+
+.l-btn-secondary {
+  background: transparent;
+  color: var(--l-text);
+  border: 1.5px solid rgba(0, 0, 0, 0.15);
+  border-radius: 9999px;
+  padding: 13px 32px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.l-btn-secondary:hover {
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.25);
+  transform: translateY(-2px);
+}
+
+.l-stat-number {
+  color: var(--l-gold);
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.l-word-clip {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+
+.l-word {
+  display: inline-block;
+  transform: translateY(110%);
+  opacity: 0;
+}
+
+.l-word.visible {
+  animation: word-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.l-section-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(247, 37, 133, 0.12);
+  border: 1px solid rgba(247, 37, 133, 0.3);
+  color: var(--l-brand-pink);
+  border-radius: 9999px;
+  padding: 4px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.l-ticker-track {
+  display: flex;
+  gap: 0;
+  animation: ticker-scroll 28s linear infinite;
+  will-change: transform;
+}
+.l-ticker-track:hover {
+  animation-play-state: paused;
+}
+
+.l-neon-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--l-brand-pink), var(--l-brand-purple), transparent);
+  opacity: 0.5;
+}
+
+.l-icon-glow {
+  position: relative;
+}
+.l-icon-glow::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  opacity: 0.45;
+  filter: blur(12px);
+  background: var(--l-glow-color, var(--l-brand-pink));
+  transition: opacity 0.3s ease;
+}
+.l-card:hover .l-icon-glow::before {
+  opacity: 0.7;
+}
+
 /* Mobile menu */
 .mobile-menu { transform: translateX(-100%); transition: transform 0.3s ease-in-out; }
 .mobile-menu.open { transform: translateX(0); }
@@ -313,3 +541,88 @@
 }
 .social-links a { color: var(--sys-color-text-muted); transition: color 0.2s ease-in-out; }
 .social-links a:hover { color: var(--sys-color-text-default); }
+
+/* ============================
+   Social Corner Utilities
+   ============================ */
+
+/* Heart burst animation for double-tap like */
+@keyframes like-burst {
+  0% { transform: scale(0); opacity: 0; }
+  15% { transform: scale(1.3); opacity: 1; }
+  30% { transform: scale(0.95); opacity: 1; }
+  45% { transform: scale(1.1); opacity: 1; }
+  80% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1); opacity: 0; }
+}
+.like-burst {
+  animation: like-burst 0.9s ease-out forwards;
+  pointer-events: none;
+}
+
+/* Hashtag styling */
+.hashtag {
+  color: var(--l-brand-pink);
+  font-weight: 600;
+  cursor: pointer;
+  transition: text-decoration-color 0.2s;
+  text-decoration: underline transparent;
+}
+.hashtag:hover {
+  text-decoration-color: var(--l-brand-pink);
+}
+
+/* Social card */
+.social-card {
+  background: var(--l-surface);
+  border-radius: 1rem;
+  border: 1px solid var(--l-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.social-card:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* Hype meter progress bar */
+.hype-bar-track {
+  background: linear-gradient(90deg, #f0f0f0, #e5e7eb);
+  border-radius: 999px;
+  height: 6px;
+  overflow: hidden;
+}
+.hype-bar-fill {
+  background: linear-gradient(90deg, var(--l-brand-pink), var(--l-brand-purple));
+  border-radius: 999px;
+  height: 100%;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Subtle pulse for FAB */
+@keyframes fab-pulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(247, 37, 133, 0.3); }
+  50% { box-shadow: 0 4px 24px rgba(247, 37, 133, 0.5); }
+}
+.fab-pulse {
+  animation: fab-pulse 2s ease-in-out infinite;
+}
+
+/* Like button heart fill animation */
+@keyframes heart-pop {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.3); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+.heart-pop {
+  animation: heart-pop 0.35s ease-out;
+}

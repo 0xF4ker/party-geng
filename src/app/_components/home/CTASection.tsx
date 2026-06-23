@@ -3,53 +3,184 @@ import React from "react";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { useAuthStore } from "@/stores/auth";
+
 const CTASection = () => {
   const { profile } = useAuthStore();
   const becomeVendorHref = profile ? "/dashboard" : "/join";
   const planEventHref = profile ? "/manage_events" : "/login";
+
   return (
-    <section className="py-24">
-      <div className="container mx-auto px-6">
-        <div className="relative overflow-hidden rounded-3xl bg-linear-to-br from-purple-700 via-purple-600 to-pink-600 px-6 py-16 text-center text-white shadow-2xl sm:px-12 sm:py-20">
-          {/* Decorative Elements */}
-          <div className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 opacity-20">
-            <div className="h-64 w-64 rounded-full bg-white blur-3xl"></div>
-          </div>
-          <div className="absolute right-0 bottom-0 translate-x-1/3 translate-y-1/3 opacity-20">
-            <div className="h-80 w-80 rounded-full bg-pink-400 blur-3xl"></div>
-          </div>
-          <div className="relative z-10 mx-auto max-w-4xl">
-            <div className="mb-6 flex justify-center">
-              <span className="inline-flex items-center rounded-full bg-white/20 px-4 py-1.5 text-sm font-medium text-purple-100 backdrop-blur-sm">
-                <Sparkles className="mr-2 h-4 w-4 text-yellow-300" />
+    <section
+      className="landing"
+      style={{ background: "var(--l-bg)", padding: "24px 24px 96px" }}
+    >
+      <div className="container mx-auto">
+        {/* Gradient card */}
+        <div
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            borderRadius: 28,
+            padding: "80px 48px",
+            textAlign: "center",
+            background: "linear-gradient(135deg, #7209b7 0%, #b5179e 50%, #f72585 100%)",
+            boxShadow: "0 40px 100px rgba(114,9,183,0.35), 0 0 0 1px rgba(255,255,255,0.08)",
+          }}
+        >
+          {/* Decorative orbs inside card */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: -80,
+              left: -80,
+              width: 300,
+              height: 300,
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.07)",
+              filter: "blur(40px)",
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              bottom: -60,
+              right: -60,
+              width: 260,
+              height: 260,
+              borderRadius: "50%",
+              background: "rgba(247,37,133,0.25)",
+              filter: "blur(50px)",
+              pointerEvents: "none",
+            }}
+          />
+
+          <div style={{ position: "relative", zIndex: 10, maxWidth: 640, margin: "0 auto" }}>
+            {/* Eyebrow */}
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                background: "rgba(255,255,255,0.15)",
+                backdropFilter: "blur(8px)",
+                border: "1px solid rgba(255,255,255,0.25)",
+                borderRadius: 9999,
+                padding: "6px 16px",
+                marginBottom: 24,
+              }}
+            >
+              <Sparkles style={{ width: 14, height: 14, color: "#ffbe0b" }} />
+              <span style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, fontWeight: 600 }}>
                 Join Nigeria&apos;s Fastest Growing Event Network
               </span>
             </div>
-            <h2 className="mb-6 text-4xl leading-tight font-bold sm:text-5xl">
+
+            <h2
+              style={{
+                color: "#fff",
+                fontSize: "clamp(28px, 5vw, 48px)",
+                fontWeight: 700,
+                lineHeight: 1.15,
+                margin: "0 0 20px",
+              }}
+            >
               Ready to Turn Your Passion into Profit?
             </h2>
-            <p className="mx-auto mb-10 max-w-2xl text-lg text-purple-100 sm:text-xl">
-              Whether you&apos;re a DJ, photographer, caterer, or venue owner,
-              PartyGeng connects you with clients looking for your specific
-              talents. Create your profile today and start getting booked.
+
+            <p
+              style={{
+                color: "rgba(255,255,255,0.75)",
+                fontSize: 17,
+                lineHeight: 1.7,
+                marginBottom: 40,
+              }}
+            >
+              Whether you&apos;re a DJ, photographer, caterer, or venue owner —
+              PartyGeng connects you with clients looking for your specific talents.
             </p>
-            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+
+            {/* CTAs */}
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 14,
+                justifyContent: "center",
+              }}
+            >
               <Link
                 href={becomeVendorHref}
-                className="group relative inline-flex items-center justify-center overflow-hidden rounded-full bg-white px-8 py-4 text-lg font-bold text-purple-700 transition-all hover:bg-gray-50 hover:shadow-lg hover:shadow-purple-900/20"
+                id="cta-become-vendor-btn"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "#fff",
+                  color: "#7209b7",
+                  borderRadius: 9999,
+                  padding: "15px 36px",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  textDecoration: "none",
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 32px rgba(0,0,0,0.3)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 20px rgba(0,0,0,0.2)";
+                }}
               >
-                <span className="relative z-10">Become a Vendor</span>
-                <div className="group-hover:animate-shimmer absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-purple-100/50 to-transparent transition-transform duration-700"></div>
+                Become a Vendor
               </Link>
+
               <Link
                 href={planEventHref}
-                className="inline-flex items-center justify-center rounded-full border-2 border-white/30 bg-white/10 px-8 py-4 text-lg font-bold text-white backdrop-blur-sm transition-all hover:bg-white/20"
+                id="cta-plan-event-btn"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "rgba(255,255,255,0.12)",
+                  color: "#fff",
+                  border: "1.5px solid rgba(255,255,255,0.3)",
+                  borderRadius: 9999,
+                  padding: "14px 36px",
+                  fontWeight: 600,
+                  fontSize: 16,
+                  textDecoration: "none",
+                  backdropFilter: "blur(8px)",
+                  transition: "background 0.2s ease, transform 0.2s ease, border-color 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.22)";
+                  (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.55)";
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.12)";
+                  (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.3)";
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                }}
               >
                 Planning an Event?
               </Link>
             </div>
-            <p className="mt-8 text-sm text-purple-200">
-              Free to join • Secure payments • 24/7 Support
+
+            <p
+              style={{
+                color: "rgba(255,255,255,0.5)",
+                fontSize: 13,
+                marginTop: 28,
+              }}
+            >
+              Free to join &nbsp;·&nbsp; Secure payments &nbsp;·&nbsp; 24/7 Support
             </p>
           </div>
         </div>
@@ -57,4 +188,5 @@ const CTASection = () => {
     </section>
   );
 };
+
 export default CTASection;

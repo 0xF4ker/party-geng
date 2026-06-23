@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       if (pathname.startsWith("/login") || pathname.startsWith("/join")) {
         router.push(
-          profile.role === "VENDOR" ? "/vendor/dashboard" : "/dashboard",
+          profile.role === "VENDOR" ? "/dashboard" : "/trending",
         );
         return;
       }

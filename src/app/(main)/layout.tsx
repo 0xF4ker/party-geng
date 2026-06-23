@@ -9,6 +9,7 @@ import { CreatePostModal } from "@/app/_components/posts/CreatePostModal";
 import { EventChatButton } from "@/app/_components/event/EventChatButton";
 import { MobileBottomNav } from "@/app/_components/layout/MobileBottomNav";
 import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 export default function MainLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -25,8 +26,8 @@ export default function MainLayout({
   }, [profile, isLoading, router]);
   if (isLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-white">
-        <Loader2 className="h-8 w-8 animate-spin text-pink-600" />
+      <div className="flex h-screen w-full items-center justify-center bg-[var(--l-bg)]">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--l-brand-pink)] drop-shadow-[0_0_8px_rgba(247,37,133,0.5)]" />
       </div>
     );
   }
@@ -49,7 +50,9 @@ export default function MainLayout({
   return (
     <>
       {!isProfilePage && <Header />}
-      <main className={showMobileNav ? "pb-20 lg:pb-0" : ""}>{children}</main>
+      <main className={cn("min-h-screen", showMobileNav ? "pb-20 lg:pb-0" : "")}>
+        {children}
+      </main>
       {!isProfilePage && <Footer />}
       {showCreatePostButton && <CreatePostButton />}
       {showEventChatButton && <EventChatButton />}

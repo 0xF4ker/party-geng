@@ -137,7 +137,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                   <Button
                     asChild
                     size="lg"
-                    className="w-full bg-linear-to-r from-orange-400 to-pink-500 text-lg font-bold text-white hover:from-orange-500 hover:to-pink-600"
+                    className="w-full bg-gradient-to-r from-orange-400 to-pink-500 text-lg font-bold text-white hover:from-orange-500 hover:to-pink-600"
                   >
                     <Link href="/trending" onClick={onClose}>
                       <Flame className="mr-1 h-5 w-5" />
@@ -218,7 +218,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                   <Button
                     asChild
                     size="lg"
-                    className="w-full bg-linear-to-r from-orange-400 to-pink-500 text-lg font-bold text-white hover:from-orange-500 hover:to-pink-600"
+                    className="w-full bg-gradient-to-r from-orange-400 to-pink-500 text-lg font-bold text-white hover:from-orange-500 hover:to-pink-600"
                   >
                     <Link href="/trending" onClick={onClose}>
                       <Flame className="mr-1 h-5 w-5" />

@@ -188,7 +188,7 @@ const NewWishlistHeader = ({ event }: { event: EventWithWishlist }) => {
                   className={cn(
                     "hidden font-semibold sm:inline-flex",
                     isHeaderSticky
-                      ? "bg-linear-to-r from-orange-400 to-pink-500 text-white hover:from-orange-500 hover:to-pink-600"
+                      ? "bg-gradient-to-r from-orange-400 to-pink-500 text-white hover:from-orange-500 hover:to-pink-600"
                       : "bg-white/10 text-white hover:bg-white/20",
                   )}
                 >

@@ -116,8 +116,8 @@ export default function OnboardingPage() {
   }, [router, setValue]);
   useEffect(() => {
     if (profile?.isOnboarded) {
-      if (profile.role === "VENDOR") router.push("/vendor/dashboard");
-      else router.push("/dashboard");
+      if (profile.role === "VENDOR") router.push("/dashboard");
+      else router.push("/trending");
     }
   }, [profile, router]);
   const updateOnboarding = api.user.updateOnboarding.useMutation({
@@ -125,9 +125,9 @@ export default function OnboardingPage() {
       toast.success("Account setup complete!");
       await utils.user.getProfile.invalidate();
       if (data.role === "VENDOR") {
-        router.push("/vendor/dashboard");
-      } else {
         router.push("/dashboard");
+      } else {
+        router.push("/trending");
       }
     },
     onError: (err: unknown) => {

@@ -58,6 +58,14 @@ const PostModal = ({
     isLoading,
     isError,
   } = api.post.getById.useQuery({ id: postId ?? "" }, { enabled: !!postId });
+
+  const recordViewMutation = api.post.recordView.useMutation();
+
+  useEffect(() => {
+    if (postId) {
+      recordViewMutation.mutate({ postId });
+    }
+  }, [postId]);
   const handleNext = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % posts.length);
   }, [posts.length]);
@@ -130,7 +138,7 @@ const PostModal = ({
           { id: postId },
           {
             ...prev,
-            _count: { ...prev._count, likes: prev._count.likes - 1 },
+            _count: { ...prev._count, likes: Math.max(0, prev._count.likes - 1) },
             viewer: { ...prev.viewer, hasLiked: false },
           },
         );
@@ -139,11 +147,61 @@ const PostModal = ({
     },
     onError: (err, __, ctx) =>
       ctx?.prev && utils.post.getById.setData({ id: postId! }, ctx.prev),
-    onSettled: (d, e, { postId }) =>
-      void utils.post.getById.invalidate({ id: postId }),
+    onSettled: (d, e, { postId }) => {
+      void utils.post.getById.invalidate({ id: postId });
+      void utils.post.getTrending.invalidate();
+    },
   });
+
+  const bookmarkMutation = api.post.bookmark.useMutation({
+    onMutate: async ({ postId }) => {
+      await utils.post.getById.cancel({ id: postId });
+      const prev = utils.post.getById.getData({ id: postId });
+      if (prev) {
+        utils.post.getById.setData(
+          { id: postId },
+          {
+            ...prev,
+            viewer: { ...prev.viewer, hasBookmarked: true },
+          },
+        );
+      }
+      return { prev };
+    },
+    onError: (err, __, ctx) =>
+      ctx?.prev && utils.post.getById.setData({ id: postId! }, ctx.prev),
+    onSettled: (d, e, { postId }) => {
+      void utils.post.getById.invalidate({ id: postId });
+      void utils.post.getTrending.invalidate();
+    },
+  });
+
+  const removeBookmarkMutation = api.post.removeBookmark.useMutation({
+    onMutate: async ({ postId }) => {
+      await utils.post.getById.cancel({ id: postId });
+      const prev = utils.post.getById.getData({ id: postId });
+      if (prev) {
+        utils.post.getById.setData(
+          { id: postId },
+          {
+            ...prev,
+            viewer: { ...prev.viewer, hasBookmarked: false },
+          },
+        );
+      }
+      return { prev };
+    },
+    onError: (err, __, ctx) =>
+      ctx?.prev && utils.post.getById.setData({ id: postId! }, ctx.prev),
+    onSettled: (d, e, { postId }) => {
+      void utils.post.getById.invalidate({ id: postId });
+      void utils.post.getTrending.invalidate();
+    },
+  });
+
   const isLiked = post?.viewer?.hasLiked ?? false;
   const isBookmarked = post?.viewer?.hasBookmarked ?? false;
+
   const handleLike = () => {
     if (!user) {
       toast.error("Login required");
@@ -154,6 +212,19 @@ const PostModal = ({
       unlikeMutation.mutate({ postId });
     } else {
       likeMutation.mutate({ postId });
+    }
+  };
+
+  const handleBookmark = () => {
+    if (!user) {
+      toast.error("Login required");
+      return;
+    }
+    if (!postId) return;
+    if (isBookmarked) {
+      removeBookmarkMutation.mutate({ postId });
+    } else {
+      bookmarkMutation.mutate({ postId });
     }
   };
   const activePost = post ?? postStub;
@@ -430,10 +501,11 @@ const PostModal = ({
                   size="icon"
                   className={cn(
                     "text-gray-400 hover:text-yellow-500",
-                    isBookmarked && "fill-current text-yellow-500",
+                    isBookmarked && "text-yellow-500",
                   )}
+                  onClick={handleBookmark}
                 >
-                  <Bookmark className="h-5 w-5" />
+                  <Bookmark className={cn("h-5 w-5", isBookmarked && "fill-current")} />
                 </Button>
               </div>
               {user && postId && <AddCommentForm postId={postId} />}

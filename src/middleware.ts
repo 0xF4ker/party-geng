@@ -76,8 +76,8 @@ export async function middleware(request: NextRequest) {
     return redirectTo("/login");
   }
   if (path === "/login" || path === "/join") {
-    if (userRole === ROLES.VENDOR) return redirectTo("/vendor/dashboard");
-    if (userRole === ROLES.CLIENT) return redirectTo("/dashboard");
+    if (userRole === ROLES.VENDOR) return redirectTo("/dashboard");
+    if (userRole === ROLES.CLIENT) return redirectTo("/trending");
     if (ROLES.ADMIN_GROUP.includes(userRole ?? "")) return redirectTo("/admin");
     return redirectTo("/");
   }
@@ -109,19 +109,19 @@ export async function middleware(request: NextRequest) {
       return response;
     return redirectTo("/admin");
   }
-  const vendorRoutes = ["/vendor/dashboard"];
+  const vendorRoutes = ["/dashboard"];
   if (
     vendorRoutes.some((route) => path.startsWith(route)) &&
     userRole !== ROLES.VENDOR
   ) {
-    return redirectTo("/dashboard");
+    return redirectTo("/trending");
   }
-  const clientRoutes = ["/dashboard", "/isave", "/wishlist"];
+  const clientRoutes = ["/isave", "/wishlist", "/manage_events", "/trending"];
   if (
     clientRoutes.some((route) => path.startsWith(route)) &&
     userRole !== ROLES.CLIENT
   ) {
-    return redirectTo("/vendor/dashboard");
+    return redirectTo("/dashboard");
   }
   return response;
 }

@@ -1,89 +1,154 @@
 import React from "react";
 import { Search, Calendar, Users, Heart, Camera, Star } from "lucide-react";
+
+const FEATURES = [
+  {
+    icon: Search,
+    title: "Find Your Perfect Match",
+    description:
+      "Discover verified vendors that match your style and budget. From DJs to decorators.",
+    glowColor: "#f72585",
+  },
+  {
+    icon: Calendar,
+    title: "Stress-Free Planning",
+    description:
+      "Stay organised with smart tools. Manage guest lists, budgets, and timelines all in one place.",
+    glowColor: "#7209b7",
+  },
+  {
+    icon: Users,
+    title: "Join the Party",
+    description:
+      "Connect with a vibrant community of party lovers. Share tips, get advice, and find inspiration.",
+    glowColor: "#4361ee",
+  },
+  {
+    icon: Heart,
+    title: "Save What You Love",
+    description:
+      "Build your dream event board. Save your favourite vendors and ideas for when you're ready to book.",
+    glowColor: "#f72585",
+  },
+  {
+    icon: Camera,
+    title: "Showcase Your Style",
+    description:
+      "Share your event photos and build your portfolio. Let the world see your creativity.",
+    glowColor: "#b5179e",
+  },
+  {
+    icon: Star,
+    title: "Trust & Transparency",
+    description:
+      "Read real reviews from real clients. Book with confidence knowing you're getting quality.",
+    glowColor: "#ffbe0b",
+  },
+];
+
 const FeaturesSection = () => {
-  const features = [
-    {
-      icon: Search,
-      title: "Find Your Perfect Match",
-      description:
-        "Discover verified vendors that match your style and budget. From DJs to decorators, we've got you covered.",
-      color: "text-pink-600 bg-pink-100",
-    },
-    {
-      icon: Calendar,
-      title: "Stress-Free Planning",
-      description:
-        "Stay organized with our smart tools. Manage guest lists, budgets, and timelines all in one place.",
-      color: "text-purple-600 bg-purple-100",
-    },
-    {
-      icon: Users,
-      title: "Join the Party",
-      description:
-        "Connect with a vibrant community of party lovers. Share tips, get advice, and find inspiration.",
-      color: "text-blue-600 bg-blue-100",
-    },
-    {
-      icon: Heart,
-      title: "Save What You Love",
-      description:
-        "Build your dream event board. Save your favorite vendors and ideas for when you're ready to book.",
-      color: "text-red-600 bg-red-100",
-    },
-    {
-      icon: Camera,
-      title: "Showcase Your Style",
-      description:
-        "Share your event photos and build your portfolio. Let the world see your creativity in action.",
-      color: "text-indigo-600 bg-indigo-100",
-    },
-    {
-      icon: Star,
-      title: "Trust & Transparency",
-      description:
-        "Read real reviews from real clients. Book with confidence knowing you're getting quality service.",
-      color: "text-yellow-600 bg-yellow-100",
-    },
-  ];
   return (
-    <section className="bg-gray-50/50 py-24">
+    <section
+      className="landing"
+      style={{ background: "var(--l-bg)", padding: "96px 0" }}
+    >
       <div className="container mx-auto px-6">
-        <div className="mx-auto mb-16 max-w-3xl text-center">
-          <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+        {/* Section header */}
+        <div style={{ textAlign: "center", marginBottom: 64 }}>
+          <div className="l-section-tag" style={{ justifyContent: "center" }}>
+            Why PartyGeng
+          </div>
+          <h2
+            style={{
+              color: "var(--l-text)",
+              fontSize: "clamp(28px, 4vw, 40px)",
+              fontWeight: 700,
+              margin: "0 0 16px",
+              lineHeight: 1.2,
+            }}
+          >
             Everything You Need for{" "}
-            <span className="text-pink-600">Unforgettable Events</span>
+            <span
+              style={{
+                background: "linear-gradient(90deg, #f72585, #b5179e)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              Unforgettable Events
+            </span>
           </h2>
-          <p className="mt-4 text-lg text-gray-600">
-            We&apos;ve built a complete ecosystem to help you plan, book, and
-            celebrate without the hassle.
+          <p style={{ color: "var(--l-text-muted)", fontSize: 16, maxWidth: 520, margin: "0 auto", lineHeight: 1.7 }}>
+            A complete ecosystem to help you plan, book, and celebrate without the hassle.
           </p>
         </div>
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature, index) => (
-            <div
-              key={index}
-              className="feature-card group relative overflow-hidden bg-white p-8"
-            >
-              {/* Hover Gradient Overlay */}
-              <div className="absolute inset-0 bg-linear-to-br from-white via-white to-pink-50 opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
-              <div className="relative z-10">
+
+        {/* Feature grid */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: 20,
+          }}
+        >
+          {FEATURES.map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <div
+                key={feature.title}
+                className="l-card"
+                style={{ padding: 28 }}
+              >
+                {/* Icon with radial glow */}
                 <div
-                  className={`feature-icon mb-6 ${feature.color} transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}
+                  className="l-icon-glow"
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: "50%",
+                    background: `${feature.glowColor}18`,
+                    border: `1px solid ${feature.glowColor}33`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: 20,
+                    ["--l-glow-color" as string]: feature.glowColor,
+                  }}
                 >
-                  <feature.icon className="h-8 w-8" />
+                  <Icon
+                    style={{ width: 24, height: 24, color: feature.glowColor }}
+                  />
                 </div>
-                <h3 className="mb-3 text-xl font-bold text-gray-900 transition-colors group-hover:text-pink-600">
+
+                <h3
+                  style={{
+                    color: "var(--l-text)",
+                    fontSize: 17,
+                    fontWeight: 700,
+                    margin: "0 0 10px",
+                    lineHeight: 1.3,
+                  }}
+                >
                   {feature.title}
                 </h3>
-                <p className="leading-relaxed text-gray-600">
+                <p
+                  style={{
+                    color: "var(--l-text-muted)",
+                    fontSize: 14,
+                    lineHeight: 1.65,
+                    margin: 0,
+                  }}
+                >
                   {feature.description}
                 </p>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
   );
 };
+
 export default FeaturesSection;

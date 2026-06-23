@@ -64,6 +64,7 @@ enum NotificationType {
   QUOTE_RECEIVED
   ORDER_COMPLETED
   PAYMENT_REQUEST
+  NEW_FOLLOW
 }
 
 enum ContributionType {
@@ -161,6 +162,11 @@ model User {
   postBookmarks          PostBookmark[]
   boardPosts             BoardPost[]
   savePlans              SavePlan[]
+  following              Follow[]            @relation("Following")
+  followers              Follow[]            @relation("Followers")
+  stories                Story[]
+  storyViews             StoryView[]
+  postViews              PostView[]
   
   blockedUsers           Block[]             @relation("Blocker")
   blockedBy              Block[]             @relation("Blocked")
@@ -559,10 +565,17 @@ model Post {
   likes     PostLike[]
   comments  PostComment[]
   bookmarks PostBookmark[]
+  views     PostView[]
+  hashtags  Hashtag[]
+  
+  parentPostId String?
+  parentPost   Post?          @relation("Reposts", fields: [parentPostId], references: [id], onDelete: Cascade)
+  reposts      Post[]         @relation("Reposts")
 
   reports Report[]
 
   @@index([authorId])
+  @@index([parentPostId])
 }
 
 model PostAsset {
@@ -792,4 +805,62 @@ model GlobalSettings {
   vendorSubscriptionFee Float @default(5000)
   
   updatedAt             DateTime @updatedAt
+}
+
+model Follow {
+  followerId  String
+  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@id([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Story {
+  id        String      @id @default(uuid())
+  author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+  url       String
+  type      AssetType
+  createdAt DateTime    @default(now())
+  expiresAt DateTime    @default(now())
+  views     StoryView[]
+
+  @@index([authorId])
+}
+
+model StoryView {
+  id        String   @id @default(uuid())
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  storyId   String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@unique([storyId, userId])
+  @@index([storyId])
+  @@index([userId])
+}
+
+model Hashtag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  posts     Post[]
+  createdAt DateTime @default(now())
+}
+
+model PostView {
+  id        String   @id @default(uuid())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId    String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+  @@index([userId])
 }

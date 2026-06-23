@@ -8,26 +8,34 @@ import { AssetType } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { unstable_cache, revalidateTag } from "next/cache";
 import { db } from "@/server/db";
+
+const postInclude = {
+  assets: { orderBy: { order: "asc" } },
+  author: {
+    include: {
+      clientProfile: true,
+      vendorProfile: true,
+    },
+  },
+  parentPost: {
+    include: {
+      author: {
+        include: { clientProfile: true, vendorProfile: true },
+      },
+      assets: { orderBy: { order: "asc" } },
+      _count: { select: { likes: true, comments: true, reposts: true } },
+    },
+  },
+  _count: {
+    select: { likes: true, comments: true, reposts: true },
+  },
+} as const;
 const getCachedGlobalFeed = unstable_cache(
   async () => {
     return await db.post.findMany({
       take: 50,
       orderBy: { createdAt: "desc" },
-      include: {
-        assets: { orderBy: { order: "asc" } },
-        author: {
-          select: {
-            id: true,
-            username: true,
-            clientProfile: true,
-            vendorProfile: true,
-            role: true,
-          },
-        },
-        _count: {
-          select: { likes: true, comments: true },
-        },
-      },
+      include: postInclude,
     });
   },
   ["global-feed-latest"],
@@ -39,27 +47,12 @@ const getCachedGlobalFeed = unstable_cache(
 const getCachedTrendingPosts = unstable_cache(
   async () => {
     return await db.post.findMany({
-      take: 50,
-      where: {
-        caption: {
-          not: null,
-          contains: "#trending",
-          mode: "insensitive",
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      include: {
-        author: {
-          include: {
-            clientProfile: true,
-            vendorProfile: true,
-          },
-        },
-        assets: { orderBy: { order: "asc" }, take: 1 },
-        _count: {
-          select: { likes: true, comments: true },
-        },
-      },
+      take: 60,
+      orderBy: [
+        { likes: { _count: "desc" } },
+        { createdAt: "desc" },
+      ],
+      include: postInclude,
     });
   },
   ["trending-posts-latest"],
@@ -77,12 +70,9 @@ const getCachedUserPosts = unstable_cache(
       include: {
         assets: { orderBy: { order: "asc" } },
         author: {
-          select: {
-            id: true,
-            username: true,
+          include: {
             clientProfile: true,
             vendorProfile: true,
-            role: true,
           },
         },
         _count: {
@@ -104,21 +94,7 @@ const getUserPosts = (username: string) =>
         where: { author: { username } },
         orderBy: { createdAt: "desc" },
         take: 50,
-        include: {
-          assets: { orderBy: { order: "asc" } },
-          author: {
-            select: {
-              id: true,
-              username: true,
-              clientProfile: true,
-              vendorProfile: true,
-              role: true,
-            },
-          },
-          _count: {
-            select: { likes: true, comments: true },
-          },
-        },
+        include: postInclude,
       });
     },
     [`user-feed-${username}`],
@@ -130,16 +106,7 @@ const getCachedPostById = (postId: string) =>
       return await db.post.findUnique({
         where: { id: postId },
         include: {
-          assets: { orderBy: { order: "asc" } },
-          author: {
-            select: {
-              id: true,
-              username: true,
-              clientProfile: true,
-              vendorProfile: true,
-              role: true,
-            },
-          },
+          ...postInclude,
           comments: {
             orderBy: { createdAt: "desc" },
             include: {
@@ -195,6 +162,20 @@ export const postRouter = createTRPCRouter({
           message: "You have reached the maximum limit of 10 posts.",
         });
       }
+      // Extract hashtags
+      const hashtags: string[] = [];
+      if (caption) {
+        const matches = caption.match(/#[\w\u0080-\uFFFF]+/g);
+        if (matches) {
+          matches.forEach((m) => {
+            const name = m.substring(1).toLowerCase();
+            if (!hashtags.includes(name)) {
+              hashtags.push(name);
+            }
+          });
+        }
+      }
+
       const post = await ctx.db.post.create({
         data: {
           authorId,
@@ -204,13 +185,17 @@ export const postRouter = createTRPCRouter({
               data: assets,
             },
           },
+          hashtags: {
+            connectOrCreate: hashtags.map((name) => ({
+              where: { name },
+              create: { name },
+            })),
+          },
         },
       });
       revalidateTag("global-feed", "default");
       revalidateTag(`user-feed-${ctx.user.username}`, "default");
-      if (caption?.includes("#trending")) {
-        revalidateTag("trending-feed", "default");
-      }
+      revalidateTag("trending-feed", "default");
       return post;
     }),
   getFeed: publicProcedure
@@ -218,10 +203,11 @@ export const postRouter = createTRPCRouter({
       z.object({
         limit: z.number().min(1).max(100).default(20),
         cursor: z.string().nullish(),
+        followingOnly: z.boolean().default(false),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { limit, cursor } = input;
+      const { limit, cursor, followingOnly } = input;
       const { user } = ctx;
       const excludedAuthorIds = new Set<string>();
       if (user) {
@@ -236,33 +222,44 @@ export const postRouter = createTRPCRouter({
           if (b.blockedId !== user.id) excludedAuthorIds.add(b.blockedId);
         });
       }
+      
       let posts;
-      if (!cursor) {
-        posts = await getCachedGlobalFeed();
-      } else {
+      if (user && followingOnly) {
+        // Strict Following feed: show posts strictly from users followed + current user
+        const follows = await ctx.db.follow.findMany({
+          where: { followerId: user.id },
+          select: { followingId: true },
+        });
+        const followingIds = follows.map((f) => f.followingId);
+        followingIds.push(user.id);
+
         posts = await ctx.db.post.findMany({
           take: limit + 1,
-          cursor: { id: cursor },
+          cursor: cursor ? { id: cursor } : undefined,
           orderBy: { createdAt: "desc" },
           where: {
-            authorId: { notIn: Array.from(excludedAuthorIds) },
-          },
-          include: {
-            assets: { orderBy: { order: "asc" } },
-            author: {
-              select: {
-                id: true,
-                username: true,
-                clientProfile: true,
-                vendorProfile: true,
-                role: true,
-              },
-            },
-            _count: {
-              select: { likes: true, comments: true },
+            authorId: {
+              in: followingIds,
+              notIn: Array.from(excludedAuthorIds),
             },
           },
+          include: postInclude,
         });
+      } else {
+        // Global / Latest feed: show community posts
+        if (!cursor) {
+          posts = await getCachedGlobalFeed();
+        } else {
+          posts = await ctx.db.post.findMany({
+            take: limit + 1,
+            cursor: { id: cursor },
+            orderBy: { createdAt: "desc" },
+            where: {
+              authorId: { notIn: Array.from(excludedAuthorIds) },
+            },
+            include: postInclude,
+          });
+        }
       }
       if (!cursor && excludedAuthorIds.size > 0) {
         posts = posts.filter((p) => !excludedAuthorIds.has(p.authorId));
@@ -276,9 +273,13 @@ export const postRouter = createTRPCRouter({
       let postsWithState = slicedPosts.map((post) => ({
         ...post,
         viewer: { hasLiked: false, hasBookmarked: false },
+        parentPost: post.parentPost ? {
+          ...post.parentPost,
+          viewer: { hasLiked: false, hasBookmarked: false },
+        } : null,
       }));
       if (user) {
-        const postIds = slicedPosts.map((p) => p.id);
+        const postIds = slicedPosts.flatMap((p) => [p.id, p.parentPostId].filter(Boolean) as string[]);
         const [likes, bookmarks] = await Promise.all([
           ctx.db.postLike.findMany({
             where: { userId: user.id, postId: { in: postIds } },
@@ -297,6 +298,13 @@ export const postRouter = createTRPCRouter({
             hasLiked: likedSet.has(post.id),
             hasBookmarked: bookmarkedSet.has(post.id),
           },
+          parentPost: post.parentPost ? {
+            ...post.parentPost,
+            viewer: {
+              hasLiked: likedSet.has(post.parentPost.id),
+              hasBookmarked: bookmarkedSet.has(post.parentPost.id),
+            },
+          } : null,
         }));
       }
       return { items: postsWithState, nextCursor };
@@ -329,21 +337,17 @@ export const postRouter = createTRPCRouter({
         posts = await getCachedTrendingPosts();
       } else {
         posts = await ctx.db.post.findMany({
-          take: limit + 1,
-          where: {
-            caption: { contains: "#trending", mode: "insensitive" },
-            authorId: { notIn: Array.from(excludedAuthorIds) },
-          },
-          cursor: { id: cursor },
-          orderBy: { createdAt: "desc" },
-          include: {
-            author: {
-              include: { clientProfile: true, vendorProfile: true },
+            take: limit + 1,
+            where: {
+              authorId: { notIn: Array.from(excludedAuthorIds) },
             },
-            assets: { orderBy: { order: "asc" }, take: 1 },
-            _count: { select: { likes: true, comments: true } },
-          },
-        });
+            cursor: { id: cursor },
+            orderBy: [
+              { likes: { _count: "desc" } },
+              { createdAt: "desc" },
+            ],
+            include: postInclude,
+          });
       }
       if (!cursor && excludedAuthorIds.size > 0) {
         posts = posts.filter((p) => !excludedAuthorIds.has(p.authorId));
@@ -354,7 +358,126 @@ export const postRouter = createTRPCRouter({
         const nextItem = slicedPosts.pop();
         nextCursor = nextItem!.id;
       }
-      return { posts: slicedPosts, nextCursor };
+      // Add viewer state
+      let postsWithState = slicedPosts.map((post) => ({
+        ...post,
+        viewer: { hasLiked: false, hasBookmarked: false },
+        parentPost: post.parentPost ? {
+          ...post.parentPost,
+          viewer: { hasLiked: false, hasBookmarked: false },
+        } : null,
+      }));
+      if (ctx.user) {
+        const postIds = slicedPosts.flatMap((p) => [p.id, p.parentPostId].filter(Boolean) as string[]);
+        const [likes, bookmarks] = await Promise.all([
+          ctx.db.postLike.findMany({
+            where: { userId: ctx.user.id, postId: { in: postIds } },
+            select: { postId: true },
+          }),
+          ctx.db.postBookmark.findMany({
+            where: { userId: ctx.user.id, postId: { in: postIds } },
+            select: { postId: true },
+          }),
+        ]);
+        const likedSet = new Set(likes.map((l) => l.postId));
+        const bookmarkedSet = new Set(bookmarks.map((b) => b.postId));
+        postsWithState = slicedPosts.map((post) => ({
+          ...post,
+          viewer: {
+            hasLiked: likedSet.has(post.id),
+            hasBookmarked: bookmarkedSet.has(post.id),
+          },
+          parentPost: post.parentPost ? {
+            ...post.parentPost,
+            viewer: {
+              hasLiked: likedSet.has(post.parentPost.id),
+              hasBookmarked: bookmarkedSet.has(post.parentPost.id),
+            },
+          } : null,
+        }));
+      }
+      return { posts: postsWithState, nextCursor };
+    }),
+  getBookmarked: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        cursor: z.string().nullish(),
+      }).optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const limit = input?.limit ?? 20;
+      const cursor = input?.cursor;
+      const userId = ctx.user.id;
+
+      const bookmarks = await ctx.db.postBookmark.findMany({
+        take: limit + 1,
+        cursor: cursor ? { postId_userId: { postId: cursor, userId } } : undefined,
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        include: {
+          post: {
+            include: postInclude,
+          },
+        },
+      });
+
+      const slicedBookmarks = bookmarks.slice(0, limit + 1);
+      let nextCursor: string | undefined = undefined;
+      if (slicedBookmarks.length > limit) {
+        const nextItem = slicedBookmarks.pop();
+        nextCursor = nextItem!.postId;
+      }
+
+      let postsWithState = slicedBookmarks.map((b) => {
+        const post = b.post;
+        return {
+          ...post,
+          viewer: {
+            hasLiked: false,
+            hasBookmarked: true,
+          },
+          parentPost: post.parentPost ? {
+            ...post.parentPost,
+            viewer: {
+              hasLiked: false,
+              hasBookmarked: false,
+            },
+          } : null,
+        };
+      });
+
+      if (postsWithState.length > 0) {
+        const postIds = postsWithState.flatMap((p) => [p.id, p.parentPostId].filter(Boolean) as string[]);
+        const [likes, parentBookmarks] = await Promise.all([
+          ctx.db.postLike.findMany({
+            where: { userId, postId: { in: postIds } },
+            select: { postId: true },
+          }),
+          ctx.db.postBookmark.findMany({
+            where: { userId, postId: { in: postIds } },
+            select: { postId: true },
+          }),
+        ]);
+        const likedSet = new Set(likes.map((l) => l.postId));
+        const bookmarkedSet = new Set(parentBookmarks.map((b) => b.postId));
+        postsWithState = postsWithState.map((post) => ({
+          ...post,
+          viewer: {
+            hasLiked: likedSet.has(post.id),
+            hasBookmarked: bookmarkedSet.has(post.id) || post.viewer.hasBookmarked,
+          },
+          parentPost: post.parentPost ? {
+            ...post.parentPost,
+            viewer: {
+              hasLiked: likedSet.has(post.parentPost.id),
+              hasBookmarked: bookmarkedSet.has(post.parentPost.id),
+            },
+          } : null,
+        }));
+      }
+
+      return { posts: postsWithState, nextCursor };
     }),
   getById: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
@@ -365,22 +488,41 @@ export const postRouter = createTRPCRouter({
       if (!post) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Post not found" });
       }
+      let parentPost = post.parentPost ? {
+        ...post.parentPost,
+        viewer: { hasLiked: false, hasBookmarked: false },
+      } : null;
       let viewer = { hasLiked: false, hasBookmarked: false };
       if (user) {
-        const [like, bookmark] = await Promise.all([
+        const [like, bookmark, parentLike, parentBookmark] = await Promise.all([
           ctx.db.postLike.findUnique({
             where: { postId_userId: { postId: id, userId: user.id } },
           }),
           ctx.db.postBookmark.findUnique({
             where: { postId_userId: { postId: id, userId: user.id } },
           }),
+          post.parentPostId ? ctx.db.postLike.findUnique({
+            where: { postId_userId: { postId: post.parentPostId, userId: user.id } },
+          }) : null,
+          post.parentPostId ? ctx.db.postBookmark.findUnique({
+            where: { postId_userId: { postId: post.parentPostId, userId: user.id } },
+          }) : null,
         ]);
         viewer = {
           hasLiked: !!like,
           hasBookmarked: !!bookmark,
         };
+        if (post.parentPost) {
+          parentPost = {
+            ...post.parentPost,
+            viewer: {
+              hasLiked: !!parentLike,
+              hasBookmarked: !!parentBookmark,
+            },
+          };
+        }
       }
-      return { ...post, viewer };
+      return { ...post, parentPost, viewer };
     }),
   like: protectedProcedure
     .input(z.object({ postId: z.string().uuid() }))
@@ -531,7 +673,22 @@ export const postRouter = createTRPCRouter({
         await prisma.postAsset.deleteMany({
           where: { postId },
         });
-        const updatedPost = await prisma.post.update({
+
+        // Extract hashtags
+        const hashtags: string[] = [];
+        if (caption) {
+          const matches = caption.match(/#[\w\u0080-\uFFFF]+/g);
+          if (matches) {
+            matches.forEach((m) => {
+              const name = m.substring(1).toLowerCase();
+              if (!hashtags.includes(name)) {
+                hashtags.push(name);
+              }
+            });
+          }
+        }
+
+        return await prisma.post.update({
           where: { id: postId },
           data: {
             caption,
@@ -540,10 +697,74 @@ export const postRouter = createTRPCRouter({
                 data: assets,
               },
             },
+            hashtags: {
+              set: [],
+              connectOrCreate: hashtags.map((name) => ({
+                where: { name },
+                create: { name },
+              })),
+            },
           },
         });
-        revalidateTag(`post-${postId}`, "default");
-        return updatedPost;
+      });
+    }),
+
+  repost: protectedProcedure
+    .input(z.object({ postId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { postId } = input;
+      const authorId = ctx.user.id;
+
+      const originalPost = await ctx.db.post.findUnique({
+        where: { id: postId },
+      });
+
+      if (!originalPost) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Original post not found.",
+        });
+      }
+
+      const existingRepost = await ctx.db.post.findFirst({
+        where: {
+          authorId,
+          parentPostId: postId,
+        },
+      });
+
+      if (existingRepost) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "You have already reposted this post.",
+        });
+      }
+
+      const repost = await ctx.db.post.create({
+        data: {
+          authorId,
+          parentPostId: postId,
+        },
+      });
+
+      revalidateTag("global-feed", "default");
+      revalidateTag(`user-feed-${ctx.user.username}`, "default");
+      revalidateTag("trending-feed", "default");
+
+      return repost;
+    }),
+
+  recordView: publicProcedure
+    .input(z.object({ postId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { postId } = input;
+      const userId = ctx.user?.id;
+
+      return await ctx.db.postView.create({
+        data: {
+          postId,
+          userId,
+        },
       });
     }),
 });

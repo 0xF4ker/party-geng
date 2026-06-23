@@ -21,6 +21,8 @@ import {
   ChevronDown,
   LogOut,
   User as UserIcon,
+  ListChecks,
+  Users,
 } from "lucide-react";
 import { EnvelopeIcon } from "@heroicons/react/24/solid";
 import { cn } from "@/lib/utils";
@@ -110,6 +112,52 @@ const ProfileHeader = ({
       enabled: !!user,
     });
   const { data: searchList } = api.category.getSearchList.useQuery();
+  const { data: followingList = [], refetch: refetchFollowing } =
+    api.social.getFollowing.useQuery(
+      { userId: user?.id ?? "" },
+      { enabled: !!user },
+    );
+  const isFollowing = followingList.some((f) => f.followingId === profileUser.id);
+
+  const { data: followers = [], refetch: refetchFollowers } =
+    api.social.getFollowers.useQuery({ userId: profileUser.id });
+  const { data: following = [] } =
+    api.social.getFollowing.useQuery({ userId: profileUser.id });
+
+  const followMutation = api.social.follow.useMutation({
+    onSuccess: () => {
+      toast.success(`You are now following @${profileUser.username}`);
+      void refetchFollowing();
+      void refetchFollowers();
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to follow user");
+    },
+  });
+
+  const unfollowMutation = api.social.unfollow.useMutation({
+    onSuccess: () => {
+      toast.success(`Unfollowed @${profileUser.username}`);
+      void refetchFollowing();
+      void refetchFollowers();
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to unfollow user");
+    },
+  });
+
+  const handleFollowToggle = () => {
+    if (!user) {
+      toast.info("Please sign in to follow users.");
+      openModal("login");
+      return;
+    }
+    if (isFollowing) {
+      unfollowMutation.mutate({ followingId: profileUser.id });
+    } else {
+      followMutation.mutate({ followingId: profileUser.id });
+    }
+  };
   const completedHires = profileUser.clientOrders?.length ?? 0;
   const eventsHosted = profileUser.clientProfile?._count?.events ?? 0;
   const sendMessage = api.chat.sendMessage.useMutation();
@@ -202,10 +250,6 @@ const ProfileHeader = ({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isProfileDropdownOpen]);
-  const headerTextColor = isHeaderSticky ? "text-gray-800" : "text-white";
-  const headerIconColor = isHeaderSticky
-    ? "text-gray-600 hover:text-pink-500"
-    : "text-white hover:text-pink-300";
   return (
     <>
       <div ref={headerRef} className="relative bg-white pb-4">
@@ -214,7 +258,7 @@ const ProfileHeader = ({
           className={cn(
             "fixed top-0 right-0 left-0 z-40 w-full transition-all duration-300",
             isHeaderSticky ? "bg-white shadow-md" : "bg-transparent",
-            headerTextColor,
+            isHeaderSticky ? "text-[var(--l-text)]" : "text-white"
           )}
         >
           <div className="relative container mx-auto flex h-16 items-center justify-between px-4">
@@ -229,8 +273,8 @@ const ProfileHeader = ({
                   width={150}
                   height={50}
                   className={cn(
-                    "ml-4 h-6 w-auto object-contain",
-                    !isHeaderSticky && "brightness-0 invert",
+                    "ml-4 h-6 w-auto object-contain drop-shadow-sm transition-all",
+                    !isHeaderSticky && "brightness-0 invert"
                   )}
                 />
               </Link>
@@ -257,8 +301,8 @@ const ProfileHeader = ({
                   className={cn(
                     "font-semibold",
                     isHeaderSticky
-                      ? "bg-linear-to-r from-orange-400 to-pink-500 text-white hover:from-orange-500 hover:to-pink-600"
-                      : "bg-white/10 text-white hover:bg-white/20",
+                      ? "bg-gradient-to-r from-orange-400 to-pink-500 text-white shadow-sm hover:from-orange-500 hover:to-pink-600"
+                      : "bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm shadow-sm",
                   )}
                 >
                   <Link href="/trending">
@@ -268,7 +312,7 @@ const ProfileHeader = ({
                 </Button>
                 <button
                   onClick={() => openModal("login")}
-                  className="rounded-md px-3 py-1.5 text-sm font-medium hover:bg-white/10"
+                  className={cn("rounded-md px-3 py-1.5 text-sm font-medium transition-colors", isHeaderSticky ? "hover:bg-gray-100" : "text-white hover:bg-white/20 backdrop-blur-sm")}
                 >
                   Sign In
                 </button>
@@ -278,7 +322,7 @@ const ProfileHeader = ({
                     "rounded-md border px-3 py-1.5 text-sm font-semibold",
                     isHeaderSticky
                       ? "border-pink-500 text-pink-500 hover:bg-pink-500 hover:text-white"
-                      : "border-white hover:bg-white hover:text-pink-600",
+                      : "border-white text-white hover:bg-white hover:text-pink-600 backdrop-blur-sm shadow-sm",
                   )}
                 >
                   Join
@@ -292,8 +336,8 @@ const ProfileHeader = ({
                   className={cn(
                     "hidden font-semibold sm:inline-flex",
                     isHeaderSticky
-                      ? "bg-linear-to-r from-orange-400 to-pink-500 text-white hover:from-orange-500 hover:to-pink-600"
-                      : "bg-white/10 text-white hover:bg-white/20",
+                      ? "bg-gradient-to-r from-orange-400 to-pink-500 text-white shadow-sm hover:from-orange-500 hover:to-pink-600"
+                      : "bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm shadow-sm",
                   )}
                 >
                   <Link href="/trending">
@@ -305,7 +349,7 @@ const ProfileHeader = ({
                   href="/inbox"
                   className={cn(
                     "relative hidden h-10 w-10 items-center justify-center rounded-full transition-colors md:flex",
-                    headerIconColor,
+                    isHeaderSticky ? "text-[var(--l-text-muted)] hover:text-[var(--l-text)]" : "text-white/90 hover:text-white drop-shadow-sm",
                   )}
                 >
                   <EnvelopeIcon className="h-6 w-6" />
@@ -314,7 +358,7 @@ const ProfileHeader = ({
                   )}
                 </Link>
                 <NotificationDropdown
-                  className={cn("hidden md:flex", headerIconColor)}
+                  className={cn("hidden md:flex", isHeaderSticky ? "text-[var(--l-text-muted)] hover:text-[var(--l-text)]" : "text-white/90 hover:text-white drop-shadow-sm")}
                 />
                 {/* --- Profile Dropdown Section --- */}
                 <div
@@ -374,17 +418,6 @@ const ProfileHeader = ({
                         </p>
                       </div>
                       <div className="p-1">
-                        {/* <Link
-                          href={
-                            isVendor
-                              ? `/v/${user?.username}`
-                              : `/c/${user?.username}`
-                          }
-                          className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                          onClick={() => setIsProfileDropdownOpen(false)}
-                        >
-                          <UserIcon className="h-4 w-4" /> Profile
-                        </Link> */}
                         <Link
                           href="/settings"
                           className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -423,7 +456,8 @@ const ProfileHeader = ({
             layout="fill"
             priority
           />
-          <div className="absolute inset-0 bg-linear-to-t from-white via-white/50 to-black/30"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent pointer-events-none"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-[var(--l-bg)] via-[var(--l-bg)]/80 to-transparent pointer-events-none"></div>
         </div>
         {/* --- Profile Content --- */}
         <div className="relative container mx-auto max-w-4xl px-4">
@@ -433,12 +467,12 @@ const ProfileHeader = ({
               <Image
                 src={clientProfile.avatarUrl}
                 alt={clientProfile?.name ?? "Client"}
-                className="h-32 w-32 rounded-full border-4 border-white bg-gray-200 object-cover sm:h-40 sm:w-40"
+                className="h-32 w-32 rounded-full border-0 ring-4 ring-[var(--l-bg)] ring-offset-2 ring-offset-[var(--l-bg)] shadow-md bg-[var(--l-surface-raised)] object-cover sm:h-40 sm:w-40"
                 width={160}
                 height={160}
               />
             ) : (
-              <div className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-white bg-pink-100 text-4xl font-bold text-pink-600 sm:h-40 sm:w-40">
+              <div className="flex h-32 w-32 items-center justify-center rounded-full border-0 ring-4 ring-[var(--l-bg)] ring-offset-2 ring-offset-[var(--l-bg)] shadow-md bg-[rgba(247,37,133,0.1)] text-4xl font-bold text-[var(--l-brand-pink)] sm:h-40 sm:w-40">
                 {clientProfile?.name?.charAt(0).toUpperCase() ?? "C"}
               </div>
             )}
@@ -447,17 +481,24 @@ const ProfileHeader = ({
               {isOwnProfile ? (
                 <>
                   <Link
-                    href="/wallet"
-                    className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-800 shadow-md transition-colors hover:bg-gray-100"
+                    href="/manage_orders"
+                    className="hidden md:flex items-center gap-2 rounded-full bg-[var(--l-surface)] border border-[var(--l-border)] px-4 py-2 text-sm font-semibold text-[var(--l-text)] shadow-sm transition-colors hover:bg-gray-50"
                   >
-                    <Wallet className="h-4 w-4 text-green-600" />
+                    <ListChecks className="h-4 w-4 text-[var(--l-text-muted)]" />
+                    <span>Orders</span>
+                  </Link>
+                  <Link
+                    href="/wallet"
+                    className="flex items-center gap-2 rounded-full bg-[var(--l-surface)] border border-[var(--l-border)] px-4 py-2 text-sm font-semibold text-[var(--l-text)] shadow-sm transition-colors hover:bg-gray-50"
+                  >
+                    <Wallet className="h-4 w-4 text-[var(--l-gold)]" />
                     <span>
                       ₦{wallet?.availableBalance.toLocaleString() ?? "0"}
                     </span>
                   </Link>
                   <button
                     onClick={() => router.push("/settings")}
-                    className="rounded-full border border-gray-300 bg-white p-2.5 text-gray-500 shadow-sm hover:bg-gray-100"
+                    className="rounded-full bg-[var(--l-surface)] border border-[var(--l-border)] p-2.5 text-[var(--l-text-muted)] shadow-sm hover:text-[var(--l-text)] hover:bg-gray-50"
                   >
                     <Settings className="h-4 w-4" />
                   </button>
@@ -465,9 +506,36 @@ const ProfileHeader = ({
               ) : (
                 <>
                   <button
+                    onClick={handleFollowToggle}
+                    disabled={followMutation.isPending || unfollowMutation.isPending}
+                    className={cn(
+                      "flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50",
+                      isFollowing
+                        ? "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-red-500 hover:border-red-200"
+                        : "text-white hover:opacity-90"
+                    )}
+                    style={
+                      isFollowing
+                        ? undefined
+                        : {
+                            background: "linear-gradient(135deg, #7209b7, #f72585)",
+                            boxShadow: "0 4px 16px rgba(114,9,183,0.25)",
+                          }
+                    }
+                  >
+                    {followMutation.isPending || unfollowMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : isFollowing ? (
+                      "Following"
+                    ) : (
+                      "Follow"
+                    )}
+                  </button>
+                  <button
                     onClick={handleContactClient}
                     disabled={createConversation.isPending}
-                    className="flex items-center gap-2 rounded-full bg-pink-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-pink-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ background: 'linear-gradient(135deg, #f72585, #b5179e)', boxShadow: '0 4px 16px rgba(247,37,133,0.3)' }}
                   >
                     {createConversation.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -501,26 +569,26 @@ const ProfileHeader = ({
           </div>
           {/* User Details */}
           <div className="mt-4">
-            <h1 className="text-2xl font-bold">
+            <h1 className="text-2xl font-bold text-[var(--l-text)] drop-shadow-md">
               {clientProfile?.name ?? profileUser.username ?? "Client"}
             </h1>
-            <p className="text-sm text-gray-500">@{profileUser.username}</p>
+            <p className="text-sm text-[var(--l-text-muted)]"><span style={{ color: '#f72585' }}>@</span>{profileUser.username}</p>
           </div>
           {/* BIO DISPLAY */}
           <div className="mt-4 max-w-2xl">
             {clientProfile?.bio ? (
-              <p className="text-sm leading-relaxed whitespace-pre-wrap text-gray-800">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap text-[var(--l-text)]">
                 {clientProfile.bio}
               </p>
             ) : (
-              <p className="text-sm text-gray-400 italic">
+              <p className="text-sm text-[var(--l-text-muted)] italic">
                 {isOwnProfile
                   ? "You haven't written a bio yet. Go to settings to add one!"
                   : "No bio provided."}
               </p>
             )}
           </div>
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[var(--l-text-muted)]">
             {clientProfile?.location && (
               <div className="flex items-center gap-1">
                 <MapPin className="h-4 w-4" />
@@ -547,14 +615,22 @@ const ProfileHeader = ({
             </div>
           </div>
           {/* Real Stats */}
-          <div className="mt-4 flex items-center space-x-6">
+          <div className="mt-4 flex flex-wrap items-center gap-y-2 gap-x-6">
             <div className="text-sm">
-              <span className="font-bold text-gray-900">{eventsHosted}</span>
-              <span className="text-gray-500"> Events Hosted</span>
+              <span className="font-bold text-[var(--l-text)] text-lg drop-shadow-sm">{eventsHosted}</span>
+              <span className="text-[var(--l-text-muted)]"> Events Hosted</span>
             </div>
             <div className="text-sm">
-              <span className="font-bold text-gray-900">{completedHires}</span>
-              <span className="text-gray-500"> Hires Made</span>
+              <span className="font-bold text-[var(--l-text)] text-lg drop-shadow-sm">{completedHires}</span>
+              <span className="text-[var(--l-text-muted)]"> Hires Made</span>
+            </div>
+            <div className="text-sm">
+              <span className="font-bold text-[var(--l-text)] text-lg drop-shadow-sm">{followers.length}</span>
+              <span className="text-[var(--l-text-muted)]"> Followers</span>
+            </div>
+            <div className="text-sm">
+              <span className="font-bold text-[var(--l-text)] text-lg drop-shadow-sm">{following.length}</span>
+              <span className="text-[var(--l-text-muted)]"> Following</span>
             </div>
           </div>
         </div>
@@ -562,15 +638,15 @@ const ProfileHeader = ({
         <div
           ref={tabsRef}
           className={cn(
-            "z-10 mt-6 border-b border-gray-200 bg-white/80 transition-shadow",
+            "z-10 mt-6 transition-shadow",
             isTabsSticky
-              ? "sticky top-16 shadow-md backdrop-blur-sm"
-              : "relative",
+              ? "sticky top-16 shadow-md backdrop-blur-md bg-white/90 border-b border-gray-100"
+              : "relative border-b border-gray-100 bg-transparent",
           )}
         >
           <div className="container mx-auto max-w-4xl px-4">
             <nav
-              className="scrollbar-hide -mb-px flex space-x-8 overflow-x-auto"
+              className="scrollbar-hide -mb-px flex gap-1 overflow-x-auto py-2"
               aria-label="Tabs"
             >
               <TabButton
@@ -641,10 +717,10 @@ const TabButton = ({
   <button
     onClick={onClick}
     className={cn(
-      "flex shrink-0 items-center gap-2 border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap transition-colors",
+      "flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap transition-all",
       isActive
-        ? "border-pink-600 text-pink-600"
-        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-800",
+        ? "bg-[rgba(247,37,133,0.15)] text-[var(--l-brand-pink)] shadow-[0_0_12px_rgba(247,37,133,0.3)] border border-[rgba(247,37,133,0.3)]"
+        : "text-[var(--l-text-muted)] hover:bg-black/5 hover:text-[var(--l-text)] border border-transparent",
     )}
   >
     {icon}

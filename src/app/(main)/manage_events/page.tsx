@@ -73,21 +73,21 @@ const ClientEventPlannerPage = () => {
     );
   }
   return (
-    <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
+    <div className="bg-transparent pt-[122px] text-[var(--l-text)] lg:pt-[127px]">
       <div className="container mx-auto px-4 py-8 sm:px-8">
         {/* Header */}
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <h1 className="text-3xl font-bold text-gray-800">My Events</h1>
+          <h1 className="text-3xl font-bold text-[var(--l-text)]">My Events</h1>
           <button
             onClick={() => setIsEventModalOpen(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-pink-600 px-5 py-3 font-semibold text-white transition-colors hover:bg-pink-700 md:w-auto"
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-gradient-to-r from-[var(--l-brand-pink)] to-[var(--l-brand-purple)] shadow-[0_4px_16px_rgba(247,37,133,0.3)] px-5 py-3 font-semibold text-white transition-[transform,box-shadow] duration-200 hover:scale-[1.02] md:w-auto"
           >
             <Plus className="h-5 w-5" />
             Create New Event
           </button>
         </div>
         {/* Tab Navigation */}
-        <div className="mb-6 flex items-center border-b border-gray-200">
+        <div className="mb-6 flex items-center gap-2 border-b border-[var(--l-border)] pb-2">
           <TabButton
             title="Upcoming Events"
             isActive={activeTab === "upcoming"}
@@ -121,11 +121,11 @@ const ClientEventPlannerPage = () => {
                 </Link>
               ))
             ) : (
-              <div className="col-span-full rounded-lg border border-gray-200 bg-white p-12 text-center">
-                <p className="text-gray-500">No upcoming events yet</p>
+              <div className="col-span-full l-card p-12 text-center">
+                <p className="text-[var(--l-text-muted)]">No upcoming events yet</p>
                 <button
                   onClick={() => setIsEventModalOpen(true)}
-                  className="mt-4 font-semibold text-pink-600 hover:text-pink-700"
+                  className="mt-4 font-semibold text-[var(--l-brand-pink)] hover:text-white transition-colors"
                 >
                   Create your first event
                 </button>
@@ -143,8 +143,8 @@ const ClientEventPlannerPage = () => {
                 </Link>
               ))
             ) : (
-              <div className="col-span-full rounded-lg border border-gray-200 bg-white p-12 text-center">
-                <p className="text-gray-500">No past events</p>
+              <div className="col-span-full l-card p-12 text-center">
+                <p className="text-[var(--l-text-muted)]">No past events</p>
               </div>
             )}
           </div>
@@ -175,10 +175,10 @@ const TabButton = ({
   <button
     onClick={onClick}
     className={cn(
-      "border-b-2 px-1 py-3 text-sm font-semibold transition-colors sm:px-4 sm:text-base",
+      "rounded-full px-4 py-2 text-sm font-semibold transition-all sm:text-base",
       isActive
-        ? "border-pink-600 text-pink-600"
-        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-800",
+        ? "bg-[rgba(247,37,133,0.15)] text-[var(--l-brand-pink)] border border-[var(--l-brand-pink)] shadow-[0_0_12px_rgba(247,37,133,0.3)]"
+        : "border border-transparent text-[var(--l-text-muted)] hover:bg-black/5 hover:text-[var(--l-text)]",
     )}
   >
     {title}
@@ -251,7 +251,7 @@ const EventCard = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuRef]);
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+    <div className="flex h-full flex-col overflow-hidden l-card transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
       <Image
         src={
           event.coverImage ??
@@ -268,14 +268,14 @@ const EventCard = ({
             <p
               className={cn(
                 "flex items-center gap-1 text-sm font-semibold",
-                isPast ? "text-gray-500" : "text-pink-600",
+                isPast ? "text-[var(--l-text-muted)]" : "text-[var(--l-brand-pink)]",
               )}
             >
               <CalendarDays className="h-4 w-4" />
               {/* DISPLAY RANGE DATE */}
               {formatEventDate(event.startDate, event.endDate)}
             </p>
-            <h3 className="mt-1 line-clamp-1 text-xl font-bold text-gray-800">
+            <h3 className="mt-1 line-clamp-1 text-xl font-bold text-[var(--l-text)]">
               {event.title}
             </h3>
           </div>
@@ -283,18 +283,18 @@ const EventCard = ({
             <div className="relative" ref={menuRef}>
               <button
                 onClick={handleMenuToggle}
-                className="rounded-full p-1 text-gray-400 hover:text-gray-700"
+                className="rounded-full p-1 text-[var(--l-text-muted)] hover:text-white hover:bg-[rgba(255,255,255,0.1)] transition-colors"
               >
                 <MoreVertical className="h-5 w-5" />
               </button>
               {isMenuOpen && (
                 <div
-                  className="absolute top-full right-0 z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg"
+                  className="absolute top-full right-0 z-10 mt-1 w-48 rounded-xl border border-[var(--l-border)] bg-[var(--l-surface-raised)] shadow-2xl overflow-hidden"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <Link href={`/event/${event.id}/wishlist`}>
-                    <button className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
-                      <Gift className="h-4 w-4" /> Manage Wishlist
+                    <button className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-[var(--l-text)] hover:bg-[rgba(255,255,255,0.05)] transition-colors">
+                      <Gift className="h-4 w-4 text-[var(--l-text-muted)]" /> Manage Wishlist
                     </button>
                   </Link>
                   <button
@@ -304,14 +304,14 @@ const EventCard = ({
                       setIsMenuOpen(false);
                       if (onAddVendorClick) onAddVendorClick(e);
                     }}
-                    className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-[var(--l-text)] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
                   >
-                    <Users className="h-4 w-4" /> Add Vendor
+                    <Users className="h-4 w-4 text-[var(--l-text-muted)]" /> Add Vendor
                   </button>
                   <button
                     onClick={handleDelete}
                     disabled={deleteEvent.isPending}
-                    className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-[#ff4d4d] hover:bg-[rgba(255,77,77,0.1)] transition-colors disabled:opacity-50"
                   >
                     {deleteEvent.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -327,7 +327,7 @@ const EventCard = ({
         </div>
         <div className="mt-auto space-y-3 pt-4">
           <div>
-            <h4 className="mb-2 text-xs font-semibold text-gray-500 uppercase">
+            <h4 className="mb-2 text-[10px] font-bold text-[var(--l-text-muted)] uppercase tracking-wider">
               Hired Vendors ({hiredVendors.length})
             </h4>
             <div className="flex items-center gap-2">
@@ -337,7 +337,7 @@ const EventCard = ({
                   src={vendor.avatarUrl}
                   alt={vendor.name}
                   title={vendor.name}
-                  className="h-8 w-8 rounded-full border-2 border-white ring-1 ring-gray-200"
+                  className="h-8 w-8 rounded-full border-2 border-[var(--l-surface-raised)] ring-1 ring-[var(--l-border)]"
                   width={32}
                   height={32}
                 />
@@ -345,7 +345,7 @@ const EventCard = ({
               {!isPast && (
                 <button
                   onClick={onAddVendorClick}
-                  className="z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gray-100 text-gray-500 ring-1 ring-gray-200 hover:bg-gray-200"
+                  className="z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[var(--l-surface-raised)] bg-[rgba(255,255,255,0.05)] text-[var(--l-text-muted)] ring-1 ring-[var(--l-border)] hover:bg-[rgba(255,255,255,0.1)] transition-colors"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
@@ -353,34 +353,35 @@ const EventCard = ({
             </div>
           </div>
           {!isPast && wishlistCount > 0 && (
-            <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-              <div className="text-xs text-gray-500">
+            <div className="flex items-center justify-between border-t border-[var(--l-border)] pt-3">
+              <div className="text-xs text-[var(--l-text-muted)]">
                 Wishlist:{" "}
-                <span className="font-semibold text-gray-700">
+                <span className="font-semibold text-white">
                   {wishlistCount}
                 </span>{" "}
                 items
               </div>
-              <div className="text-xs font-semibold text-green-600">
+              <div className="text-xs font-semibold text-[#16a34a]">
                 {fulfilledCount} fulfilled
               </div>
             </div>
           )}
         </div>
         {!isPast && (
-          <div className="mt-4 border-t border-gray-100 pt-4">
+          <div className="mt-4 border-t border-[var(--l-border)] pt-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-700">
+              <span className="text-sm font-semibold text-[var(--l-text-muted)]">
                 Make Public
               </span>
               <button
                 onClick={handleTogglePublic}
                 disabled={updateEvent.isPending}
+                className="transition-transform hover:scale-110"
               >
                 {isPublic ? (
-                  <ToggleRight className="h-8 w-8 text-pink-600" />
+                  <ToggleRight className="h-8 w-8 text-[var(--l-brand-pink)] drop-shadow-[0_0_8px_rgba(247,37,133,0.5)]" />
                 ) : (
-                  <ToggleLeft className="h-8 w-8 text-gray-400" />
+                  <ToggleLeft className="h-8 w-8 text-[var(--l-text-muted)]" />
                 )}
               </button>
             </div>
@@ -425,33 +426,33 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
     }
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="m-4 w-full max-w-lg rounded-lg bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-gray-200 p-4">
-          <h3 className="text-xl font-semibold">Create a New Event</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="m-4 w-full max-w-lg rounded-2xl l-card border border-[var(--l-border)] shadow-[0_12px_48px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center justify-between border-b border-[var(--l-border)] p-5">
+          <h3 className="text-xl font-bold text-[var(--l-text)]">Create a New Event</h3>
           <button
             onClick={onClose}
-            className="rounded-full p-1 text-gray-400 hover:bg-gray-100"
+            className="rounded-full p-2 text-[var(--l-text-muted)] hover:bg-[rgba(255,255,255,0.1)] hover:text-white transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4 p-6">
+        <form onSubmit={handleSubmit} className="space-y-5 p-6">
           <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-700">
+            <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
               Event Title
             </label>
             <input
               type="text"
               name="eventName"
               placeholder="e.g. 3-Day Wedding Extravaganza"
-              className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
+              className="w-full rounded-xl border border-[var(--l-border)] bg-[rgba(255,255,255,0.03)] p-3 text-white placeholder-gray-500 focus:border-[var(--l-brand-pink)] focus:outline-none focus:ring-1 focus:ring-[var(--l-brand-pink)]"
               required
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-semibold text-gray-700">
+              <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
                 Start Date
               </label>
               <input
@@ -459,12 +460,12 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
                 value={startDate}
                 onChange={handleStartChange}
                 min={new Date().toISOString().split("T")[0]}
-                className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
+                className="w-full rounded-xl border border-[var(--l-border)] bg-[rgba(255,255,255,0.03)] p-3 text-white focus:border-[var(--l-brand-pink)] focus:outline-none focus:ring-1 focus:ring-[var(--l-brand-pink)] [color-scheme:dark]"
                 required
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-semibold text-gray-700">
+              <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
                 End Date
               </label>
               <input
@@ -472,29 +473,29 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 min={startDate || new Date().toISOString().split("T")[0]}
-                className="w-full rounded-md border border-gray-300 p-2 focus:outline-pink-500"
+                className="w-full rounded-xl border border-[var(--l-border)] bg-[rgba(255,255,255,0.03)] p-3 text-white focus:border-[var(--l-brand-pink)] focus:outline-none focus:ring-1 focus:ring-[var(--l-brand-pink)] [color-scheme:dark]"
                 required
               />
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-700">
+            <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
               Location
             </label>
             <LocationSearchInput onLocationSelect={setLocation} />
           </div>
-          <div className="flex items-center justify-end border-t border-gray-200 pt-4">
+          <div className="flex items-center justify-end border-t border-[var(--l-border)] pt-5 mt-2">
             <button
               type="button"
               onClick={onClose}
-              className="mr-2 rounded-md px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+              className="mr-3 rounded-xl px-5 py-2.5 text-sm font-semibold text-[var(--l-text-muted)] hover:bg-[rgba(255,255,255,0.05)] hover:text-white transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={createEvent.isPending}
-              className="flex items-center gap-2 rounded-md bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-700 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[var(--l-brand-pink)] to-[var(--l-brand-purple)] px-6 py-2.5 text-sm font-bold text-white hover:scale-105 transition-[transform,box-shadow] duration-200 shadow-[0_4px_16px_rgba(247,37,133,0.3)] disabled:opacity-50"
             >
               {createEvent.isPending && (
                 <Loader2 className="h-4 w-4 animate-spin" />

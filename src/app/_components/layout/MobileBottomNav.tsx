@@ -82,7 +82,8 @@ export const MobileBottomNav = () => {
   ];
   const links = isVendor ? vendorLinks : clientLinks;
   return (
-    <div className="pb-safe fixed bottom-0 left-0 z-50 w-full border-t border-gray-200 bg-white pt-1 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] lg:hidden">
+    <div className="pb-safe fixed bottom-0 left-0 z-50 w-full pt-1 lg:hidden"
+         style={{ background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderTop: '1px solid var(--l-border)', boxShadow: '0 -4px 24px rgba(0,0,0,0.05)' }}>
       <div className="flex h-16 items-center justify-around px-1">
         {links.map((link) => {
           const Icon = link.icon;
@@ -94,18 +95,18 @@ export const MobileBottomNav = () => {
               key={link.href}
               href={link.href}
               className={cn(
-                "group relative flex flex-1 flex-col items-center justify-center gap-1.5 pb-1",
-                isActive
-                  ? "text-pink-600"
-                  : "text-gray-500 hover:text-gray-900",
+                "group relative flex flex-1 flex-col items-center justify-center gap-1 py-1",
               )}
             >
-              <div className="relative">
+              <div className={cn(
+                "relative flex items-center justify-center rounded-xl px-3 py-1.5 transition-all duration-200",
+                isActive ? "bg-[rgba(247,37,133,0.15)] shadow-[0_0_12px_rgba(247,37,133,0.2)]" : "group-hover:bg-[rgba(0,0,0,0.05)]"
+              )}>
                 {/* Icon */}
                 <Icon
                   className={cn(
-                    "h-6 w-6 transition-all duration-200",
-                    isActive && "fill-pink-100 stroke-pink-600",
+                    "h-5 w-5 transition-all duration-200",
+                    isActive ? "text-[var(--l-brand-pink)] drop-shadow-[0_0_8px_rgba(247,37,133,0.5)]" : "text-[var(--l-text-muted)] group-hover:text-[var(--l-text)]"
                   )}
                   strokeWidth={isActive ? 2.5 : 2}
                 />
@@ -118,8 +119,8 @@ export const MobileBottomNav = () => {
               </div>
               <span
                 className={cn(
-                  "text-[10px] leading-none font-medium",
-                  isActive ? "font-bold" : "",
+                  "text-[10px] leading-none font-medium transition-colors mt-0.5",
+                  isActive ? "font-bold text-[var(--l-brand-pink)]" : "text-[var(--l-text-muted)] group-hover:text-[var(--l-text)]"
                 )}
               >
                 {link.label}

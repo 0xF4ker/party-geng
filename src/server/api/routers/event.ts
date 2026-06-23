@@ -2,6 +2,7 @@ import {
   createTRPCRouter,
   protectedProcedure,
   adminProcedure,
+  publicProcedure,
 } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -783,5 +784,141 @@ export const eventRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.boardPost.delete({ where: { id: input.id } });
+    }),
+
+  getUpcomingEvents: publicProcedure.query(async ({ ctx }) => {
+    const now = new Date();
+    let events = await ctx.db.clientEvent.findMany({
+      where: {
+        isPublic: true,
+      },
+      orderBy: {
+        startDate: "asc",
+      },
+      include: {
+        client: {
+          include: {
+            user: {
+              select: { username: true },
+            },
+          },
+        },
+        guestLists: {
+          include: {
+            guests: true,
+          },
+        },
+      },
+    });
+
+    if (events.length === 0) {
+      const defaultClient = await ctx.db.clientProfile.findFirst({
+        include: { user: { select: { username: true } } },
+      });
+      
+      if (defaultClient) {
+        const sampleEventsData = [
+          { title: "Summer Beach Party", startDate: new Date(Date.now() + 15 * 24 * 3600 * 1000), endDate: new Date(Date.now() + 16 * 24 * 3600 * 1000), coverImage: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800" },
+          { title: "Tech Meetup Lagos", startDate: new Date(Date.now() + 30 * 24 * 3600 * 1000), endDate: new Date(Date.now() + 31 * 24 * 3600 * 1000), coverImage: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800" },
+          { title: "Wedding Reception", startDate: new Date(Date.now() + 45 * 24 * 3600 * 1000), endDate: new Date(Date.now() + 46 * 24 * 3600 * 1000), coverImage: "https://images.unsplash.com/photo-1519741497674-611481863552?w=800" },
+        ];
+
+        for (const data of sampleEventsData) {
+          await ctx.db.clientEvent.create({
+            data: {
+              title: data.title,
+              startDate: data.startDate,
+              endDate: data.endDate,
+              coverImage: data.coverImage,
+              isPublic: true,
+              clientProfileId: defaultClient.id,
+              location: { display_name: "Lagos, Nigeria" },
+            },
+          });
+        }
+
+        events = await ctx.db.clientEvent.findMany({
+          where: { isPublic: true },
+          orderBy: { startDate: "asc" },
+          include: {
+            client: {
+              include: {
+                user: { select: { username: true } },
+              },
+            },
+            guestLists: {
+              include: { guests: true },
+            },
+          },
+        });
+      }
+    }
+
+    return events;
+  }),
+
+  toggleAttendPublicEvent: protectedProcedure
+    .input(z.object({ eventId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { eventId } = input;
+      const userId = ctx.user.id;
+
+      const user = await ctx.db.user.findUnique({
+        where: { id: userId },
+        include: {
+          clientProfile: true,
+          vendorProfile: true,
+        },
+      });
+
+      if (!user) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      const displayName = user.vendorProfile?.companyName || user.clientProfile?.name || user.username;
+      const email = user.email;
+
+      let guestList = await ctx.db.eventGuestList.findFirst({
+        where: {
+          eventId,
+          title: "Public RSVPs",
+        },
+      });
+
+      if (!guestList) {
+        guestList = await ctx.db.eventGuestList.create({
+          data: {
+            eventId,
+            title: "Public RSVPs",
+          },
+        });
+      }
+
+      const existingGuest = await ctx.db.eventGuest.findFirst({
+        where: {
+          listId: guestList.id,
+          email: email,
+        },
+      });
+
+      if (existingGuest) {
+        await ctx.db.eventGuest.delete({
+          where: { id: existingGuest.id },
+        });
+        return { attending: false };
+      } else {
+        await ctx.db.eventGuest.create({
+          data: {
+            listId: guestList.id,
+            name: displayName,
+            email: email,
+            status: "ATTENDING",
+          },
+        });
+        return { attending: true };
+      }
     }),
 });

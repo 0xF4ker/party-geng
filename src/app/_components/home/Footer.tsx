@@ -10,6 +10,7 @@ import {
 import { Accessibility, Globe } from "lucide-react";
 import Image from "next/image";
 import ClientOnly from "@/components/ui/ClientOnly";
+
 const footerSections = [
   {
     title: "About",
@@ -40,55 +41,52 @@ const footerSections = [
     ],
   },
 ];
+
 const socialLinks = [
-  {
-    href: "https://x.com/partygeng",
-    icon: siX,
-    label: "X (Formerly Twitter)",
-  },
-  {
-    href: "https://www.facebook.com/profile.php?id=61585899313473",
-    icon: siFacebook,
-    label: "Facebook",
-  },
-  {
-    href: "https://www.instagram.com/partygengng",
-    icon: siInstagram,
-    label: "Instagram",
-  },
+  { href: "https://x.com/partygeng", icon: siX, label: "X (Formerly Twitter)" },
+  { href: "https://www.facebook.com/profile.php?id=61585899313473", icon: siFacebook, label: "Facebook" },
+  { href: "https://www.instagram.com/partygengng", icon: siInstagram, label: "Instagram" },
 ];
+
 const Icon = ({ path, className }: { path: string; className?: string }) => (
-  <svg
-    className={className}
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d={path} />
   </svg>
 );
+
 const Footer = () => {
   return (
-    <footer className="border-border/40 border-t bg-gray-100">
+    <footer
+      className="landing"
+      style={{
+        background: "var(--l-bg)",
+        borderTop: "1px solid var(--l-border)",
+      }}
+    >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Mobile and Tablet Accordion View */}
+
+        {/* Mobile accordion */}
         <div className="py-8 lg:hidden">
           <ClientOnly>
             <Accordion type="single" collapsible className="w-full">
               {footerSections.map((section) => (
-                <AccordionItem value={section.title} key={section.title}>
-                  <AccordionTrigger className="text-lg font-bold">
+                <AccordionItem
+                  value={section.title}
+                  key={section.title}
+                  style={{ borderColor: "var(--l-border)" }}
+                >
+                  <AccordionTrigger style={{ color: "var(--l-text)", fontSize: 15, fontWeight: 600 }}>
                     {section.title}
                   </AccordionTrigger>
                   <AccordionContent>
-                    <ul className="space-y-4 pt-2">
+                    <ul style={{ display: "flex", flexDirection: "column", gap: 12, paddingTop: 8 }}>
                       {section.links.map((link) => (
                         <li key={link.href}>
                           <Link
                             href={link.href}
-                            className="hover:text-primary transition-colors"
+                            style={{ color: "var(--l-text-muted)", fontSize: 14, textDecoration: "none", transition: "color 0.2s ease" }}
+                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--l-text)"; }}
+                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--l-text-muted)"; }}
                           >
                             {link.label}
                           </Link>
@@ -101,17 +99,22 @@ const Footer = () => {
             </Accordion>
           </ClientOnly>
         </div>
-        {/* Desktop Grid View */}
+
+        {/* Desktop grid */}
         <div className="hidden gap-8 py-16 lg:grid lg:grid-cols-4">
           {footerSections.map((section) => (
             <div key={section.title}>
-              <h3 className="mb-6 text-lg font-bold">{section.title}</h3>
-              <ul className="space-y-4">
+              <h3 style={{ color: "var(--l-text)", fontSize: 15, fontWeight: 700, marginBottom: 20 }}>
+                {section.title}
+              </h3>
+              <ul style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {section.links.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="hover:text-primary transition-colors"
+                      style={{ color: "#8888aa", fontSize: 14, textDecoration: "none", transition: "color 0.2s ease" }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#f0f0f8"; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#8888aa"; }}
                     >
                       {link.label}
                     </Link>
@@ -121,58 +124,75 @@ const Footer = () => {
             </div>
           ))}
         </div>
-        <div className="border-border/40 flex flex-col items-center justify-between border-t py-8 lg:flex-row">
-          <div className="mb-6 flex flex-col items-center lg:mb-0 lg:flex-row">
-            {/* <h2 className="brand-text-gradient text-3xl font-bold">
-              Partygeng
-            </h2> */}
+
+        {/* Bottom bar */}
+        <div
+          style={{
+            borderTop: "1px solid var(--l-border)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 20,
+            padding: "28px 0",
+          }}
+          className="lg:flex-row"
+        >
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }} className="lg:flex-row lg:gap-4">
             <Image
               src="/logo.png"
               alt="PartyGeng Logo"
-              width={150}
-              height={50}
-              className="ml-4 h-6 w-auto object-contain"
+              width={120}
+              height={40}
+              className="h-5 w-auto object-contain"
+              style={{ opacity: 0.8 }}
             />
-            <p className="mt-2 text-sm lg:mt-1 lg:ml-4">
-              &copy; PartyGeng International Ltd. 2025
+            <p style={{ color: "var(--l-text-muted)", fontSize: 13 }}>
+              © PartyGeng International Ltd. 2025
             </p>
           </div>
-          <div className="flex flex-col items-center space-y-4 lg:flex-row lg:space-y-0 lg:space-x-6">
-            <div className="flex items-center space-x-4">
+
+          <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap", justifyContent: "center" }}>
+            {/* Social icons */}
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               {socialLinks.map((social) => (
                 <Link
                   key={social.label}
                   href={social.href}
-                  className="hover:text-primary transition-colors"
+                  aria-label={social.label}
+                  style={{ color: "var(--l-text-muted)", transition: "color 0.2s ease" }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--l-brand-pink)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--l-text-muted)"; }}
                 >
                   <Icon path={social.icon.path} />
                 </Link>
               ))}
             </div>
-            <div className="flex items-center space-x-4">
-              <Link
-                href="#"
-                className="hover:text-primary flex items-center transition-colors"
-              >
-                <span className="mr-1">
-                  <Globe />
-                </span>
-                <span>English</span>
+
+            {/* Language / Currency / A11y */}
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <Link href="#" style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--l-text-muted)", fontSize: 13, textDecoration: "none", transition: "color 0.2s ease" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--l-text)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--l-text-muted)"; }}>
+                <Globe style={{ width: 14, height: 14 }} /> English
               </Link>
-              <Link href="#" className="hover:text-primary transition-colors">
-                <span>&#8358;</span>
-                <span> NGN</span>
+              <Link href="#" style={{ color: "var(--l-text-muted)", fontSize: 13, textDecoration: "none", transition: "color 0.2s ease" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--l-text)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--l-text-muted)"; }}>
+                ₦ NGN
               </Link>
-              <Link href="#" className="hover:text-primary transition-colors">
-                <span className="text-xl">
-                  <Accessibility />
-                </span>
+              <Link href="#" style={{ color: "var(--l-text-muted)", transition: "color 0.2s ease" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--l-text)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--l-text-muted)"; }}>
+                <Accessibility style={{ width: 16, height: 16 }} />
               </Link>
             </div>
           </div>
         </div>
+
       </div>
     </footer>
   );
 };
+
 export default Footer;

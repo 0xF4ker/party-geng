@@ -48,7 +48,7 @@ const VendorDashboardPage = () => {
     );
   }
   return (
-    <div className="min-h-screen bg-gray-50 pt-[122px] text-gray-900 lg:pt-[127px]">
+    <div className="bg-transparent pt-[122px] text-[var(--l-text)] lg:pt-[127px]">
       {/* Container */}
       <div className="container mx-auto px-4 py-8 sm:px-8">
         {/* Main Layout Grid */}
@@ -66,7 +66,7 @@ const VendorDashboardPage = () => {
           </div>
           {/* Right Column (Main Content) */}
           <div className="space-y-8 lg:col-span-3">
-            <h1 className="text-3xl font-bold text-gray-800">Welcome back!</h1>
+            <h1 className="text-3xl font-bold text-[var(--l-text)]">Welcome back!</h1>
             {/* Alert */}
             {/* <div className="rounded-md border-l-4 border-yellow-400 bg-yellow-50 p-4 shadow-sm">
               <div className="flex">
@@ -95,24 +95,27 @@ const VendorDashboardPage = () => {
                   wallet ? `₦${wallet.totalEarnings.toLocaleString()}` : "..."
                 }
                 icon={DollarSign}
-                color="text-green-600 bg-green-100"
+                accentColor="var(--l-gold)"
+                lightColor="rgba(255, 190, 11, 0.1)"
               />
               <StatCard
                 title="Pending Quotes"
                 value={quotesLoading ? "..." : (pendingQuotes?.length ?? 0)}
                 icon={MessageSquare}
-                color="text-pink-600 bg-pink-100"
+                accentColor="var(--l-brand-pink)"
+                lightColor="rgba(247, 37, 133, 0.1)"
               />
               <StatCard
                 title="Active Orders"
                 value={ordersLoading ? "..." : (activeOrders?.length ?? 0)}
                 icon={TrendingUp}
-                color="text-purple-600 bg-purple-100"
+                accentColor="var(--l-brand-purple)"
+                lightColor="rgba(114, 9, 183, 0.1)"
               />
             </div>
             {/* Main Task Area */}
-            <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-              <div className="flex items-center border-b border-gray-200">
+            <div className="l-card overflow-hidden">
+              <div className="flex items-center gap-2 border-b border-[var(--l-border)] bg-[rgba(255,255,255,0.02)] px-5 py-4">
                 <TabButton
                   title="New Leads"
                   count={pendingQuotes?.length ?? 0}
@@ -155,7 +158,7 @@ const VendorSidebar = () => {
   return (
     <div className="space-y-6">
       {/* Profile Card */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="l-card p-6">
         <div className="flex items-center space-x-4">
           <Image
             src={
@@ -163,82 +166,89 @@ const VendorSidebar = () => {
               "https://placehold.co/128x128/ec4899/ffffff?text=V"
             }
             alt={vendorProfile?.companyName ?? "Vendor"}
-            className="h-16 w-16 rounded-full"
+            className="h-16 w-16 rounded-full border-2 border-[var(--l-brand-pink)] p-0.5"
             width={64}
             height={64}
           />
           <div>
-            <h2 className="text-xl font-bold text-gray-800">
+            <h2 className="text-xl font-bold text-[var(--l-text)]">
               {vendorProfile?.companyName ?? "Vendor"}
             </h2>
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-[var(--l-brand-pink)]">
               {vendorProfile?.level ?? "Level 0"}
             </span>
           </div>
         </div>
         <Link href={`/v/${vendorProfile?.user.username ?? ""}`}>
-          <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 py-2.5 font-semibold text-gray-700 transition-colors hover:bg-gray-100">
-            <Eye className="h-5 w-5" />
+          <button className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--l-border)] py-2.5 font-semibold text-[var(--l-text)] transition-colors hover:bg-[rgba(255,255,255,0.05)]">
+            <Eye className="h-5 w-5 text-[var(--l-text-muted)]" />
             View Public Profile
           </button>
         </Link>
       </div>
       {/* Performance Card */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-4 text-lg font-semibold">Performance</h3>
+      <div className="l-card p-6">
+        <h3 className="mb-4 text-lg font-semibold text-[var(--l-text)]">Performance</h3>
         <ul className="space-y-3 text-sm">
           <li className="flex items-center justify-between">
-            <span className="text-gray-600">My Level</span>
-            <span className="font-semibold text-gray-900">
+            <span className="text-[var(--l-text-muted)]">My Level</span>
+            <span className="font-semibold text-[var(--l-brand-pink)]">
               {vendorProfile?.level ?? "Level 0"}
             </span>
           </li>
           <li className="flex items-center justify-between">
-            <span className="text-gray-600">Rating</span>
-            <span className="flex items-center gap-1 font-semibold text-gray-900">
-              <Star className="h-4 w-4 fill-current text-yellow-400" />{" "}
+            <span className="text-[var(--l-text-muted)]">Rating</span>
+            <span className="flex items-center gap-1 font-semibold text-[var(--l-text)]">
+              <Star className="h-4 w-4 fill-current text-[var(--l-gold)]" />{" "}
               {vendorProfile?.rating?.toFixed(1) ?? "0.0"}
             </span>
           </li>
         </ul>
       </div>
       {/* Availability Card */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-3 text-lg font-semibold">Availability</h3>
-        <p className="mb-4 text-sm text-gray-500">
+      <div className="l-card p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-[var(--l-text)]">Availability</h3>
+          <button
+            onClick={() => setIsAvailable(!isAvailable)}
+            className={cn(
+              "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+              isAvailable ? "bg-[var(--l-brand-pink)] shadow-[0_0_12px_rgba(247,37,133,0.5)]" : "bg-[rgba(255,255,255,0.1)]",
+            )}
+            role="switch"
+            aria-checked={isAvailable}
+          >
+            <span
+              className={cn(
+                "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-in-out",
+                isAvailable ? "translate-x-5" : "translate-x-0",
+              )}
+            />
+          </button>
+        </div>
+        <p className="text-xs text-[var(--l-text-muted)]">
           {isAvailable
-            ? "You're available for new event bookings."
-            : "You're not receiving new leads."}
+            ? "You're open for new bookings."
+            : "You're not accepting new leads."}
         </p>
-        <button
-          onClick={() => setIsAvailable(!isAvailable)}
-          className="flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 transition-colors"
-          style={{
-            backgroundColor: isAvailable ? "#ecfdf5" : "#fef2f2",
-            color: isAvailable ? "#065f46" : "#991b1b",
-          }}
-        >
-          {isAvailable ? (
-            <ToggleRight className="h-6 w-6" />
-          ) : (
-            <ToggleLeft className="h-6 w-6" />
-          )}
-          <span className="text-sm font-semibold">
-            {isAvailable ? "Set as Unavailable" : "Set as Available"}
-          </span>
-        </button>
       </div>
       {/* Wallet Balance Card */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div
+        className="rounded-2xl p-5 text-white shadow-sm"
+        style={{
+          background: "linear-gradient(135deg, #7209b7, #b5179e)",
+          boxShadow: "0 8px 24px rgba(114,9,183,0.25)",
+        }}
+      >
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Wallet Balance</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-white/70">Available Balance</h3>
         </div>
-        <p className="text-3xl font-bold text-gray-900">
+        <p className="mt-1 text-3xl font-bold">
           {wallet ? `₦${wallet.availableBalance.toLocaleString()}` : "..."}
         </p>
         <Link href="/wallet">
-          <button className="mt-3 text-sm font-semibold text-pink-600 hover:text-pink-700">
-            View Details
+          <button className="mt-4 w-full rounded-xl bg-white/15 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/25">
+            View Wallet →
           </button>
         </Link>
       </div>
@@ -249,21 +259,28 @@ const StatCard = ({
   title,
   value,
   icon: Icon,
-  color,
+  accentColor,
 }: {
   title: string;
   value: string | number;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  color: string;
+  accentColor: string;
+  lightColor: string;
 }) => (
-  <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-    <div className="flex items-center space-x-3">
-      <div className={cn("rounded-full p-3", color)}>
-        <Icon className="h-6 w-6" />
-      </div>
+  <div
+    className="relative overflow-hidden l-card p-5 group"
+    style={{ borderLeft: `3px solid ${accentColor}` }}
+  >
+    <div className="flex items-center justify-between">
       <div>
-        <p className="text-sm font-medium text-gray-500">{title}</p>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--l-text-muted)]">{title}</p>
+        <p className="mt-1 text-2xl font-bold text-[var(--l-text)]">{value}</p>
+      </div>
+      <div
+        className="flex h-12 w-12 items-center justify-center rounded-xl transition-all duration-300 group-hover:scale-110"
+        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(255,255,255,0.05)` }}
+      >
+        <Icon className="h-6 w-6" style={{ color: accentColor, filter: `drop-shadow(0 0 8px ${accentColor})` }} />
       </div>
     </div>
   </div>
@@ -282,17 +299,17 @@ const TabButton = ({
   <button
     onClick={onClick}
     className={cn(
-      "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors sm:px-6 sm:text-base",
+      "flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-all",
       isActive
-        ? "border-pink-600 text-pink-600"
-        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-800",
+        ? "bg-gradient-to-r from-[var(--l-brand-pink)] to-[var(--l-brand-purple)] text-white shadow-[0_4px_12px_rgba(247,37,133,0.3)]"
+        : "bg-transparent text-[var(--l-text-muted)] hover:bg-black/5 hover:text-[var(--l-text)]",
     )}
   >
     {title}
     <span
       className={cn(
         "rounded-full px-2 py-0.5 text-xs font-bold",
-        isActive ? "bg-pink-100 text-pink-700" : "bg-gray-100 text-gray-600",
+        isActive ? "bg-white/20 text-white" : "bg-[rgba(255,255,255,0.1)] text-[var(--l-text-muted)]",
       )}
     >
       {count}
@@ -327,7 +344,8 @@ const NewLeadsSection = ({
       {quotes.map((quote) => (
         <div
           key={quote.id}
-          className="flex items-start space-x-4 rounded-lg border border-gray-200 p-4 hover:bg-gray-50 sm:items-center"
+          className="flex items-center gap-4 l-glass rounded-xl p-4 transition-all hover:border-[var(--l-brand-pink)] hover:bg-[rgba(247,37,133,0.05)] sm:items-center"
+          style={{ borderLeft: "3px solid var(--l-brand-pink)" }}
         >
           <Image
             src={
@@ -335,27 +353,27 @@ const NewLeadsSection = ({
               "https://placehold.co/40x40/3b82f6/ffffff?text=C"
             }
             alt={quote.client.username}
-            className="h-10 w-10 shrink-0 rounded-full"
+            className="h-10 w-10 shrink-0 rounded-full border border-[var(--l-border)]"
             width={40}
             height={40}
           />
-          <div className="grow">
+          <div className="grow min-w-0">
             <div className="mb-1 flex flex-col justify-between sm:flex-row sm:items-center">
-              <span className="font-semibold text-gray-800">
+              <span className="font-semibold text-[var(--l-text)]">
                 {quote.client.username}
               </span>
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-[var(--l-text-muted)]">
                 {formatDistanceToNow(new Date(quote.createdAt), {
                   addSuffix: true,
                 })}
               </span>
             </div>
-            <p className="mb-2 text-sm text-gray-600 sm:mb-0">
-              {quote.title} - ₦{quote.price.toLocaleString()}
+            <p className="mb-2 text-sm text-[var(--l-text-muted)] sm:mb-0 truncate">
+              {quote.title} - <span className="font-semibold text-[var(--l-brand-pink)]">₦{quote.price.toLocaleString()}</span>
             </p>
           </div>
-          <Link href={`/v/quotes/${quote.id}`}>
-            <button className="shrink-0 rounded-md bg-pink-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-pink-700">
+          <Link href={`/v/quotes/${quote.id}`} className="shrink-0">
+            <button className="l-btn-primary py-1.5 px-4 text-xs">
               View Quote
             </button>
           </Link>
@@ -394,22 +412,25 @@ const ActiveOrdersSection = ({
       {orders.map((order) => (
         <div
           key={order.id}
-          className="flex flex-col rounded-lg border border-gray-200 p-4 hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col l-glass rounded-xl p-4 transition-all hover:border-[var(--l-brand-purple)] hover:bg-[rgba(114,9,183,0.05)] sm:flex-row sm:items-center sm:justify-between"
+          style={{ borderLeft: "3px solid var(--l-brand-purple)" }}
         >
           <div>
-            <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">
+            <span
+              className="inline-block rounded-full px-2.5 py-0.5 text-xs font-bold border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.05)] text-[var(--l-gold)]"
+            >
               {order.status}
             </span>
-            <p className="mt-2 font-semibold text-gray-800">
+            <p className="mt-2 font-semibold text-[var(--l-text)]">
               {order.quote.title}
             </p>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-[var(--l-text-muted)]">
               Client: {order.client.username} | Date:{" "}
               {new Date(order.eventDate).toLocaleDateString()}
             </p>
           </div>
           <div className="mt-3 shrink-0 sm:mt-0 sm:ml-4">
-            <span className="text-xl font-bold text-gray-900">
+            <span className="text-xl font-bold text-[var(--l-text)] drop-shadow-[0_0_12px_rgba(255,255,255,0.2)]">
               ₦{order.amount.toLocaleString()}
             </span>
           </div>

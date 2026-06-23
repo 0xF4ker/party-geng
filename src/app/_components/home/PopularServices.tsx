@@ -5,8 +5,8 @@ import Link from "next/link";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import type { EmblaPluginType } from "embla-carousel";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { api } from "@/trpc/react";
+
 const CATEGORY_IMAGES: Record<string, string> = {
   "Music & DJs": "/event-assets/e1599dd5-b393-4698-96b1-da811cc17065.jpg",
   "Food & Beverage": "/event-assets/7559b777-a27c-4ef8-9f71-9f8413c135f8.jpg",
@@ -21,113 +21,213 @@ const CATEGORY_IMAGES: Record<string, string> = {
   "Event Venue": "/event-assets/5a132bcc-0437-4c5f-a5f9-ff7518f7b50a.jpg",
 };
 const DEFAULT_IMAGE = "https://placehold.co/250x350/9ca3af/ffffff?text=Service";
+
 const PopularServices = () => {
   const { data: categories } = api.category.getAll.useQuery();
+
   const [autoplayPlugin] = useState(() => {
-    const AutoplayPlugin = Autoplay as unknown as (opts?: {
+    const AP = Autoplay as unknown as (opts?: {
       delay?: number;
       stopOnInteraction?: boolean;
       stopOnMouseEnter?: boolean;
     }) => EmblaPluginType;
-    return AutoplayPlugin({
-      delay: 4000,
-      stopOnInteraction: false,
-      stopOnMouseEnter: true,
-    });
+    return AP({ delay: 4000, stopOnInteraction: false, stopOnMouseEnter: true });
   });
+
   const [emblaRef, emblaApi] = useEmblaCarousel(
-    {
-      loop: true,
-      align: "start",
-    },
+    { loop: true, align: "start" },
     [autoplayPlugin],
   );
-  const scrollPrev = useCallback(() => {
-    if (emblaApi) emblaApi.scrollPrev();
-  }, [emblaApi]);
-  const scrollNext = useCallback(() => {
-    if (emblaApi) emblaApi.scrollNext();
-  }, [emblaApi]);
+  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+
   const itemsToDisplay =
-    categories?.map((category) => ({
-      name: category.name,
-      image: CATEGORY_IMAGES[category.name] ?? DEFAULT_IMAGE,
-      url: `/categories/${category.slug}`,
+    categories?.map((cat) => ({
+      name: cat.name,
+      image: CATEGORY_IMAGES[cat.name] ?? DEFAULT_IMAGE,
+      url: `/categories/${cat.slug}`,
     })) ?? [];
-  const fallbackItems = Object.entries(CATEGORY_IMAGES).map(
-    ([name, image]) => ({
-      name,
-      image,
-      url: `/categories/${name.toLowerCase().replace(/ & /g, "-and-").replace(/ /g, "-")}`,
-    }),
-  );
-  const displayItems =
-    itemsToDisplay.length > 0 ? itemsToDisplay : fallbackItems;
+
+  const fallbackItems = Object.entries(CATEGORY_IMAGES).map(([name, image]) => ({
+    name,
+    image,
+    url: `/categories/${name.toLowerCase().replace(/ & /g, "-and-").replace(/ /g, "-")}`,
+  }));
+
+  const displayItems = itemsToDisplay.length > 0 ? itemsToDisplay : fallbackItems;
+
   return (
-    <section className="bg-white py-16">
+    <section
+      className="landing"
+      style={{ background: "var(--l-bg)", padding: "80px 0 96px" }}
+    >
       <div className="container mx-auto px-4">
-        <div className="mb-8 flex items-center justify-between">
-          <h2 className="text-3xl font-bold">Explore Categories</h2>
-          <div className="hidden gap-2 sm:flex">
+        {/* Section header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            marginBottom: 40,
+            flexWrap: "wrap",
+            gap: 16,
+          }}
+        >
+          <div>
+            <div className="l-section-tag">Browse All</div>
+            <h2
+              style={{
+                color: "var(--l-text)",
+                fontSize: "clamp(28px, 4vw, 40px)",
+                fontWeight: 700,
+                margin: 0,
+              }}
+            >
+              Explore Categories
+            </h2>
+          </div>
+
+          {/* Navigation arrows */}
+          <div style={{ display: "flex", gap: 10 }}>
             <button
               onClick={scrollPrev}
-              className="rounded-full border border-gray-300 bg-white p-2 transition-colors hover:bg-gray-100"
+              aria-label="Previous"
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                background: "var(--l-surface)",
+                border: "1px solid var(--l-border)",
+                color: "var(--l-text)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition: "background 0.2s ease, border-color 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "rgba(247,37,133,0.05)";
+                (e.currentTarget as HTMLElement).style.borderColor = "rgba(247,37,133,0.3)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "var(--l-surface)";
+                (e.currentTarget as HTMLElement).style.borderColor = "var(--l-border)";
+              }}
             >
-              <ChevronLeft className="h-6 w-6 text-gray-700" />
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6" /></svg>
             </button>
             <button
               onClick={scrollNext}
-              className="rounded-full border border-gray-300 bg-white p-2 transition-colors hover:bg-gray-100"
+              aria-label="Next"
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                background: "var(--l-surface)",
+                border: "1px solid var(--l-border)",
+                color: "var(--l-text)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition: "background 0.2s ease, border-color 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "rgba(247,37,133,0.05)";
+                (e.currentTarget as HTMLElement).style.borderColor = "rgba(247,37,133,0.3)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "var(--l-surface)";
+                (e.currentTarget as HTMLElement).style.borderColor = "var(--l-border)";
+              }}
             >
-              <ChevronRight className="h-6 w-6 text-gray-700" />
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
             </button>
           </div>
         </div>
-        <div className="relative">
-          <div className="overflow-hidden" ref={emblaRef}>
-            <div className="-ml-4 flex">
-              {displayItems.map((item) => (
-                <div
-                  className="shrink-0 grow-0 basis-full pl-4 sm:basis-1/2 md:basis-1/3 lg:basis-1/5 xl:basis-1/6"
-                  key={item.name}
+
+        {/* Carousel */}
+        <div className="relative overflow-hidden" ref={emblaRef}>
+          <div className="-ml-4 flex">
+            {displayItems.map((item) => (
+              <div
+                className="shrink-0 grow-0 basis-full pl-4 sm:basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/5"
+                key={item.name}
+              >
+<Link
+                  href={item.url}
+                  className="l-card"
+                  style={{ borderRadius: 16, display: "block", position: "relative", height: 340, overflow: "hidden" }}
+                  onMouseEnter={(e) => {
+                    const img = e.currentTarget.querySelector('img');
+                    const label = e.currentTarget.querySelector('.browse-label') as HTMLElement;
+                    if (img) (img as HTMLElement).style.transform = 'scale(1.08)';
+                    if (label) label.style.color = '#f9a8d4';
+                  }}
+                  onMouseLeave={(e) => {
+                    const img = e.currentTarget.querySelector('img');
+                    const label = e.currentTarget.querySelector('.browse-label') as HTMLElement;
+                    if (img) (img as HTMLElement).style.transform = 'scale(1)';
+                    if (label) label.style.color = 'rgba(255,255,255,0)';
+                  }}
                 >
-                  <Link
-                    href={item.url}
-                    className="group relative block h-[350px] overflow-hidden rounded-lg shadow-sm"
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    style={{ borderRadius: 16, transition: 'transform 0.5s ease' }}
+                    className="h-full w-full object-cover"
+                    width={280}
+                    height={340}
+                  />
+                  {/* Gradient overlay */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: "linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.1) 40%, transparent 100%)",
+                      pointerEvents: "none",
+                    }}
+                  />
+                  {/* Category label */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 16,
+                      left: 16,
+                      right: 16,
+                    }}
                   >
-                    <Image
-                      src={item.image}
-                      alt={item.name}
-                      className="absolute inset-0 h-full w-full rounded-lg object-cover transition-transform duration-300 group-hover:scale-105"
-                      width={250}
-                      height={350}
-                    />
-                    <div className="absolute inset-0 rounded-lg bg-linear-to-t from-black/60 via-black/10 to-transparent transition-all"></div>
-                    <div className="absolute bottom-4 left-4 text-white">
-                      <h3 className="text-xl font-bold">{item.name}</h3>
-                    </div>
-                  </Link>
-                </div>
-              ))}
-            </div>
+                    <h3
+                      style={{
+                        color: "#fff",
+                        fontSize: 17,
+                        fontWeight: 700,
+                        margin: 0,
+                        textShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                      }}
+                    >
+                      {item.name}
+                    </h3>
+                    <p
+                      className="browse-label"
+                      style={{
+                        color: "rgba(255,255,255,0)",
+                        fontSize: 12,
+                        margin: "4px 0 0",
+                        transition: "color 0.3s ease",
+                      }}
+                    >
+                      Browse vendors →
+                    </p>
+                  </div>
+                </Link>
+              </div>
+            ))}
           </div>
-          <button
-            onClick={scrollPrev}
-            className="absolute top-1/2 left-0 z-10 hidden -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow-md transition-all hover:bg-white lg:flex"
-            aria-label="Previous category"
-          >
-            <ChevronLeft className="h-6 w-6 text-gray-800" />
-          </button>
-          <button
-            onClick={scrollNext}
-            className="absolute top-1/2 right-0 z-10 hidden translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow-md transition-all hover:bg-white lg:flex"
-            aria-label="Next category"
-          >
-            <ChevronRight className="h-6 w-6 text-gray-800" />
-          </button>
         </div>
       </div>
     </section>
   );
 };
+
 export default PopularServices;

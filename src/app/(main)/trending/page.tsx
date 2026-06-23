@@ -1,20 +1,81 @@
 "use client";
+
 import { api } from "@/trpc/react";
 import {
   Loader2,
-  Heart,
-  MessageCircle,
-  Clapperboard,
-  CheckCircle2,
+  Flame,
+  Bookmark,
+  Compass,
+  Clock,
+  Sparkles,
 } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import { useState, useEffect, useRef } from "react";
-import PostModal from "@/app/_components/social/PostModal";
+import { useState, useEffect } from "react";
+import { useInView } from "react-intersection-observer";
 import { useUiStore } from "@/stores/ui";
-import { useInView } from "react-intersection-observer"; 
-import { useIntersectionObserver } from "usehooks-ts";
+import { useAuth } from "@/hooks/useAuth";
+import TrendingPostCard from "@/app/_components/social/TrendingPostCard";
+import DiscoverySidebar from "@/app/_components/social/DiscoverySidebar";
+import EventHypeCards from "@/app/_components/social/EventHypeCards";
+import StoriesBar from "@/app/_components/social/StoriesBar";
+import PostModal from "@/app/_components/social/PostModal";
+import { cn } from "@/lib/utils";
+
+type TabType = "for_you" | "trending" | "latest" | "saved";
+type CategoryType = "all" | "vendor" | "event" | "client";
+
 export default function TrendingPage() {
+  const { user, isAuthenticated } = useAuth();
+  const { headerHeight } = useUiStore();
+
+  const [activeTab, setActiveTab] = useState<TabType>("trending");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryType>("all");
+  const [selectedPostIndex, setSelectedPostIndex] = useState<number | null>(null);
+  const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null);
+
+  // Clear hashtag filter when switching tabs/categories
+  useEffect(() => {
+    setSelectedHashtag(null);
+  }, [activeTab, categoryFilter]);
+
+  // ---- infinite scroll hook ----
+  const { ref, inView } = useInView({
+    threshold: 0,
+    rootMargin: "200px",
+  }) as { ref: (node?: Element | null) => void; inView: boolean };
+
+  // ---- 1. Queries for different tabs ----
+  const trendingQuery = api.post.getTrending.useInfiniteQuery(
+    {},
+    {
+      getNextPageParam: (lastPage) => lastPage.nextCursor,
+      enabled: activeTab === "trending",
+    }
+  );
+
+  const feedQuery = api.post.getFeed.useInfiniteQuery(
+    { limit: 20, followingOnly: activeTab === "for_you" },
+    {
+      getNextPageParam: (lastPage) => lastPage.nextCursor,
+      enabled: activeTab === "for_you" || activeTab === "latest",
+    }
+  );
+
+  const savedQuery = api.post.getBookmarked.useInfiniteQuery(
+    {},
+    {
+      getNextPageParam: (lastPage) => lastPage.nextCursor,
+      enabled: activeTab === "saved" && isAuthenticated,
+    }
+  );
+
+  // ---- 2. Pick current active query ----
+  const currentQuery =
+    activeTab === "trending"
+      ? trendingQuery
+      : activeTab === "saved"
+      ? savedQuery
+      : feedQuery;
+
   const {
     data,
     isLoading,
@@ -22,194 +83,231 @@ export default function TrendingPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = api.post.getTrending.useInfiniteQuery(
-    {},
-    {
-      getNextPageParam: (lastPage) => lastPage.nextCursor,
-    },
-  );
-  const [selectedPostIndex, setSelectedPostIndex] = useState<number | null>(
-    null,
-  );
-  const { headerHeight } = useUiStore();
-  const { ref, inView } = useInView({
-    threshold: 0,
-    rootMargin: "200px",
-  }) as { ref: (node?: Element | null) => void; inView: boolean };
+  } = currentQuery;
+
+  // ---- 3. Fetch next page when in view ----
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) {
       void fetchNextPage();
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
-  if (isLoading) {
-    return (
-      <div className="flex h-[calc(100vh-200px)] items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-pink-600" />
-      </div>
-    );
-  }
-  if (isError) {
-    return (
-      <div className="flex h-[calc(100vh-200px)] items-center justify-center text-red-500">
-        <p>Error loading posts. Please try again later.</p>
-      </div>
-    );
-  }
-  const allPosts = data?.pages.flatMap((page) => page.posts);
-  if (!allPosts || allPosts.length === 0) {
-    return (
-      <div className="mt-20 flex flex-col items-center justify-center text-center">
-        <div className="rounded-full bg-gray-100 p-6">
-          <Clapperboard className="h-12 w-12 text-gray-400" />
-        </div>
-        <h2 className="mt-4 text-xl font-semibold text-gray-700">
-          No posts yet
-        </h2>
-        <p className="text-gray-500">Check back later for trending content!</p>
-      </div>
-    );
-  }
+
+  // ---- 4. Flatten posts from infinite pages ----
+  const allPosts = data?.pages.flatMap((page) => {
+    if ("posts" in page) return page.posts;
+    if ("items" in page) return page.items;
+    return [];
+  }) ?? [];
+
+  // ---- 5. Client side filtering ----
+  const filteredPosts = allPosts.filter((post) => {
+    // Automatic filter: Only show posts that contain the "#trending" tag
+    const caption = post.caption?.toLowerCase() ?? "";
+    if (!caption.includes("#trending")) {
+      return false;
+    }
+
+    if (selectedHashtag) {
+      if (!caption.includes(selectedHashtag.toLowerCase())) {
+        return false;
+      }
+    }
+    if (categoryFilter === "all") return true;
+    if (categoryFilter === "vendor") return post.author.role === "VENDOR";
+    if (categoryFilter === "client") return post.author.role === "CLIENT";
+    if (categoryFilter === "event") {
+      // Simple logic to show event related posts
+      return (
+        caption.includes("#event") ||
+        caption.includes("party") ||
+        caption.includes("wedding") ||
+        caption.includes("celebration")
+      );
+    }
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-gray-50/50">
-      {/* Header Section */}
+      {/* ─── HERO HEADER ─── */}
       <section
-        className="border-b border-gray-100 bg-white py-8"
+        className="relative overflow-hidden bg-gradient-to-br from-pink-50 via-white to-purple-50 py-12 border-b border-[var(--l-border)]"
         style={{ marginTop: headerHeight }}
       >
-        <div className="container mx-auto px-4 md:px-6">
-          <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">
-            Showcases
+        {/* Glow Ambient Orbs */}
+        <div className="absolute top-1/2 left-1/4 -translate-y-1/2 h-64 w-64 rounded-full bg-pink-300/20 blur-3xl animate-pulse" />
+        <div className="absolute top-1/3 right-1/4 -translate-y-1/2 h-64 w-64 rounded-full bg-purple-300/20 blur-3xl animate-pulse" />
+
+        <div className="container relative z-10 mx-auto px-4 md:px-6 text-center max-w-3xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-50 text-pink-600 text-xs font-semibold uppercase tracking-wider mb-3">
+            <Sparkles className="h-3 w-3" /> trending geng
+          </div>
+          <h1 className="text-4xl font-extrabold tracking-tight text-[var(--l-text)] sm:text-5xl md:text-6xl bg-gradient-to-r from-[var(--l-brand-pink)] to-[var(--l-brand-purple)] bg-clip-text text-transparent drop-shadow-sm pb-1">
+            Trending Geng
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Discover top rated vendors and trending events.
+          <p className="mt-4 text-base md:text-lg text-[var(--l-text-muted)] font-medium max-w-xl mx-auto">
+            Discover trending highlights, explore vendor showreels, and connect with the community.
           </p>
-        </div>
-      </section>
-      {/* Masonry Grid */}
-      <section className="container mx-auto px-4 py-6 md:px-6">
-        <div className="columns-2 gap-4 space-y-4 md:columns-3 lg:columns-4 xl:columns-5">
-          {allPosts.map((post, index) => {
-            const author = post.author;
-            const isVendor = author.role === "VENDOR";
-            const avatarUrl = isVendor
-              ? author.vendorProfile?.avatarUrl
-              : author.clientProfile?.avatarUrl;
-            const displayName =
-              (isVendor
-                ? author.vendorProfile?.companyName
-                : author.clientProfile?.name) ?? author.username;
-            const profileUrl = `/${isVendor ? "v" : "c"}/${author.username}`;
-            return (
-              <div
-                key={post.id}
-                className="group relative cursor-pointer break-inside-avoid"
-                onClick={() => setSelectedPostIndex(index)}
+
+          {/* Category Filter Pills */}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+            {[
+              { id: "all", label: "All Posts" },
+              { id: "vendor", label: "Vendors" },
+              { id: "client", label: "Clients" },
+            ].map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setCategoryFilter(cat.id as CategoryType)}
+                className={cn(
+                  "px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs border",
+                  categoryFilter === cat.id
+                    ? "bg-[var(--l-text)] text-white border-[var(--l-text)]"
+                    : "bg-white text-[var(--l-text-muted)] border-[var(--l-border)] hover:bg-gray-50 hover:text-[var(--l-text)]"
+                )}
               >
-                {/* --- CARD IMAGE AREA --- */}
-                <div className="relative mb-2 overflow-hidden rounded-xl bg-gray-200 shadow-sm transition-all duration-300 hover:shadow-md">
-                  {/* Aspect Ratio Hack or just use intrinsic height via masonry */}
-                  <div className="relative w-full">
-                    {post.assets[0] ? (
-                      <Image
-                        src={post.assets[0].url}
-                        alt={post.caption ?? "Post image"}
-                        width={500}
-                        height={500}
-                        className="h-auto w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        priority={index < 4}
-                      />
-                    ) : (
-                      <div className="flex aspect-[4/5] w-full items-center justify-center bg-gray-100 text-gray-300">
-                        <Clapperboard className="h-8 w-8" />
-                      </div>
-                    )}
-                  </div>
-                  {/* OVERLAY: Top Badges */}
-                  <div className="absolute top-2 left-2 flex flex-col gap-1 opacity-90">
-                    {isVendor && (
-                      <span className="rounded bg-emerald-500 px-2 py-1 text-[10px] font-bold text-white shadow-sm">
-                        OPEN
-                      </span>
-                    )}
-                    {/* Placeholder for future logic (e.g. Waitlist) */}
-                    {/* <span className="bg-teal-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">WAITLIST</span> */}
-                  </div>
-                  {/* OVERLAY: Bottom Actions (Like/Comment) */}
-                  {/* Hidden by default, visible on hover */}
-                  <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/60 via-transparent to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                    <div className="flex items-center justify-end gap-2">
-                      <button className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white hover:text-pink-600">
-                        <Heart className="h-4 w-4" />
-                      </button>
-                      <button className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white hover:text-blue-600">
-                        <MessageCircle className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                {/* --- CARD FOOTER (User Info) --- */}
-                <div className="px-1">
-                  {/* Caption Truncated */}
-                  {post.caption && (
-                    <p className="mb-1.5 line-clamp-2 text-xs leading-snug font-medium text-gray-700">
-                      {post.caption}
-                    </p>
-                  )}
-                  {/* User Row */}
-                  <div className="flex items-center justify-between">
-                    <Link
-                      href={profileUrl}
-                      onClick={(e) => e.stopPropagation()}
-                      className="group/author flex min-w-0 items-center gap-2"
-                    >
-                      {/* Avatar */}
-                      <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full border border-gray-100 bg-gray-100">
-                        {avatarUrl ? (
-                          <Image
-                            src={avatarUrl}
-                            alt=""
-                            fill
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-gray-200 text-[9px] font-bold text-gray-500">
-                            {displayName?.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                      {/* Name + Verified Badge */}
-                      <div className="flex min-w-0 items-center gap-1">
-                        <span className="truncate text-xs text-gray-500 transition-colors group-hover/author:text-gray-900">
-                          {displayName}
-                        </span>
-                        {isVendor && (
-                          <CheckCircle2 className="h-3 w-3 shrink-0 text-blue-500" />
-                        )}
-                      </div>
-                    </Link>
-                    {/* Like Count (Subtle) */}
-                    <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                      <Heart className="h-3 w-3" />
-                      {post._count.likes}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {/* Infinite Scroll Loader */}
-        <div ref={ref} className="flex w-full justify-center py-8">
-          {isFetchingNextPage && (
-            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-          )}
+                {cat.label}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
-      {/* Post Modal */}
+
+      {/* ─── STICKY TAB BAR ─── */}
+      <section
+        className="sticky z-30 border-b border-[var(--l-border)] bg-white/90 backdrop-blur-md py-3 shadow-xs"
+        style={{ top: headerHeight }}
+      >
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="flex items-center justify-between">
+            <div className="flex gap-1 overflow-x-auto scrollbar-hide py-1">
+              {[
+                { id: "trending", label: "Trending", icon: Flame },
+                { id: "latest", label: "Latest", icon: Clock },
+                { id: "for_you", label: "Following", icon: Compass },
+                { id: "saved", label: "Saved", icon: Bookmark },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as TabType)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap transition-all",
+                      activeTab === tab.id
+                        ? "bg-[rgba(247,37,133,0.15)] text-[var(--l-brand-pink)] border border-[rgba(247,37,133,0.3)] shadow-[0_0_12px_rgba(247,37,133,0.2)]"
+                        : "text-[var(--l-text-muted)] hover:bg-black/5 hover:text-[var(--l-text)] border border-transparent"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── MAIN CONTENT LAYOUT ─── */}
+      <div className="container mx-auto px-4 py-8 md:px-6">
+        {/* Stories Bar (commented out for now) */}
+        {/*
+        <div className="mb-8 border-b border-[var(--l-border)] pb-6">
+          <StoriesBar />
+        </div>
+        */}
+
+        {/* Event Hype Row at the top (commented out for now) */}
+        {/*
+        <div className="mb-10">
+          <EventHypeCards />
+        </div>
+        */}
+
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          {/* Main Feed Column */}
+          <div className="lg:col-span-2 space-y-6">
+            {selectedHashtag && (
+              <div className="flex items-center justify-between rounded-2xl bg-pink-50/50 border border-pink-100/60 p-4 animate-fade-in">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-pink-500 animate-pulse" />
+                  <span className="text-sm font-medium text-pink-700">
+                    Showing posts matching <span className="font-bold text-pink-600">{selectedHashtag}</span>
+                  </span>
+                </div>
+                <button
+                  onClick={() => setSelectedHashtag(null)}
+                  className="rounded-full bg-white border border-pink-200 px-3 py-1 text-xs font-bold text-pink-600 shadow-sm transition-all hover:bg-pink-50 active:scale-95"
+                >
+                  Clear Filter
+                </button>
+              </div>
+            )}
+
+            {activeTab === "saved" && !isAuthenticated ? (
+              <div className="rounded-2xl border border-[var(--l-border)] bg-white p-12 text-center shadow-xs">
+                <Bookmark className="mx-auto h-12 w-12 text-gray-300" />
+                <h3 className="mt-4 text-lg font-bold text-[var(--l-text)]">Sign in to see saved posts</h3>
+                <p className="mt-1 text-sm text-[var(--l-text-muted)]">
+                  Keep track of posts you want to refer back to later.
+                </p>
+              </div>
+            ) : isLoading ? (
+              <div className="flex h-60 items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-[var(--l-brand-pink)]" />
+              </div>
+            ) : isError ? (
+              <div className="rounded-2xl border border-red-100 bg-red-50/50 p-8 text-center text-red-600">
+                <p className="font-medium">Failed to load posts. Please try again later.</p>
+              </div>
+            ) : filteredPosts.length === 0 ? (
+              <div className="rounded-2xl border border-[var(--l-border)] bg-white p-12 text-center shadow-xs">
+                <Compass className="mx-auto h-12 w-12 text-gray-300" />
+                <h3 className="mt-4 text-lg font-bold text-[var(--l-text)]">No posts found</h3>
+                <p className="mt-1 text-sm text-[var(--l-text-muted)]">
+                  Be the first to share a post in this category!
+                </p>
+              </div>
+            ) : (
+              <div className="columns-1 gap-6 space-y-6 sm:columns-2">
+                {filteredPosts.map((post, idx) => (
+                  <div key={post.id} className="break-inside-avoid mb-6">
+                    <TrendingPostCard
+                      post={post}
+                      onOpenModal={() => setSelectedPostIndex(idx)}
+                      onHashtagClick={(tag) => setSelectedHashtag(tag)}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Infinite Scroll Loader */}
+            <div ref={ref} className="flex w-full justify-center py-6">
+              {isFetchingNextPage && (
+                <Loader2 className="h-6 w-6 animate-spin text-[var(--l-text-muted)]" />
+              )}
+            </div>
+          </div>
+
+          {/* Sticky Sidebar (Desktop only) */}
+          <div className="hidden lg:block lg:col-span-1">
+            <div
+              className="sticky h-fit"
+              style={{ top: `calc(${headerHeight}px + 88px)` }}
+            >
+              <DiscoverySidebar posts={allPosts} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Post Modal popup */}
       {selectedPostIndex !== null && (
         <div className="relative z-[100]">
           <PostModal
-            posts={allPosts}
+            posts={filteredPosts}
             initialIndex={selectedPostIndex}
             onClose={() => setSelectedPostIndex(null)}
           />

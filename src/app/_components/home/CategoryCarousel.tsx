@@ -32,22 +32,22 @@ const MegaMenu = ({
   const categorySlug = category?.slug;
   return (
     <div
-      className="absolute top-full right-0 left-0 z-30 w-full border-t border-gray-200 bg-white shadow-lg"
+      className="absolute top-full right-0 left-0 z-30 w-full border-t border-[var(--l-border)] bg-[rgba(255,255,255,0.98)] backdrop-blur-xl shadow-2xl"
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
       <div className="container mx-auto max-w-7xl px-4 py-8">
         <div className="flex flex-row gap-8">
           <div className="w-1/4 shrink-0">
-            <h3 className="text-2xl font-bold text-gray-800">
+            <h3 className="text-2xl font-bold text-[var(--l-text)]">
               {category.name}
             </h3>
-            <p className="mt-2 text-gray-600">
+            <p className="mt-2 text-[var(--l-text-muted)]">
               Find the best {category.name.toLowerCase()} for your event.
             </p>
             <Link
               href={`/categories/${categorySlug}`}
-              className="mt-4 inline-block font-semibold text-pink-500 hover:underline"
+              className="mt-4 inline-block font-semibold text-[var(--l-brand-pink)] hover:text-[var(--l-brand-purple)] transition-colors"
             >
               All {category.name} services &rarr;
             </Link>
@@ -62,10 +62,10 @@ const MegaMenu = ({
                     <li key={service.id}>
                       <Link
                         href={`/categories/${categorySlug}/${serviceSlug}`}
-                        className="flex items-center gap-2 text-gray-700 hover:text-pink-500"
+                        className="flex items-center gap-2 text-[var(--l-text-muted)] hover:text-[var(--l-brand-pink)] transition-colors"
                       >
                         <span>{service.name}</span>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-500">
                           ({vendorsCount})
                         </span>
                       </Link>
@@ -149,7 +149,7 @@ const CategoryCarousel = () => {
       {canScrollLeft && (
         <button
           onClick={() => scroll("left")}
-          className="absolute top-1/2 left-0 z-10 ml-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white text-gray-600 shadow-md transition-all hover:bg-gray-100"
+          className="absolute top-1/2 left-0 z-10 ml-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--l-surface)] text-[var(--l-text)] border border-[var(--l-border)] shadow-md transition-all hover:bg-[rgba(0,0,0,0.05)]"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -163,7 +163,7 @@ const CategoryCarousel = () => {
             <Link
               key={category.id}
               href={`/categories/${slugify(category.name)}`}
-              className="px-2 py-3 text-sm font-medium whitespace-nowrap text-gray-600 transition-all hover:border-b-2 hover:border-pink-500 hover:text-pink-500"
+              className="px-2 py-3 text-sm font-medium whitespace-nowrap text-[var(--l-text-muted)] transition-all hover:border-b-2 hover:border-[var(--l-brand-pink)] hover:text-[var(--l-text)]"
               onMouseEnter={() => openMenu(category)}
               onMouseLeave={cancelMenuTimer}
             >
@@ -175,7 +175,7 @@ const CategoryCarousel = () => {
       {canScrollRight && (
         <button
           onClick={() => scroll("right")}
-          className="absolute top-1/2 right-0 z-10 mr-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white text-gray-600 shadow-md transition-all hover:bg-gray-100"
+          className="absolute top-1/2 right-0 z-10 mr-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--l-surface)] text-[var(--l-text)] border border-[var(--l-border)] shadow-md transition-all hover:bg-[rgba(0,0,0,0.05)]"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
