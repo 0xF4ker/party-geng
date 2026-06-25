@@ -90,6 +90,8 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
   const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
   const utils = api.useUtils();
 
   useEffect(() => {
@@ -103,9 +105,36 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
     }
   }, [searchParams]);
 
+  const handleResendVerification = async () => {
+    if (!unconfirmedEmail) return;
+    setResending(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: unconfirmedEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/login?verified=true`,
+        },
+      });
+      if (error) throw error;
+      toast.success("Verification email resent! Please check your inbox.");
+      setUnconfirmedEmail(null);
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error || (err as AuthError).message
+          ? (err as AuthError).message
+          : "Failed to resend verification email."
+      );
+    } finally {
+      setResending(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
+    setUnconfirmedEmail(null);
     try {
       const supabase = createClient();
       let loginEmail = emailOrUsername.trim();
@@ -157,10 +186,24 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
         toast.error("Could not fetch user profile details.");
       }
     } catch (error: unknown) {
-      if (error instanceof Error || (error as AuthError).message) {
-        toast.error((error as AuthError).message || "Failed to sign in.");
+      const errMsg =
+        error instanceof Error || (error as AuthError).message
+          ? (error as AuthError).message
+          : "";
+
+      if (errMsg.toLowerCase().includes("email not confirmed")) {
+        // Find email again to store in state for resend trigger
+        let resolvedEmail = emailOrUsername.trim();
+        if (!resolvedEmail.includes("@")) {
+          try {
+            const user = await utils.user.getByUsername.fetch({ username: resolvedEmail.toLowerCase() });
+            if (user?.email) resolvedEmail = user.email;
+          } catch {}
+        }
+        setUnconfirmedEmail(resolvedEmail);
+        toast.error("Please verify your email address before signing in.");
       } else {
-        toast.error("An unexpected error occurred.");
+        toast.error(errMsg || "Failed to sign in.");
       }
     } finally {
       setLoading(false);
@@ -173,6 +216,23 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
         <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
           <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
           Email verified! Please sign in to complete your setup.
+        </div>
+      )}
+      {unconfirmedEmail && (
+        <div className="flex flex-col gap-2 rounded-xl border border-pink-200 bg-pink-50 p-4 text-sm text-pink-800 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-pink-600 shrink-0" />
+            <span>Your email address is not verified yet.</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleResendVerification}
+            disabled={resending}
+            className="mt-1 flex w-fit items-center gap-1.5 rounded-lg bg-pink-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-pink-700 disabled:opacity-50 transition-colors"
+          >
+            {resending && <Loader2 className="h-3 w-3 animate-spin" />}
+            Resend Verification Email
+          </button>
         </div>
       )}
       <div>
@@ -219,6 +279,8 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
   const utils = api.useUtils();
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
   const [usernameError, setUsernameError] = useState("");
+  const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+  const [emailError, setEmailError] = useState("");
 
   useEffect(() => {
     if (username.length === 0) { setUsernameStatus("idle"); setUsernameError(""); return; }
@@ -234,6 +296,39 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
     const t = setTimeout(() => { void checkAvailability(); }, 500);
     return () => clearTimeout(t);
   }, [username, utils.user.checkUsername]);
+
+  useEffect(() => {
+    if (email.length === 0) {
+      setEmailStatus("idle");
+      setEmailError("");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailStatus("idle");
+      setEmailError("Invalid email address format.");
+      return;
+    }
+    const checkEmailAvailability = async () => {
+      setEmailStatus("checking");
+      try {
+        const isAvailable = await utils.user.checkEmail.fetch({ email: email.trim().toLowerCase() });
+        if (isAvailable) {
+          setEmailStatus("available");
+          setEmailError("");
+        } else {
+          setEmailStatus("taken");
+          setEmailError("This email address is already registered.");
+        }
+      } catch {
+        setEmailStatus("idle");
+      }
+    };
+    const t = setTimeout(() => {
+      void checkEmailAvailability();
+    }, 500);
+    return () => clearTimeout(t);
+  }, [email, utils.user.checkEmail]);
 
   const handleGoogleSignup = async () => {
     try {
@@ -355,13 +450,41 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
         </button>
         <div>
           <label className={labelCls}>Email Address</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" className={inputCls} required />
+          <div className="relative">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value.trim())}
+              placeholder="name@example.com"
+              className={cn(
+                inputCls,
+                emailStatus === "taken" && "border-red-300 focus:border-red-500 focus:ring-red-200",
+                emailStatus === "available" && "border-green-300 focus:border-green-500 focus:ring-green-200",
+              )}
+              required
+            />
+            <div className="absolute top-1/2 right-3 -translate-y-1/2">
+              {emailStatus === "checking" && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
+              {emailStatus === "available" && <CheckCircle className="h-4 w-4 text-green-500" />}
+              {emailStatus === "taken" && <AlertCircle className="h-4 w-4 text-red-500" />}
+            </div>
+          </div>
+          {emailError && (
+            <p className="mt-2 flex items-center gap-1 text-xs text-red-500">
+              <AlertCircle className="h-3 w-3" /> {emailError}
+            </p>
+          )}
         </div>
         <div>
           <label className={labelCls}>Create Password</label>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" minLength={6} className={inputCls} required />
         </div>
-        <button type="submit" className="w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition-all hover:-translate-y-0.5" style={{ background: "linear-gradient(135deg, #f72585, #b5179e)", boxShadow: "0 4px 20px rgba(247,37,133,0.3)" }}>
+        <button
+          type="submit"
+          disabled={emailStatus !== "available"}
+          className="w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ background: "linear-gradient(135deg, #f72585, #b5179e)", boxShadow: "0 4px 20px rgba(247,37,133,0.3)" }}
+        >
           Continue →
         </button>
       </form>

@@ -566,14 +566,64 @@ export const userRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }): Promise<boolean> => {
       const { db } = ctx;
-      const existingUser = await db.user.findUnique({
-        where: { username: input.username.toLowerCase() },
+      const username = input.username.trim().toLowerCase();
+
+      // 1. Check public.User
+      const existingPublicUser = await db.user.findUnique({
+        where: { username },
         select: { id: true },
       });
-      if (!existingUser) return true;
-      if (input.excludeUserId && existingUser.id === input.excludeUserId) {
-        return true;
+      if (existingPublicUser) {
+        if (input.excludeUserId && existingPublicUser.id === input.excludeUserId) {
+          // Allowed for edit
+        } else {
+          return false; // Taken
+        }
       }
-      return false;
+
+      // 2. Check auth.users metadata via raw SQL to catch un-onboarded / unconfirmed signups
+      let existingAuthUser;
+      if (input.excludeUserId) {
+        existingAuthUser = await db.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM auth.users 
+          WHERE LOWER(raw_user_meta_data->>'username') = ${username} 
+            AND id != ${input.excludeUserId}::uuid 
+          LIMIT 1
+        `;
+      } else {
+        existingAuthUser = await db.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM auth.users 
+          WHERE LOWER(raw_user_meta_data->>'username') = ${username} 
+          LIMIT 1
+        `;
+      }
+      if (existingAuthUser && existingAuthUser.length > 0) {
+        return false; // Taken
+      }
+
+      return true; // Available
+    }),
+  checkEmail: publicProcedure
+    .input(z.object({ email: z.string().email() }))
+    .query(async ({ ctx, input }): Promise<boolean> => {
+      const { db } = ctx;
+      const email = input.email.trim().toLowerCase();
+
+      // 1. Check public.User
+      const existingPublicUser = await db.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+      if (existingPublicUser) return false;
+
+      // 2. Check auth.users via raw SQL to catch unconfirmed signups
+      const existingAuthUser = await db.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM auth.users WHERE LOWER(email) = ${email} LIMIT 1
+      `;
+      if (existingAuthUser && existingAuthUser.length > 0) {
+        return false;
+      }
+
+      return true; // Available
     }),
 });
