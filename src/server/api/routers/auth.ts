@@ -7,6 +7,8 @@ import {
   onboardingProcedure,
 } from "@/server/api/trpc";
 import { createClient } from "@/utils/supabase/server";
+import { emailService } from "@/server/services/emailService";
+
 
 export const authRouter = createTRPCRouter({
   /**
@@ -64,6 +66,18 @@ export const authRouter = createTRPCRouter({
           update: {},
         });
       }
+
+      // Fire-and-forget welcome email — does not block registration response
+      void emailService
+        .send({
+          to: input.email,
+          subject: "Welcome to the Geng! 🎉",
+          template: "WELCOME_ONBOARDING",
+          data: { username: input.username, role: input.role },
+        })
+        .catch((err: unknown) =>
+          console.error("[emailService] Failed to send welcome email:", err),
+        );
 
       return user;
     }),

@@ -506,32 +506,6 @@ const ProfileHeader = ({
               ) : (
                 <>
                   <button
-                    onClick={handleFollowToggle}
-                    disabled={followMutation.isPending || unfollowMutation.isPending}
-                    className={cn(
-                      "flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50",
-                      isFollowing
-                        ? "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-red-500 hover:border-red-200"
-                        : "text-white hover:opacity-90"
-                    )}
-                    style={
-                      isFollowing
-                        ? undefined
-                        : {
-                            background: "linear-gradient(135deg, #7209b7, #f72585)",
-                            boxShadow: "0 4px 16px rgba(114,9,183,0.25)",
-                          }
-                    }
-                  >
-                    {followMutation.isPending || unfollowMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : isFollowing ? (
-                      "Following"
-                    ) : (
-                      "Follow"
-                    )}
-                  </button>
-                  <button
                     onClick={handleContactClient}
                     disabled={createConversation.isPending}
                     className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
@@ -623,14 +597,6 @@ const ProfileHeader = ({
             <div className="text-sm">
               <span className="font-bold text-[var(--l-text)] text-lg drop-shadow-sm">{completedHires}</span>
               <span className="text-[var(--l-text-muted)]"> Hires Made</span>
-            </div>
-            <div className="text-sm">
-              <span className="font-bold text-[var(--l-text)] text-lg drop-shadow-sm">{followers.length}</span>
-              <span className="text-[var(--l-text-muted)]"> Followers</span>
-            </div>
-            <div className="text-sm">
-              <span className="font-bold text-[var(--l-text)] text-lg drop-shadow-sm">{following.length}</span>
-              <span className="text-[var(--l-text-muted)]"> Following</span>
             </div>
           </div>
         </div>

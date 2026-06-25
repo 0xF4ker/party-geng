@@ -110,13 +110,7 @@ export default function TrendingPostCard({
   const isLiked = targetPost.viewer?.hasLiked ?? false;
   const isBookmarked = targetPost.viewer?.hasBookmarked ?? false;
 
-  // ---- Follow status query ----
-  const { data: followingList = [], refetch: refetchFollowing } =
-    api.social.getFollowing.useQuery(
-      { userId: user?.id ?? "" },
-      { enabled: !!user }
-    );
-  const isFollowing = followingList.some((f) => f.followingId === author.id);
+
 
   // =====================================================================
   // Optimistic update helper for all feed queries
@@ -354,28 +348,8 @@ export default function TrendingPostCard({
   });
 
   // =====================================================================
-  // Follow / Unfollow / Repost mutations
+  // Repost mutation
   // =====================================================================
-  const followMutation = api.social.follow.useMutation({
-    onSuccess: () => {
-      toast.success(`Following @${author.username}`);
-      void refetchFollowing();
-    },
-    onError: (err) => {
-      toast.error(err.message || "Failed to follow");
-    },
-  });
-
-  const unfollowMutation = api.social.unfollow.useMutation({
-    onSuccess: () => {
-      toast.success(`Unfollowed @${author.username}`);
-      void refetchFollowing();
-    },
-    onError: (err) => {
-      toast.error(err.message || "Failed to unfollow");
-    },
-  });
-
   const repostMutation = api.post.repost.useMutation({
     onSuccess: () => {
       toast.success("Reposted successfully!");
@@ -395,17 +369,6 @@ export default function TrendingPostCard({
       return false;
     }
     return true;
-  };
-
-  const handleFollowToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (!requireAuth()) return;
-    if (isFollowing) {
-      unfollowMutation.mutate({ followingId: author.id });
-    } else {
-      followMutation.mutate({ followingId: author.id });
-    }
   };
 
   const handleRepost = (e: React.MouseEvent) => {
@@ -512,31 +475,7 @@ export default function TrendingPostCard({
             {isVendor && (
               <CheckCircle2 className="h-3.5 w-3.5 shrink-0 fill-blue-500 text-white" />
             )}
-            
-            {/* Follow/Unfollow small link button */}
-            {!isOwnPost && (
-              <>
-                <span className="text-gray-300 text-xs shrink-0">•</span>
-                <button
-                  onClick={handleFollowToggle}
-                  disabled={followMutation.isPending || unfollowMutation.isPending}
-                  className={cn(
-                    "text-xs font-semibold hover:opacity-85 transition-opacity shrink-0",
-                    isFollowing
-                      ? "text-gray-400 hover:text-red-500"
-                      : "text-[var(--l-brand-pink)]"
-                  )}
-                >
-                  {followMutation.isPending || unfollowMutation.isPending ? (
-                    "..."
-                  ) : isFollowing ? (
-                    "Following"
-                  ) : (
-                    "Follow"
-                  )}
-                </button>
-              </>
-            )}
+
           </div>
           <p className="text-xs text-[var(--l-text-muted)] truncate">
             @{author.username}

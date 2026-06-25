@@ -12,7 +12,7 @@ import { format } from "date-fns";
 import ProfileHeader from "@/app/_components/profile/ProfileHeader";
 import { GalleryTab } from "@/app/_components/profile/GalleryTab";
 type routerOutput = inferRouterOutputs<AppRouter>;
-type EventType = routerOutput["event"]["getMyEvents"]["upcoming"][number];
+type EventType = routerOutput["event"]["getUserEvents"]["upcoming"][number];
 const vendorReviews = [
   {
     id: 1,
@@ -55,9 +55,10 @@ const ClientProfilePage = () => {
     error: profileError,
   } = api.user.getByUsername.useQuery({ username });
   const { data: eventsData, isLoading: eventsLoading } =
-    api.event.getMyEvents.useQuery(undefined, {
-      enabled: !!profileUser && currentUser?.id === profileUser.id,
-    });
+    api.event.getUserEvents.useQuery(
+      { username },
+      { enabled: !!profileUser }
+    );
   const isOwnProfile = currentUser?.id === profileUser?.id;
   if (profileLoading) {
     return (

@@ -426,13 +426,13 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
     }
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="m-4 w-full max-w-lg rounded-2xl l-card border border-[var(--l-border)] shadow-[0_12px_48px_rgba(0,0,0,0.5)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+      <div className="m-4 w-full max-w-lg rounded-2xl bg-white border border-[var(--l-border)] shadow-[0_12px_40px_rgba(0,0,0,0.12)]">
         <div className="flex items-center justify-between border-b border-[var(--l-border)] p-5">
           <h3 className="text-xl font-bold text-[var(--l-text)]">Create a New Event</h3>
           <button
             onClick={onClose}
-            className="rounded-full p-2 text-[var(--l-text-muted)] hover:bg-[rgba(255,255,255,0.1)] hover:text-white transition-colors"
+            className="rounded-full p-2 text-[var(--l-text-muted)] hover:bg-gray-100 hover:text-gray-900 transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -446,7 +446,7 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
               type="text"
               name="eventName"
               placeholder="e.g. 3-Day Wedding Extravaganza"
-              className="w-full rounded-xl border border-[var(--l-border)] bg-[rgba(255,255,255,0.03)] p-3 text-white placeholder-gray-500 focus:border-[var(--l-brand-pink)] focus:outline-none focus:ring-1 focus:ring-[var(--l-brand-pink)]"
+              className="w-full rounded-xl border border-[var(--l-border)] bg-gray-50/50 p-3 text-[var(--l-text)] placeholder-gray-400 focus:border-[var(--l-brand-pink)] focus:outline-none focus:ring-1 focus:ring-[var(--l-brand-pink)]"
               required
             />
           </div>
@@ -459,8 +459,15 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
                 type="date"
                 value={startDate}
                 onChange={handleStartChange}
+                onClick={(e) => {
+                  try {
+                    e.currentTarget.showPicker();
+                  } catch (err) {
+                    console.error("Native datepicker not supported", err);
+                  }
+                }}
                 min={new Date().toISOString().split("T")[0]}
-                className="w-full rounded-xl border border-[var(--l-border)] bg-[rgba(255,255,255,0.03)] p-3 text-white focus:border-[var(--l-brand-pink)] focus:outline-none focus:ring-1 focus:ring-[var(--l-brand-pink)] [color-scheme:dark]"
+                className="w-full rounded-xl border border-[var(--l-border)] bg-gray-50/50 p-3 text-[var(--l-text)] focus:border-[var(--l-brand-pink)] focus:outline-none focus:ring-1 focus:ring-[var(--l-brand-pink)] [color-scheme:light] cursor-pointer"
                 required
               />
             </div>
@@ -472,8 +479,15 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
+                onClick={(e) => {
+                  try {
+                    e.currentTarget.showPicker();
+                  } catch (err) {
+                    console.error("Native datepicker not supported", err);
+                  }
+                }}
                 min={startDate || new Date().toISOString().split("T")[0]}
-                className="w-full rounded-xl border border-[var(--l-border)] bg-[rgba(255,255,255,0.03)] p-3 text-white focus:border-[var(--l-brand-pink)] focus:outline-none focus:ring-1 focus:ring-[var(--l-brand-pink)] [color-scheme:dark]"
+                className="w-full rounded-xl border border-[var(--l-border)] bg-gray-50/50 p-3 text-[var(--l-text)] focus:border-[var(--l-brand-pink)] focus:outline-none focus:ring-1 focus:ring-[var(--l-brand-pink)] [color-scheme:light] cursor-pointer"
                 required
               />
             </div>
@@ -488,7 +502,7 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
             <button
               type="button"
               onClick={onClose}
-              className="mr-3 rounded-xl px-5 py-2.5 text-sm font-semibold text-[var(--l-text-muted)] hover:bg-[rgba(255,255,255,0.05)] hover:text-white transition-colors"
+              className="mr-3 rounded-xl px-5 py-2.5 text-sm font-semibold text-[var(--l-text-muted)] hover:bg-gray-100 hover:text-gray-900 transition-colors"
             >
               Cancel
             </button>

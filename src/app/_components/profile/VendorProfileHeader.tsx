@@ -515,33 +515,6 @@ const VendorProfileHeader = ({
               ) : (
                 <>
                   <button
-                    onClick={handleFollowToggle}
-                    disabled={followMutation.isPending || unfollowMutation.isPending}
-                    className={cn(
-                      "flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50",
-                      isFollowing
-                        ? "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-red-500 hover:border-red-200"
-                        : "text-white hover:opacity-90"
-                    )}
-                    style={
-                      isFollowing
-                        ? undefined
-                        : {
-                            background: "linear-gradient(135deg, #7209b7, #f72585)",
-                            boxShadow: "0 4px 16px rgba(114,9,183,0.25)",
-                          }
-                    }
-                  >
-                    {followMutation.isPending || unfollowMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : isFollowing ? (
-                      "Following"
-                    ) : (
-                      "Follow"
-                    )}
-                  </button>
-
-                  <button
                     onClick={handleContactVendor}
                     disabled={createConversation.isPending}
                     className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
@@ -617,14 +590,6 @@ const VendorProfileHeader = ({
               <div className="flex items-center gap-1.5 rounded-full bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] px-3 py-1 text-sm text-[var(--l-text)] shadow-sm">
                 <Award className="h-4 w-4 text-[var(--l-brand-purple)]" />
                 <span>{vendorProfile?.level ?? "Level 0"}</span>
-              </div>
-              <div className="flex items-center gap-1.5 rounded-full bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] px-3 py-1 text-sm text-[var(--l-text)] shadow-sm">
-                <Users className="h-4 w-4 text-[var(--l-brand-pink)]" />
-                <span><strong>{followers.length}</strong> Followers</span>
-              </div>
-              <div className="flex items-center gap-1.5 rounded-full bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] px-3 py-1 text-sm text-[var(--l-text)] shadow-sm">
-                <Users className="h-4 w-4 text-[var(--l-brand-purple)]" />
-                <span><strong>{following.length}</strong> Following</span>
               </div>
             </div>
           </div>

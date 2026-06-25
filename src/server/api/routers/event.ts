@@ -921,4 +921,53 @@ export const eventRouter = createTRPCRouter({
         return { attending: true };
       }
     }),
+
+  getUserEvents: publicProcedure
+    .input(z.object({ username: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const user = await ctx.db.user.findUnique({
+        where: { username: input.username },
+        include: { clientProfile: true },
+      });
+      if (!user || !user.clientProfile) {
+        return { upcoming: [], past: [] };
+      }
+      const isOwner = ctx.user?.id === user.id;
+
+      const events = await ctx.db.clientEvent.findMany({
+        where: {
+          clientProfileId: user.clientProfile.id,
+          ...(!isOwner ? { isPublic: true } : {}),
+        },
+        include: {
+          hiredVendors: {
+            include: {
+              vendor: {
+                include: {
+                  vendorProfile: true,
+                  clientProfile: true,
+                },
+              },
+            },
+          },
+          wishlist: {
+            include: {
+              items: {
+                include: {
+                  contributions: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { startDate: "asc" },
+      });
+
+      const now = new Date();
+      const upcoming = events.filter((e) => e.endDate >= now);
+      const past = events
+        .filter((e) => e.endDate < now)
+        .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+      return { upcoming, past };
+    }),
 });

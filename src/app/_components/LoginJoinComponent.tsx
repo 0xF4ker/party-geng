@@ -87,8 +87,7 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isVerified, setIsVerified] = useState(false);
-  const [step, setStep] = useState<"options" | "email">("options");
-  const [email, setEmail] = useState("");
+  const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const utils = api.useUtils();
@@ -99,37 +98,37 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
       window.location.href.includes("verified=true")
     ) {
       setIsVerified(true);
-      setStep("email");
       window.history.replaceState(null, "", "/login");
       toast.success("Email verified! Please sign in.");
     }
   }, [searchParams]);
-
-  const handleGoogleLogin = async () => {
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-      if (error) throw error;
-    } catch (error: unknown) {
-      if (error instanceof Error || (error as AuthError).message) {
-        toast.error((error as AuthError).message || "Failed to sign in with Google.");
-      } else {
-        toast.error("An unexpected error occurred.");
-      }
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      let loginEmail = emailOrUsername.trim();
+
+      if (!loginEmail.includes("@")) {
+        // It's a username! Fetch the email using tRPC
+        try {
+          const user = await utils.user.getByUsername.fetch({ username: loginEmail.toLowerCase() });
+          if (user && user.email) {
+            loginEmail = user.email;
+          } else {
+            toast.error("Username not found.");
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          toast.error("Invalid username or credentials.");
+          setLoading(false);
+          return;
+        }
+      }
+
+      const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
       if (error) throw error;
       toast.success("Welcome back!");
       try {
@@ -145,6 +144,9 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
           toast.error("This account has been suspended.");
           return;
         }
+        // router.refresh() busts the Next.js router cache so stale data
+        // from a previous user session is never shown after login.
+        router.refresh();
         if (profile?.role === "VENDOR") router.push(`/v/${profile.username}`);
         else if (profile?.role === "CLIENT") router.push(`/c/${profile.username}`);
         else if (["ADMIN", "SUPPORT", "FINANCE"].includes(profile?.role ?? ""))
@@ -165,24 +167,6 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
     }
   };
 
-  if (step === "options") {
-    return (
-      <div className="animate-in fade-in slide-in-from-left-4 flex flex-col gap-3">
-        {/* Divider */}
-        <OptionBtn onClick={handleGoogleLogin}><GoogleIcon /> Continue with Google</OptionBtn>
-        <OptionBtn onClick={() => setStep("email")}>
-          <Mail className="h-5 w-5 text-gray-500" /> Continue with Email
-        </OptionBtn>
-        <p className="mt-3 text-center text-sm text-gray-500">
-          Don&apos;t have an account?{" "}
-          <button onClick={onSwitchView} className="font-semibold text-pink-600 hover:underline">
-            Join here
-          </button>
-        </p>
-      </div>
-    );
-  }
-
   return (
     <form onSubmit={handleLogin} className="animate-in fade-in slide-in-from-right-4 flex flex-col gap-4">
       {isVerified && (
@@ -191,20 +175,13 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
           Email verified! Please sign in to complete your setup.
         </div>
       )}
-      <button
-        type="button"
-        onClick={() => setStep("options")}
-        className="flex w-fit items-center gap-1 text-xs font-semibold text-gray-400 hover:text-gray-700 transition-colors"
-      >
-        <ArrowLeft className="h-3 w-3" /> Back
-      </button>
       <div>
-        <label className={labelCls}>Email Address</label>
+        <label className={labelCls}>Email or Username</label>
         <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="name@example.com"
+          type="text"
+          value={emailOrUsername}
+          onChange={(e) => setEmailOrUsername(e.target.value)}
+          placeholder="Enter email or username"
           className={inputCls}
           required
         />
@@ -221,6 +198,12 @@ const LoginFlow = ({ onClose, onSwitchView }: FlowProps) => {
         />
       </div>
       <PrimaryBtn loading={loading} id="login-submit-btn">Sign In</PrimaryBtn>
+      <p className="mt-3 text-center text-sm text-gray-500">
+        Don&apos;t have an account?{" "}
+        <button type="button" onClick={onSwitchView} className="font-semibold text-pink-600 hover:underline">
+          Join here
+        </button>
+      </p>
     </form>
   );
 };
@@ -346,7 +329,6 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
           ))}
         </div>
         <div className="mt-2 space-y-3">
-          <OptionBtn onClick={handleGoogleSignup}><GoogleIcon /> Continue with Google</OptionBtn>
           <button
             onClick={() => setStep("email")}
             className="w-full rounded-xl bg-gray-900 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-black"

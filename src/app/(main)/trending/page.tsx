@@ -1,13 +1,18 @@
 "use client";
 
 import { api } from "@/trpc/react";
+import { type inferRouterOutputs } from "@trpc/server";
+import { type AppRouter } from "@/server/api/root";
 import {
   Loader2,
   Flame,
   Bookmark,
-  Compass,
+  Calendar,
   Clock,
   Sparkles,
+  MapPin,
+  Check,
+  Users,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useInView } from "react-intersection-observer";
@@ -15,12 +20,13 @@ import { useUiStore } from "@/stores/ui";
 import { useAuth } from "@/hooks/useAuth";
 import TrendingPostCard from "@/app/_components/social/TrendingPostCard";
 import DiscoverySidebar from "@/app/_components/social/DiscoverySidebar";
-import EventHypeCards from "@/app/_components/social/EventHypeCards";
-import StoriesBar from "@/app/_components/social/StoriesBar";
 import PostModal from "@/app/_components/social/PostModal";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 
-type TabType = "for_you" | "trending" | "latest" | "saved";
+type TabType = "events" | "trending" | "latest" | "saved";
 type CategoryType = "all" | "vendor" | "event" | "client";
 
 export default function TrendingPage() {
@@ -53,10 +59,10 @@ export default function TrendingPage() {
   );
 
   const feedQuery = api.post.getFeed.useInfiniteQuery(
-    { limit: 20, followingOnly: activeTab === "for_you" },
+    { limit: 20, followingOnly: false },
     {
       getNextPageParam: (lastPage) => lastPage.nextCursor,
-      enabled: activeTab === "for_you" || activeTab === "latest",
+      enabled: activeTab === "latest",
     }
   );
 
@@ -68,12 +74,19 @@ export default function TrendingPage() {
     }
   );
 
+  const { data: upcomingEvents = [], isLoading: eventsLoading } =
+    api.event.getUpcomingEvents.useQuery(undefined, {
+      enabled: activeTab === "events",
+    });
+
   // ---- 2. Pick current active query ----
   const currentQuery =
     activeTab === "trending"
       ? trendingQuery
       : activeTab === "saved"
       ? savedQuery
+      : activeTab === "events"
+      ? { data: undefined, isLoading: eventsLoading, isError: false, fetchNextPage: async () => {}, hasNextPage: false, isFetchingNextPage: false }
       : feedQuery;
 
   const {
@@ -184,7 +197,7 @@ export default function TrendingPage() {
               {[
                 { id: "trending", label: "Trending", icon: Flame },
                 { id: "latest", label: "Latest", icon: Clock },
-                { id: "for_you", label: "Following", icon: Compass },
+                { id: "events", label: "Events", icon: Calendar },
                 { id: "saved", label: "Saved", icon: Bookmark },
               ].map((tab) => {
                 const Icon = tab.icon;
@@ -245,7 +258,27 @@ export default function TrendingPage() {
               </div>
             )}
 
-            {activeTab === "saved" && !isAuthenticated ? (
+            {activeTab === "events" ? (
+              eventsLoading ? (
+                <div className="flex h-60 items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-[var(--l-brand-pink)]" />
+                </div>
+              ) : upcomingEvents.length === 0 ? (
+                <div className="rounded-2xl border border-[var(--l-border)] bg-white p-12 text-center shadow-xs">
+                  <Calendar className="mx-auto h-12 w-12 text-gray-300" />
+                  <h3 className="mt-4 text-lg font-bold text-[var(--l-text)]">No upcoming events</h3>
+                  <p className="mt-1 text-sm text-[var(--l-text-muted)]">
+                    Check back soon — the community is planning something!
+                  </p>
+                </div>
+              ) : (
+                <EventsTabContent
+                  events={upcomingEvents}
+                  currentUserEmail={user?.email}
+                  isAuthenticated={isAuthenticated}
+                />
+              )
+            ) : activeTab === "saved" && !isAuthenticated ? (
               <div className="rounded-2xl border border-[var(--l-border)] bg-white p-12 text-center shadow-xs">
                 <Bookmark className="mx-auto h-12 w-12 text-gray-300" />
                 <h3 className="mt-4 text-lg font-bold text-[var(--l-text)]">Sign in to see saved posts</h3>
@@ -263,7 +296,7 @@ export default function TrendingPage() {
               </div>
             ) : filteredPosts.length === 0 ? (
               <div className="rounded-2xl border border-[var(--l-border)] bg-white p-12 text-center shadow-xs">
-                <Compass className="mx-auto h-12 w-12 text-gray-300" />
+                <Calendar className="mx-auto h-12 w-12 text-gray-300" />
                 <h3 className="mt-4 text-lg font-bold text-[var(--l-text)]">No posts found</h3>
                 <p className="mt-1 text-sm text-[var(--l-text-muted)]">
                   Be the first to share a post in this category!
@@ -313,6 +346,173 @@ export default function TrendingPage() {
           />
         </div>
       )}
+    </div>
+  );
+}
+
+// =====================================================================
+// Events Tab Component
+// =====================================================================
+const GRADIENTS = [
+  "from-orange-400 to-pink-500",
+  "from-violet-500 to-purple-600",
+  "from-pink-500 to-rose-600",
+  "from-emerald-400 to-teal-500",
+  "from-blue-500 to-indigo-600",
+];
+
+function getEventGradient(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return GRADIENTS[Math.abs(hash) % GRADIENTS.length]!;
+}
+
+function getEventEmoji(title: string) {
+  const lower = title.toLowerCase();
+  if (lower.includes("beach") || lower.includes("pool") || lower.includes("summer")) return "🏖️";
+  if (lower.includes("tech") || lower.includes("code") || lower.includes("meetup")) return "💻";
+  if (lower.includes("wedding") || lower.includes("marriage") || lower.includes("reception")) return "💒";
+  if (lower.includes("birthday") || lower.includes("bash") || lower.includes("cake")) return "🎂";
+  if (lower.includes("music") || lower.includes("concert") || lower.includes("show")) return "🎵";
+  if (lower.includes("drink") || lower.includes("cocktail") || lower.includes("party")) return "🍸";
+  return "🎉";
+}
+
+function getDaysUntil(date: Date): number {
+  const now = new Date();
+  return Math.max(0, Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type UpcomingEvent = RouterOutputs["event"]["getUpcomingEvents"][number];
+
+interface EventsTabContentProps {
+  events: UpcomingEvent[];
+  currentUserEmail: string | undefined;
+  isAuthenticated: boolean;
+}
+
+function EventsTabContent({ events, currentUserEmail, isAuthenticated }: EventsTabContentProps) {
+  const utils = api.useUtils();
+
+  const attendMutation = api.event.toggleAttendPublicEvent.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.attending ? "You're on the guest list! 🎉" : "RSVP cancelled.");
+      void utils.event.getUpcomingEvents.invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to update RSVP");
+    },
+  });
+
+  const handleRsvp = (eventId: string) => {
+    if (!isAuthenticated) {
+      toast("Login required to RSVP");
+      return;
+    }
+    attendMutation.mutate({ eventId });
+  };
+
+  const processed = useMemo(() => {
+    return events.map((event) => {
+      const attendeesCount = event.guestLists.reduce(
+        (sum, list) => sum + list.guests.filter((g) => g.status === "ATTENDING").length,
+        0,
+      );
+      const isUserAttending = event.guestLists.some((list) =>
+        list.guests.some((g) => g.email === currentUserEmail && g.status === "ATTENDING"),
+      );
+      const startDate = new Date(event.startDate);
+      const formattedDate = startDate.toLocaleDateString("en-NG", {
+        weekday: "short",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+      const daysToGo = getDaysUntil(startDate);
+      const gradient = getEventGradient(event.id);
+      const emoji = getEventEmoji(event.title);
+      const fillPercent = Math.min(100, Math.round((attendeesCount / 150) * 100));
+      return { ...event, formattedDate, attendeesCount, isUserAttending, daysToGo, gradient, emoji, fillPercent };
+    });
+  }, [events, currentUserEmail]);
+
+  return (
+    <div className="space-y-4">
+      {processed.map((event) => (
+        <div
+          key={event.id}
+          className="group rounded-2xl border border-[var(--l-border)] bg-white shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
+        >
+          {/* Coloured banner */}
+          <div className={cn("relative h-32 w-full overflow-hidden bg-gradient-to-br", event.gradient)}>
+            <div className="absolute inset-0 bg-black/20" />
+            <div className="relative z-10 flex h-full flex-col items-center justify-center gap-1 px-4 text-center">
+              <span className="text-4xl drop-shadow-lg">{event.emoji}</span>
+              <h3 className="text-lg font-bold text-white drop-shadow-md line-clamp-1">{event.title}</h3>
+            </div>
+            {/* Days badge */}
+            <span className="absolute right-3 top-3 rounded-full bg-black/40 px-2.5 py-0.5 text-[11px] font-bold text-white backdrop-blur-sm">
+              {event.daysToGo > 0 ? `${event.daysToGo}d to go` : "Happening now!"}
+            </span>
+          </div>
+
+          {/* Details */}
+          <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 text-pink-500" />
+                  {event.formattedDate}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-purple-400" />
+                  <span className="max-w-[200px] truncate">
+                    {(event.location as Record<string, unknown>)?.display_name as string ?? "Lagos, Nigeria"}
+                  </span>
+                </span>
+              </div>
+              {/* Progress */}
+              <div className="flex items-center gap-3">
+                <div className="h-1.5 w-32 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-1.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 transition-all duration-500"
+                    style={{ width: `${event.fillPercent}%` }}
+                  />
+                </div>
+                <span className="flex items-center gap-1 text-xs font-medium text-[var(--l-text-muted)]">
+                  <Users className="h-3 w-3" />
+                  {event.attendeesCount} going
+                </span>
+              </div>
+            </div>
+
+            <Button
+              size="sm"
+              onClick={() => handleRsvp(event.id)}
+              disabled={attendMutation.isPending}
+              className={cn(
+                "shrink-0 rounded-full px-5 font-semibold transition-all",
+                event.isUserAttending
+                  ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 shadow-none"
+                  : "bg-gradient-to-r from-[#f72585] to-[#7209b7] text-white hover:opacity-90 shadow-[0_4px_14px_rgba(247,37,133,0.35)]",
+              )}
+            >
+              {attendMutation.isPending ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : event.isUserAttending ? (
+                <span className="flex items-center gap-1.5">
+                  <Check className="h-4 w-4" /> Attending
+                </span>
+              ) : (
+                "RSVP Now"
+              )}
+            </Button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
