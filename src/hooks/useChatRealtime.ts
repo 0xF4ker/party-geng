@@ -24,6 +24,8 @@ export interface OptimisticMessage {
     vendorProfile: null;
   };
   isDeletedForEveryone: boolean;
+  attachmentUrls?: string[];
+  starredBy?: { userId: string; messageId: string }[];
 }
 export type MessageWithStatus = DBMessage & {
   tempId?: string;
@@ -44,6 +46,8 @@ interface RealtimeMessage {
   } | null;
   quote?: null;
   eventInvitation?: null;
+  attachmentUrls?: string[];
+  starredBy?: { userId: string; messageId: string }[];
 }
 interface TypingBroadcastPayload {
   userId: string;
@@ -102,8 +106,21 @@ export const useChatRealtime = (
             quote: rawMessage.quote ?? null,
             eventInvitation: rawMessage.eventInvitation ?? null,
             isDeletedForEveryone: rawMessage.isDeletedForEveryone ?? false,
+            attachmentUrls: rawMessage.attachmentUrls ?? [],
+            starredBy: rawMessage.starredBy ?? [],
           } as MessageWithStatus;
-          setNewMessages((prev) => [...prev, newMessage]);
+          setNewMessages((prev) => {
+            if (rawMessage.senderId === profile?.id) {
+              const optMsg = prev.find((m) => m.tempId && m.status === "sending");
+              if (optMsg) {
+                return prev.filter((m) => m.tempId !== optMsg.tempId).concat(newMessage);
+              }
+            }
+            if (prev.some((m) => m.id === newMessage.id)) {
+              return prev;
+            }
+            return [...prev, newMessage];
+          });
           if (rawMessage.senderId) {
             setTypingUsers((prev) => {
               const next = new Set(prev);
@@ -140,6 +157,8 @@ export const useChatRealtime = (
             quote: updatedMessage.quote ?? null,
             eventInvitation: updatedMessage.eventInvitation ?? null,
             isDeletedForEveryone: updatedMessage.isDeletedForEveryone ?? false,
+            attachmentUrls: updatedMessage.attachmentUrls ?? [],
+            starredBy: updatedMessage.starredBy ?? [],
           } as MessageWithStatus;
           setNewMessages((prev) => {
             const filtered = prev.filter((m) => m.id !== updatedMessage.id);

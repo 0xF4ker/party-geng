@@ -26,12 +26,18 @@ interface UserInfoSidebarProps {
   conversation: conversationOutput;
   currentUserId: string;
   onClose?: () => void;
+  onlineStatus?: string;
 }
 export const UserInfoSidebar = ({
   conversation,
   currentUserId,
   onClose,
+  onlineStatus,
 }: UserInfoSidebarProps) => {
+  const { data: starredMessages, isLoading: isStarredLoading } = api.chat.getStarredMessages.useQuery(
+    { conversationId: conversation.id },
+    { enabled: !!conversation.id }
+  );
   const router = useRouter();
   const utils = api.useUtils();
   const removeParticipantMutation = api.chat.removeParticipant.useMutation({
@@ -188,15 +194,22 @@ export const UserInfoSidebar = ({
               />
             </div>
           ) : (
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-linear-to-br from-pink-100 to-pink-200 text-3xl font-bold text-pink-600 shadow-inner">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-linear-to-br from-[var(--chat-light,#fdf2f8)] to-[var(--chat-light,#fdf2f8)] text-3xl font-bold text-[var(--chat-primary,#f72585)] shadow-inner">
               {displayName.charAt(0).toUpperCase()}
             </div>
           )}
           {/* Online Status Indicator */}
-          <div
-            className="absolute right-1 bottom-1 h-5 w-5 rounded-full border-2 border-white bg-green-500"
-            title="Online"
-          />
+          {onlineStatus && onlineStatus !== "OFFLINE" && (
+            <div
+              className={cn(
+                "absolute right-1 bottom-1 h-5 w-5 rounded-full border-2 border-white transition-all duration-300",
+                onlineStatus === "ONLINE" && "bg-green-500",
+                onlineStatus === "IDLE" && "bg-amber-500",
+                onlineStatus === "DND" && "bg-red-500"
+              )}
+              title={onlineStatus}
+            />
+          )}
         </div>
         <h2 className="text-center text-xl font-bold text-gray-900">
           {displayName}
@@ -255,6 +268,42 @@ export const UserInfoSidebar = ({
                 color="text-green-600"
               />
             </ul>
+          </div>
+          {/* Starred Messages Section */}
+          <div>
+            <div className="my-4 border-t border-gray-100" />
+            <h4 className="mb-3 text-xs font-bold tracking-wider text-gray-400 uppercase">
+              Starred Messages
+            </h4>
+            {isStarredLoading ? (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Loader2 className="h-4 w-4 animate-spin text-[var(--chat-primary,#f72585)]" />
+                Loading...
+              </div>
+            ) : starredMessages && starredMessages.length > 0 ? (
+              <ul className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                {starredMessages.map((msg) => (
+                  <li key={msg.id} className="rounded-lg bg-gray-50 p-2 border border-gray-100 hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-semibold text-gray-700 text-[10px]">
+                        {msg.senderId === currentUserId ? "You" : (msg.sender?.clientProfile?.name ?? msg.sender?.vendorProfile?.companyName ?? msg.sender?.username ?? "User")}
+                      </span>
+                      <span className="text-[8px] text-gray-400">
+                        {format(new Date(msg.createdAt), "MMM d, h:mm a")}
+                      </span>
+                    </div>
+                    <p className="text-gray-600 text-xs break-words line-clamp-3 leading-snug">{msg.text}</p>
+                    {msg.attachmentUrls && msg.attachmentUrls.length > 0 && (
+                      <span className="text-[9px] text-[var(--chat-primary,#f72585)] block mt-1 font-medium">
+                        📎 {msg.attachmentUrls.length} attachment(s)
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-gray-400 italic">No starred messages yet.</p>
+            )}
           </div>
           {/* Active Orders */}
           {activeOrders && activeOrders.length > 0 && (

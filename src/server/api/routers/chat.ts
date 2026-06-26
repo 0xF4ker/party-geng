@@ -40,6 +40,12 @@ export const chatRouter = createTRPCRouter({
                 id: true,
                 username: true,
                 email: true,
+                chatSettings: {
+                  select: {
+                    statusOverride: true,
+                    blockScreenshots: true,
+                  },
+                },
                 clientProfile: {
                   select: {
                     name: true,
@@ -186,6 +192,11 @@ export const chatRouter = createTRPCRouter({
           },
           quote: true,
           eventInvitation: true,
+          starredBy: {
+            where: {
+              userId: ctx.user.id,
+            },
+          },
         },
       });
       let nextCursor: string | undefined = undefined;
@@ -208,9 +219,13 @@ export const chatRouter = createTRPCRouter({
     .input(
       z.object({
         conversationId: z.string(),
-        text: z.string().min(1),
+        text: z.string().default(""),
         optimisticId: z.string().optional(),
-      }),
+        attachmentUrls: z.array(z.string()).optional(),
+      }).refine(
+        (data) => data.text.trim().length > 0 || (data.attachmentUrls && data.attachmentUrls.length > 0),
+        { message: "Message must contain text or attachments", path: ["text"] }
+      )
     )
     .mutation(async ({ ctx, input }) => {
       const conversation = await ctx.db.conversation.findUnique({
@@ -250,6 +265,7 @@ export const chatRouter = createTRPCRouter({
             conversationId: input.conversationId,
             senderId: ctx.user.id,
             text: input.text,
+            attachmentUrls: input.attachmentUrls ?? [],
           },
           include: {
             sender: {
@@ -264,6 +280,11 @@ export const chatRouter = createTRPCRouter({
             },
             quote: true,
             eventInvitation: true,
+            starredBy: {
+              where: {
+                userId: ctx.user.id,
+              },
+            },
           },
         }),
         ctx.db.conversation.update({
@@ -595,6 +616,77 @@ export const chatRouter = createTRPCRouter({
       }
       return { success: true };
     }),
+  starMessage: protectedProcedure
+    .input(z.object({ messageId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const message = await ctx.db.message.findUnique({
+        where: { id: input.messageId },
+        include: { conversation: { include: { participants: true } } },
+      });
+      if (!message || !message.conversation.participants.some(p => p.userId === ctx.user.id)) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Message not found" });
+      }
+      return ctx.db.starredMessage.upsert({
+        where: {
+          userId_messageId: {
+            userId: ctx.user.id,
+            messageId: input.messageId,
+          },
+        },
+        create: {
+          userId: ctx.user.id,
+          messageId: input.messageId,
+        },
+        update: {},
+      });
+    }),
+  unstarMessage: protectedProcedure
+    .input(z.object({ messageId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.starredMessage.delete({
+        where: {
+          userId_messageId: {
+            userId: ctx.user.id,
+            messageId: input.messageId,
+          },
+        },
+      });
+    }),
+  getStarredMessages: protectedProcedure
+    .input(z.object({ conversationId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const conversation = await ctx.db.conversation.findUnique({
+        where: { id: input.conversationId },
+        include: { participants: true },
+      });
+      if (!conversation || !conversation.participants.some(p => p.userId === ctx.user.id)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Unauthorized" });
+      }
+      const starred = await ctx.db.starredMessage.findMany({
+        where: {
+          userId: ctx.user.id,
+          message: {
+            conversationId: input.conversationId,
+          },
+        },
+        include: {
+          message: {
+            include: {
+              sender: {
+                select: {
+                  id: true,
+                  username: true,
+                  clientProfile: { select: { name: true, avatarUrl: true } },
+                  vendorProfile: { select: { companyName: true, avatarUrl: true } },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      return starred.map(s => s.message);
+    }),
   getSettings: protectedProcedure.query(async ({ ctx }) => {
     let settings = await ctx.db.chatSettings.findUnique({
       where: { userId: ctx.user.id },
@@ -614,6 +706,9 @@ export const chatRouter = createTRPCRouter({
         vibrationEnabled: z.boolean().optional(),
         emailNotifications: z.boolean().optional(),
         theme: z.string().optional(),
+        chatThemeColor: z.string().optional(),
+        blockScreenshots: z.boolean().optional(),
+        statusOverride: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

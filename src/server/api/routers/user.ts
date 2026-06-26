@@ -116,7 +116,27 @@ export const userRouter = createTRPCRouter({
           });
         }
       }
-      const user = await getCachedUserById(input.userId);
+      const user = await ctx.db.user.findUnique({
+        where: { id: input.userId },
+        include: {
+          vendorProfile: {
+            include: {
+              services: true,
+            },
+          },
+          clientProfile: {
+            include: {
+              _count: {
+                select: { events: true },
+              },
+            },
+          },
+          clientOrders: {
+            where: { status: "COMPLETED" },
+            select: { id: true, status: true },
+          },
+        },
+      });
       if (!user) {
         throw new TRPCError({
           code: "NOT_FOUND",
@@ -128,7 +148,27 @@ export const userRouter = createTRPCRouter({
   getByUsername: publicProcedure
     .input(z.object({ username: z.string() }))
     .query(async ({ ctx, input }) => {
-      const user = await getCachedUserByUsername(input.username);
+      const user = await ctx.db.user.findUnique({
+        where: { username: input.username },
+        include: {
+          vendorProfile: {
+            include: {
+              services: true,
+            },
+          },
+          clientProfile: {
+            include: {
+              _count: {
+                select: { events: true },
+              },
+            },
+          },
+          clientOrders: {
+            where: { status: "COMPLETED" },
+            select: { id: true, status: true },
+          },
+        },
+      });
       if (!user) {
         throw new TRPCError({
           code: "NOT_FOUND",

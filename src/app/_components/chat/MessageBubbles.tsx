@@ -9,7 +9,9 @@ import {
   MoreVertical,
   Check,
   CheckCheck,
+  Star,
 } from "lucide-react";
+import { useState } from "react";
 import type { MessageWithStatus } from "@/hooks/useChatRealtime";
 import { normalizeDate } from "@/lib/dateUtils";
 import { useRouter } from "next/navigation";
@@ -41,6 +43,24 @@ export const TextMessageBubble = ({
   isGroupAdmin?: boolean;
   isRead?: boolean;
 }) => {
+  const [showLightbox, setShowLightbox] = useState<string | null>(null);
+  const starMutation = api.chat.starMessage.useMutation({
+    onSuccess: () => {
+      toast.success("Message starred");
+      onUpdate?.();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const unstarMutation = api.chat.unstarMessage.useMutation({
+    onSuccess: () => {
+      toast.success("Message unstarred");
+      onUpdate?.();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const isStarred = message.starredBy && message.starredBy.length > 0;
   const isPending = message.status === "sending";
   const isError = message.status === "error";
   const sender = message.sender || {};
@@ -139,6 +159,9 @@ export const TextMessageBubble = ({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => isStarred ? unstarMutation.mutate({ messageId: message.id }) : starMutation.mutate({ messageId: message.id })}>
+                  {isStarred ? "Unstar Message" : "Star Message"}
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleDelete("ME")}>
                   Delete for Me
                 </DropdownMenuItem>
@@ -158,12 +181,49 @@ export const TextMessageBubble = ({
           className={cn(
             "relative rounded-2xl px-4 py-2 text-sm shadow-sm transition-all",
             isMe
-              ? "rounded-br-none bg-pink-600 text-white"
+              ? "rounded-br-none bg-[var(--chat-primary,#f72585)] text-white"
               : "rounded-bl-none border border-gray-100 bg-white text-gray-800",
             isPending && "opacity-70",
             isError && "border-2 border-red-500 bg-red-50 text-red-900",
           )}
         >
+          {message.attachmentUrls && message.attachmentUrls.length > 0 && (
+            <div className="mb-2 grid gap-2 max-w-sm" style={{ gridTemplateColumns: message.attachmentUrls.length === 1 ? '1fr' : 'repeat(2, 1fr)' }}>
+              {message.attachmentUrls.map((url, idx) => {
+                const isImg = url.match(/\.(jpeg|jpg|gif|png|webp)/i) || url.startsWith("blob:");
+                if (isImg) {
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => setShowLightbox(url)}
+                      className="relative aspect-square cursor-pointer overflow-hidden rounded-lg bg-black/5 hover:opacity-90 transition-opacity"
+                    >
+                      <img src={url} alt="attachment" className="h-full w-full object-cover" />
+                    </div>
+                  );
+                } else {
+                  const fileName = url.split("/").pop()?.split("-").slice(1).join("-") || "file";
+                  return (
+                    <a
+                      key={idx}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cn(
+                        "flex items-center gap-2 rounded-lg p-2.5 text-xs transition-colors border",
+                        isMe 
+                          ? "bg-white/10 border-white/20 text-white hover:bg-white/15" 
+                          : "bg-gray-50 border-gray-100 text-gray-700 hover:bg-gray-100"
+                      )}
+                    >
+                      <FileText className="h-4 w-4 shrink-0 text-pink-500" />
+                      <span className="truncate max-w-[150px]" title={fileName}>{fileName}</span>
+                    </a>
+                  );
+                }
+              })}
+            </div>
+          )}
           <p className="leading-relaxed whitespace-pre-wrap">{message.text}</p>
           {/* Meta Row */}
           <div
@@ -190,6 +250,7 @@ export const TextMessageBubble = ({
                     addSuffix: true,
                   })}
                 </span>
+                {isStarred && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
                 {isMe &&
                   (isRead ? (
                     <CheckCheck className="h-3.5 w-3.5 text-blue-200" />
@@ -213,6 +274,29 @@ export const TextMessageBubble = ({
           </button>
         )}
       </div>
+      {showLightbox && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-xs p-4 cursor-zoom-out"
+          onClick={() => setShowLightbox(null)}
+        >
+          <div className="relative max-h-[90vh] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={showLightbox}
+              alt="attachment preview"
+              className="max-h-[80vh] max-w-[85vw] rounded-lg object-contain shadow-2xl"
+            />
+            <a
+              href={showLightbox}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+              className="absolute -bottom-12 left-1/2 -translate-x-1/2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-md hover:bg-white/20 transition-all"
+            >
+              Download File
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -145,6 +145,7 @@ model User {
   chatSettings           ChatSettings?       // One-to-one
   participations         ConversationParticipant[]
   messages               Message[]           @relation("Sender")
+  starredMessages        StarredMessage[]
   clientQuotes           Quote[]             @relation("ClientQuotes")
   vendorQuotes           Quote[]             @relation("VendorQuotes")
   clientEventInvitations EventInvitation[]   @relation("ClientEventInvitations")
@@ -236,6 +237,9 @@ model ChatSettings {
   vibrationEnabled   Boolean  @default(true)
   emailNotifications Boolean  @default(true)
   theme              String   @default("light") // light, dark, system
+  chatThemeColor     String   @default("pink")
+  blockScreenshots   Boolean  @default(false)
+  statusOverride     String   @default("ONLINE")
   updatedAt          DateTime @updatedAt
 }
 
@@ -403,6 +407,8 @@ model Message {
   quote                Quote?
   eventInvitation      EventInvitation?
   createdAt            DateTime          @default(now())
+  attachmentUrls       String[]          @default([])
+  starredBy            StarredMessage[]
   
   // New chat features
   isDeletedForEveryone Boolean           @default(false)
@@ -864,3 +870,15 @@ model PostView {
   @@index([postId])
   @@index([userId])
 }
+
+model StarredMessage {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, messageId])
+}
+

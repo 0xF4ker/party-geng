@@ -300,7 +300,7 @@ const SkillsInput: React.FC<{
   );
 };
 const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
-  const { profile } = useAuthStore();
+  const { profile, setProfile } = useAuthStore();
   const [selectedLocation, setSelectedLocation] =
     useState<LocationSearchResult | null>(() => {
       const loc = isVendor
@@ -360,8 +360,18 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   }, [profile, isVendor, reset]);
   const utils = api.useUtils();
   const updateProfile = api.settings.updateProfile.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (updatedProfile) => {
       toast.success("Profile updated");
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+        utils.user.getProfile.setData(undefined, updatedProfile);
+        if (updatedProfile.username) {
+          await utils.user.getByUsername.invalidate({ username: updatedProfile.username });
+          if (updatedProfile.role === "VENDOR") {
+            await utils.vendor.getByUsername.invalidate({ username: updatedProfile.username });
+          }
+        }
+      }
       await utils.user.getProfile.invalidate();
     },
     onError: (err) => toast.error(err.message),
@@ -543,7 +553,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   );
 };
 const VendorServicesForm = () => {
-  const { profile } = useAuthStore();
+  const { profile, setProfile } = useAuthStore();
   const { data: rawUserProfile, isLoading: isLoadingUserProfile } =
     api.user.getProfile.useQuery();
   const userProfile = rawUserProfile as unknown as UserProfileData | undefined;
@@ -567,8 +577,18 @@ const VendorServicesForm = () => {
     api.category.getAll.useQuery();
   const utils = api.useUtils();
   const updateServices = api.settings.updateVendorServices.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (updatedProfile) => {
       toast.success("Services updated successfully!");
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+        utils.user.getProfile.setData(undefined, updatedProfile);
+        if (updatedProfile.username) {
+          await utils.user.getByUsername.invalidate({ username: updatedProfile.username });
+          if (updatedProfile.role === "VENDOR") {
+            await utils.vendor.getByUsername.invalidate({ username: updatedProfile.username });
+          }
+        }
+      }
       await utils.user.getProfile.invalidate();
     },
     onError: (err) => toast.error(err.message),

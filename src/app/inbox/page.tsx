@@ -1,12 +1,14 @@
 "use client";
-import React, { useState, useEffect, useRef, Suspense } from "react";
+import React, { useState, useEffect, useRef, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   Loader2,
   ArrowLeft,
   MoreVertical,
   Info,
   KanbanSquare,
+  EyeOff,
 } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +27,8 @@ import {
 } from "@/app/_components/chat/EventInvitationMessageBubble";
 import { ChatInput } from "@/app/_components/chat/ChatInput";
 import { UserInfoSidebar } from "@/app/_components/chat/UserInfoSidebar";
+import { usePresence } from "@/hooks/usePresence";
+import { useUpload } from "@/hooks/useUpload";
 import {
   ConversationListSkeleton,
   ChatMessagesSkeleton,
@@ -43,6 +47,10 @@ const InboxPageContent = () => {
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
   const utils = api.useUtils();
+  const { data: settings } = api.chat.getSettings.useQuery();
+  const { upload } = useUpload();
+  const { onlineUsers } = usePresence(user?.id, settings?.statusOverride);
+
   const searchParams = useSearchParams();
   const conversationIdFromUrl = searchParams.get("conversation");
   const { headerHeight } = useUiStore();
@@ -51,6 +59,60 @@ const InboxPageContent = () => {
   const [showInfoSidebar, setShowInfoSidebar] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const hasAutoSelectedRef = useRef(false);
+
+  const shouldBlockScreenshots = selectedConvo?.participants.some(
+    (p) => p.user.chatSettings?.blockScreenshots === true
+  ) ?? false;
+
+  const [isBlurred, setIsBlurred] = useState(false);
+
+  useEffect(() => {
+    if (!shouldBlockScreenshots) {
+      setIsBlurred(false);
+      return;
+    }
+    const handleBlur = () => setIsBlurred(true);
+    const handleFocus = () => setIsBlurred(false);
+    
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
+    
+    const handleVisibility = () => {
+      if (document.hidden) setIsBlurred(true);
+      else setIsBlurred(false);
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    
+    return () => {
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [shouldBlockScreenshots]);
+
+  const activeColor = settings?.chatThemeColor ?? "pink";
+  const themeVars = useMemo(() => {
+    const colors: Record<string, { primary: string; hover: string; light: string }> = {
+      pink: { primary: "#f72585", hover: "#b5179e", light: "#fdf2f8" },
+      purple: { primary: "#7209b7", hover: "#560bad", light: "#faf5ff" },
+      blue: { primary: "#0077b6", hover: "#0096c7", light: "#f0f9ff" },
+      indigo: { primary: "#3f51b5", hover: "#303f9f", light: "#f5f6fa" },
+      green: { primary: "#10b981", hover: "#059669", light: "#ecfdf5" },
+      orange: { primary: "#f97316", hover: "#ea580c", light: "#fff7ed" },
+    };
+    const c = colors[activeColor] || { primary: "#f72585", hover: "#b5179e", light: "#fdf2f8" };
+    return {
+      "--chat-primary": c.primary,
+      "--chat-primary-hover": c.hover,
+      "--chat-light": c.light,
+    } as React.CSSProperties;
+  }, [activeColor]);
+
+  const getSelectedUserStatus = () => {
+    if (!selectedConvo || selectedConvo.isGroup || !user) return undefined;
+    const other = selectedConvo.participants.find(p => p.userId !== user.id);
+    return other ? (onlineUsers[other.userId] ?? "OFFLINE") : "OFFLINE";
+  };
   const { mutate: markConversationAsRead } =
     api.chat.markConversationAsRead.useMutation({
       onMutate: async ({ conversationId }) => {
@@ -88,11 +150,13 @@ const InboxPageContent = () => {
   const {
     data: conversations = [],
     isLoading: isConvosLoading,
+    isFetching: isConvosFetching,
     refetch: refetchConvos,
   } = api.chat.getConversations.useQuery(undefined, { refetchInterval: false });
   const {
     data: messagesData,
     isLoading: isMessagesLoading,
+    isFetching: isMessagesFetching,
     refetch: refetchMessages,
   } = api.chat.getMessages.useQuery(
     { conversationId: selectedConvo?.id ?? "", limit: 50 },
@@ -141,9 +205,14 @@ const InboxPageContent = () => {
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, typingUsers]);
-  const handleSend = async (text: string, retryTempId?: string) => {
+  const handleSend = async (text: string, files?: File[] | string, retryTempId?: string) => {
     if (!selectedConvo || !user) return;
-    const tempId = retryTempId ?? createId();
+    const actualFiles = Array.isArray(files) ? files : undefined;
+    const actualRetryTempId = typeof files === "string" ? files : retryTempId;
+    const tempId = actualRetryTempId ?? createId();
+    
+    const localUrls = actualFiles ? actualFiles.map(file => URL.createObjectURL(file)) : [];
+
     const optimisticMsg: MessageWithStatus = {
       id: tempId,
       tempId: tempId,
@@ -154,6 +223,8 @@ const InboxPageContent = () => {
       status: "sending",
       quote: null,
       eventInvitation: null,
+      attachmentUrls: localUrls,
+      starredBy: [],
       sender: {
         id: user.id,
         username: user.username,
@@ -162,16 +233,88 @@ const InboxPageContent = () => {
       },
       isDeletedForEveryone: false,
     };
-    if (retryTempId) {
-      updateOptimisticStatus(retryTempId, "sending");
+    if (actualRetryTempId) {
+      updateOptimisticStatus(actualRetryTempId, "sending");
     } else {
       addOptimisticMessage(optimisticMsg);
     }
+
+    // Optimistically update conversations list in cache
+    const previewText = text.trim() 
+      ? text 
+      : (localUrls.length > 0 ? "📎 Sent an attachment" : "");
+
+    utils.chat.getConversations.setData(undefined, (oldConvos) => {
+      if (!oldConvos) return [];
+      return oldConvos.map((c) => {
+        if (c.id === selectedConvo.id) {
+          return {
+            ...c,
+            updatedAt: new Date(),
+            messages: [
+              {
+                id: tempId,
+                text: previewText,
+                createdAt: new Date(),
+                senderId: user.id,
+                isDeletedForEveryone: false,
+              },
+            ],
+          };
+        }
+        return c;
+      });
+    });
+
+    let uploadedUrls: string[] = [];
+    if (actualFiles && actualFiles.length > 0) {
+      try {
+        const uploadPromises = actualFiles.map(file => upload(file, "board-images"));
+        const results = await Promise.all(uploadPromises);
+        uploadedUrls = results.filter((url): url is string => !!url);
+        if (uploadedUrls.length !== actualFiles.length) {
+          throw new Error("Failed to upload all attachments");
+        }
+      } catch (err) {
+        console.error("Upload failed:", err);
+        updateOptimisticStatus(tempId, "error");
+        return;
+      }
+    }
+
     sendMessage.mutate(
-      { conversationId: selectedConvo.id, text },
+      { conversationId: selectedConvo.id, text, attachmentUrls: uploadedUrls },
       {
-        onSuccess: () => {
+        onSuccess: (sentMessage) => {
           removeOptimisticMessage(tempId);
+          if (sentMessage) {
+            addOptimisticMessage({
+              ...sentMessage,
+              status: "sent",
+            });
+            // Update cache with real message details
+            utils.chat.getConversations.setData(undefined, (oldConvos) => {
+              if (!oldConvos) return [];
+              return oldConvos.map((c) => {
+                if (c.id === selectedConvo.id) {
+                  return {
+                    ...c,
+                    updatedAt: new Date(sentMessage.createdAt),
+                    messages: [
+                      {
+                        id: sentMessage.id,
+                        text: sentMessage.text,
+                        createdAt: sentMessage.createdAt,
+                        senderId: sentMessage.senderId,
+                        isDeletedForEveryone: sentMessage.isDeletedForEveryone,
+                      },
+                    ],
+                  };
+                }
+                return c;
+              });
+            });
+          }
         },
         onError: (error) => {
           console.error("Failed to send:", error);
@@ -201,7 +344,7 @@ const InboxPageContent = () => {
   return (
     <div
       className="min-h-screen bg-gray-50 text-gray-900"
-      style={{ paddingTop: headerHeight }}
+      style={{ paddingTop: headerHeight, ...themeVars }}
     >
       <ChatSettingsModal
         isOpen={showSettings}
@@ -215,7 +358,7 @@ const InboxPageContent = () => {
         <aside
           className={`w-full border-r sm:w-1/3 lg:w-1/4 ${showMobileChat ? "hidden sm:flex" : "flex"}`}
         >
-          {isConvosLoading ? (
+          {isConvosLoading || (isConvosFetching && conversations.length === 0) ? (
             <ConversationListSkeleton />
           ) : (
             <ConversationList
@@ -227,13 +370,28 @@ const InboxPageContent = () => {
               }}
               currentUserId={user.id}
               onOpenSettings={() => setShowSettings(true)}
+              onlineUsers={onlineUsers}
             />
           )}
         </aside>
         {/* Middle: Chat Area */}
         <main
-          className={`flex flex-1 flex-col bg-[#efeae2] ${!showMobileChat ? "hidden sm:flex" : "flex"}`}
+          className={`flex flex-1 flex-col bg-[#efeae2] relative overflow-hidden ${!showMobileChat ? "hidden sm:flex" : "flex"}`}
+          style={{
+            filter: isBlurred ? "blur(16px)" : "none",
+            userSelect: shouldBlockScreenshots ? "none" : "auto",
+            transition: "filter 0.3s ease",
+          }}
         >
+          {isBlurred && (
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-md text-white p-6 text-center select-none animate-in fade-in duration-300">
+              <EyeOff className="h-12 w-12 text-pink-500 mb-4 animate-bounce" />
+              <h4 className="text-lg font-bold">Screenshots Blocked for Privacy</h4>
+              <p className="text-sm text-gray-300 mt-2 max-w-xs">
+                The other chat participant has enabled screenshot protection. Please switch back to this tab to resume chatting.
+              </p>
+            </div>
+          )}
           {selectedConvo ? (
             <>
               {/* Header */}
@@ -273,7 +431,7 @@ const InboxPageContent = () => {
                 </div>
               </div>
               {/* Messages Window */}
-              {isMessagesLoading ? (
+              {isMessagesLoading || (isMessagesFetching && messages.length === 0) ? (
                 <ChatMessagesSkeleton />
               ) : (
                 <div className="flex-1 space-y-4 overflow-y-auto p-4">
@@ -375,6 +533,7 @@ const InboxPageContent = () => {
             <UserInfoSidebar
               conversation={selectedConvo}
               currentUserId={user.id}
+              onlineStatus={getSelectedUserStatus()}
             />
           )}
         </aside>
@@ -393,6 +552,7 @@ const InboxPageContent = () => {
                 conversation={selectedConvo}
                 currentUserId={user.id}
                 onClose={() => setShowInfoSidebar(false)}
+                onlineStatus={getSelectedUserStatus()}
               />
             </div>
           </div>
@@ -401,17 +561,12 @@ const InboxPageContent = () => {
     </div>
   );
 };
-const InboxPage = () => {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex h-screen items-center justify-center">
-          <Loader2 className="animate-spin text-pink-600" />
-        </div>
-      }
-    >
-      <InboxPageContent />
-    </Suspense>
-  );
-};
+const InboxPage = dynamic(() => Promise.resolve(InboxPageContent), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-screen items-center justify-center">
+      <Loader2 className="animate-spin text-pink-600" />
+    </div>
+  ),
+});
 export default InboxPage;

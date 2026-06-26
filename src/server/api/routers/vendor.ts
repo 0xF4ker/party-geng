@@ -59,11 +59,28 @@ export const vendorRouter = createTRPCRouter({
   getByUsername: publicProcedure
     .input(z.object({ username: z.string() }))
     .query(async ({ ctx, input }) => {
-      const vendor = await getCachedVendorByUsername(input.username);
-      if (!vendor) {
+      const user = await ctx.db.user.findUnique({
+        where: { username: input.username },
+        include: {
+          vendorProfile: {
+            where: { kybStatus: "APPROVED" },
+            include: {
+              services: {
+                include: {
+                  service: true,
+                },
+              },
+            },
+          },
+        },
+      });
+      if (!user || !user.vendorProfile) {
         throw new Error("Vendor not found");
       }
-      return vendor;
+      return {
+        ...user.vendorProfile,
+        username: user.username,
+      };
     }),
   getVendorsByService: publicProcedure
     .input(

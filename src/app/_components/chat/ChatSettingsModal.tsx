@@ -22,6 +22,7 @@ import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 interface ChatSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -220,17 +221,59 @@ const GeneralSettings = () => {
             Switch to {settings.theme === "light" ? "Dark" : "Light"}
           </Button>
         </div>
+        {/* Chat Accent Color Selector */}
+        <div className="mt-4 space-y-2 pt-2 border-t border-gray-100">
+          <label className="text-sm font-medium">Chat Accent Color</label>
+          <div className="flex gap-2">
+            {[
+              { id: "pink", color: "bg-[#f72585]", label: "Pink" },
+              { id: "purple", color: "bg-[#7209b7]", label: "Purple" },
+              { id: "blue", color: "bg-[#0077b6]", label: "Blue" },
+              { id: "indigo", color: "bg-[#3f51b5]", label: "Indigo" },
+              { id: "green", color: "bg-[#10b981]", label: "Green" },
+              { id: "orange", color: "bg-[#f97316]", label: "Orange" },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => toggle("chatThemeColor", item.id)}
+                className={cn(
+                  "h-6 w-6 rounded-full transition-transform border border-black/10 focus:outline-none",
+                  item.color,
+                  settings.chatThemeColor === item.id 
+                    ? "ring-2 ring-offset-2 ring-gray-400 scale-110" 
+                    : "hover:scale-105"
+                )}
+                title={item.label}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 const PrivacySettings = () => {
+  const { data: settings } = api.chat.getSettings.useQuery();
   const {
     data: blockedUsers,
     isLoading,
     refetch,
   } = api.user.getBlockedUsers.useQuery();
   const utils = api.useUtils();
+
+  const updateMutation = api.chat.updateSettings.useMutation({
+    onSuccess: () => {
+      void utils.chat.getSettings.invalidate();
+      toast.success("Settings updated");
+    },
+    onError: () => toast.error("Failed to update privacy settings")
+  });
+
+  const toggle = async (key: string, value: boolean) => {
+    await updateMutation.mutateAsync({ [key]: value });
+  };
+
   const unblockMutation = api.user.unblockUser.useMutation({
     onSuccess: () => {
       toast.success("User unblocked");
@@ -241,6 +284,27 @@ const PrivacySettings = () => {
   });
   return (
     <div className="space-y-6">
+      {/* Safety Section */}
+      <div className="space-y-4 pb-6 border-b border-gray-100">
+        <h3 className="text-sm font-medium tracking-wider text-gray-500 uppercase flex items-center gap-2">
+          <Shield className="h-4 w-4" /> Safety Settings
+        </h3>
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5 pr-4">
+            <label className="text-sm font-medium">Block Screenshots</label>
+            <p className="text-xs text-gray-500">
+              Blurs the chat screen for other participants when they lose focus or switch tabs to prevent copying sensitive content.
+            </p>
+          </div>
+          {settings && (
+            <Switch
+              checked={settings.blockScreenshots}
+              onCheckedChange={(checked) => toggle("blockScreenshots", checked)}
+            />
+          )}
+        </div>
+      </div>
+
       <div>
         <h3 className="mb-4 text-sm font-medium tracking-wider text-gray-500 uppercase">
           Blocked Users

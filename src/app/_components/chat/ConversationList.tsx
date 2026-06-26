@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 type routerOutput = inferRouterOutputs<AppRouter>;
 type conversationOutput = routerOutput["chat"]["getConversations"][number];
 export const ConversationList = ({
@@ -21,13 +22,35 @@ export const ConversationList = ({
   onSelect,
   currentUserId,
   onOpenSettings,
+  onlineUsers = {},
 }: {
   conversations: conversationOutput[];
   selectedId?: string;
   onSelect: (c: conversationOutput) => void;
   currentUserId: string;
   onOpenSettings: () => void;
+  onlineUsers?: Record<string, string>;
 }) => {
+  const { user } = useAuth();
+  const { data: settings } = api.chat.getSettings.useQuery();
+  const myStatus = settings?.statusOverride ?? "ONLINE";
+  
+  const updateChatSettingsMutation = api.chat.updateSettings.useMutation({
+    onSuccess: () => {
+      void utils.chat.getSettings.invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    }
+  });
+
+  const handleStatusChange = (status: string) => {
+    updateChatSettingsMutation.mutate({ statusOverride: status });
+    toast.success(`Status updated to ${status.toLowerCase()}`);
+  };
+
+  const currentUsername = user?.username ?? "User";
+  const currentUserAvatar = user?.clientProfile?.avatarUrl ?? user?.vendorProfile?.avatarUrl ?? null;
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"messages" | "groups">("messages");
   const utils = api.useUtils();
@@ -153,7 +176,56 @@ export const ConversationList = ({
     <div className="flex h-full w-full flex-col bg-white">
       <div className="border-b border-gray-100 p-4 pb-0">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Inbox</h2>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="relative shrink-0 rounded-full hover:opacity-85 transition-opacity focus:outline-none">
+                  {currentUserAvatar ? (
+                    <Image
+                      src={currentUserAvatar}
+                      alt={currentUsername}
+                      width={32}
+                      height={32}
+                      className="h-8 w-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--chat-light,#fdf2f8)] text-[var(--chat-primary,#f72585)] font-bold text-sm">
+                      {currentUsername[0]?.toUpperCase()}
+                    </div>
+                  )}
+                  <span className={cn(
+                    "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border border-white transition-all duration-300",
+                    myStatus === "ONLINE" && "bg-green-500",
+                    myStatus === "IDLE" && "bg-amber-500",
+                    myStatus === "DND" && "bg-red-500",
+                    myStatus === "INVISIBLE" && "bg-gray-400"
+                  )} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 border-b border-gray-100">
+                  Set Online Status
+                </div>
+                <DropdownMenuItem onClick={() => handleStatusChange("ONLINE")} className="flex items-center gap-2 cursor-pointer">
+                  <span className="h-2 w-2 rounded-full bg-green-500" />
+                  <span>Online</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange("IDLE")} className="flex items-center gap-2 cursor-pointer">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  <span>Idle</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange("DND")} className="flex items-center gap-2 cursor-pointer">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  <span>Do Not Disturb</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange("INVISIBLE")} className="flex items-center gap-2 cursor-pointer">
+                  <span className="h-2 w-2 rounded-full bg-gray-400" />
+                  <span>Invisible</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <h2 className="text-xl font-bold">Inbox</h2>
+          </div>
           <button
             onClick={onOpenSettings}
             className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
@@ -168,13 +240,13 @@ export const ConversationList = ({
             className={cn(
               "relative flex flex-1 items-center justify-center gap-2 border-b-2 pb-3 text-sm font-semibold transition-colors",
               activeTab === "messages"
-                ? "border-pink-600 text-pink-600"
+                ? "border-[var(--chat-primary,#f72585)] text-[var(--chat-primary,#f72585)]"
                 : "border-transparent text-gray-500 hover:text-gray-700",
             )}
           >
             Messages
             {unreadCounts.messages > 0 && (
-              <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-pink-600 px-1 text-[10px] text-white">
+              <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[var(--chat-primary,#f72585)] px-1 text-[10px] text-white">
                 {unreadCounts.messages}
               </span>
             )}
@@ -184,13 +256,13 @@ export const ConversationList = ({
             className={cn(
               "relative flex flex-1 items-center justify-center gap-2 border-b-2 pb-3 text-sm font-semibold transition-colors",
               activeTab === "groups"
-                ? "border-pink-600 text-pink-600"
+                ? "border-[var(--chat-primary,#f72585)] text-[var(--chat-primary,#f72585)]"
                 : "border-transparent text-gray-500 hover:text-gray-700",
             )}
           >
             Groups
             {unreadCounts.groups > 0 && (
-              <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-pink-600 px-1 text-[10px] text-white">
+              <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[var(--chat-primary,#f72585)] px-1 text-[10px] text-white">
                 {unreadCounts.groups}
               </span>
             )}
@@ -199,7 +271,7 @@ export const ConversationList = ({
         <div className="relative mt-4 mb-4">
           <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
-            className="w-full rounded-xl border border-transparent bg-gray-50 py-2 pl-10 text-sm transition-all outline-none focus:border-pink-200 focus:bg-white"
+            className="w-full rounded-xl border border-transparent bg-gray-50 py-2 pl-10 text-sm transition-all outline-none focus:border-[var(--chat-primary,#f72585)]/40 focus:bg-white"
             placeholder={
               activeTab === "groups" ? "Search groups..." : "Search messages..."
             }
@@ -243,7 +315,7 @@ export const ConversationList = ({
                 className={cn(
                   "group relative flex w-full cursor-pointer items-start gap-3 border-b border-gray-50 p-4 text-left transition-colors hover:bg-gray-50",
                   selectedId === convo.id &&
-                    "border-r-4 border-b-transparent border-r-pink-600 bg-pink-50/60",
+                    "border-r-4 border-b-transparent border-r-[var(--chat-primary,#f72585)] bg-[var(--chat-light,#fdf2f8)]/60",
                   convo.isPinned && "bg-gray-50/50"
                 )}
               >
@@ -266,16 +338,26 @@ export const ConversationList = ({
                         "flex h-12 w-12 items-center justify-center rounded-full font-bold",
                         isGroup
                           ? "bg-purple-100 text-purple-700"
-                          : "bg-pink-100 text-pink-700",
+                          : "bg-[var(--chat-light,#fdf2f8)] text-[var(--chat-primary,#f72585)]",
                       )}
                     >
                       {isGroup ? <Users className="h-5 w-5" /> : name[0]}
                     </div>
                   )}
-                  {/* Online Indicator Placeholder */}
-                  {!isGroup && (
-                    <span className="absolute right-0 bottom-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
-                  )}
+                  {/* Dynamic Online Indicator */}
+                  {!isGroup && (() => {
+                    const otherParticipant = convo.participants.find(p => p.userId !== currentUserId);
+                    const status = otherParticipant ? (onlineUsers[otherParticipant.userId] ?? "OFFLINE") : "OFFLINE";
+                    if (status === "OFFLINE") return null;
+                    return (
+                      <span className={cn(
+                        "absolute right-0 bottom-0 h-3 w-3 rounded-full border-2 border-white animate-in zoom-in-50 duration-150",
+                        status === "ONLINE" && "bg-green-500",
+                        status === "IDLE" && "bg-amber-500",
+                        status === "DND" && "bg-red-500"
+                      )} />
+                    );
+                  })()}
                 </div>
                 <div className="min-w-0 flex-1 overflow-hidden">
                   <div className="mb-1 flex items-baseline justify-between pr-6">
@@ -295,7 +377,7 @@ export const ConversationList = ({
                       className={cn(
                         "truncate text-sm pr-6",
                         selectedId === convo.id
-                          ? "font-medium text-pink-700"
+                          ? "font-medium text-[var(--chat-primary,#f72585)]"
                           : "text-gray-500",
                         hasUnread && !selectedId && "font-bold text-gray-800",
                       )}
@@ -308,7 +390,7 @@ export const ConversationList = ({
                       )}
                     </p>
                     {hasUnread && (
-                      <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-pink-600 text-xs font-bold text-white">
+                      <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--chat-primary,#f72585)] text-xs font-bold text-white">
                         {convo.unreadCount}
                       </span>
                     )}

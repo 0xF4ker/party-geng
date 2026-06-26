@@ -108,7 +108,30 @@ export const settingsRouter = createTRPCRouter({
         revalidateTag("users", "default");
       }
 
-      return { success: true };
+      const updatedProfile = await ctx.db.user.findUnique({
+        where: { id: userId },
+        include: {
+          vendorProfile: {
+            include: {
+              services: true,
+            },
+          },
+          clientProfile: {
+            include: {
+              _count: {
+                select: { events: true },
+              },
+            },
+          },
+          adminProfile: true,
+          clientOrders: {
+            where: { status: "COMPLETED" },
+            select: { id: true, status: true },
+          },
+        },
+      });
+
+      return updatedProfile;
     }),
 
   updatePassword: protectedProcedure
@@ -324,6 +347,29 @@ export const settingsRouter = createTRPCRouter({
       revalidateTag("services", "default");
       revalidateTag("categories", "default");
 
-      return { success: true };
+      const updatedProfile = await ctx.db.user.findUnique({
+        where: { id: userId },
+        include: {
+          vendorProfile: {
+            include: {
+              services: true,
+            },
+          },
+          clientProfile: {
+            include: {
+              _count: {
+                select: { events: true },
+              },
+            },
+          },
+          adminProfile: true,
+          clientOrders: {
+            where: { status: "COMPLETED" },
+            select: { id: true, status: true },
+          },
+        },
+      });
+
+      return updatedProfile;
     }),
 });

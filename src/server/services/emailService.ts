@@ -30,7 +30,7 @@ export const emailService = {
     const html = this.generateHtml(template, data);
     try {
       return await transporter.sendMail({
-        from: `"Partygeng" <${process.env.SMTP_USER}>`,
+        from: `"Partygeng" <${process.env.SMTP_FROM || "notification@mail.partygeng.com"}>`,
         to,
         subject,
         html,
