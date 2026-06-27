@@ -23,6 +23,10 @@ const config = {
       },
       {
         protocol: "https",
+        hostname: "supabase.partygeng.com",
+      },
+      {
+        protocol: "https",
         hostname: "images.unsplash.com",
       },
       {

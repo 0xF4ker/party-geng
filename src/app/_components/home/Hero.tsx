@@ -99,11 +99,11 @@ const AnimatedHeadline = () => {
     >
       {HEADLINE_LINES.map((line, li) => (
         <span key={li} className="block">
-          {line.map((word) => {
+          {line.map((word, wi) => {
             const delay = wordIndex++ * 0.1;
             const isAccent = ["Event.", "Celebration", "Ecosystem."].includes(word);
             return (
-              <span key={word} className="l-word-clip mr-[0.25em] last:mr-0">
+              <span key={`${li}-${wi}-${word}`} className="l-word-clip mr-[0.25em] last:mr-0">
                 <span
                   className="l-word"
                   style={
