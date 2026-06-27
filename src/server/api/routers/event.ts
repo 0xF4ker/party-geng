@@ -791,6 +791,9 @@ export const eventRouter = createTRPCRouter({
     let events = await ctx.db.clientEvent.findMany({
       where: {
         isPublic: true,
+        endDate: {
+          gte: now,
+        },
       },
       orderBy: {
         startDate: "asc",
@@ -838,7 +841,12 @@ export const eventRouter = createTRPCRouter({
         }
 
         events = await ctx.db.clientEvent.findMany({
-          where: { isPublic: true },
+          where: {
+            isPublic: true,
+            endDate: {
+              gte: now,
+            },
+          },
           orderBy: { startDate: "asc" },
           include: {
             client: {
