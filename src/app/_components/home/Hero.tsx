@@ -391,7 +391,7 @@ const Hero = () => {
                 transition: "opacity 0.5s ease 0.2s, transform 0.5s ease 0.2s",
               }}
             >
-              <span>✦</span> Nigeria&apos;s #1 Event Marketplace
+              <span>✦</span> Nigeria&apos;s #1 Event Ecosystem
             </div>
 
             {/* Stagger headline */}
