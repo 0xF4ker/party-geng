@@ -80,8 +80,8 @@ const Modal = ({
 
 /* ── Word-rise stagger headline ── */
 const HEADLINE_LINES = [
-  ["The", "Ultimate", "Hub", "for"],
-  ["Event", "Experiences"],
+  ["Your", "Event.", "Your", "People."],
+  ["Your", "Celebration", "Ecosystem."],
 ];
 
 const AnimatedHeadline = () => {
@@ -101,7 +101,7 @@ const AnimatedHeadline = () => {
         <span key={li} className="block">
           {line.map((word) => {
             const delay = wordIndex++ * 0.1;
-            const isAccent = word === "Event" || word === "Experiences";
+            const isAccent = ["Event.", "Celebration", "Ecosystem."].includes(word);
             return (
               <span key={word} className="l-word-clip mr-[0.25em] last:mr-0">
                 <span
@@ -404,15 +404,16 @@ const Hero = () => {
                 fontSize: 17,
                 lineHeight: 1.7,
                 marginTop: 20,
-                maxWidth: 480,
+                maxWidth: 540,
                 opacity: contentVisible ? 1 : 0,
                 transform: contentVisible ? "translateY(0)" : "translateY(16px)",
                 transition: "opacity 0.6s ease 0.7s, transform 0.6s ease 0.7s",
               }}
               className="mx-auto lg:mx-0"
             >
-              Connect with top talent, plan your dream event, and celebrate in
-              style. From weddings in Lagos to corporate galas in Abuja.
+              Plan unforgettable events, discover vendors, manage gifting, connect
+              with guests, and experience celebrations in a smarter, more
+              connected way.
             </p>
 
             {/* CTA buttons */}
