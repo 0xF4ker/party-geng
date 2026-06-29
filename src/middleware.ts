@@ -4,6 +4,7 @@ const PUBLIC_ROUTES = [
   "/",
   "/login",
   "/join",
+  "/join/coordinator",
   "/trending",
   "/terms-of-service",
   "/privacy-policy",
@@ -18,6 +19,8 @@ const PUBLIC_PREFIXES = [
   "/v/",
   "/post/",
   "/categories",
+  "/events",
+  "/payment",
   "/quote",
   "/api",
   "/lottiefiles",
@@ -78,6 +81,7 @@ export async function middleware(request: NextRequest) {
   if (path === "/login" || path === "/join") {
     if (userRole === ROLES.VENDOR) return redirectTo("/dashboard");
     if (userRole === ROLES.CLIENT) return redirectTo("/trending");
+    if (userRole === "COORDINATOR") return redirectTo("/coordinator/dashboard");
     if (ROLES.ADMIN_GROUP.includes(userRole ?? "")) return redirectTo("/admin");
     return redirectTo("/");
   }
@@ -109,6 +113,14 @@ export async function middleware(request: NextRequest) {
       return response;
     return redirectTo("/admin");
   }
+  if (userRole === "COORDINATOR") {
+    const restrictedPaths = ["/dashboard", "/isave", "/wishlist", "/manage_events"];
+    if (restrictedPaths.some((p) => path.startsWith(p))) {
+      return redirectTo("/coordinator/dashboard");
+    }
+    return response;
+  }
+
   const vendorRoutes = ["/dashboard"];
   if (
     vendorRoutes.some((route) => path.startsWith(route)) &&
