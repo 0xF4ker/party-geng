@@ -17,6 +17,7 @@ import { eventInvitationRouter } from "@/server/api/routers/eventInvitation";
 import { personalTodoRouter } from "@/server/api/routers/personalTodo";
 import { savePlanRouter } from "@/server/api/routers/savePlan";
 import { adminRouter } from "@/server/api/routers/admin";
+import { coordinatorRouter } from "@/server/api/routers/coordinator";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
 import { activityLogRouter } from "./routers/activityLog";
@@ -48,6 +49,7 @@ export const appRouter = createTRPCRouter({
   personalTodo: personalTodoRouter,
   savePlan: savePlanRouter,
   admin: adminRouter,
+  coordinator: coordinatorRouter,
   activityLog: activityLogRouter,
   report: reportRouter,
   kyb: kybRouter,

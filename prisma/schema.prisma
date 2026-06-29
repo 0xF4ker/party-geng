@@ -19,6 +19,7 @@ enum UserRole {
   ADMIN
   SUPPORT
   FINANCE
+  COORDINATOR
 }
 
 enum KybStatus {
@@ -141,6 +142,8 @@ model User {
   clientProfile          ClientProfile?      // One-to-one
   vendorProfile          VendorProfile?      // One-to-one
   adminProfile           AdminProfile?       // One-to-one
+  coordinatorProfile     CoordinatorProfile? // One-to-one
+  usedKey                CoordinatorAccessKey? @relation("UsedKey")
   wallet                 Wallet?             // One-to-one
   chatSettings           ChatSettings?       // One-to-one
   participations         ConversationParticipant[]
@@ -298,6 +301,11 @@ model ClientEvent {
   location        Json?
   client          ClientProfile    @relation("EventOwner", fields: [clientProfileId], references: [id])
   clientProfileId String
+  coordinator     CoordinatorProfile? @relation("EventCoordinator", fields: [coordinatorId], references: [id], onDelete: SetNull)
+  coordinatorId   String?
+  questionnaireData Json?
+  isTicketed      Boolean          @default(false)
+  ticketPrice     Float            @default(0)
   hiredVendors    EventVendor[]    @relation("Event")
   invitations     EventInvitation[]
   wishlist        Wishlist?
@@ -699,6 +707,8 @@ model EventGuest {
   invitationToken String?        @unique
   list            EventGuestList @relation(fields: [listId], references: [id], onDelete: Cascade)
   listId          String
+  hasPaid         Boolean        @default(false)
+  paymentReference String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -881,4 +891,28 @@ model StarredMessage {
 
   @@unique([userId, messageId])
 }
+
+model CoordinatorAccessKey {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  isUsed    Boolean  @default(false)
+  usedById  String?  @unique
+  usedBy    User?    @relation("UsedKey", fields: [usedById], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model CoordinatorProfile {
+  id          String        @id @default(uuid())
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String        @unique
+  name        String?
+  avatarUrl   String?
+  bio         String?       @db.Text
+  price       Float         @default(0)
+  location    Json?
+  events      ClientEvent[] @relation("EventCoordinator")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
 

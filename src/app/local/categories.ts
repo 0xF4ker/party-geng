@@ -8,7 +8,6 @@ const categories = [
   "Personal Stylists",
   "Bands",
   "Solo Musicians",
-  "Event Planners",
   "Variety Acts",
   "Graphics & Design",
   "Digital Marketing",

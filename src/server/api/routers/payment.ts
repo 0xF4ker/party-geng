@@ -2,6 +2,7 @@ import {
   createTRPCRouter,
   protectedProcedure,
   adminProcedure,
+  publicProcedure,
 } from "@/server/api/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -1020,5 +1021,243 @@ export const paymentRouter = createTRPCRouter({
         });
         return { success: true };
       });
+    }),
+
+  initializeTicketPayment: publicProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+        email: z.string().email(),
+        name: z.string().min(2),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+      if (!paystackSecretKey) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Paystack configuration error",
+        });
+      }
+
+      // 1. Fetch event
+      const event = await ctx.db.clientEvent.findUnique({
+        where: { id: input.eventId },
+        include: { guestLists: true },
+      });
+
+      if (!event) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Event not found",
+        });
+      }
+
+      if (!event.isTicketed) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This event is free and does not require ticketing payment.",
+        });
+      }
+
+      // 2. Ensure guest list exists
+      let guestList = event.guestLists[0];
+      if (!guestList) {
+        guestList = await ctx.db.eventGuestList.create({
+          data: { title: "Default Guest List", eventId: event.id },
+        });
+      }
+
+      // 3. Create a pending Guest record
+      const guest = await ctx.db.eventGuest.create({
+        data: {
+          name: input.name,
+          email: input.email,
+          status: "PENDING",
+          listId: guestList.id,
+          hasPaid: false,
+        },
+      });
+
+      // 4. Initialize transaction
+      const reference = `ticket_${Date.now()}_${guest.id}`;
+      try {
+        const response = await fetch(
+          "https://api.paystack.co/transaction/initialize",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${paystackSecretKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              amount: Math.round(event.ticketPrice * 100),
+              email: input.email,
+              reference,
+              callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/callback`,
+              metadata: {
+                type: "ticket_purchase",
+                guest_id: guest.id,
+                event_id: event.id,
+              },
+            }),
+          },
+        );
+        const data = (await response.json()) as PaystackResponse<{
+          authorization_url: string;
+          access_code: string;
+          reference: string;
+        }>;
+        if (!data.status) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: data.message ?? "Payment initialization failed",
+          });
+        }
+        return {
+          authorization_url: data.data.authorization_url,
+          reference: data.data.reference,
+        };
+      } catch (error) {
+        console.error("Paystack ticket initialization error:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to initialize ticket payment",
+        });
+      }
+    }),
+
+  verifyTicketPayment: publicProcedure
+    .input(
+      z.object({
+        reference: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
+      if (!paystackSecretKey) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Paystack configuration error",
+        });
+      }
+
+      try {
+        const response = await fetch(
+          `https://api.paystack.co/transaction/verify/${input.reference}`,
+          {
+            headers: {
+              Authorization: `Bearer ${paystackSecretKey}`,
+            },
+          },
+        );
+        const data = (await response.json()) as PaystackResponse<{
+          status: string;
+          amount: number;
+          metadata: {
+            type: string;
+            guest_id: string;
+            event_id: string;
+          };
+        }>;
+
+        if (!data.status || data.data.status !== "success") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Payment verification failed",
+          });
+        }
+
+        const metadata = data.data.metadata;
+        if (metadata.type !== "ticket_purchase") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid payment type",
+          });
+        }
+
+        const guestId = metadata.guest_id;
+        const eventId = metadata.event_id;
+
+        // Perform transaction updating status and crediting host
+        return ctx.db.$transaction(async (tx) => {
+          const guest = await tx.eventGuest.findUnique({
+            where: { id: guestId },
+          });
+
+          if (!guest) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Guest not found",
+            });
+          }
+
+          if (guest.hasPaid) {
+            return { success: true, guestName: guest.name }; // Already processed
+          }
+
+          const event = await tx.clientEvent.findUnique({
+            where: { id: eventId },
+            include: { client: true },
+          });
+
+          if (!event) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Event not found",
+            });
+          }
+
+          // Update guest status to ATTENDING & paid
+          await tx.eventGuest.update({
+            where: { id: guest.id },
+            data: {
+              status: "ATTENDING",
+              hasPaid: true,
+              paymentReference: input.reference,
+            },
+          });
+
+          const ticketAmount = data.data.amount / 100;
+
+          // Credit host wallet
+          const hostWallet = await tx.wallet.upsert({
+            where: { userId: event.client.userId },
+            create: {
+              userId: event.client.userId,
+              availableBalance: ticketAmount,
+            },
+            update: {
+              availableBalance: {
+                increment: ticketAmount,
+              },
+            },
+          });
+
+          // Log host transaction
+          await tx.transaction.create({
+            data: {
+              walletId: hostWallet.id,
+              type: "TRANSFER",
+              amount: ticketAmount,
+              status: "COMPLETED",
+              description: `Ticket sale for "${event.title}" to guest: ${guest.name}`,
+            },
+          });
+
+          return {
+            success: true,
+            guestName: guest.name,
+            eventTitle: event.title,
+          };
+        });
+      } catch (error) {
+        console.error("Ticket verification error:", error);
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to verify ticket payment",
+        });
+      }
     }),
 });

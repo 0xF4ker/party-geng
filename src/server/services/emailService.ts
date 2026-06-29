@@ -5,10 +5,14 @@ interface GuestInvitationData {
   name: string;
   eventTitle: string;
   link: string;
+  hostName?: string;
+  date?: string;
+  location?: string;
+  price?: string;
 }
 interface WelcomeData {
   username: string;
-  role: "CLIENT" | "VENDOR";
+  role: "CLIENT" | "VENDOR" | "COORDINATOR";
 }
 type TemplateDataMap = {
   GUEST_INVITATION: GuestInvitationData;
@@ -63,12 +67,28 @@ export const emailService = {
     `;
     if (template === "GUEST_INVITATION") {
       const d = data as GuestInvitationData;
+      const hostLine = d.hostName ? `<p style="font-size: 15px; color: #4b5563; margin: 4px 0 0 0;">Hosted by: <strong>${d.hostName}</strong></p>` : "";
+      const dateLine = d.date ? `<p style="font-size: 14px; margin: 6px 0; color: #4b5563;">📅 <strong>Date:</strong> ${d.date}</p>` : "";
+      const locationLine = d.location ? `<p style="font-size: 14px; margin: 6px 0; color: #4b5563;">📍 <strong>Location:</strong> ${d.location}</p>` : "";
+      const priceLine = d.price ? `<p style="font-size: 14px; margin: 6px 0; color: #4b5563;">🎟️ <strong>Admission:</strong> ${d.price}</p>` : "";
+
       return `${header}
-        <h2 style="color: #db2777;">You're Invited!</h2>
-        <p>Hi <strong>${d.name}</strong>,</p>
-        <p>You've been invited to: <strong>${d.eventTitle}</strong>.</p>
+        <h2 style="color: #db2777; font-size: 24px; font-weight: 800; margin-bottom: 8px; text-align: center;">You're Invited!</h2>
+        <p style="font-size: 16px; line-height: 1.5; color: #374151;">Hi <strong>${d.name}</strong>,</p>
+        <p style="font-size: 16px; line-height: 1.5; color: #374151;">You have been cordially invited to celebrate at the upcoming event:</p>
+        
+        <div style="background-color: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 12px; padding: 20px; margin: 24px 0;">
+          <h3 style="color: #be185d; font-size: 18px; font-weight: 700; margin: 0 0 10px 0;">${d.eventTitle}</h3>
+          ${hostLine}
+          <div style="border-top: 1px solid #fbcfe8; margin-top: 12px; padding-top: 12px;">
+            ${dateLine}
+            ${locationLine}
+            ${priceLine}
+          </div>
+        </div>
+
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${d.link}" style="background-color: #db2777; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">View Invitation</a>
+          <a href="${d.link}" style="background-color: #db2777; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; box-shadow: 0 4px 12px rgba(219,39,119,0.3);">RSVP & Confirm Attendance</a>
         </div>
         ${footer}`;
     }

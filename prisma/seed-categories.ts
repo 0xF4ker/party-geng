@@ -26,10 +26,7 @@ async function main() {
       name: "Media",
       services: ["Photographer", "Videographer", "Photobooth", "Drone Services"],
     },
-    {
-      name: "Planning",
-      services: ["Event Planner", "Day-of Coordinator", "Wedding Planner"],
-    },
+
     {
       name: "Decor & Design",
       services: ["Event Decorator", "Florist", "Balloon Artist", "Lighting Designer"],

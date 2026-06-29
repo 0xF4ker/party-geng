@@ -168,6 +168,11 @@ export const eventRouter = createTRPCRouter({
         where: { id: input.id },
         include: {
           client: true,
+          coordinator: {
+            include: {
+              user: true,
+            },
+          },
           hiredVendors: {
             include: {
               vendor: {
@@ -218,6 +223,7 @@ export const eventRouter = createTRPCRouter({
       }
       console.log(`--- [event.getById] Found event: ${event.title}`);
       const isOwner = event.client.userId === ctx.user.id;
+      const isCoordinator = event.coordinator?.userId === ctx.user.id;
       const isParticipant =
         event.conversation?.participants.some(
           (p) => p.userId === ctx.user.id,
@@ -249,6 +255,11 @@ export const eventRouter = createTRPCRouter({
           where: { id: input.id },
           include: {
             client: true,
+            coordinator: {
+              include: {
+                user: true,
+              },
+            },
             hiredVendors: {
               include: {
                 vendor: {
@@ -284,7 +295,7 @@ export const eventRouter = createTRPCRouter({
         `--- [event.getById] Is participant after fix? ${isParticipantAfterFix}`,
       );
       let hasInvitation = false;
-      if (!isOwner && !isParticipantAfterFix && !event.isPublic) {
+      if (!isOwner && !isCoordinator && !isParticipantAfterFix && !event.isPublic) {
         const invitation = await ctx.db.eventInvitation.findFirst({
           where: {
             eventId: input.id,
@@ -300,6 +311,7 @@ export const eventRouter = createTRPCRouter({
       }
       if (
         !isOwner &&
+        !isCoordinator &&
         !isParticipantAfterFix &&
         !event.isPublic &&
         !hasInvitation
@@ -321,6 +333,9 @@ export const eventRouter = createTRPCRouter({
         endDate: z.date(),
         location: locationSchema,
         coverImage: z.string().optional(),
+        isTicketed: z.boolean().optional(),
+        ticketPrice: z.number().optional(),
+        questionnaireData: z.any().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -344,6 +359,9 @@ export const eventRouter = createTRPCRouter({
           location: locationData,
           coverImage: input.coverImage,
           clientProfileId: clientProfile.id,
+          isTicketed: input.isTicketed ?? false,
+          ticketPrice: input.ticketPrice ?? 0,
+          questionnaireData: input.questionnaireData ?? undefined,
           budget: {
             create: {},
           },
@@ -977,5 +995,222 @@ export const eventRouter = createTRPCRouter({
         .filter((e) => e.endDate < now)
         .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
       return { upcoming, past };
+    }),
+
+  getPublicEventDetails: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const event = await ctx.db.clientEvent.findUnique({
+        where: { id: input.id },
+        select: {
+          id: true,
+          title: true,
+          startDate: true,
+          endDate: true,
+          coverImage: true,
+          location: true,
+          isTicketed: true,
+          ticketPrice: true,
+          client: {
+            select: {
+              name: true,
+              user: {
+                select: {
+                  username: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!event) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Event not found",
+        });
+      }
+
+      return event;
+    }),
+
+  publicRsvp: publicProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+        name: z.string().min(2),
+        email: z.string().email(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const event = await ctx.db.clientEvent.findUnique({
+        where: { id: input.eventId },
+        include: { guestLists: true },
+      });
+      if (!event) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+      }
+      if (event.isTicketed) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This event is ticketed. Please pay to RSVP.",
+        });
+      }
+      let guestList = event.guestLists[0];
+      if (!guestList) {
+        guestList = await ctx.db.eventGuestList.create({
+          data: { title: "Default Guest List", eventId: event.id },
+        });
+      }
+      const guest = await ctx.db.eventGuest.create({
+        data: {
+          name: input.name,
+          email: input.email,
+          status: "ATTENDING",
+          listId: guestList.id,
+        },
+      });
+      return { success: true, guestName: guest.name };
+    }),
+
+  hireCoordinator: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+        coordinatorId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { db, user } = ctx;
+
+      // 1. Fetch event and verify owner is client
+      const event = await db.clientEvent.findUnique({
+        where: { id: input.eventId },
+        include: { client: true, conversation: true },
+      });
+
+      if (!event || event.client.userId !== user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have permission to hire a coordinator for this event.",
+        });
+      }
+
+      if (event.coordinatorId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This event already has an active coordinator hired.",
+        });
+      }
+
+      // 2. Fetch coordinator profile and user
+      const coordinator = await db.coordinatorProfile.findUnique({
+        where: { id: input.coordinatorId },
+        include: { user: true },
+      });
+
+      if (!coordinator) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Coordinator profile not found.",
+        });
+      }
+
+      const price = coordinator.price;
+
+      // 3. Verify client wallet has enough funds
+      const clientWallet = await db.wallet.findUnique({
+        where: { userId: user.id },
+      });
+
+      if (!clientWallet || clientWallet.availableBalance < price) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "INSUFFICIENT_FUNDS",
+        });
+      }
+
+      const coordinatorWallet = await db.wallet.upsert({
+        where: { userId: coordinator.userId },
+        create: { userId: coordinator.userId },
+        update: {},
+      });
+
+      // 4. Perform transaction: Transfer funds, set coordinator, join chat
+      return db.$transaction(async (tx) => {
+        // Debit client wallet
+        await tx.wallet.update({
+          where: { userId: user.id },
+          data: {
+            availableBalance: { decrement: price },
+            totalExpenses: { increment: price },
+          },
+        });
+
+        // Credit coordinator wallet
+        await tx.wallet.update({
+          where: { userId: coordinator.userId },
+          data: {
+            availableBalance: { increment: price },
+            totalEarnings: { increment: price },
+          },
+        });
+
+        // Create transaction records
+        await tx.transaction.create({
+          data: {
+            walletId: clientWallet.id,
+            type: "SERVICE_FEE",
+            amount: -price,
+            status: "COMPLETED",
+            description: `Hired coordinator @${coordinator.user.username} for event: ${event.title}`,
+          },
+        });
+
+        await tx.transaction.create({
+          data: {
+            walletId: coordinatorWallet.id,
+            type: "TRANSFER",
+            amount: price,
+            status: "COMPLETED",
+            description: `Hired as coordinator by @${user.username} for event: ${event.title}`,
+          },
+        });
+
+        // Link coordinator to the event
+        const updatedEvent = await tx.clientEvent.update({
+          where: { id: event.id },
+          data: { coordinatorId: coordinator.id },
+        });
+
+        // Auto-join coordinator to the event group chat conversation if exists
+        if (event.conversation) {
+          await tx.conversationParticipant.upsert({
+            where: {
+              userId_conversationId: {
+                userId: coordinator.userId,
+                conversationId: event.conversation.id,
+              },
+            },
+            create: {
+              userId: coordinator.userId,
+              conversationId: event.conversation.id,
+            },
+            update: {},
+          });
+        }
+
+        // Send notification to coordinator
+        await tx.notification.create({
+          data: {
+            userId: coordinator.userId,
+            type: "EVENT_INVITATION",
+            message: `You have been hired by @${user.username} to coordinate "${event.title}"!`,
+            link: `/event/${event.id}/board`,
+          },
+        });
+
+        return updatedEvent;
+      });
     }),
 });

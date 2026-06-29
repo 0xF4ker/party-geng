@@ -21,6 +21,7 @@ import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/api/root";
 import { useUserType } from "@/hooks/useUserType";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { AddVendorModal } from "@/app/_components/event/modals/AddVendorModal";
 import LocationSearchInput, {
   type LocationSearchResult,
@@ -393,31 +394,28 @@ const EventCard = ({
 };
 const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
   const utils = api.useUtils();
+  const [step, setStep] = useState(1);
+  const [eventName, setEventName] = useState("");
   const [location, setLocation] = useState<LocationSearchResult | null>(null);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  // Step 2 variables
+  const [eventType, setEventType] = useState("Wedding");
+  const [guestScale, setGuestScale] = useState("50-100");
+  const [budgetRange, setBudgetRange] = useState("₦1M - ₦5M");
+
+  // Step 3 variables
+  const [isTicketed, setIsTicketed] = useState(false);
+  const [ticketPrice, setTicketPrice] = useState<number>(0);
+
   const createEvent = api.event.create.useMutation({
     onSuccess: () => {
       void utils.event.getMyEvents.invalidate();
       onClose();
     },
   });
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const title = (form.elements.namedItem("eventName") as HTMLInputElement)
-      ?.value;
-    if (!title || !startDate || !endDate) {
-      alert("Please fill in all fields");
-      return;
-    }
-    createEvent.mutate({
-      title,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      location: location,
-    });
-  };
+
   const handleStartChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setStartDate(val);
@@ -425,11 +423,49 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
       setEndDate(val);
     }
   };
+
+  const handleNext = () => {
+    if (step === 1 && (!eventName.trim() || !startDate || !endDate)) {
+      toast.error("Please fill in all basics fields");
+      return;
+    }
+    setStep(step + 1);
+  };
+
+  const handleBack = () => {
+    setStep(step - 1);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!eventName.trim() || !startDate || !endDate) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+    createEvent.mutate({
+      title: eventName,
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      location: location,
+      isTicketed,
+      ticketPrice: isTicketed ? ticketPrice : 0,
+      questionnaireData: {
+        eventType,
+        guestScale,
+        budgetRange,
+      },
+    });
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="m-4 w-full max-w-lg rounded-2xl bg-white border border-[var(--l-border)] shadow-[0_12px_40px_rgba(0,0,0,0.12)]">
-        <div className="flex items-center justify-between border-b border-[var(--l-border)] p-5">
-          <h3 className="text-xl font-bold text-[var(--l-text)]">Create a New Event</h3>
+      <div className="m-4 w-full max-w-lg rounded-2xl bg-white border border-[var(--l-border)] shadow-[0_12px_40px_rgba(0,0,0,0.12)] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-[var(--l-border)] p-5 bg-gray-50/50">
+          <div>
+            <h3 className="text-xl font-bold text-[var(--l-text)]">Create a New Event</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Step {step} of 3</p>
+          </div>
           <button
             onClick={onClose}
             className="rounded-full p-2 text-[var(--l-text-muted)] hover:bg-gray-100 hover:text-gray-900 transition-colors"
@@ -437,85 +473,244 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-5 p-6">
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
-              Event Title
-            </label>
-            <input
-              type="text"
-              name="eventName"
-              placeholder="e.g. 3-Day Wedding Extravaganza"
-              className="w-full rounded-xl border border-[var(--l-border)] bg-gray-50/50 p-3 text-[var(--l-text)] placeholder-gray-400 focus:border-[var(--l-brand-pink)] focus:outline-none focus:ring-1 focus:ring-[var(--l-brand-pink)]"
-              required
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
-                Start Date
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={handleStartChange}
-                onClick={(e) => {
-                  try {
-                    e.currentTarget.showPicker();
-                  } catch (err) {
-                    console.error("Native datepicker not supported", err);
-                  }
-                }}
-                min={new Date().toISOString().split("T")[0]}
-                className="w-full rounded-xl border border-[var(--l-border)] bg-gray-50/50 p-3 text-[var(--l-text)] focus:border-[var(--l-brand-pink)] focus:outline-none focus:ring-1 focus:ring-[var(--l-brand-pink)] [color-scheme:light] cursor-pointer"
-                required
-              />
+
+        {/* Stepper progress indicator */}
+        <div className="flex h-1.5 w-full bg-gray-100">
+          <div
+            className="bg-gradient-to-r from-[var(--l-brand-pink)] to-[var(--l-brand-purple)] transition-all duration-300"
+            style={{ width: `${(step / 3) * 100}%` }}
+          />
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {step === 1 && (
+            /* Step 1: Basics */
+            <div className="space-y-4 animate-in fade-in slide-in-from-right-5 duration-200">
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
+                  Event Title
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 3-Day Wedding Extravaganza"
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  className="w-full rounded-xl border border-[var(--l-border)] bg-gray-50/50 p-3 text-[var(--l-text)] placeholder-gray-400 focus:border-[var(--l-brand-pink)] focus:outline-none"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={handleStartChange}
+                    onClick={(e) => {
+                      try {
+                        e.currentTarget.showPicker();
+                      } catch (err) {
+                        console.error("Native datepicker not supported", err);
+                      }
+                    }}
+                    min={new Date().toISOString().split("T")[0]}
+                    className="w-full rounded-xl border border-[var(--l-border)] bg-gray-50/50 p-3 text-[var(--l-text)] focus:border-[var(--l-brand-pink)] focus:outline-none [color-scheme:light] cursor-pointer"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    onClick={(e) => {
+                      try {
+                        e.currentTarget.showPicker();
+                      } catch (err) {
+                        console.error("Native datepicker not supported", err);
+                      }
+                    }}
+                    min={startDate || new Date().toISOString().split("T")[0]}
+                    className="w-full rounded-xl border border-[var(--l-border)] bg-gray-50/50 p-3 text-[var(--l-text)] focus:border-[var(--l-brand-pink)] focus:outline-none [color-scheme:light] cursor-pointer"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
+                  Location
+                </label>
+                <LocationSearchInput onLocationSelect={setLocation} />
+              </div>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
-                End Date
-              </label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                onClick={(e) => {
-                  try {
-                    e.currentTarget.showPicker();
-                  } catch (err) {
-                    console.error("Native datepicker not supported", err);
-                  }
-                }}
-                min={startDate || new Date().toISOString().split("T")[0]}
-                className="w-full rounded-xl border border-[var(--l-border)] bg-gray-50/50 p-3 text-[var(--l-text)] focus:border-[var(--l-brand-pink)] focus:outline-none focus:ring-1 focus:ring-[var(--l-brand-pink)] [color-scheme:light] cursor-pointer"
-                required
-              />
+          )}
+
+          {step === 2 && (
+            /* Step 2: Questionnaire (Theme/Scale) */
+            <div className="space-y-5 animate-in fade-in slide-in-from-right-5 duration-200">
+              {/* Event type */}
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-[var(--l-text)]">
+                  What type of celebration are we planning?
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {["Wedding", "Birthday", "Corporate", "Concert", "Private", "Custom"].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setEventType(t)}
+                      className={`rounded-xl border py-2.5 text-xs font-semibold transition-all ${
+                        eventType === t
+                          ? "border-[var(--l-brand-pink)] bg-pink-50/50 text-[var(--l-brand-pink)]"
+                          : "border-gray-200 hover:bg-gray-50 text-gray-600"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Guest Scale */}
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-[var(--l-text)]">
+                  Estimated Guest Count
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {["Under 50", "50-100", "100-250", "250+"].map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setGuestScale(g)}
+                      className={`rounded-xl border py-2 text-xs font-semibold transition-all ${
+                        guestScale === g
+                          ? "border-[var(--l-brand-pink)] bg-pink-50/50 text-[var(--l-brand-pink)]"
+                          : "border-gray-200 hover:bg-gray-50 text-gray-600"
+                      }`}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Budget Range */}
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-[var(--l-text)]">
+                  Estimated Event Budget
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {["Under ₦1M", "₦1M - ₦5M", "₦5M - ₦15M", "₦15M+"].map((b) => (
+                    <button
+                      key={b}
+                      type="button"
+                      onClick={() => setBudgetRange(b)}
+                      className={`rounded-xl border py-2.5 text-xs font-semibold transition-all ${
+                        budgetRange === b
+                          ? "border-[var(--l-brand-pink)] bg-pink-50/50 text-[var(--l-brand-pink)]"
+                          : "border-gray-200 hover:bg-gray-50 text-gray-600"
+                      }`}
+                    >
+                      {b}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
-              Location
-            </label>
-            <LocationSearchInput onLocationSelect={setLocation} />
-          </div>
-          <div className="flex items-center justify-end border-t border-[var(--l-border)] pt-5 mt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="mr-3 rounded-xl px-5 py-2.5 text-sm font-semibold text-[var(--l-text-muted)] hover:bg-gray-100 hover:text-gray-900 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={createEvent.isPending}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[var(--l-brand-pink)] to-[var(--l-brand-purple)] px-6 py-2.5 text-sm font-bold text-white hover:scale-105 transition-[transform,box-shadow] duration-200 shadow-[0_4px_16px_rgba(247,37,133,0.3)] disabled:opacity-50"
-            >
-              {createEvent.isPending && (
-                <Loader2 className="h-4 w-4 animate-spin" />
+          )}
+
+          {step === 3 && (
+            /* Step 3: RSVP Ticketing Options */
+            <div className="space-y-5 animate-in fade-in slide-in-from-right-5 duration-200">
+              <div className="flex items-center justify-between rounded-xl bg-gray-50 border border-gray-100 p-4">
+                <div>
+                  <h4 className="font-bold text-gray-900 text-sm">RSVP Ticketing</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Charge guests for tickets. Funds transfer to your wallet.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsTicketed(!isTicketed)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    isTicketed ? "bg-[var(--l-brand-pink)]" : "bg-gray-200"
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      isTicketed ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {isTicketed && (
+                <div className="space-y-2 animate-in slide-in-from-top-3 duration-200">
+                  <label className="block text-sm font-semibold text-[var(--l-text)]">
+                    Ticket Price (₦)
+                  </label>
+                  <input
+                    type="number"
+                    min={500}
+                    placeholder="e.g. 5000"
+                    value={ticketPrice || ""}
+                    onChange={(e) => setTicketPrice(Number(e.target.value))}
+                    className="w-full rounded-xl border border-[var(--l-border)] bg-gray-50/50 p-3 text-[var(--l-text)] focus:border-[var(--l-brand-pink)] focus:outline-none"
+                    required={isTicketed}
+                  />
+                  <p className="text-[11px] text-gray-400">
+                    Guests will securely pay this ticket fee via Paystack to confirm attendance.
+                  </p>
+                </div>
               )}
-              Create Event
-            </button>
+            </div>
+          )}
+
+          {/* Action buttons footer */}
+          <div className="flex items-center justify-between border-t border-[var(--l-border)] pt-5 mt-4">
+            {step > 1 ? (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Back
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl px-5 py-2.5 text-sm font-semibold text-[var(--l-text-muted)] hover:bg-gray-100 hover:text-gray-900 transition-colors"
+              >
+                Cancel
+              </button>
+            )}
+
+            {step < 3 ? (
+              <button
+                type="button"
+                onClick={handleNext}
+                className="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white hover:bg-slate-800 transition"
+              >
+                Next Step
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={createEvent.isPending || (isTicketed && !ticketPrice)}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[var(--l-brand-pink)] to-[var(--l-brand-purple)] px-6 py-2.5 text-sm font-bold text-white hover:scale-105 transition-[transform,box-shadow] duration-200 shadow-[0_4px_16px_rgba(247,37,133,0.3)] disabled:opacity-50"
+              >
+                {createEvent.isPending && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                Create Event
+              </button>
+            )}
           </div>
         </form>
       </div>

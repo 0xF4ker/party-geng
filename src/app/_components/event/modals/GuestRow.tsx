@@ -46,9 +46,13 @@ export const GuestRow = ({
             guestLists: [
               {
                 ...oldEvent.guestLists[0],
-                guests: oldEvent.guestLists[0].guests.map((g) =>
-                  g.id === updatedGuest.guestId ? { ...g, ...updatedGuest } : g,
-                ),
+                guests: oldEvent.guestLists[0].guests.map((g) => {
+                  if (g.id === updatedGuest.guestId) {
+                    const { guestId, ...rest } = updatedGuest;
+                    return { ...g, ...rest };
+                  }
+                  return g;
+                }),
               },
             ],
           };

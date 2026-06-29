@@ -365,11 +365,11 @@ export const categoriesData: Category[] = [
     services: ["Hair Stylist", "Makeup Artist"],
   },
   {
-    name: "Event Planning",
+    name: "Decor & Design",
     description:
-      "Let us handle the details. Our event planners will help you create a seamless and memorable event from start to finish.",
-    popular: ["Event Planner", "Florist", "Balloon Decor"],
-    services: ["Balloon Decor", "Event Planner", "Florist"],
+      "Transform your venue with our creative decorators, florists, and balloon artists to design the perfect event space.",
+    popular: ["Event Decorator", "Florist", "Balloon Artist"],
+    services: ["Balloon Artist", "Event Decorator", "Florist", "Lighting Designer"],
   },
 ];
 export const allCategories = categoriesData.map((cat) => cat.name);

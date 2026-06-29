@@ -75,6 +75,8 @@ const AddGuestRow = ({
                     tableNumber: newGuest.tableNumber ?? null,
                     listId: newGuest.guestListId,
                     invitationToken: null,
+                    hasPaid: false,
+                    paymentReference: null,
                   },
                 ],
               },

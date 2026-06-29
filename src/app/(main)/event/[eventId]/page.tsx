@@ -16,6 +16,7 @@ import { AddVendorModal } from "@/app/_components/event/modals/AddVendorModal";
 import Breadcrumb from "@/components/ui/breadcrumb";
 import { useUserType } from "@/hooks/useUserType";
 import { PersonalTodoListCard } from "@/app/_components/event/PersonalTodoListCard";
+import { PlanningProgressCenter } from "@/app/_components/event/PlanningProgressCenter";
 const EventDetailPage = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const router = useRouter();
@@ -52,12 +53,24 @@ const EventDetailPage = () => {
     { label: event.title, href: `/event/${event.id}` },
   ];
   const isPast = event ? new Date(event.endDate) < new Date() : false;
+
+  const handleScrollToSection = (section: string) => {
+    if (section === "guests") {
+      setIsGuestListModalOpen(true);
+    } else if (section === "budget") {
+      setIsBudgetModalOpen(true);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pt-24 text-gray-900 sm:pt-28 md:pt-32">
       <div className="container mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <Breadcrumb items={breadcrumbItems} className="mb-4" />
         {/* Pass props (EventHeader handles isPast internally via logic, but children need prop) */}
         <EventHeader event={event} onEdit={() => setIsEditModalOpen(true)} />
+        <div className="mt-8">
+          <PlanningProgressCenter event={event as any} onScrollToSection={handleScrollToSection} />
+        </div>
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="flex flex-col gap-8 lg:col-span-2">
             <PersonalTodoListCard eventId={event.id} isPast={isPast} />
