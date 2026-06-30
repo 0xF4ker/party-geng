@@ -306,6 +306,7 @@ model ClientEvent {
   questionnaireData Json?
   isTicketed      Boolean          @default(false)
   ticketPrice     Float            @default(0)
+  ticketTiers     TicketTier[]
   hiredVendors    EventVendor[]    @relation("Event")
   invitations     EventInvitation[]
   wishlist        Wishlist?
@@ -699,20 +700,38 @@ model EventGuestList {
 }
 
 model EventGuest {
-  id              String         @id @default(uuid())
-  name            String
-  email           String?
-  status          GuestStatus    @default(PENDING)
-  tableNumber     Int?
-  invitationToken String?        @unique
-  list            EventGuestList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  listId          String
-  hasPaid         Boolean        @default(false)
+  id               String          @id @default(uuid())
+  name             String
+  email            String?
+  whatsAppNumber   String?
+  status           GuestStatus     @default(PENDING)
+  tableNumber      Int?
+  invitationToken  String?         @unique
+  list             EventGuestList  @relation(fields: [listId], references: [id], onDelete: Cascade)
+  listId           String
+  hasPaid          Boolean         @default(false)
   paymentReference String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  ticketTierId     String?
+  ticketTier       TicketTier?     @relation(fields: [ticketTierId], references: [id], onDelete: SetNull)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   @@index([listId])
+  @@index([ticketTierId])
+}
+
+model TicketTier {
+  id          String      @id @default(uuid())
+  name        String
+  price       Float
+  description String?
+  eventId     String
+  event       ClientEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  guests      EventGuest[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([eventId])
 }
 
 // --- 10. iSave (Savings) MODELS ---

@@ -31,6 +31,7 @@ export const GuestRow = ({
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(guest.name);
   const [email, setEmail] = useState(guest.email ?? "");
+  const [whatsAppNumber, setWhatsAppNumber] = useState(guest.whatsAppNumber ?? "");
   const [tableNumber, setTableNumber] = useState<number | "">(
     guest.tableNumber ?? "",
   );
@@ -116,12 +117,13 @@ export const GuestRow = ({
       guestId: guest.id,
       name: name,
       email: email,
+      whatsAppNumber: whatsAppNumber || undefined,
       tableNumber: tableNumber === "" ? undefined : Number(tableNumber),
     });
   };
   const handleSendInvitation = () => {
-    if (!guest.email) {
-      toast.error("Guest email is required to send an invitation.");
+    if (!guest.email && !guest.whatsAppNumber) {
+      toast.error("Guest email or WhatsApp number is required to send an invitation.");
       return;
     }
     sendInvitation.mutate({ guestId: guest.id });
@@ -134,6 +136,13 @@ export const GuestRow = ({
         </TableCell>
         <TableCell>
           <Input value={email} onChange={(e) => setEmail(e.target.value)} />
+        </TableCell>
+        <TableCell>
+          <Input
+            value={whatsAppNumber}
+            onChange={(e) => setWhatsAppNumber(e.target.value)}
+            placeholder="WhatsApp"
+          />
         </TableCell>
         <TableCell>
           <Input
@@ -179,7 +188,8 @@ export const GuestRow = ({
   return (
     <TableRow key={guest.id}>
       <TableCell className="font-medium">{guest.name}</TableCell>
-      <TableCell>{guest.email}</TableCell>
+      <TableCell>{guest.email || "—"}</TableCell>
+      <TableCell>{guest.whatsAppNumber || "—"}</TableCell>
       <TableCell>{guest.tableNumber ?? "N/A"}</TableCell>
       <TableCell>
         <Badge

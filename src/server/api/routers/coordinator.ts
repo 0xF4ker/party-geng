@@ -4,6 +4,7 @@ import {
   createTRPCRouter,
   publicProcedure,
   protectedProcedure,
+  adminProcedure,
 } from "@/server/api/trpc";
 
 export const coordinatorRouter = createTRPCRouter({
@@ -199,4 +200,73 @@ export const coordinatorRouter = createTRPCRouter({
       orderBy: { startDate: "asc" },
     });
   }),
+
+  /**
+   * Admin: List all coordinator access keys
+   */
+  getKeys: adminProcedure.query(async ({ ctx }) => {
+    return ctx.db.coordinatorAccessKey.findMany({
+      include: {
+        usedBy: {
+          select: {
+            username: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }),
+
+  /**
+   * Admin: Generate a new coordinator access key
+   */
+  generateKey: adminProcedure
+    .input(z.object({ name: z.string().optional() }))
+    .mutation(async ({ ctx }) => {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      let randomPart = "";
+      for (let i = 0; i < 10; i++) {
+        randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      const key = `CO-${randomPart}`;
+
+      return ctx.db.coordinatorAccessKey.create({
+        data: {
+          key,
+          isUsed: false,
+        },
+      });
+    }),
+
+  /**
+   * Admin: Delete an unused coordinator access key
+   */
+  deleteKey: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const keyRecord = await ctx.db.coordinatorAccessKey.findUnique({
+        where: { id: input.id },
+      });
+
+      if (!keyRecord) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Access key not found",
+        });
+      }
+
+      if (keyRecord.isUsed) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot delete a key that has already been used.",
+        });
+      }
+
+      await ctx.db.coordinatorAccessKey.delete({
+        where: { id: input.id },
+      });
+
+      return { success: true };
+    }),
 });

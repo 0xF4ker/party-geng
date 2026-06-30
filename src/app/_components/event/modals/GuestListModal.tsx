@@ -50,6 +50,7 @@ const AddGuestRow = ({
   const utils = api.useUtils();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [whatsApp, setWhatsApp] = useState("");
   const [tableNumber, setTableNumber] = useState<number | "">("");
   const addGuest = api.event.addGuest.useMutation({
     onMutate: async (newGuest) => {
@@ -67,16 +68,19 @@ const AddGuestRow = ({
                   ...oldEvent.guestLists[0].guests,
                   {
                     id: `optimistic-${Date.now()}`,
-                    status: "PENDING",
                     createdAt: new Date(),
                     updatedAt: new Date(),
                     name: newGuest.name,
                     email: newGuest.email ?? null,
+                    whatsAppNumber: (newGuest as any).whatsAppNumber ?? null,
+                    status: "PENDING",
                     tableNumber: newGuest.tableNumber ?? null,
                     listId: newGuest.guestListId,
                     invitationToken: null,
                     hasPaid: false,
                     paymentReference: null,
+                    ticketTierId: null,
+                    ticketTier: null,
                   },
                 ],
               },
@@ -87,6 +91,7 @@ const AddGuestRow = ({
       toast.success("Guest added!");
       setName("");
       setEmail("");
+      setWhatsApp("");
       setTableNumber("");
       return { previousEvent };
     },
@@ -109,6 +114,7 @@ const AddGuestRow = ({
       guestListId,
       name,
       email,
+      whatsAppNumber: whatsApp || undefined,
       tableNumber: tableNumber === "" ? undefined : Number(tableNumber),
     });
   };
@@ -127,6 +133,13 @@ const AddGuestRow = ({
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+        />
+      </TableCell>
+      <TableCell>
+        <Input
+          placeholder="WhatsApp"
+          value={whatsApp}
+          onChange={(e) => setWhatsApp(e.target.value)}
         />
       </TableCell>
       <TableCell>
@@ -200,6 +213,7 @@ export const GuestListModal = ({
               <TableRow>
                 <TableHead>Full Name</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>WhatsApp</TableHead>
                 <TableHead className="w-24">Table #</TableHead>
                 <TableHead>Status</TableHead>
                 {/* Hide Actions if Past */}

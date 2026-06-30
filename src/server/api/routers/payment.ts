@@ -1029,6 +1029,8 @@ export const paymentRouter = createTRPCRouter({
         eventId: z.string(),
         email: z.string().email(),
         name: z.string().min(2),
+        whatsAppNumber: z.string().optional(),
+        ticketTierId: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -1060,6 +1062,20 @@ export const paymentRouter = createTRPCRouter({
         });
       }
 
+      let ticketPrice = event.ticketPrice;
+      if (input.ticketTierId) {
+        const tier = await ctx.db.ticketTier.findUnique({
+          where: { id: input.ticketTierId }
+        });
+        if (!tier || tier.eventId !== event.id) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid ticket tier selected."
+          });
+        }
+        ticketPrice = tier.price;
+      }
+
       // 2. Ensure guest list exists
       let guestList = event.guestLists[0];
       if (!guestList) {
@@ -1073,9 +1089,11 @@ export const paymentRouter = createTRPCRouter({
         data: {
           name: input.name,
           email: input.email,
+          whatsAppNumber: input.whatsAppNumber || null,
           status: "PENDING",
           listId: guestList.id,
           hasPaid: false,
+          ticketTierId: input.ticketTierId || null,
         },
       });
 
@@ -1091,7 +1109,7 @@ export const paymentRouter = createTRPCRouter({
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              amount: Math.round(event.ticketPrice * 100),
+              amount: Math.round(ticketPrice * 100),
               email: input.email,
               reference,
               callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/callback`,

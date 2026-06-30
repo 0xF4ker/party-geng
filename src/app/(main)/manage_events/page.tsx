@@ -11,6 +11,10 @@ import {
   Trash2,
   Loader2,
   CalendarDays,
+  Sparkles,
+  DollarSign,
+  CheckCircle,
+  Armchair,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -395,24 +399,45 @@ const EventCard = ({
 const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
   const utils = api.useUtils();
   const [step, setStep] = useState(1);
+
+  // Step 1: Basics
   const [eventName, setEventName] = useState("");
-  const [location, setLocation] = useState<LocationSearchResult | null>(null);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [location, setLocation] = useState<LocationSearchResult | null>(null);
+  const [description, setDescription] = useState("");
+  const [eventType, setEventType] = useState("Anniversary");
 
-  // Step 2 variables
-  const [eventType, setEventType] = useState("Wedding");
-  const [guestScale, setGuestScale] = useState("50-100");
-  const [budgetRange, setBudgetRange] = useState("₦1M - ₦5M");
-
-  // Step 3 variables
+  // Step 2: Logistics & Admissions
+  const [expectedGuests, setExpectedGuests] = useState<number>(0);
+  const [expectedTables, setExpectedTables] = useState<number>(0);
+  const [roughBudget, setRoughBudget] = useState<number>(0);
+  const [requestCoordinator, setRequestCoordinator] = useState(false);
   const [isTicketed, setIsTicketed] = useState(false);
   const [ticketPrice, setTicketPrice] = useState<number>(0);
+  const [rsvpButtonTitle, setRsvpButtonTitle] = useState("Attend");
+  const [ticketTiers, setTicketTiers] = useState<Array<{ name: string; price: number; description?: string }>>([
+    { name: "General Admission", price: 5000, description: "" }
+  ]);
+
+  // Step 3: Choose your poster!
+  const [coverImage, setCoverImage] = useState<string>(
+    "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=800&auto=format&fit=crop&q=80"
+  );
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Step 4: Theme & Preview
+  const [selectedTheme, setSelectedTheme] = useState(
+    "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)"
+  );
 
   const createEvent = api.event.create.useMutation({
     onSuccess: () => {
       void utils.event.getMyEvents.invalidate();
       onClose();
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to create event");
     },
   });
 
@@ -425,9 +450,15 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
   };
 
   const handleNext = () => {
-    if (step === 1 && (!eventName.trim() || !startDate || !endDate)) {
-      toast.error("Please fill in all basics fields");
-      return;
+    if (step === 1) {
+      if (!eventName.trim()) {
+        toast.error("Event name is a required field");
+        return;
+      }
+      if (!startDate || !endDate) {
+        toast.error("Please select a valid start and end date");
+        return;
+      }
     }
     setStep(step + 1);
   };
@@ -436,10 +467,39 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
     setStep(step - 1);
   };
 
+  const generateAiDescription = () => {
+    if (!eventName.trim()) {
+      toast.error("Please enter an event name first!");
+      return;
+    }
+    const templates = [
+      `Get ready to celebrate ${eventName}! Join us for an amazing gathering filled with laughter, great music, and unforgettable memories. We can't wait to share this special moment with all of you. RSVP below!`,
+      `You are cordially invited to ${eventName}. We are bringing together our favorite people for a beautiful celebration. Please save the date and let us know if you'll be attending.`,
+      `It's time for ${eventName}! We're creating a premium celebratory experience with good food, drinks, and awesome vibes. Confirm your slot and come party with us!`,
+    ];
+    const randomDesc = templates[Math.floor(Math.random() * templates.length)]!;
+    setDescription(randomDesc);
+    toast.success("AI description generated! ✨");
+  };
+
+  const handleCustomImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        setCoverImage(reader.result);
+        toast.success("Custom poster uploaded from gallery!");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!eventName.trim() || !startDate || !endDate) {
-      toast.error("Please fill in all fields");
+      toast.error("Please fill in all required fields");
       return;
     }
     createEvent.mutate({
@@ -447,127 +507,116 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       location: location,
+      coverImage: coverImage,
       isTicketed,
-      ticketPrice: isTicketed ? ticketPrice : 0,
+      ticketPrice: isTicketed && ticketTiers.length > 0 ? ticketTiers[0]!.price : 0,
+      ticketTiers: isTicketed ? ticketTiers : [],
       questionnaireData: {
         eventType,
-        guestScale,
-        budgetRange,
+        description,
+        expectedGuests,
+        expectedTables,
+        roughBudget,
+        requestCoordinator,
+        rsvpButtonTitle,
+        selectedTheme,
       },
     });
   };
 
+  const PRESET_POSTERS = [
+    {
+      id: "poster1",
+      title: "You Are Invited",
+      url: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=800&auto=format&fit=crop&q=80",
+    },
+    {
+      id: "poster2",
+      title: "Be Our Guest",
+      url: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&auto=format&fit=crop&q=80",
+    },
+    {
+      id: "poster3",
+      title: "Sunset Party",
+      url: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop&q=80",
+    },
+  ];
+
+  const PRESET_GRADIENTS = [
+    { name: "Slate Mist", value: "linear-gradient(135deg, #8e9eab 0%, #eef2f3 100%)" },
+    { name: "Sunset Pink", value: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)" },
+    { name: "Cosmic Glow", value: "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)" },
+    { name: "Fresh Coral", value: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)" },
+    { name: "Ocean Breeze", value: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" },
+    { name: "Spicy Orange", value: "linear-gradient(135deg, #f6d365 0%, #fda085 100%)" },
+    { name: "Purple Haze", value: "linear-gradient(135deg, #cd9cf2 0%, #f6f3ff 100%)" },
+    { name: "Sunny Gold", value: "linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)" },
+    { name: "Soft Mint", value: "linear-gradient(135deg, #84ffc9 0%, #aab2ff 100%)" },
+  ];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="m-4 w-full max-w-lg rounded-2xl bg-white border border-[var(--l-border)] shadow-[0_12px_40px_rgba(0,0,0,0.12)] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[var(--l-border)] p-5 bg-gray-50/50">
-          <div>
-            <h3 className="text-xl font-bold text-[var(--l-text)]">Create a New Event</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Step {step} of 3</p>
+      <div className="w-full max-w-xl rounded-[32px] bg-white border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden text-gray-900 flex flex-col max-h-[90vh] relative">
+        {/* Header Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-5 right-6 text-gray-400 hover:text-gray-600 transition z-10"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        {/* Header / Progress bar */}
+        <div className="relative pt-6 px-6 pb-2">
+          {/* Progress bar line */}
+          <div className="relative h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="absolute left-0 top-0 h-full bg-blue-600 transition-all duration-300 rounded-full"
+              style={{ width: `${(step / 4) * 100}%` }}
+            />
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-full p-2 text-[var(--l-text-muted)] hover:bg-gray-100 hover:text-gray-900 transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex justify-between items-center mt-3 text-xs text-gray-500 font-semibold uppercase tracking-wider">
+            {step > 1 ? (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="flex items-center gap-1 hover:text-gray-800 transition"
+              >
+                ← Back
+              </button>
+            ) : (
+              <div />
+            )}
+            <div>{step}/4</div>
+          </div>
         </div>
 
-        {/* Stepper progress indicator */}
-        <div className="flex h-1.5 w-full bg-gray-100">
-          <div
-            className="bg-gradient-to-r from-[var(--l-brand-pink)] to-[var(--l-brand-purple)] transition-all duration-300"
-            style={{ width: `${(step / 3) * 100}%` }}
-          />
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        {/* Content Box */}
+        <div className="p-6 overflow-y-auto flex-1 space-y-6">
           {step === 1 && (
-            /* Step 1: Basics */
-            <div className="space-y-4 animate-in fade-in slide-in-from-right-5 duration-200">
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
-                  Event Title
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 3-Day Wedding Extravaganza"
-                  value={eventName}
-                  onChange={(e) => setEventName(e.target.value)}
-                  className="w-full rounded-xl border border-[var(--l-border)] bg-gray-50/50 p-3 text-[var(--l-text)] placeholder-gray-400 focus:border-[var(--l-brand-pink)] focus:outline-none"
-                  required
-                />
+            /* STEP 1: BASICS */
+            <div className="space-y-5 animate-in fade-in duration-200">
+              <div className="space-y-1">
+                <h2 className="text-3xl font-black tracking-tight">Bring your moment to life</h2>
+                <p className="text-sm text-gray-500">
+                  Fill in the details to craft your perfect {eventType} and create lasting memories.
+                </p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={handleStartChange}
-                    onClick={(e) => {
-                      try {
-                        e.currentTarget.showPicker();
-                      } catch (err) {
-                        console.error("Native datepicker not supported", err);
-                      }
-                    }}
-                    min={new Date().toISOString().split("T")[0]}
-                    className="w-full rounded-xl border border-[var(--l-border)] bg-gray-50/50 p-3 text-[var(--l-text)] focus:border-[var(--l-brand-pink)] focus:outline-none [color-scheme:light] cursor-pointer"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
-                    End Date
-                  </label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    onClick={(e) => {
-                      try {
-                        e.currentTarget.showPicker();
-                      } catch (err) {
-                        console.error("Native datepicker not supported", err);
-                      }
-                    }}
-                    min={startDate || new Date().toISOString().split("T")[0]}
-                    className="w-full rounded-xl border border-[var(--l-border)] bg-gray-50/50 p-3 text-[var(--l-text)] focus:border-[var(--l-brand-pink)] focus:outline-none [color-scheme:light] cursor-pointer"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-[var(--l-text)]">
-                  Location
-                </label>
-                <LocationSearchInput onLocationSelect={setLocation} />
-              </div>
-            </div>
-          )}
 
-          {step === 2 && (
-            /* Step 2: Questionnaire (Theme/Scale) */
-            <div className="space-y-5 animate-in fade-in slide-in-from-right-5 duration-200">
-              {/* Event type */}
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-[var(--l-text)]">
-                  What type of celebration are we planning?
+              {/* Event Type Grid Select */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                  Celebration Type
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {["Wedding", "Birthday", "Corporate", "Concert", "Private", "Custom"].map((t) => (
+                  {["Anniversary", "Wedding", "Birthday", "Concert", "Private", "Custom"].map((t) => (
                     <button
                       key={t}
                       type="button"
                       onClick={() => setEventType(t)}
-                      className={`rounded-xl border py-2.5 text-xs font-semibold transition-all ${
+                      className={`rounded-2xl border py-2.5 text-xs font-bold transition-all ${
                         eventType === t
-                          ? "border-[var(--l-brand-pink)] bg-pink-50/50 text-[var(--l-brand-pink)]"
-                          : "border-gray-200 hover:bg-gray-50 text-gray-600"
+                          ? "border-blue-500 bg-blue-50 text-blue-600"
+                          : "border-gray-200 hover:bg-gray-50 text-gray-500"
                       }`}
                     >
                       {t}
@@ -576,143 +625,482 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
                 </div>
               </div>
 
-              {/* Guest Scale */}
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-[var(--l-text)]">
-                  Estimated Guest Count
+              {/* Event Name Input */}
+              <div className="space-y-1">
+                <input
+                  type="text"
+                  placeholder={`Give this ${eventType} a name`}
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  className="w-full rounded-2xl border border-gray-200 bg-gray-50/50 p-4 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none transition"
+                  required
+                />
+              </div>
+
+              {/* Start & End Dates */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                  Date + Time
                 </label>
-                <div className="grid grid-cols-4 gap-2">
-                  {["Under 50", "50-100", "100-250", "250+"].map((g) => (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => setGuestScale(g)}
-                      className={`rounded-xl border py-2 text-xs font-semibold transition-all ${
-                        guestScale === g
-                          ? "border-[var(--l-brand-pink)] bg-pink-50/50 text-[var(--l-brand-pink)]"
-                          : "border-gray-200 hover:bg-gray-50 text-gray-600"
-                      }`}
-                    >
-                      {g}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                      Start
+                    </span>
+                    <input
+                      type="datetime-local"
+                      value={startDate}
+                      onChange={handleStartChange}
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50/50 py-3.5 pl-14 pr-4 text-sm text-gray-900 focus:border-blue-500 focus:outline-none cursor-pointer [color-scheme:light]"
+                      required
+                    />
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                      End
+                    </span>
+                    <input
+                      type="datetime-local"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      min={startDate}
+                      className="w-full rounded-2xl border border-gray-200 bg-gray-50/50 py-3.5 pl-14 pr-4 text-sm text-gray-900 focus:border-blue-500 focus:outline-none cursor-pointer [color-scheme:light]"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Budget Range */}
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-[var(--l-text)]">
-                  Estimated Event Budget
+              {/* Location Input */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                  Location
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {["Under ₦1M", "₦1M - ₦5M", "₦5M - ₦15M", "₦15M+"].map((b) => (
-                    <button
-                      key={b}
-                      type="button"
-                      onClick={() => setBudgetRange(b)}
-                      className={`rounded-xl border py-2.5 text-xs font-semibold transition-all ${
-                        budgetRange === b
-                          ? "border-[var(--l-brand-pink)] bg-pink-50/50 text-[var(--l-brand-pink)]"
-                          : "border-gray-200 hover:bg-gray-50 text-gray-600"
+                <div className="[&>div>input]:bg-gray-50/50 [&>div>input]:border-gray-200 [&>div>input]:text-gray-900 [&>div>input]:rounded-2xl [&>div>input]:py-3.5 [&>div>input]:placeholder-gray-400">
+                  <LocationSearchInput onLocationSelect={setLocation} />
+                </div>
+              </div>
+
+              {/* Event Description */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                    Describe your event
+                  </label>
+                  <button
+                    type="button"
+                    onClick={generateAiDescription}
+                    className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-pink-500 to-violet-650 px-3 py-1 text-[11px] font-bold text-white hover:opacity-90 transition animate-pulse"
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    Generate ✨
+                  </button>
+                </div>
+                <textarea
+                  placeholder="What would you like to say about it (optional)"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full rounded-2xl border border-gray-200 bg-gray-50/50 p-4 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none min-h-[90px] resize-none"
+                />
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            /* STEP 2: LOGISTICS & ADMISSION (STREAMLINED) */
+            <div className="space-y-5 animate-in fade-in duration-200">
+              <div className="space-y-1">
+                <h2 className="text-3xl font-black tracking-tight">Event Setup & Logistics</h2>
+                <p className="text-sm text-gray-500">
+                  Configure admission prices, coordinator booking, and guest logistics.
+                </p>
+              </div>
+
+              {/* Guest / Budget fields */}
+              <div className="space-y-3">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                  Capacity & Budget Details
+                </label>
+
+                {/* Expected Attendees */}
+                <label className="flex items-center justify-between border border-gray-150 bg-gray-50/30 rounded-2xl p-4 cursor-pointer hover:bg-gray-50/50 transition">
+                  <div className="flex items-center gap-3 text-gray-700 text-sm font-semibold">
+                    <Users className="h-5 w-5 text-gray-400" />
+                    Expected Guest Capacity
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    value={expectedGuests || ""}
+                    onChange={(e) => setExpectedGuests(Number(e.target.value))}
+                    className="w-20 text-right bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none text-gray-900 font-bold"
+                  />
+                </label>
+
+                {/* Expected Tables */}
+                <label className="flex items-center justify-between border border-gray-150 bg-gray-50/30 rounded-2xl p-4 cursor-pointer hover:bg-gray-50/50 transition">
+                  <div className="flex items-center gap-3 text-gray-700 text-sm font-semibold">
+                    <Armchair className="h-5 w-5 text-gray-400" />
+                    Number of seating tables
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    value={expectedTables || ""}
+                    onChange={(e) => setExpectedTables(Number(e.target.value))}
+                    className="w-20 text-right bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none text-gray-900 font-bold"
+                  />
+                </label>
+
+                {/* Rough Budget */}
+                <label className="flex items-center justify-between border border-gray-150 bg-gray-50/30 rounded-2xl p-4 cursor-pointer hover:bg-gray-50/50 transition">
+                  <div className="flex items-center gap-3 text-gray-700 text-sm font-semibold">
+                    <DollarSign className="h-5 w-5 text-gray-400" />
+                    A rough budget (₦)
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    value={roughBudget || ""}
+                    onChange={(e) => setRoughBudget(Number(e.target.value))}
+                    className="w-32 text-right bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none text-gray-900 font-bold"
+                  />
+                </label>
+              </div>
+
+              {/* Coordinator requested collaboration option */}
+              <div className="space-y-3">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                  Platform Collaboration
+                </label>
+                <div className="flex items-center justify-between border border-gray-150 bg-gray-50/30 rounded-2xl p-4">
+                  <div className="space-y-0.5 max-w-[80%]">
+                    <h4 className="text-sm font-bold text-gray-800">
+                      Request Coordinator Collaboration 🤝
+                    </h4>
+                    <p className="text-[11px] text-gray-500">
+                      Hire a certified platform coordinator to help oversee vendor checkout, checklist tasks, and budgeting.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRequestCoordinator(!requestCoordinator)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      requestCoordinator ? "bg-blue-600" : "bg-gray-200"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        requestCoordinator ? "translate-x-5" : "translate-x-0"
                       }`}
-                    >
-                      {b}
-                    </button>
-                  ))}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Ticketing Options */}
+              <div className="space-y-3">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                  Admission RSVP settings
+                </label>
+                
+                <div className="flex items-center justify-between border border-gray-150 bg-gray-50/30 rounded-2xl p-4">
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-bold text-gray-800">Enable Ticketing RSVP</h4>
+                    <p className="text-[11px] text-gray-500">
+                      Sell entry admission tickets. Funds are processed via Paystack.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsTicketed(!isTicketed)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      isTicketed ? "bg-blue-600" : "bg-gray-200"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        isTicketed ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {isTicketed && (
+                  <div className="border border-gray-150 bg-gray-50/30 rounded-2xl p-4 space-y-4 animate-in slide-in-from-top-3 duration-250">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-bold text-gray-800">Configure Ticket Tiers</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setTicketTiers([
+                            ...ticketTiers,
+                            { name: "", price: 5000, description: "" },
+                          ])
+                        }
+                        className="text-xs font-bold text-blue-650 hover:text-blue-800 flex items-center gap-1"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add Tier
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {ticketTiers.map((tier, idx) => (
+                        <div key={idx} className="rounded-xl border border-gray-200 bg-white p-3 space-y-2 relative">
+                          {ticketTiers.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setTicketTiers(ticketTiers.filter((_, i) => i !== idx))}
+                              className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <input
+                                placeholder="Tier Name (e.g. VIP)"
+                                value={tier.name}
+                                onChange={(e) => {
+                                  const updated = [...ticketTiers];
+                                  updated[idx]!.name = e.target.value;
+                                  setTicketTiers(updated);
+                                }}
+                                className="w-full text-xs bg-transparent border-b border-gray-200 focus:border-blue-500 focus:outline-none text-gray-950 font-bold py-1"
+                                required
+                              />
+                            </div>
+                            <div>
+                              <input
+                                type="number"
+                                placeholder="Price (₦)"
+                                value={tier.price || ""}
+                                onChange={(e) => {
+                                  const updated = [...ticketTiers];
+                                  updated[idx]!.price = Number(e.target.value);
+                                  setTicketTiers(updated);
+                                }}
+                                className="w-full text-xs text-right bg-transparent border-b border-gray-200 focus:border-blue-500 focus:outline-none text-gray-950 font-bold py-1"
+                                required
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <input
+                              placeholder="Description (e.g. Backstage access)"
+                              value={tier.description || ""}
+                              onChange={(e) => {
+                                const updated = [...ticketTiers];
+                                updated[idx]!.description = e.target.value;
+                                setTicketTiers(updated);
+                              }}
+                              className="w-full text-[10px] text-gray-500 bg-transparent border-b border-gray-150 focus:border-blue-500 focus:outline-none py-0.5"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* RSVP Button Text Selection */}
+                <div className="flex items-center justify-between border border-gray-150 bg-gray-50/30 rounded-2xl p-4">
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-bold text-gray-800">RSVP Button Label</h4>
+                    <p className="text-[11px] text-gray-500">
+                      The action title guests see on your invitations.
+                    </p>
+                  </div>
+                  <select
+                    value={rsvpButtonTitle}
+                    onChange={(e) => setRsvpButtonTitle(e.target.value)}
+                    className="rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-800 p-2.5 outline-none cursor-pointer"
+                  >
+                    {["Attend", "Register", "Join", "Buy Ticket", "RSVP"].map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
           )}
 
           {step === 3 && (
-            /* Step 3: RSVP Ticketing Options */
-            <div className="space-y-5 animate-in fade-in slide-in-from-right-5 duration-200">
-              <div className="flex items-center justify-between rounded-xl bg-gray-50 border border-gray-100 p-4">
-                <div>
-                  <h4 className="font-bold text-gray-900 text-sm">RSVP Ticketing</h4>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Charge guests for tickets. Funds transfer to your wallet.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsTicketed(!isTicketed)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    isTicketed ? "bg-[var(--l-brand-pink)]" : "bg-gray-200"
-                  }`}
-                >
-                  <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                      isTicketed ? "translate-x-5" : "translate-x-0"
-                    }`}
-                  />
-                </button>
+            /* STEP 3: CHOOSE YOUR POSTER */
+            <div className="space-y-5 animate-in fade-in duration-200">
+              <div className="space-y-1">
+                <h2 className="text-3xl font-black tracking-tight">Choose your poster!</h2>
+                <p className="text-sm text-gray-500">
+                  Select a poster for your event that guests will see when you share your event.
+                </p>
               </div>
 
-              {isTicketed && (
-                <div className="space-y-2 animate-in slide-in-from-top-3 duration-200">
-                  <label className="block text-sm font-semibold text-[var(--l-text)]">
-                    Ticket Price (₦)
-                  </label>
+              {/* Upload & Preset Cards Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Upload card */}
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 bg-gray-50/20 hover:bg-gray-50/50 hover:border-blue-300 transition rounded-2xl h-44 cursor-pointer p-4 text-center group"
+                >
+                  <Plus className="h-8 w-8 text-gray-400 group-hover:text-blue-600 transition mb-2" />
+                  <span className="text-xs font-bold text-gray-500 group-hover:text-gray-800 transition">
+                    Upload from Gallery
+                  </span>
                   <input
-                    type="number"
-                    min={500}
-                    placeholder="e.g. 5000"
-                    value={ticketPrice || ""}
-                    onChange={(e) => setTicketPrice(Number(e.target.value))}
-                    className="w-full rounded-xl border border-[var(--l-border)] bg-gray-50/50 p-3 text-[var(--l-text)] focus:border-[var(--l-brand-pink)] focus:outline-none"
-                    required={isTicketed}
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handleCustomImageUpload}
+                    className="hidden"
                   />
-                  <p className="text-[11px] text-gray-400">
-                    Guests will securely pay this ticket fee via Paystack to confirm attendance.
+                </div>
+
+                {/* Preset cards */}
+                {PRESET_POSTERS.map((poster) => (
+                  <div
+                    key={poster.id}
+                    onClick={() => setCoverImage(poster.url)}
+                    className={`relative rounded-2xl h-44 overflow-hidden cursor-pointer border-2 transition ${
+                      coverImage === poster.url ? "border-blue-500 scale-[0.98]" : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={poster.url} alt={poster.title} className="h-full w-full object-cover" />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                      <span className="text-xs font-extrabold text-white">{poster.title}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Poster Preview */}
+              <div className="rounded-2xl border border-gray-150 bg-gray-50/50 p-3 flex items-center gap-3">
+                <div className="h-14 w-14 rounded-lg overflow-hidden shrink-0 bg-gray-150 border border-gray-200">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={coverImage} alt="selected poster" className="h-full w-full object-cover" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Selected Poster</span>
+                  <p className="text-sm font-semibold text-gray-700 truncate max-w-sm">
+                    {coverImage.startsWith("data:image") ? "Custom Uploaded Cover" : "Template Cover Active"}
                   </p>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
-          {/* Action buttons footer */}
-          <div className="flex items-center justify-between border-t border-[var(--l-border)] pt-5 mt-4">
-            {step > 1 ? (
-              <button
-                type="button"
-                onClick={handleBack}
-                className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                Back
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl px-5 py-2.5 text-sm font-semibold text-[var(--l-text-muted)] hover:bg-gray-100 hover:text-gray-900 transition-colors"
-              >
-                Cancel
-              </button>
-            )}
+          {step === 4 && (
+            /* STEP 4: THEME & LIVE INVITATION PREVIEW (INTERACTIVE) */
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <div className="space-y-1">
+                <h2 className="text-3xl font-black tracking-tight font-sans">Choose Theme & Preview</h2>
+                <p className="text-sm text-gray-500">
+                  Swipe through stunning themes and preview how your public invitation page will look.
+                </p>
+              </div>
 
-            {step < 3 ? (
-              <button
-                type="button"
-                onClick={handleNext}
-                className="rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white hover:bg-slate-800 transition"
-              >
-                Next Step
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={createEvent.isPending || (isTicketed && !ticketPrice)}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[var(--l-brand-pink)] to-[var(--l-brand-purple)] px-6 py-2.5 text-sm font-bold text-white hover:scale-105 transition-[transform,box-shadow] duration-200 shadow-[0_4px_16px_rgba(247,37,133,0.3)] disabled:opacity-50"
-              >
-                {createEvent.isPending && (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                )}
-                Create Event
-              </button>
-            )}
-          </div>
-        </form>
+              {/* Theme Gradients Grid */}
+              <div className="space-y-3">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                  Select Theme Color
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {PRESET_GRADIENTS.map((grad, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => setSelectedTheme(grad.value)}
+                      style={{ background: grad.value }}
+                      className={`h-12 rounded-xl cursor-pointer border-2 transition-all relative ${
+                        selectedTheme === grad.value
+                          ? "border-slate-800 scale-[0.96] shadow-[0_0_12px_rgba(0,0,0,0.15)]"
+                          : "border-transparent hover:scale-102"
+                      }`}
+                    >
+                      {selectedTheme === grad.value && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="rounded-full bg-white/30 backdrop-blur-md p-1">
+                            <CheckCircle className="h-3 w-3 text-white" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* LIVE INVITATION CARD PREVIEW */}
+              <div className="space-y-3">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                  Public Invitation Preview
+                </label>
+                
+                {/* Mock Card Container */}
+                <div 
+                  className="rounded-2xl overflow-hidden shadow-lg border border-gray-100 flex flex-col transition-all duration-300"
+                  style={{ background: selectedTheme }}
+                >
+                  {/* Poster header within mock card */}
+                  <div className="h-32 w-full relative overflow-hidden bg-black/10 flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img 
+                      src={coverImage} 
+                      alt="Mock Poster" 
+                      className="absolute inset-0 w-full h-full object-cover opacity-60" 
+                    />
+                    <div className="absolute top-3 left-3 bg-white/20 backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] text-white font-bold tracking-wider uppercase">
+                      {eventType}
+                    </div>
+                  </div>
+
+                  {/* Card details */}
+                  <div className="p-4 text-white space-y-2">
+                    <h3 className="text-lg font-black tracking-tight truncate">
+                      {eventName || "My Spectacular Celebration"}
+                    </h3>
+                    <p className="text-[11px] text-white/80 line-clamp-1">
+                      📍 {location?.display_name || "Location not set yet"}
+                    </p>
+                    <p className="text-[10px] text-white/70 line-clamp-2 italic leading-relaxed">
+                      {description || "No description provided. Click Generate in step 1 to write one!"}
+                    </p>
+
+                    {/* RSVP Action button in preview */}
+                    <div className="pt-2">
+                      <div className="w-full bg-white text-slate-900 py-2 rounded-xl text-center text-xs font-extrabold shadow-md hover:opacity-90 transition">
+                        {rsvpButtonTitle} {isTicketed ? `(₦${ticketPrice.toLocaleString() || "5,000"})` : "(Free)"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Buttons Footer */}
+        <div className="border-t border-gray-100 bg-gray-50/30 p-6 flex gap-3">
+          {step < 4 ? (
+            <button
+              type="button"
+              onClick={handleNext}
+              className="w-full rounded-full bg-slate-900 hover:bg-slate-800 py-4 text-sm font-black text-white tracking-tight transition duration-200 flex items-center justify-center gap-1.5"
+            >
+              Continue
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={createEvent.isPending || (isTicketed && !ticketPrice)}
+              className="w-full rounded-full bg-blue-600 hover:bg-blue-700 py-4 text-sm font-black text-white tracking-tight transition duration-200 flex items-center justify-center gap-1.5 shadow-[0_4px_16px_rgba(37,99,235,0.4)] disabled:opacity-50"
+            >
+              {createEvent.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              Create Event
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

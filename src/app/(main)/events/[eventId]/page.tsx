@@ -23,6 +23,8 @@ export default function PublicEventDetailPage() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [whatsAppNumber, setWhatsAppNumber] = useState("");
+  const [selectedTierId, setSelectedTierId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [rsvpCompleted, setRsvpCompleted] = useState(false);
 
@@ -31,10 +33,16 @@ export default function PublicEventDetailPage() {
     id: eventId,
   });
 
+  React.useEffect(() => {
+    if (event?.ticketTiers && event.ticketTiers.length > 0) {
+      setSelectedTierId(event.ticketTiers[0]?.id ?? "");
+    }
+  }, [event]);
+
   // Mutations
   const freeRsvpMutation = api.event.publicRsvp.useMutation({
     onSuccess: (data) => {
-      toast.success(`RSVP confirmed! Welcome, ${data.guestName}.`);
+      toast.success(`RSVP confirmed! Welcome, ${data?.guestName ?? "Guest"}.`);
       setRsvpCompleted(true);
       setSubmitting(false);
     },
@@ -69,12 +77,15 @@ export default function PublicEventDetailPage() {
         eventId: event.id,
         email,
         name,
+        whatsAppNumber: whatsAppNumber.trim() || undefined,
+        ticketTierId: selectedTierId || undefined,
       });
     } else {
       freeRsvpMutation.mutate({
         eventId: eventId,
         name,
         email,
+        whatsAppNumber: whatsAppNumber.trim() || undefined,
       });
     }
   };
@@ -116,8 +127,15 @@ export default function PublicEventDetailPage() {
       style={{ paddingTop: headerHeight }}
     >
       {/* Banner / Cover */}
-      <div className="relative h-64 md:h-80 w-full overflow-hidden bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 flex items-center justify-center">
-        {event.coverImage && (
+      <div
+        className="relative h-64 md:h-80 w-full overflow-hidden flex items-center justify-center"
+        style={{
+          background:
+            (event.questionnaireData as any)?.selectedTheme ||
+            "linear-gradient(to right, #ec4899, #8b5cf6, #6366f1)",
+        }}
+      >
+        {event.coverImage && !event.coverImage.startsWith("data:image") && (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={event.coverImage}
@@ -197,6 +215,16 @@ export default function PublicEventDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* Description Section */}
+            {(event.questionnaireData as any)?.description && (
+              <div className="rounded-2xl border border-gray-150 bg-white p-6 shadow-sm space-y-3">
+                <h3 className="text-lg font-bold text-gray-900">About this Celebration</h3>
+                <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+                  {(event.questionnaireData as any).description}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Right Column: RSVP box */}
@@ -224,6 +252,47 @@ export default function PublicEventDetailPage() {
                       Please enter your contact details to complete your RSVP.
                     </p>
                   </div>
+
+                  {/* Ticket Tiers Selection */}
+                  {event.isTicketed && event.ticketTiers && event.ticketTiers.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-gray-500">
+                        Select Ticket Tier
+                      </label>
+                      <div className="space-y-2">
+                        {event.ticketTiers.map((tier: any) => (
+                          <label
+                            key={tier.id}
+                            className={`flex items-center justify-between border rounded-xl p-3 cursor-pointer transition ${
+                              selectedTierId === tier.id
+                                ? "border-pink-500 bg-pink-50/30"
+                                : "border-gray-200 hover:bg-gray-50"
+                            }`}
+                            onClick={() => setSelectedTierId(tier.id)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="radio"
+                                name="ticketTier"
+                                checked={selectedTierId === tier.id}
+                                onChange={() => setSelectedTierId(tier.id)}
+                                className="text-pink-600 focus:ring-pink-500"
+                              />
+                              <div className="text-left">
+                                <p className="text-xs font-bold text-gray-900">{tier.name}</p>
+                                {tier.description && (
+                                  <p className="text-[10px] text-gray-400 mt-0.5">{tier.description}</p>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-xs font-black text-gray-950">
+                              ₦{tier.price.toLocaleString()}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Name Input */}
                   <div>
@@ -265,6 +334,25 @@ export default function PublicEventDetailPage() {
                     </div>
                   </div>
 
+                  {/* WhatsApp Input */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      WhatsApp Number (Optional)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 text-xs font-bold font-mono">
+                        WA
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="+234 801 234 5678"
+                        value={whatsAppNumber}
+                        onChange={(e) => setWhatsAppNumber(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 py-2.5 pl-10 pr-4 text-sm focus:border-pink-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
                   {/* Submit Button */}
                   <button
                     type="submit"
@@ -279,10 +367,17 @@ export default function PublicEventDetailPage() {
                     ) : event.isTicketed ? (
                       <>
                         <Ticket className="h-4 w-4" />
-                        Pay & Confirm (₦{event.ticketPrice.toLocaleString()})
+                        {(event.questionnaireData as any)?.rsvpButtonTitle || "Pay & Confirm"}{" "}
+                        ({
+                          (() => {
+                            const activeTier = event.ticketTiers?.find((t: any) => t.id === selectedTierId);
+                            const price = activeTier ? activeTier.price : event.ticketPrice;
+                            return `₦${price.toLocaleString()}`;
+                          })()
+                        })
                       </>
                     ) : (
-                      "Confirm Free RSVP"
+                      (event.questionnaireData as any)?.rsvpButtonTitle || "Confirm Free RSVP"
                     )}
                   </button>
                 </form>

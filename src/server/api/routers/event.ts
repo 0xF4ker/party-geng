@@ -197,9 +197,14 @@ export const eventRouter = createTRPCRouter({
               items: true,
             },
           },
+          ticketTiers: true,
           guestLists: {
             include: {
-              guests: true,
+              guests: {
+                include: {
+                  ticketTier: true,
+                },
+              },
             },
           },
           conversation: {
@@ -271,7 +276,16 @@ export const eventRouter = createTRPCRouter({
               include: { items: { include: { contributions: true } } },
             },
             budget: { include: { items: true } },
-            guestLists: { include: { guests: true } },
+            ticketTiers: true,
+            guestLists: {
+              include: {
+                guests: {
+                  include: {
+                    ticketTier: true,
+                  },
+                },
+              },
+            },
             conversation: { include: { participants: true } },
             boardPosts: { include: { author: true } },
           },
@@ -336,6 +350,11 @@ export const eventRouter = createTRPCRouter({
         isTicketed: z.boolean().optional(),
         ticketPrice: z.number().optional(),
         questionnaireData: z.any().optional(),
+        ticketTiers: z.array(z.object({
+          name: z.string(),
+          price: z.number(),
+          description: z.string().optional(),
+        })).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -361,6 +380,9 @@ export const eventRouter = createTRPCRouter({
           clientProfileId: clientProfile.id,
           isTicketed: input.isTicketed ?? false,
           ticketPrice: input.ticketPrice ?? 0,
+          ticketTiers: input.ticketTiers && input.ticketTiers.length > 0 ? {
+            create: input.ticketTiers,
+          } : undefined,
           questionnaireData: input.questionnaireData ?? undefined,
           budget: {
             create: {},
@@ -394,6 +416,15 @@ export const eventRouter = createTRPCRouter({
         location: locationSchema,
         coverImage: z.string().optional(),
         isPublic: z.boolean().optional(),
+        isTicketed: z.boolean().optional(),
+        ticketPrice: z.number().optional(),
+        questionnaireData: z.any().optional(),
+        ticketTiers: z.array(z.object({
+          id: z.string().optional(),
+          name: z.string(),
+          price: z.number(),
+          description: z.string().optional(),
+        })).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -421,7 +452,8 @@ export const eventRouter = createTRPCRouter({
       const locationData = input.location
         ? (input.location as Prisma.JsonObject)
         : Prisma.JsonNull;
-      return ctx.db.clientEvent.update({
+      
+      const updatedEvent = await ctx.db.clientEvent.update({
         where: { id: input.id },
         data: {
           title: input.title,
@@ -430,8 +462,47 @@ export const eventRouter = createTRPCRouter({
           location: locationData,
           coverImage: input.coverImage,
           isPublic: input.isPublic,
+          isTicketed: input.isTicketed,
+          ticketPrice: input.ticketPrice,
+          questionnaireData: input.questionnaireData ?? undefined,
         },
       });
+
+      if (input.ticketTiers) {
+        // Delete tiers that are no longer in the list
+        const existingIds = input.ticketTiers.map(t => t.id).filter(Boolean) as string[];
+        await ctx.db.ticketTier.deleteMany({
+          where: {
+            eventId: event.id,
+            id: { notIn: existingIds }
+          }
+        });
+
+        // Upsert tiers
+        for (const tier of input.ticketTiers) {
+          if (tier.id) {
+            await ctx.db.ticketTier.update({
+              where: { id: tier.id },
+              data: {
+                name: tier.name,
+                price: tier.price,
+                description: tier.description
+              }
+            });
+          } else {
+            await ctx.db.ticketTier.create({
+              data: {
+                eventId: event.id,
+                name: tier.name,
+                price: tier.price,
+                description: tier.description
+              }
+            });
+          }
+        }
+      }
+
+      return updatedEvent;
     }),
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
@@ -619,6 +690,7 @@ export const eventRouter = createTRPCRouter({
         guestListId: z.string(),
         name: z.string(),
         email: z.string().email().optional(),
+        whatsAppNumber: z.string().optional(),
         tableNumber: z.number().int().optional(),
       }),
     )
@@ -637,6 +709,7 @@ export const eventRouter = createTRPCRouter({
         data: {
           name: input.name,
           email: input.email,
+          whatsAppNumber: input.whatsAppNumber || null,
           tableNumber: input.tableNumber,
           listId: input.guestListId,
           status: "PENDING",
@@ -649,6 +722,7 @@ export const eventRouter = createTRPCRouter({
         guestId: z.string(),
         name: z.string().optional(),
         email: z.string().email().optional(),
+        whatsAppNumber: z.string().optional(),
         status: z.nativeEnum(GuestStatus).optional(),
         tableNumber: z.number().int().optional(),
       }),
@@ -693,7 +767,16 @@ export const eventRouter = createTRPCRouter({
       const guest = await ctx.db.eventGuest.findUnique({
         where: { id: input.guestId },
         include: {
-          list: { include: { event: { include: { client: true } } } },
+          list: {
+            include: {
+              event: {
+                include: {
+                  client: true,
+                  ticketTiers: true,
+                },
+              },
+            },
+          },
         },
       });
       if (!guest || guest.list.event.client.userId !== ctx.user.id) {
@@ -708,16 +791,67 @@ export const eventRouter = createTRPCRouter({
         data: { invitationToken },
       });
       const invitationLink = `${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/invitation/${invitationToken}`;
-      await emailService.send({
-        to: guest.email!,
-        subject: `Exclusive Invite: ${guest.list.event.title}`,
-        template: "GUEST_INVITATION",
-        data: {
-          name: guest.name,
-          eventTitle: guest.list.event.title,
-          link: invitationLink,
-        },
+
+      // Formatted Date
+      const eventDate = new Date(guest.list.event.startDate).toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
+
+      // Formatted Location
+      const locationObj = guest.list.event.location as any;
+      const locationString = locationObj?.displayName || locationObj?.address || "To Be Announced";
+
+      // Formatted Ticket Tiers
+      let priceString = "Free Admission";
+      if (guest.list.event.isTicketed) {
+        if (guest.list.event.ticketTiers && guest.list.event.ticketTiers.length > 0) {
+          priceString = guest.list.event.ticketTiers
+            .map((t) => `${t.name}: ₦${t.price.toLocaleString()}`)
+            .join(" | ");
+        } else {
+          priceString = `₦${guest.list.event.ticketPrice.toLocaleString()}`;
+        }
+      }
+
+      // 1. Dispatch Email if available
+      if (guest.email) {
+        try {
+          await emailService.send({
+            to: guest.email,
+            subject: `Exclusive Invite: ${guest.list.event.title}`,
+            template: "GUEST_INVITATION",
+            data: {
+              name: guest.name,
+              eventTitle: guest.list.event.title,
+              link: invitationLink,
+              hostName: guest.list.event.client.name || undefined,
+              date: eventDate,
+              location: locationString,
+              price: priceString,
+            },
+          });
+        } catch (err) {
+          console.error("Failed to send invitation email:", err);
+        }
+      }
+
+      // 2. Dispatch WhatsApp message if available
+      if (guest.whatsAppNumber) {
+        const messageBody = `You're Invited! 🥳\n\nHi *${guest.name}*,\n\nYou have been cordially invited to celebrate at the upcoming event:\n\n*${guest.list.event.title}*\n${guest.list.event.client.name ? `Hosted by: ${guest.list.event.client.name}\n` : ""}📅 *Date:* ${eventDate}\n📍 *Location:* ${locationString}\n🎟️ *Admission:* ${priceString}\n\n👉 *RSVP & Confirm Attendance:* ${invitationLink}`;
+        
+        try {
+          const { sendWhatsAppMessage } = await import("../../services/whatsapp");
+          await sendWhatsAppMessage(guest.whatsAppNumber, messageBody);
+        } catch (err) {
+          console.error("Failed to send WhatsApp invitation:", err);
+        }
+      }
+
       return { success: true };
     }),
   addEmptyGuestList: protectedProcedure
@@ -1011,6 +1145,8 @@ export const eventRouter = createTRPCRouter({
           location: true,
           isTicketed: true,
           ticketPrice: true,
+          questionnaireData: true,
+          ticketTiers: true,
           client: {
             select: {
               name: true,
@@ -1040,6 +1176,7 @@ export const eventRouter = createTRPCRouter({
         eventId: z.string(),
         name: z.string().min(2),
         email: z.string().email(),
+        whatsAppNumber: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -1066,6 +1203,7 @@ export const eventRouter = createTRPCRouter({
         data: {
           name: input.name,
           email: input.email,
+          whatsAppNumber: input.whatsAppNumber || null,
           status: "ATTENDING",
           listId: guestList.id,
         },

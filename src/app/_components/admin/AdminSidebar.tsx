@@ -16,6 +16,7 @@ import {
   ListCheck,
   MessageSquareWarning,
   CalendarX,
+  Key,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 const navItems = [
@@ -84,6 +85,12 @@ const navItems = [
     href: "/admin/audit",
     icon: ListCheck,
     roles: ["ADMIN", "SUPPORT", "FINANCE"],
+  },
+  {
+    name: "Coordinator Keys",
+    href: "/admin/coordinator-keys",
+    icon: Key,
+    roles: ["ADMIN"],
   },
   {
     name: "Settings",
