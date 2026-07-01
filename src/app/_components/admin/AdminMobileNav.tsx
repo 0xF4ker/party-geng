@@ -17,6 +17,7 @@ import {
   Menu,
   MessageSquareWarning,
   CalendarX,
+  Key,
 } from "lucide-react";
 import {
   Sheet,
@@ -88,6 +89,12 @@ const fullMenuItemsConfig = [
     href: "/admin/audit",
     icon: ListCheck,
     roles: ["ADMIN", "SUPPORT", "FINANCE"],
+  },
+  {
+    name: "Coordinator Keys",
+    href: "/admin/coordinator-keys",
+    icon: Key,
+    roles: ["ADMIN"],
   },
   {
     name: "Settings",

@@ -17,8 +17,10 @@ const PUBLIC_ROUTES = [
 const PUBLIC_PREFIXES = [
   "/c/",
   "/v/",
+  "/co/",
   "/post/",
   "/categories",
+  "/coordinators",
   "/events",
   "/payment",
   "/quote",
@@ -78,12 +80,11 @@ export async function middleware(request: NextRequest) {
     }
     return redirectTo("/login");
   }
-  if (path === "/login" || path === "/join") {
+  if (path === "/login" || path === "/join" || path === "/join/coordinator") {
     if (userRole === ROLES.VENDOR) return redirectTo("/dashboard");
-    if (userRole === ROLES.CLIENT) return redirectTo("/trending");
-    if (userRole === "COORDINATOR") return redirectTo("/coordinator/dashboard");
     if (ROLES.ADMIN_GROUP.includes(userRole ?? "")) return redirectTo("/admin");
-    return redirectTo("/");
+    // Coordinators and clients both go to /trending
+    return redirectTo("/trending");
   }
   if (path === "/onboarding") {
     return response;
@@ -114,10 +115,12 @@ export async function middleware(request: NextRequest) {
     return redirectTo("/admin");
   }
   if (userRole === "COORDINATOR") {
-    const restrictedPaths = ["/dashboard", "/isave", "/wishlist", "/manage_events"];
-    if (restrictedPaths.some((p) => path.startsWith(p))) {
+    // Routes coordinators cannot access
+    const blockedForCoordinator = ["/dashboard", "/isave", "/wishlist", "/manage_events", "/manage_orders"];
+    if (blockedForCoordinator.some((p) => path.startsWith(p))) {
       return redirectTo("/coordinator/dashboard");
     }
+    // Everything else (event pages, inbox, trending, coordinator/dashboard, settings) is allowed
     return response;
   }
 
@@ -128,9 +131,10 @@ export async function middleware(request: NextRequest) {
   ) {
     return redirectTo("/trending");
   }
-  const clientRoutes = ["/isave", "/wishlist", "/manage_events", "/trending"];
+  // Only CLIENT role is restricted to client-only routes; vendors/coordinators can browse /trending
+  const clientOnlyRoutes = ["/isave", "/wishlist", "/manage_events"];
   if (
-    clientRoutes.some((route) => path.startsWith(route)) &&
+    clientOnlyRoutes.some((route) => path.startsWith(route)) &&
     userRole !== ROLES.CLIENT
   ) {
     return redirectTo("/dashboard");

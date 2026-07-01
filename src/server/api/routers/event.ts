@@ -160,6 +160,74 @@ export const eventRouter = createTRPCRouter({
       .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
     return { upcoming, past };
   }),
+
+  getMyCoordinatorEvents: protectedProcedure.query(async ({ ctx }) => {
+    const coordinatorProfile = await ctx.db.coordinatorProfile.findUnique({
+      where: { userId: ctx.user.id },
+    });
+    if (!coordinatorProfile) return { upcoming: [], past: [] };
+
+    const events = await ctx.db.clientEvent.findMany({
+      where: { coordinatorId: coordinatorProfile.id },
+      include: {
+        client: {
+          include: { user: { select: { username: true } } },
+        },
+        coordinator: { include: { user: true } },
+        hiredVendors: {
+          include: {
+            vendor: { include: { vendorProfile: true } },
+          },
+        },
+        guestLists: {
+          include: {
+            guests: { include: { ticketTier: true } },
+          },
+        },
+        ticketTiers: true,
+        budget: { include: { items: true } },
+        wishlist: { include: { items: { include: { contributions: true } } } },
+        boardPosts: { include: { author: true } },
+        conversation: { include: { participants: true } },
+      },
+      orderBy: { startDate: "asc" },
+    });
+
+    const now = new Date();
+    const upcoming = events.filter((e) => e.endDate >= now);
+    const past = events
+      .filter((e) => e.endDate < now)
+      .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+
+    const mapEvent = (e: typeof events[number]) => ({
+      id: e.id,
+      title: e.title,
+      description: null as string | null,
+      startDate: e.startDate,
+      endDate: e.endDate,
+      location: e.location ? (e.location as any).display_name ?? null : null,
+      coverImage: e.coverImage,
+      isPublic: e.isPublic,
+      isTicketed: e.isTicketed,
+      client: {
+        username: e.client.user.username,
+        clientProfile: {
+          name: e.client.name,
+          avatarUrl: e.client.avatarUrl,
+        },
+      },
+      hiredVendors: e.hiredVendors,
+      guestLists: e.guestLists,
+      budget: e.budget,
+      boardPosts: e.boardPosts,
+      coordinator: e.coordinator,
+    });
+
+    return {
+      upcoming: upcoming.map(mapEvent),
+      past: past.map(mapEvent),
+    };
+  }),
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {

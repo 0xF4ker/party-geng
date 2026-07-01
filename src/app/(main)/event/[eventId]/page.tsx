@@ -152,7 +152,7 @@ const EventCoordinatorCard = ({ coordinator }: { coordinator: any }) => {
 export default function EventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>();
   const router = useRouter();
-  const { isVendor, loading: userTypeLoading } = useUserType();
+  const { isVendor, isCoordinator, loading: userTypeLoading } = useUserType();
 
   const [activeTab, setActiveTab] = useState<"overview" | "guests" | "ticketing">("overview");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -295,16 +295,21 @@ export default function EventDetailPage() {
     );
   }
 
-  const breadcrumbItems = [
-    { label: "My Events", href: "/manage_events" },
-    { label: event.title, href: `/event/${event.id}` },
-  ];
+  const breadcrumbItems = isCoordinator
+    ? [
+        { label: "My Dashboard", href: "/coordinator/dashboard" },
+        { label: event.title, href: `/event/${event.id}` },
+      ]
+    : [
+        { label: "My Events", href: "/manage_events" },
+        { label: event.title, href: `/event/${event.id}` },
+      ];
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16 text-gray-900 sm:pt-28 md:pt-32">
       <div className="container mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <Breadcrumb items={breadcrumbItems} className="mb-4" />
-        <EventHeader event={event} onEdit={() => setIsEditModalOpen(true)} />
+        <EventHeader event={event} onEdit={isCoordinator ? undefined : () => setIsEditModalOpen(true)} />
 
         <div className="mt-8">
           <PlanningProgressCenter
@@ -355,7 +360,34 @@ export default function EventDetailPage() {
                 />
               </div>
               <div className="flex flex-col gap-8 lg:col-span-1">
-                <EventCoordinatorCard coordinator={event.coordinator} />
+                {isCoordinator ? (
+                  /* Coordinator: show client info instead of coordinator card */
+                  <div className="relative overflow-hidden rounded-2xl border border-violet-100 bg-white p-5 shadow-sm">
+                    <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-violet-500 to-purple-500" />
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="rounded-xl bg-violet-50 p-2.5 border border-violet-100">
+                        <Crown className="h-5 w-5 text-violet-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-gray-900">You're the Coordinator</h3>
+                        <p className="text-[10px] text-violet-600 font-semibold">Managing this event</p>
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-violet-50/40 border border-violet-100 p-3 text-xs text-gray-600 space-y-1">
+                      <p className="font-semibold text-gray-800">Client</p>
+                      <p>{event.client.name ?? "Client"}</p>
+                    </div>
+                    <Link
+                      href="/inbox"
+                      className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-bold py-2 text-xs transition shadow-sm shadow-violet-200"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      Message Client
+                    </Link>
+                  </div>
+                ) : (
+                  <EventCoordinatorCard coordinator={event.coordinator} />
+                )}
                 <BookedVendorsCard
                   vendors={event.hiredVendors}
                   _eventId={event.id}

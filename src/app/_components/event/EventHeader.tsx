@@ -39,7 +39,7 @@ type RouterOutput = inferRouterOutputs<AppRouter>;
 type EventDetails = RouterOutput["event"]["getById"];
 interface EventHeaderProps {
   event: EventDetails;
-  onEdit: () => void;
+  onEdit?: () => void;
 }
 const isEventPast = (endDate: Date | string) => {
   return new Date(endDate) < new Date();
@@ -149,47 +149,51 @@ export const EventHeader = ({ event, onEdit }: EventHeaderProps) => {
               Guest View
             </Button>
 
-            <Button
-              onClick={onEdit}
-              variant="outline"
-              className="flex-1 sm:flex-none"
-              disabled={isPast}
-            >
-              <PencilIcon className="mr-2 h-4 w-4" />
-              Edit
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
+            {onEdit && (
+              <>
                 <Button
-                  variant="destructive"
-                  disabled={deleteEvent.isPending}
+                  onClick={onEdit}
+                  variant="outline"
                   className="flex-1 sm:flex-none"
+                  disabled={isPast}
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
+                  <PencilIcon className="mr-2 h-4 w-4" />
+                  Edit
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete
-                    your event <strong>&quot;{event.title}&quot;</strong> and
-                    remove all associated data (guest lists, budget, etc.) from
-                    our servers.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                     className="bg-red-600 hover:bg-red-700"
-                     onClick={() => deleteEvent.mutate({ id: event.id })}
-                  >
-                    {deleteEvent.isPending ? "Deleting..." : "Delete Event"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      disabled={deleteEvent.isPending}
+                      className="flex-1 sm:flex-none"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete
+                        your event <strong>&quot;{event.title}&quot;</strong> and
+                        remove all associated data (guest lists, budget, etc.) from
+                        our servers.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                         className="bg-red-600 hover:bg-red-700"
+                         onClick={() => deleteEvent.mutate({ id: event.id })}
+                      >
+                        {deleteEvent.isPending ? "Deleting..." : "Delete Event"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
           </div>
         </div>
       </div>

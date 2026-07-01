@@ -6,10 +6,20 @@ import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { Loader2, ShieldCheck, Key, User, Mail, Lock, DollarSign, FileText } from "lucide-react";
 import { useUiStore } from "@/stores/ui";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function CoordinatorRegistrationPage() {
   const router = useRouter();
   const { headerHeight } = useUiStore();
+  const { user, loading } = useAuth();
+
+  // Redirect already-logged-in users
+  useEffect(() => {
+    if (!loading && user) {
+      const isAdmin = ["ADMIN", "SUPPORT", "FINANCE"].includes(user.role ?? "");
+      router.replace(isAdmin ? "/admin" : "/trending");
+    }
+  }, [user, loading, router]);
 
   // Step 1: Access Key
   const [accessKey, setAccessKey] = useState("");
@@ -111,6 +121,8 @@ export default function CoordinatorRegistrationPage() {
       price,
     });
   };
+
+  if (loading || user) return null;
 
   return (
     <div
