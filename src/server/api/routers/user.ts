@@ -88,6 +88,7 @@ export const userRouter = createTRPCRouter({
             },
           },
         },
+        coordinatorProfile: true,
         adminProfile: true,
         clientOrders: {
           where: { status: "COMPLETED" },

@@ -80,10 +80,17 @@ const Header = () => {
   const { data: searchList } = api.category.getSearchList.useQuery();
 
   const isVendor = user?.vendorProfile !== null && user?.vendorProfile !== undefined;
+  const isCoordinator = user?.role === "COORDINATOR";
   const isGuest = !user;
-  const avatarUrl = isVendor ? user?.vendorProfile?.avatarUrl : user?.clientProfile?.avatarUrl;
+  const avatarUrl = isVendor
+    ? user?.vendorProfile?.avatarUrl
+    : isCoordinator
+    ? user?.coordinatorProfile?.avatarUrl
+    : user?.clientProfile?.avatarUrl;
   const displayName = isVendor
     ? (user?.vendorProfile?.companyName ?? user?.username)
+    : isCoordinator
+    ? (user?.coordinatorProfile?.name ?? user?.username)
     : (user?.clientProfile?.name ?? user?.username);
 
   const openModal = (view: "login" | "join") => {
@@ -214,10 +221,24 @@ const Header = () => {
                         Wallet
                       </Link>
                     </>
+                  ) : isCoordinator ? (
+                    <>
+                      <Link href="/coordinator/dashboard" className="text-sm font-medium text-[var(--l-text-muted)] hover:text-[var(--l-text)] transition-colors">
+                        My Dashboard
+                      </Link>
+                      <Link href="/wallet" className="text-sm font-medium text-[var(--l-text-muted)] hover:text-[var(--l-text)] transition-colors">
+                        Wallet
+                      </Link>
+                    </>
                   ) : (
-                    <Link href="/manage_orders" className="text-sm font-medium text-[var(--l-text-muted)] hover:text-[var(--l-text)] transition-colors">
-                      Manage Orders
-                    </Link>
+                    <>
+                      <Link href="/coordinators" className="text-sm font-medium text-[var(--l-text-muted)] hover:text-[var(--l-text)] transition-colors">
+                        Coordinators
+                      </Link>
+                      <Link href="/manage_orders" className="text-sm font-medium text-[var(--l-text-muted)] hover:text-[var(--l-text)] transition-colors">
+                        Manage Orders
+                      </Link>
+                    </>
                   )}
                 </nav>
 
@@ -249,7 +270,7 @@ const Header = () => {
                 {/* Profile & Dropdown */}
                 <div className="relative flex items-center gap-1" ref={profileDropdownRef}>
                   <Link
-                    href={isVendor ? `/v/${user?.username}` : `/c/${user?.username}`}
+                    href={isVendor ? `/v/${user?.username}` : isCoordinator ? `/co/${user?.username}` : `/c/${user?.username}`}
                     className="block rounded-full ring-2 ring-transparent transition-all hover:ring-[var(--l-brand-pink)] focus:outline-none"
                   >
                     <div className="h-9 w-9 overflow-hidden rounded-full border border-[var(--l-border)] bg-[rgba(247,37,133,0.1)] shadow-sm sm:h-10 sm:w-10">
@@ -308,7 +329,7 @@ const Header = () => {
               <Skeleton className="h-10 w-full" />
             </div>
           ) : (
-            !isVendor && (
+            !isVendor && !isCoordinator && (
               <div className="mt-3 w-full sm:hidden">
                 {searchList && (
                   <GlobalSearch items={searchList} className="w-full max-w-lg transition-all" />
@@ -327,7 +348,7 @@ const Header = () => {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : (
-          !isVendor && (
+          !isVendor && !isCoordinator && (
             <div className="w-full">
               <CategoryCarousel />
             </div>

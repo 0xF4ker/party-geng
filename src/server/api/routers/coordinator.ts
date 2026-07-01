@@ -269,4 +269,40 @@ export const coordinatorRouter = createTRPCRouter({
 
       return { success: true };
     }),
+
+  /**
+   * Get a single coordinator's public profile by username
+   */
+  getByUsername: publicProcedure
+    .input(z.object({ username: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const user = await ctx.db.user.findUnique({
+        where: { username: input.username },
+        include: {
+          coordinatorProfile: true,
+        },
+      });
+
+      if (!user?.coordinatorProfile) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Coordinator profile not found.",
+        });
+      }
+
+      const eventsCount = await ctx.db.clientEvent.count({
+        where: { coordinatorId: user.coordinatorProfile.id },
+      });
+
+      return {
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          createdAt: user.createdAt,
+        },
+        profile: user.coordinatorProfile,
+        eventsCount,
+      };
+    }),
 });

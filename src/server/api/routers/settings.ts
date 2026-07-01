@@ -123,6 +123,7 @@ export const settingsRouter = createTRPCRouter({
               },
             },
           },
+          coordinatorProfile: true,
           adminProfile: true,
           clientOrders: {
             where: { status: "COMPLETED" },
@@ -362,6 +363,7 @@ export const settingsRouter = createTRPCRouter({
               },
             },
           },
+          coordinatorProfile: true,
           adminProfile: true,
           clientOrders: {
             where: { status: "COMPLETED" },

@@ -53,6 +53,7 @@ export const EventChatModal = ({
           username: user!.username,
           clientProfile: null,
           vendorProfile: null,
+          coordinatorProfile: null,
         },
         isDeletedForEveryone: false,
       };

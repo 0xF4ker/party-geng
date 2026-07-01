@@ -200,11 +200,23 @@ export function HireCoordinatorModal({
                         )}
                       </div>
                       <div className="space-y-1">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-bold text-gray-900">{c.name ?? c.user.username}</h4>
                           <Award className="h-4 w-4 text-blue-500" />
+                          <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 border border-violet-200 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">
+                            👑 Coordinator
+                          </span>
                         </div>
-                        <p className="text-xs text-pink-600 font-semibold">@{c.user.username}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-violet-600 font-semibold">@{c.user.username}</p>
+                          <a
+                            href={`/co/${c.user.username}`}
+                            target="_blank"
+                            className="inline-flex items-center gap-1 text-[10px] text-gray-400 hover:text-violet-600 transition-colors"
+                          >
+                            <ExternalLink className="h-3 w-3" /> View Profile
+                          </a>
+                        </div>
                         <p className="text-sm text-gray-600 line-clamp-3">{c.bio}</p>
                       </div>
                     </div>

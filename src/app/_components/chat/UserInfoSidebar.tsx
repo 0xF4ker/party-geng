@@ -12,6 +12,7 @@ import {
   X,
   Trash2,
   Loader2,
+  Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -59,6 +60,8 @@ export const UserInfoSidebar = ({
     (p) => p.userId !== currentUserId,
   );
   const otherUser = otherParticipant?.user;
+  const coordinatorProfile = (otherUser as any)?.coordinatorProfile;
+  const isCoordinator = !!coordinatorProfile;
   const { data: orders } = api.order.getOrdersBetweenUsers.useQuery(
     {
       userOneId: currentUserId,
@@ -117,14 +120,27 @@ export const UserInfoSidebar = ({
                     className="h-10 w-10 rounded-full"
                   />
                   <div>
-                    <p className="font-semibold text-gray-800">
-                      {p.user.vendorProfile?.companyName ??
-                        p.user.clientProfile?.name ??
-                        p.user.username}
-                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-gray-800">
+                        {p.user.vendorProfile?.companyName ??
+                          p.user.clientProfile?.name ??
+                          (p.user as any).coordinatorProfile?.name ??
+                          p.user.username}
+                      </p>
+                      {/* Coordinator badge */}
+                      {(p.user as any).coordinatorProfile && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 border border-violet-200 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">
+                          <Crown className="h-2.5 w-2.5" /> Coordinator
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-500">
                       {p.userId === conversation.groupAdminId
                         ? "Admin"
+                        : (p.user as any).coordinatorProfile
+                        ? "Event Coordinator"
+                        : p.user.vendorProfile
+                        ? "Vendor"
                         : "Member"}
                     </p>
                   </div>
@@ -157,12 +173,13 @@ export const UserInfoSidebar = ({
   const clientProfile = otherUser.clientProfile;
   const isVendor = !!vendorProfile;
   const displayName =
+    coordinatorProfile?.name ??
     vendorProfile?.companyName ??
     clientProfile?.name ??
     otherUser.username ??
     "Unknown";
-  const avatarUrl = vendorProfile?.avatarUrl ?? clientProfile?.avatarUrl;
-  const locationData = vendorProfile?.location ?? clientProfile?.location;
+  const avatarUrl = coordinatorProfile?.avatarUrl ?? vendorProfile?.avatarUrl ?? clientProfile?.avatarUrl;
+  const locationData = coordinatorProfile?.location ?? vendorProfile?.location ?? clientProfile?.location;
   const location =
     (locationData as unknown as { display_name: string } | null)
       ?.display_name ?? "Nigeria";
@@ -215,8 +232,15 @@ export const UserInfoSidebar = ({
           {displayName}
         </h2>
         <p className="mt-1 text-sm font-medium text-gray-500">
-          {isVendor ? "Event Vendor" : "Client"}
+          {isCoordinator ? "Event Coordinator" : isVendor ? "Event Vendor" : "Client"}
         </p>
+        {/* Coordinator badge */}
+        {isCoordinator && (
+          <div className="mt-2 flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
+            <Crown className="h-3.5 w-3.5" />
+            Platform Coordinator
+          </div>
+        )}
         {/* Vendor Rating Badge */}
         {isVendor && vendorProfile?.rating && (
           <div className="mt-3 flex items-center gap-2 rounded-full border border-yellow-100 bg-yellow-50 px-3 py-1 text-sm font-semibold text-yellow-700">
@@ -232,9 +256,14 @@ export const UserInfoSidebar = ({
       {/* --- Action Buttons --- */}
       <div className="p-6 pb-2">
         <Link
-          href={`/${isVendor ? "v" : "c"}/${otherUser.username}`}
+          href={`/${isCoordinator ? "co" : isVendor ? "v" : "c"}/${otherUser.username}`}
           target="_blank"
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white transition-all hover:bg-gray-800 hover:shadow-lg active:scale-95"
+          className={cn(
+            "flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white transition-all hover:shadow-lg active:scale-95",
+            isCoordinator
+              ? "bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
+              : "bg-gray-900 hover:bg-gray-800"
+          )}
         >
           View Full Profile <ExternalLink className="h-4 w-4" />
         </Link>
@@ -260,6 +289,15 @@ export const UserInfoSidebar = ({
                 value={format(joinedDate, "MMMM yyyy")}
                 color="text-blue-500"
               />
+              {/* Coordinator price */}
+              {isCoordinator && coordinatorProfile?.price !== undefined && (
+                <InfoItem
+                  icon={Award}
+                  label="Hiring Rate"
+                  value={`₦${Number(coordinatorProfile.price).toLocaleString()} flat`}
+                  color="text-violet-600"
+                />
+              )}
               {/* Verification Badge */}
               <InfoItem
                 icon={ShieldCheck}

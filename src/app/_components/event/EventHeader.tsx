@@ -15,6 +15,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   CalendarDays,
   MapPinIcon,
   PencilIcon,
@@ -23,6 +30,7 @@ import {
   ToggleRight,
   Loader2,
   Lock,
+  Eye,
 } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useRouter } from "next/navigation";
@@ -56,6 +64,7 @@ export const EventHeader = ({ event, onEdit }: EventHeaderProps) => {
   const router = useRouter();
   const utils = api.useUtils();
   const [isPublic, setIsPublic] = useState(event.isPublic);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const isPast = isEventPast(event.endDate);
   const updateEvent = api.event.update.useMutation({
     onSuccess: () => {
@@ -132,6 +141,15 @@ export const EventHeader = ({ event, onEdit }: EventHeaderProps) => {
           </div>
           <div className="mt-4 flex w-full gap-2 pt-6 sm:mt-0 sm:w-auto sm:pt-0">
             <Button
+              onClick={() => setIsPreviewOpen(true)}
+              variant="outline"
+              className="flex-1 sm:flex-none border-pink-200 text-pink-650 hover:bg-pink-50"
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              Guest View
+            </Button>
+
+            <Button
               onClick={onEdit}
               variant="outline"
               className="flex-1 sm:flex-none"
@@ -164,8 +182,8 @@ export const EventHeader = ({ event, onEdit }: EventHeaderProps) => {
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
-                    className="bg-red-600 hover:bg-red-700"
-                    onClick={() => deleteEvent.mutate({ id: event.id })}
+                     className="bg-red-600 hover:bg-red-700"
+                     onClick={() => deleteEvent.mutate({ id: event.id })}
                   >
                     {deleteEvent.isPending ? "Deleting..." : "Delete Event"}
                   </AlertDialogAction>
@@ -175,6 +193,28 @@ export const EventHeader = ({ event, onEdit }: EventHeaderProps) => {
           </div>
         </div>
       </div>
+
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-4xl w-[90vw] h-[85vh] p-0 overflow-hidden flex flex-col rounded-2xl">
+          <DialogHeader className="p-4 border-b border-gray-100 flex flex-row items-center justify-between">
+            <div>
+              <DialogTitle className="text-lg font-bold text-gray-900">Guest Invitation Preview</DialogTitle>
+              <DialogDescription className="text-xs text-gray-500">
+                This is what guests see when they visit your public RSVP page.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 bg-gray-50 p-4 flex items-center justify-center overflow-hidden">
+            <div className="w-full h-full border border-gray-200 rounded-xl overflow-hidden bg-white shadow-inner relative">
+              <iframe
+                src={`/events/${event.id}`}
+                className="w-full h-full border-0"
+                title="Public Event Preview"
+              />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

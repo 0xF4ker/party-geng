@@ -9,6 +9,7 @@ interface GuestInvitationData {
   date?: string;
   location?: string;
   price?: string;
+  tableNumber?: string;
 }
 interface WelcomeData {
   username: string;
@@ -71,7 +72,8 @@ export const emailService = {
       const dateLine = d.date ? `<p style="font-size: 14px; margin: 6px 0; color: #4b5563;">📅 <strong>Date:</strong> ${d.date}</p>` : "";
       const locationLine = d.location ? `<p style="font-size: 14px; margin: 6px 0; color: #4b5563;">📍 <strong>Location:</strong> ${d.location}</p>` : "";
       const priceLine = d.price ? `<p style="font-size: 14px; margin: 6px 0; color: #4b5563;">🎟️ <strong>Admission:</strong> ${d.price}</p>` : "";
-
+      const tableLine = d.tableNumber ? `<p style="font-size: 14px; margin: 6px 0; color: #4b5563;">🪑 <strong>Table Assignment:</strong> Table ${d.tableNumber}</p>` : "";
+ 
       return `${header}
         <h2 style="color: #db2777; font-size: 24px; font-weight: 800; margin-bottom: 8px; text-align: center;">You're Invited!</h2>
         <p style="font-size: 16px; line-height: 1.5; color: #374151;">Hi <strong>${d.name}</strong>,</p>
@@ -84,6 +86,7 @@ export const emailService = {
             ${dateLine}
             ${locationLine}
             ${priceLine}
+            ${tableLine}
           </div>
         </div>
 

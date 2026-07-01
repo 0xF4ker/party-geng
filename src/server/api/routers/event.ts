@@ -804,7 +804,7 @@ export const eventRouter = createTRPCRouter({
 
       // Formatted Location
       const locationObj = guest.list.event.location as any;
-      const locationString = locationObj?.displayName || locationObj?.address || "To Be Announced";
+      const locationString = locationObj?.display_name || locationObj?.displayName || locationObj?.address || "To Be Announced";
 
       // Formatted Ticket Tiers
       let priceString = "Free Admission";
@@ -833,6 +833,7 @@ export const eventRouter = createTRPCRouter({
               date: eventDate,
               location: locationString,
               price: priceString,
+              tableNumber: guest.tableNumber !== null ? String(guest.tableNumber) : undefined,
             },
           });
         } catch (err) {
@@ -842,7 +843,8 @@ export const eventRouter = createTRPCRouter({
 
       // 2. Dispatch WhatsApp message if available
       if (guest.whatsAppNumber) {
-        const messageBody = `You're Invited! 🥳\n\nHi *${guest.name}*,\n\nYou have been cordially invited to celebrate at the upcoming event:\n\n*${guest.list.event.title}*\n${guest.list.event.client.name ? `Hosted by: ${guest.list.event.client.name}\n` : ""}📅 *Date:* ${eventDate}\n📍 *Location:* ${locationString}\n🎟️ *Admission:* ${priceString}\n\n👉 *RSVP & Confirm Attendance:* ${invitationLink}`;
+        const tableText = guest.tableNumber !== null ? `🪑 *Table Assignment:* Table ${guest.tableNumber}\n` : "";
+        const messageBody = `You're Invited! 🥳\n\nHi *${guest.name}*,\n\nYou have been cordially invited to celebrate at the upcoming event:\n\n*${guest.list.event.title}*\n${guest.list.event.client.name ? `Hosted by: ${guest.list.event.client.name}\n` : ""}📅 *Date:* ${eventDate}\n📍 *Location:* ${locationString}\n🎟️ *Admission:* ${priceString}\n${tableText}\n👉 *RSVP & Confirm Attendance:* ${invitationLink}`;
         
         try {
           const { sendWhatsAppMessage } = await import("../../services/whatsapp");

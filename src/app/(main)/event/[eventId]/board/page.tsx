@@ -7,7 +7,8 @@ import React, {
   useRef,
 } from "react";
 import { useParams } from "next/navigation";
-import { Loader2, Image as ImageIcon } from "lucide-react";
+import { Loader2, Image as ImageIcon, Crown, MessageSquare } from "lucide-react";
+import Link from "next/link";
 import type { AppRouter } from "@/server/api/root";
 import { createTRPCReact } from "@trpc/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
@@ -645,9 +646,36 @@ export default function EventCollaborativeBoard() {
       />
       <div className="p-6">
         <div className="pointer-events-auto flex flex-col items-center">
-          <h2 className="mb-2 text-2xl font-bold tracking-tight text-slate-800 drop-shadow-sm">
-            {event.title} - Collaborative Board
-          </h2>
+          <div className="flex w-full items-center justify-between mb-2">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-800 drop-shadow-sm">
+              {event.title} — Collaborative Board
+            </h2>
+            {/* Coordinator chip */}
+            {event.coordinator && (
+              <Link
+                href="/inbox"
+                className="pointer-events-auto flex items-center gap-2 rounded-full border border-violet-200 bg-white/80 backdrop-blur-sm px-3 py-1.5 shadow-sm hover:shadow-md transition-all hover:border-violet-400 group"
+              >
+                <div className="relative flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-[10px] font-black text-white shadow-sm overflow-hidden">
+                  {event.coordinator.avatarUrl ? (
+                    <img src={event.coordinator.avatarUrl} alt="Coordinator" className="h-full w-full object-cover" />
+                  ) : (
+                    (event.coordinator.name ?? event.coordinator.user?.username ?? "C").charAt(0).toUpperCase()
+                  )}
+                  <div className="absolute -top-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-violet-600 border border-white">
+                    <Crown className="h-1.5 w-1.5 text-white" />
+                  </div>
+                </div>
+                <div className="text-left">
+                  <p className="text-[9px] font-bold text-violet-600 uppercase tracking-wider">Coordinator</p>
+                  <p className="text-xs font-bold text-slate-700 leading-none">
+                    {event.coordinator.name ?? event.coordinator.user?.username}
+                  </p>
+                </div>
+                <MessageSquare className="h-3.5 w-3.5 text-violet-400 group-hover:text-violet-600 transition-colors" />
+              </Link>
+            )}
+          </div>
           <InputStation
             onPost={handlePost}
             isPosting={isPosting || isUploading}

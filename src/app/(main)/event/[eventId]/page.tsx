@@ -22,7 +22,13 @@ import {
   Sparkles,
   ChevronRight,
   TrendingUp,
+  UserCheck,
+  MessageSquare,
+  Crown,
+  ExternalLink,
+  MapPin,
 } from "lucide-react";
+import Link from "next/link";
 import { EventHeader } from "@/app/_components/event/EventHeader";
 import { EditEventModal } from "@/app/_components/event/modals/EditEventModal";
 import { AddVendorModal } from "@/app/_components/event/modals/AddVendorModal";
@@ -37,6 +43,111 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+
+const EventCoordinatorCard = ({ coordinator }: { coordinator: any }) => {
+  if (!coordinator) {
+    return (
+      <div className="relative overflow-hidden rounded-2xl border border-violet-100 bg-white p-6 shadow-sm space-y-4">
+        {/* Gradient top bar */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-violet-500 to-purple-500" />
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl bg-violet-50 p-2.5 border border-violet-100">
+            <Crown className="h-5 w-5 text-violet-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">Event Coordinator</h3>
+            <p className="text-[10px] text-gray-500">Platform-vetted professional</p>
+          </div>
+        </div>
+        <div className="rounded-xl bg-violet-50/50 border border-violet-100 p-4 space-y-3">
+          <p className="text-xs text-gray-600 leading-relaxed">
+            A coordinator manages guest invites, vendor logistics, seating, and day-of execution — one flat fee.
+          </p>
+          <Link
+            href="/coordinators"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-bold py-2.5 text-xs transition shadow-sm shadow-violet-200"
+          >
+            <Crown className="h-3.5 w-3.5" />
+            Find a Coordinator
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const coordUser = coordinator.user;
+  const displayName = coordinator.name ?? coordUser?.username ?? "Coordinator";
+  const avatarUrl = coordinator.avatarUrl ?? null;
+  const locationLabel = coordinator.location
+    ? (coordinator.location as { display_name?: string })?.display_name ?? String(coordinator.location)
+    : null;
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-violet-100 bg-white p-6 shadow-sm space-y-4">
+      {/* Gradient top bar */}
+      <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-violet-500 to-purple-500" />
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl bg-violet-50 p-2.5 border border-violet-100">
+            <Crown className="h-5 w-5 text-violet-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">Event Coordinator</h3>
+            <p className="text-[10px] text-gray-500">Hired & Active</p>
+          </div>
+        </div>
+        <span className="inline-flex items-center gap-1 rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-green-700">
+          ✓ Booked
+        </span>
+      </div>
+
+      <div className="rounded-xl border border-violet-100 bg-violet-50/30 p-4 flex items-center gap-3">
+        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center font-bold text-white text-sm shadow-sm">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+          ) : (
+            displayName.charAt(0).toUpperCase()
+          )}
+          <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 border border-white">
+            <Crown className="h-2 w-2 text-white" />
+          </div>
+        </div>
+        <div className="overflow-hidden flex-1 min-w-0">
+          <h4 className="text-xs font-bold text-gray-900 truncate">{displayName}</h4>
+          {coordUser?.username && (
+            <p className="text-[10px] text-violet-600 font-semibold truncate">@{coordUser.username}</p>
+          )}
+          {locationLabel && (
+            <p className="text-[9px] text-gray-400 truncate mt-0.5 flex items-center gap-1">
+              <MapPin className="h-2.5 w-2.5" /> {locationLabel}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Link
+          href="/inbox"
+          className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 text-xs transition"
+        >
+          <MessageSquare className="h-3.5 w-3.5" />
+          Message
+        </Link>
+        {coordUser?.username && (
+          <Link
+            href={`/co/${coordUser.username}`}
+            target="_blank"
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 hover:bg-violet-100 text-violet-700 font-bold py-2.5 text-xs transition"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            View Profile
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default function EventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -244,6 +355,7 @@ export default function EventDetailPage() {
                 />
               </div>
               <div className="flex flex-col gap-8 lg:col-span-1">
+                <EventCoordinatorCard coordinator={event.coordinator} />
                 <BookedVendorsCard
                   vendors={event.hiredVendors}
                   _eventId={event.id}

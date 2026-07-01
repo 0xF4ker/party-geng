@@ -5,6 +5,7 @@ import makeWASocket, {
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import path from "path";
+import qrcode from "qrcode-terminal";
 
 let globalSocket: WASocket | null = null;
 
@@ -19,13 +20,19 @@ export async function getWhatsAppSocket(): Promise<WASocket> {
 
   const sock = makeWASocket({
     auth: state,
-    printQRInTerminal: true,
   });
 
   sock.ev.on("creds.update", saveCreds);
 
   sock.ev.on("connection.update", (update) => {
-    const { connection, lastDisconnect } = update;
+    const { connection, lastDisconnect, qr } = update;
+    
+    if (qr) {
+      console.log("\n--- [WhatsApp] Scan this QR code with your phone linked devices ---");
+      qrcode.generate(qr, { small: true });
+      console.log("-------------------------------------------------------------------\n");
+    }
+
     if (connection === "close") {
       const shouldReconnect = 
         (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
@@ -47,6 +54,12 @@ export async function sendWhatsAppMessage(to: string, text: string) {
   try {
     const sock = await getWhatsAppSocket();
     
+    // Check if the user is authenticated
+    const isLogged = sock.authState.creds.me?.id;
+    if (!isLogged) {
+      throw new Error("WhatsApp client is not logged in. Please scan the QR code printed in the server logs first.");
+    }
+    
     // Clean up input number
     let formattedNumber = to.replace(/[^\d]/g, "");
     if (formattedNumber.startsWith("0") && formattedNumber.length === 11) {
@@ -60,5 +73,6 @@ export async function sendWhatsAppMessage(to: string, text: string) {
     console.log(`[WhatsApp] Message successfully dispatched to: ${jid}`);
   } catch (err) {
     console.error("[WhatsApp] Error sending message:", err);
+    throw err; // bubble up so the API route logs it properly
   }
 }

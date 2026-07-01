@@ -63,6 +63,13 @@ export const chatRouter = createTRPCRouter({
                     location: true,
                   },
                 },
+                coordinatorProfile: {
+                  select: {
+                    name: true,
+                    avatarUrl: true,
+                    location: true,
+                  },
+                },
                 createdAt: true,
               },
             },
@@ -188,6 +195,7 @@ export const chatRouter = createTRPCRouter({
               username: true,
               clientProfile: { select: { name: true, avatarUrl: true } },
               vendorProfile: { select: { companyName: true, avatarUrl: true } },
+              coordinatorProfile: { select: { name: true, avatarUrl: true } },
             },
           },
           quote: true,
@@ -275,6 +283,9 @@ export const chatRouter = createTRPCRouter({
                 clientProfile: { select: { name: true, avatarUrl: true } },
                 vendorProfile: {
                   select: { companyName: true, avatarUrl: true },
+                },
+                coordinatorProfile: {
+                  select: { name: true, avatarUrl: true },
                 },
               },
             },
@@ -678,6 +689,7 @@ export const chatRouter = createTRPCRouter({
                   username: true,
                   clientProfile: { select: { name: true, avatarUrl: true } },
                   vendorProfile: { select: { companyName: true, avatarUrl: true } },
+                  coordinatorProfile: { select: { name: true, avatarUrl: true } },
                 },
               },
             },

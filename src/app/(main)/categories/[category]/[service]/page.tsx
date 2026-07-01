@@ -521,32 +521,76 @@ const VendorCard = ({
   const imageUrl =
     vendor.bannerUrl ??
     "https://placehold.co/400x300/ec4899/ffffff?text=Vendor";
+
+  const locationObj = vendor.location as any;
+  const locationString =
+    locationObj?.display_name ||
+    locationObj?.displayName ||
+    locationObj?.address ||
+    vendor.businessAddress ||
+    "Lagos, Nigeria";
+
+  const displayName = vendor.companyName || `@${vendor.user.username}` || "Unnamed Vendor";
+
   return (
-    <div className="w-full">
-      <Link href={`/v/${vendor.user.username}`} className="group">
-        {/* Image */}
-        <div className="relative mb-3 aspect-4/3 w-full overflow-hidden rounded-lg">
-          <Image
-            src={imageUrl}
-            alt={vendor.companyName ?? vendor.user.username ?? "Vendor"}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-            width={400}
-            height={300}
-          />
-          <button className="absolute top-3 right-3 rounded-full bg-white/80 p-1.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white">
-            <Heart className="h-5 w-5 text-gray-800" />
-          </button>
+    <div className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-gray-150 bg-white shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+      {/* Visual Top Accent Indicator */}
+      <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-pink-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+      {/* Banner / Media Container */}
+      <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
+        <Image
+          src={imageUrl}
+          alt={displayName}
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          width={400}
+          height={300}
+        />
+        
+        {/* Rating Floating Badge */}
+        <div className="absolute top-3 left-3 flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-xs font-bold text-gray-900 shadow-sm backdrop-blur-sm">
+          <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+          <span>{rating > 0 ? rating.toFixed(1) : "New"}</span>
         </div>
-        {/* Title */}
-        <p className="mb-1.5 text-base text-gray-800 transition-colors hover:text-pink-600">
-          {vendor.companyName ?? "Unnamed Vendor"}
-        </p>
-        {/* Rating */}
-        <div className="mb-2 flex items-center gap-1 text-sm text-gray-700">
-          <Star className="h-4 w-4 fill-current text-yellow-400" />
-          <span className="font-bold text-yellow-500">{rating.toFixed(1)}</span>
+
+        {/* Level / Verification Badges */}
+        {vendor.level && (
+          <div className="absolute bottom-3 left-3 rounded-full bg-slate-900/80 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white backdrop-blur-xs">
+            {vendor.level}
+          </div>
+        )}
+      </div>
+
+      {/* Metadata Detail Row */}
+      <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-bold text-gray-955 truncate group-hover:text-pink-600 transition-colors">
+              {displayName}
+            </h3>
+            {vendor.kybStatus === "APPROVED" && (
+              <span className="inline-flex shrink-0 items-center justify-center rounded-full bg-blue-50 p-1 text-blue-600 border border-blue-100" title="Verified Business">
+                <Check className="h-3 w-3 stroke-[3]" />
+              </span>
+            )}
+          </div>
+          
+          {locationString && (
+            <p className="flex items-center gap-1 text-[10px] font-medium text-gray-400 truncate">
+              <MapPin className="h-3 w-3 shrink-0 text-gray-400" />
+              <span>{locationString}</span>
+            </p>
+          )}
         </div>
-      </Link>
+
+        <Link 
+          href={`/v/${vendor.user.username}`}
+          className="inline-flex w-full items-center justify-between rounded-xl bg-slate-900 group-hover:bg-pink-600 text-white font-bold py-2 px-3 text-xs transition duration-300"
+        >
+          <span>View Profile</span>
+          <ChevronRight className="h-3.5 w-3.5 transform group-hover:translate-x-0.5 transition-transform" />
+        </Link>
+      </div>
     </div>
   );
 };
