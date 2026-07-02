@@ -169,4 +169,76 @@ export const adminRouter = createTRPCRouter({
         data: input,
       });
     }),
+
+  listCoordinators: adminProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(20),
+        offset: z.number().min(0).default(0),
+        search: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { db } = ctx;
+
+      const whereClause = input.search
+        ? {
+            OR: [
+              { name: { contains: input.search, mode: "insensitive" as const } },
+              { user: { username: { contains: input.search, mode: "insensitive" as const } } },
+              { user: { email: { contains: input.search, mode: "insensitive" as const } } },
+            ],
+          }
+        : {};
+
+      const items = await db.coordinatorProfile.findMany({
+        where: whereClause,
+        take: input.limit,
+        skip: input.offset,
+        include: {
+          user: {
+            include: {
+              wallet: {
+                include: {
+                  transactions: {
+                    orderBy: { createdAt: "desc" as const },
+                  },
+                },
+              },
+            },
+          },
+          events: {
+            include: {
+              client: {
+                include: {
+                  user: { select: { username: true } },
+                },
+              },
+            },
+            orderBy: { startDate: "desc" as const },
+          },
+        },
+        orderBy: { name: "asc" as const },
+      });
+
+      const total = await db.coordinatorProfile.count({
+        where: whereClause,
+      });
+
+      return { items, total };
+    }),
+
+  toggleCoordinatorListing: adminProcedure
+    .input(
+      z.object({
+        profileId: z.string(),
+        isAvailable: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.coordinatorProfile.update({
+        where: { id: input.profileId },
+        data: { isAvailable: input.isAvailable },
+      });
+    }),
 });

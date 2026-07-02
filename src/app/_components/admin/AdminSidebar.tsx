@@ -17,6 +17,7 @@ import {
   MessageSquareWarning,
   CalendarX,
   Key,
+  Briefcase,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 const navItems = [
@@ -43,6 +44,12 @@ const navItems = [
     href: "/admin/admins",
     icon: ShieldUser,
     roles: ["ADMIN"],
+  },
+  {
+    name: "Coordinators",
+    href: "/admin/coordinators",
+    icon: Briefcase,
+    roles: ["ADMIN", "SUPPORT"],
   },
   {
     name: "Categories",
