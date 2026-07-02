@@ -1069,7 +1069,7 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
                     {/* RSVP Action button in preview */}
                     <div className="pt-2">
                       <div className="w-full bg-white text-slate-900 py-2 rounded-xl text-center text-xs font-extrabold shadow-md hover:opacity-90 transition">
-                        {rsvpButtonTitle} {isTicketed ? `(₦${ticketPrice.toLocaleString() || "5,000"})` : "(Free)"}
+                        {rsvpButtonTitle} {isTicketed ? `(₦${(ticketTiers[0]?.price ?? 5000).toLocaleString()})` : "(Free)"}
                       </div>
                     </div>
                   </div>
@@ -1093,7 +1093,7 @@ const CreateEventModal = ({ onClose }: { onClose: () => void }) => {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={createEvent.isPending || (isTicketed && !ticketPrice)}
+              disabled={createEvent.isPending || (isTicketed && (ticketTiers.length === 0 || !ticketTiers[0]?.price))}
               className="w-full rounded-full bg-blue-600 hover:bg-blue-700 py-4 text-sm font-black text-white tracking-tight transition duration-200 flex items-center justify-center gap-1.5 shadow-[0_4px_16px_rgba(37,99,235,0.4)] disabled:opacity-50"
             >
               {createEvent.isPending && <Loader2 className="h-4 w-4 animate-spin" />}

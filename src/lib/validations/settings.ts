@@ -15,6 +15,8 @@ export const profileUpdateSchema = z.object({
     .max(100)
     .optional(),
   bio: z.string().max(500, "Bio must be less than 500 characters").optional(),
+  price: z.number().min(0, "Price cannot be negative").optional(),
+  isAvailable: z.boolean().optional(),
   companyName: z
     .string()
     .min(2, "Company name must be at least 2 characters")

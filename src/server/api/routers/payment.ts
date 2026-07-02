@@ -61,6 +61,13 @@ function getErrorMessage(error: unknown): string {
   if (typeof error === "string") return error;
   return "Unknown error occurred";
 }
+function getCallbackUrl(path: string): string {
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "https://partygeng.com";
+  const prefix = base.startsWith("http") ? "" : "https://";
+  const sanitizedBase = base.endsWith("/") ? base.slice(0, -1) : base;
+  const sanitizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${prefix}${sanitizedBase}${sanitizedPath}`;
+}
 function extractReference(description: string | null): string | null {
   if (!description) return null;
   const match = /Ref:\s*(wd_[a-zA-Z0-9_-]+)/.exec(description);
@@ -341,7 +348,7 @@ export const paymentRouter = createTRPCRouter({
               amount: Math.round(input.amount * 100),
               email: input.email,
               reference,
-              callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/callback`,
+              callback_url: getCallbackUrl("/payment/callback"),
               metadata: {
                 user_id: ctx.user.id,
                 type: "wallet_topup",
@@ -918,7 +925,7 @@ export const paymentRouter = createTRPCRouter({
           amount: Math.round(amount * 100),
           email: user.email,
           reference,
-          callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard`,
+          callback_url: getCallbackUrl("/dashboard"),
           metadata: {
             user_id: ctx.user.id,
             type: "vendor_subscription",
@@ -1112,7 +1119,7 @@ export const paymentRouter = createTRPCRouter({
               amount: Math.round(ticketPrice * 100),
               email: input.email,
               reference,
-              callback_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/callback`,
+              callback_url: getCallbackUrl("/payment/callback"),
               metadata: {
                 type: "ticket_purchase",
                 guest_id: guest.id,

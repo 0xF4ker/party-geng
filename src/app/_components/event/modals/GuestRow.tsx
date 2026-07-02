@@ -118,7 +118,7 @@ export const GuestRow = ({
       name: name,
       email: email,
       whatsAppNumber: whatsAppNumber || undefined,
-      tableNumber: tableNumber === "" ? undefined : Number(tableNumber),
+      tableNumber: tableNumber === "" ? null : Number(tableNumber),
     });
   };
   const handleSendInvitation = () => {

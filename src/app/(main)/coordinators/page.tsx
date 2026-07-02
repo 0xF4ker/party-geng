@@ -5,7 +5,6 @@ import { api } from "@/trpc/react";
 import {
   Search,
   Loader2,
-  Star,
   MapPin,
   Users,
   Crown,
@@ -13,14 +12,47 @@ import {
   ArrowRight,
   CalendarCheck,
   Info,
+  Wallet,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { AddFundsModal } from "@/app/_components/payments/AddFundsModal";
 
 export default function CoordinatorsPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const { data: coordinators, isLoading } = api.coordinator.listAvailable.useQuery();
+  const { data: profile } = api.user.getProfile.useQuery();
+  const isClient = profile?.role === "CLIENT";
+
+  // State for direct hiring flow
+  const [selectedCoordinator, setSelectedCoordinator] = useState<any>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string>("");
+  const [isHireModalOpen, setIsHireModalOpen] = useState(false);
+  const [isAddFundsOpen, setIsAddFundsOpen] = useState(false);
+  const [requiredFunds, setRequiredFunds] = useState<number>(0);
+
+  const { data: events, isLoading: isEventsLoading } = api.event.getMyEvents.useQuery(undefined, {
+    enabled: isHireModalOpen,
+  });
+  const { data: wallet, refetch: refetchWallet } = api.payment.getWallet.useQuery(undefined, {
+    enabled: isHireModalOpen,
+  });
+
+  const hireMutation = api.event.hireCoordinator.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Hired ${selectedCoordinator?.name || "coordinator"} successfully!`);
+      setIsHireModalOpen(false);
+      router.push(`/event/${selectedEventId}`);
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to hire coordinator.");
+    },
+  });
 
   const filtered = coordinators?.filter((c) => {
     const q = searchQuery.toLowerCase();
@@ -30,6 +62,29 @@ export default function CoordinatorsPage() {
       (c.bio ?? "").toLowerCase().includes(q)
     );
   }) ?? [];
+
+  const handleOpenHireModal = (coordinator: any) => {
+    setSelectedCoordinator(coordinator);
+    setSelectedEventId("");
+    setIsHireModalOpen(true);
+  };
+
+  const eligibleEvents = events?.upcoming.filter((e) => !e.coordinatorId) || [];
+  const balance = wallet?.availableBalance ?? 0;
+
+  const handleConfirmHire = () => {
+    if (!selectedEventId || !selectedCoordinator) return;
+    if (balance < selectedCoordinator.price) {
+      const deficit = selectedCoordinator.price - balance;
+      setRequiredFunds(deficit);
+      setIsAddFundsOpen(true);
+      return;
+    }
+    hireMutation.mutate({
+      eventId: selectedEventId,
+      coordinatorId: selectedCoordinator.id,
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16 text-gray-900 sm:pt-28 md:pt-32">
@@ -117,7 +172,7 @@ export default function CoordinatorsPage() {
             <div className="mb-8 flex items-start gap-3 rounded-2xl border border-violet-100 bg-violet-50 px-5 py-4">
               <Info className="h-4 w-4 text-violet-500 mt-0.5 shrink-0" />
               <p className="text-xs text-violet-700 leading-relaxed">
-                <strong>How it works:</strong> Coordinators are platform-registered professionals, not regular vendors. You hire them directly at a flat rate from your event management page. They gain full access to collaborate on your event board and group chat.
+                <strong>How it works:</strong> Coordinators are platform-registered professionals, not regular vendors. You hire them directly at a flat rate from here or your event page. They gain full access to collaborate on your event board and group chat.
               </p>
             </div>
 
@@ -195,12 +250,22 @@ export default function CoordinatorsPage() {
                           <p className="text-[10px] text-gray-400 font-medium">Hiring Rate</p>
                           <p className="text-xl font-black text-slate-900">₦{c.price.toLocaleString()}</p>
                         </div>
-                        <Link
-                          href={`/co/${c.user.username}`}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm shadow-violet-200 hover:from-violet-700 hover:to-purple-700 transition-all hover:shadow-md group-hover:scale-105 duration-200"
-                        >
-                          View Profile <ArrowRight className="h-3.5 w-3.5" />
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/co/${c.user.username}`}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-gray-250 bg-white hover:bg-gray-50 px-3 py-2.5 text-xs font-bold text-gray-700 transition-all"
+                          >
+                            Profile
+                          </Link>
+                          {isClient && (
+                            <button
+                              onClick={() => handleOpenHireModal(c)}
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm shadow-violet-200 hover:from-violet-700 hover:to-purple-700 transition-all hover:shadow-md group-hover:scale-105 duration-200"
+                            >
+                              Hire Now <ArrowRight className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -210,6 +275,160 @@ export default function CoordinatorsPage() {
           </>
         )}
       </div>
+
+      {/* Hire Coordinator Modal */}
+      {isHireModalOpen && selectedCoordinator && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl border border-gray-100 bg-white p-6 shadow-2xl space-y-6 relative overflow-hidden">
+            {/* Top gradient accent line */}
+            <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-violet-500 to-purple-500" />
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Crown className="h-5 w-5 text-violet-600" />
+                <h3 className="text-lg font-bold text-gray-900">Hire Coordinator</h3>
+              </div>
+              <button
+                onClick={() => setIsHireModalOpen(false)}
+                className="rounded-full p-1 text-gray-400 hover:bg-gray-50 hover:text-gray-700 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3.5 rounded-2xl bg-violet-50/50 p-4 border border-violet-100">
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-sm">
+                {selectedCoordinator.avatarUrl ? (
+                  <img
+                    src={selectedCoordinator.avatarUrl}
+                    alt={selectedCoordinator.name || selectedCoordinator.user.username}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  (selectedCoordinator.name || selectedCoordinator.user.username).charAt(0).toUpperCase()
+                )}
+              </div>
+              <div>
+                <p className="font-bold text-sm text-gray-950">{selectedCoordinator.name || selectedCoordinator.user.username}</p>
+                <p className="text-xs text-violet-600 font-semibold mt-0.5">@{selectedCoordinator.user.username}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500">
+                Select Event
+              </label>
+              
+              {isEventsLoading ? (
+                <div className="flex justify-center items-center py-6 gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin text-violet-650" />
+                  <span className="text-xs text-gray-500">Loading events...</span>
+                </div>
+              ) : eligibleEvents.length === 0 ? (
+                <div className="text-center rounded-2xl border border-dashed border-gray-250 p-6 bg-gray-50">
+                  <p className="text-xs text-gray-500 font-medium">
+                    You don't have any upcoming events without a coordinator.
+                  </p>
+                  <Link
+                    href="/manage_events"
+                    className="inline-flex mt-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold py-2 px-4 text-xs transition shadow-sm shadow-violet-200"
+                  >
+                    Manage / Create Event
+                  </Link>
+                </div>
+              ) : (
+                <div className="max-h-48 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+                  {eligibleEvents.map((evt) => (
+                    <button
+                      key={evt.id}
+                      onClick={() => setSelectedEventId(evt.id)}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${
+                        selectedEventId === evt.id
+                          ? "border-violet-600 bg-violet-50/50 text-violet-900 font-semibold"
+                          : "border-gray-150 bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <div>
+                        <p className="text-xs font-bold text-gray-900">{evt.title}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          {new Date(evt.startDate).toLocaleDateString("en-US", { dateStyle: "medium" })}
+                        </p>
+                      </div>
+                      {selectedEventId === evt.id && (
+                        <span className="h-4.5 w-4.5 rounded-full bg-violet-600 flex items-center justify-center text-white text-[9px] font-bold">
+                          ✓
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {selectedEventId && (
+              <div className="rounded-2xl bg-gray-50 p-4 border border-gray-100 space-y-2 text-xs">
+                <div className="flex justify-between items-center text-gray-600">
+                  <span>Hiring Price</span>
+                  <span className="font-bold text-gray-900">₦{selectedCoordinator.price.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center text-gray-600 border-t border-gray-100 pt-2">
+                  <span>Your Balance</span>
+                  <span className={`font-bold ${balance >= selectedCoordinator.price ? "text-green-600" : "text-red-500"}`}>
+                    ₦{balance.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {selectedEventId && balance < selectedCoordinator.price && (
+              <div className="flex items-start gap-2 rounded-xl bg-red-50 border border-red-100 p-3 text-red-700 text-[11px] leading-relaxed">
+                <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                <p>
+                  <strong>Insufficient funds:</strong> You need an additional ₦{(selectedCoordinator.price - balance).toLocaleString()} to hire this coordinator.
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsHireModalOpen(false)}
+                className="flex-1 rounded-xl py-5"
+                disabled={hireMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmHire}
+                className="flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-bold py-5 disabled:opacity-50"
+                disabled={!selectedEventId || hireMutation.isPending}
+              >
+                {hireMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : balance < selectedCoordinator.price ? (
+                  "Fund & Hire"
+                ) : (
+                  "Confirm Hire"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Funds Modal */}
+      {isAddFundsOpen && (
+        <AddFundsModal
+          onClose={async () => {
+            setIsAddFundsOpen(false);
+            await refetchWallet();
+          }}
+          initialAmount={requiredFunds}
+        />
+      )}
     </div>
   );
 }
+

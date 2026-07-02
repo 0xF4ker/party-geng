@@ -17,9 +17,12 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { useAuth } from "@/hooks/useAuth";
+
 export default function PublicEventDetailPage() {
   const { eventId } = useParams<{ eventId: string }>();
   const { headerHeight } = useUiStore();
+  const { user: authUser } = useAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -38,6 +41,13 @@ export default function PublicEventDetailPage() {
       setSelectedTierId(event.ticketTiers[0]?.id ?? "");
     }
   }, [event]);
+
+  React.useEffect(() => {
+    if (authUser) {
+      setName(authUser.clientProfile?.name ?? authUser.username ?? "");
+      setEmail(authUser.email ?? "");
+    }
+  }, [authUser]);
 
   // Mutations
   const freeRsvpMutation = api.event.publicRsvp.useMutation({

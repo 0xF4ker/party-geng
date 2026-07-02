@@ -115,8 +115,15 @@ export const coordinatorRouter = createTRPCRouter({
 
       // 4. Create database records in a transaction
       return db.$transaction(async (tx) => {
-        const user = await tx.user.create({
-          data: {
+        const user = await tx.user.upsert({
+          where: { id: userId },
+          update: {
+            email: input.email.toLowerCase(),
+            username: input.username.toLowerCase(),
+            role: "COORDINATOR",
+            isOnboarded: true,
+          },
+          create: {
             id: userId,
             email: input.email.toLowerCase(),
             username: input.username.toLowerCase(),
@@ -125,8 +132,15 @@ export const coordinatorRouter = createTRPCRouter({
           },
         });
 
-        await tx.coordinatorProfile.create({
-          data: {
+        await tx.coordinatorProfile.upsert({
+          where: { userId },
+          update: {
+            name: input.name,
+            bio: input.bio,
+            price: input.price,
+            location: input.location ?? {},
+          },
+          create: {
             userId,
             name: input.name,
             bio: input.bio,
@@ -135,8 +149,10 @@ export const coordinatorRouter = createTRPCRouter({
           },
         });
 
-        await tx.wallet.create({
-          data: { userId },
+        await tx.wallet.upsert({
+          where: { userId },
+          update: {},
+          create: { userId },
         });
 
         await tx.coordinatorAccessKey.update({
@@ -156,6 +172,7 @@ export const coordinatorRouter = createTRPCRouter({
    */
   listAvailable: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.coordinatorProfile.findMany({
+      where: { isAvailable: true },
       include: {
         user: {
           select: {

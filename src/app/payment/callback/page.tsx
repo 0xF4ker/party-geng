@@ -12,6 +12,8 @@ function PaymentCallback() {
   const searchParams = useSearchParams();
   const { headerHeight } = useUiStore();
   const reference = searchParams.get("reference");
+  
+  console.log("[PaymentCallback] rendering - reference:", reference, "locationSearch:", typeof window !== "undefined" ? window.location.search : "no window");
 
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");

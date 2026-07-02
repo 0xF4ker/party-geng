@@ -36,6 +36,8 @@ export const settingsRouter = createTRPCRouter({
         skills: z.array(z.string()).optional(),
         location: locationSchema,
         languages: z.array(z.string()).optional(),
+        price: z.number().min(0).optional(),
+        isAvailable: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -93,6 +95,20 @@ export const settingsRouter = createTRPCRouter({
         });
 
         revalidateTag("vendors", "default");
+        revalidateTag("users", "default");
+      } else if (user.role === "COORDINATOR") {
+        await ctx.db.coordinatorProfile.update({
+          where: { userId },
+          data: {
+            name: input.name,
+            avatarUrl: input.avatarUrl,
+            location: locationData,
+            bio: input.bio,
+            price: input.price,
+            isAvailable: input.isAvailable,
+          },
+        });
+
         revalidateTag("users", "default");
       } else {
         await ctx.db.clientProfile.update({

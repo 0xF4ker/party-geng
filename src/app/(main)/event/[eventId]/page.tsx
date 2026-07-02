@@ -44,7 +44,46 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-const EventCoordinatorCard = ({ coordinator }: { coordinator: any }) => {
+const EventCoordinatorCard = ({ coordinator, eventId }: { coordinator: any; eventId: string }) => {
+  const router = useRouter();
+  const utils = api.useUtils();
+  const [isMessaging, setIsMessaging] = useState(false);
+  const [isEjecting, setIsEjecting] = useState(false);
+
+  const getOrCreateConvo = api.chat.getOrCreateConversation.useMutation({
+    onSuccess: (data) => {
+      router.push(`/inbox?conversation=${data.id}`);
+    },
+    onError: (err) => {
+      toast.error("Failed to start conversation. Please try again.");
+      setIsMessaging(false);
+    },
+  });
+
+  const ejectMutation = api.event.ejectCoordinator.useMutation({
+    onSuccess: async () => {
+      toast.success("Coordinator contract terminated. Fee refunded to your wallet.");
+      await utils.event.getById.invalidate({ id: eventId });
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to end coordination contract.");
+      setIsEjecting(false);
+    },
+  });
+
+  const handleMessage = () => {
+    if (!coordinator?.userId) return;
+    setIsMessaging(true);
+    getOrCreateConvo.mutate({ otherUserId: coordinator.userId });
+  };
+
+  const handleEject = () => {
+    if (confirm("Are you sure you want to end this coordination contract? The coordinator will be unlinked from the event, removed from the group chat, and the fee will be refunded to your wallet.")) {
+      setIsEjecting(true);
+      ejectMutation.mutate({ eventId });
+    }
+  };
+
   if (!coordinator) {
     return (
       <div className="relative overflow-hidden rounded-2xl border border-violet-100 bg-white p-6 shadow-sm space-y-4">
@@ -127,13 +166,14 @@ const EventCoordinatorCard = ({ coordinator }: { coordinator: any }) => {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <Link
-          href="/inbox"
-          className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 text-xs transition"
+        <button
+          onClick={handleMessage}
+          disabled={isMessaging}
+          className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 text-xs transition disabled:opacity-50"
         >
-          <MessageSquare className="h-3.5 w-3.5" />
+          {isMessaging ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquare className="h-3.5 w-3.5" />}
           Message
-        </Link>
+        </button>
         {coordUser?.username && (
           <Link
             href={`/co/${coordUser.username}`}
@@ -145,6 +185,15 @@ const EventCoordinatorCard = ({ coordinator }: { coordinator: any }) => {
           </Link>
         )}
       </div>
+
+      <button
+        onClick={handleEject}
+        disabled={isEjecting}
+        className="w-full text-center text-[10px] text-red-500 font-bold hover:text-red-700 transition-colors pt-2 border-t border-red-50 mt-2 flex items-center justify-center gap-1"
+      >
+        {isEjecting ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+        End Coordination Contract
+      </button>
     </div>
   );
 };
@@ -158,6 +207,43 @@ export default function EventDetailPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddVendorModalOpen, setIsAddVendorModalOpen] = useState(false);
 
+  const [isMessagingClient, setIsMessagingClient] = useState(false);
+  const [isSteppingDown, setIsSteppingDown] = useState(false);
+
+  const getOrCreateConvo = api.chat.getOrCreateConversation.useMutation({
+    onSuccess: (data) => {
+      router.push(`/inbox?conversation=${data.id}`);
+    },
+    onError: (err) => {
+      toast.error("Failed to start conversation. Please try again.");
+      setIsMessagingClient(false);
+    },
+  });
+
+  const stepDownMutation = api.event.ejectCoordinator.useMutation({
+    onSuccess: async () => {
+      toast.success("You have stepped down from coordinating this event.");
+      await utils.event.getById.invalidate({ id: eventId });
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to step down.");
+      setIsSteppingDown(false);
+    },
+  });
+
+  const handleMessageClient = () => {
+    if (!event?.client?.userId) return;
+    setIsMessagingClient(true);
+    getOrCreateConvo.mutate({ otherUserId: event.client.userId });
+  };
+
+  const handleStepDown = () => {
+    if (confirm("Are you sure you want to step down from coordinating this event? You will be removed from the event group chat and the coordination fee will be refunded back to the client.")) {
+      setIsSteppingDown(true);
+      stepDownMutation.mutate({ eventId });
+    }
+  };
+
   // Guest manager search/inputs
   const [guestSearch, setGuestSearch] = useState("");
   const [newGuestName, setNewGuestName] = useState("");
@@ -165,6 +251,8 @@ export default function EventDetailPage() {
   const [newGuestWhatsApp, setNewGuestWhatsApp] = useState("");
   const [newGuestTable, setNewGuestTable] = useState<number | "">("");
   const [addingGuest, setAddingGuest] = useState(false);
+  const [editingGuestTableId, setEditingGuestTableId] = useState<string | null>(null);
+  const [tempTableNumber, setTempTableNumber] = useState<string>("");
 
   const utils = api.useUtils();
   const { data: event, isLoading: isEventLoading } = api.event.getById.useQuery({
@@ -210,6 +298,17 @@ export default function EventDetailPage() {
     },
     onError: (err) => {
       toast.error(err.message || "Failed to remove guest");
+    },
+  });
+
+  const updateGuestMutation = api.event.updateGuest.useMutation({
+    onSuccess: () => {
+      toast.success("Guest table assignment updated!");
+      void utils.event.getById.invalidate({ id: eventId });
+      setEditingGuestTableId(null);
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to update table assignment");
     },
   });
 
@@ -377,16 +476,29 @@ export default function EventDetailPage() {
                       <p className="font-semibold text-gray-800">Client</p>
                       <p>{event.client.name ?? "Client"}</p>
                     </div>
-                    <Link
-                      href="/inbox"
-                      className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-bold py-2 text-xs transition shadow-sm shadow-violet-200"
+                    <button
+                      onClick={handleMessageClient}
+                      disabled={isMessagingClient}
+                      className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-bold py-2 text-xs transition shadow-sm shadow-violet-200 disabled:opacity-50"
                     >
-                      <MessageSquare className="h-3.5 w-3.5" />
+                      {isMessagingClient ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <MessageSquare className="h-3.5 w-3.5" />
+                      )}
                       Message Client
-                    </Link>
+                    </button>
+                    <button
+                      onClick={handleStepDown}
+                      disabled={isSteppingDown}
+                      className="w-full text-center text-[10px] text-red-500 font-bold hover:text-red-700 transition-colors pt-2 border-t border-red-50 mt-2 flex items-center justify-center gap-1 font-semibold"
+                    >
+                      {isSteppingDown ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+                      Step Down as Coordinator
+                    </button>
                   </div>
                 ) : (
-                  <EventCoordinatorCard coordinator={event.coordinator} />
+                  <EventCoordinatorCard coordinator={event.coordinator} eventId={event.id} />
                 )}
                 <BookedVendorsCard
                   vendors={event.hiredVendors}
@@ -450,13 +562,64 @@ export default function EventDetailPage() {
                               <td className="py-3.5 pr-4 text-gray-500 text-xs">{guest.email || "—"}</td>
                               <td className="py-3.5 pr-4 text-gray-500 text-xs">{guest.whatsAppNumber || "—"}</td>
                               <td className="py-3.5 pr-4">
-                                {guest.tableNumber !== null ? (
-                                  <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-700 bg-slate-100 rounded-full px-2 py-0.5">
-                                    <Armchair className="h-3 w-3" />
-                                    Table {guest.tableNumber}
-                                  </span>
+                                {isPast ? (
+                                  guest.tableNumber !== null ? (
+                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-700 bg-slate-100 rounded-full px-2 py-0.5">
+                                      <Armchair className="h-3 w-3" />
+                                      Table {guest.tableNumber}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">—</span>
+                                  )
+                                ) : editingGuestTableId === guest.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      type="number"
+                                      value={tempTableNumber}
+                                      onChange={(e) => setTempTableNumber(e.target.value)}
+                                      className="w-16 rounded-md border border-gray-300 p-1 text-xs focus:outline-none focus:border-pink-500 font-bold"
+                                      placeholder="No."
+                                      autoFocus
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          const num = tempTableNumber === "" ? null : Number(tempTableNumber);
+                                          updateGuestMutation.mutate({ guestId: guest.id, tableNumber: num });
+                                        } else if (e.key === "Escape") {
+                                          setEditingGuestTableId(null);
+                                        }
+                                      }}
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        const num = tempTableNumber === "" ? null : Number(tempTableNumber);
+                                        updateGuestMutation.mutate({ guestId: guest.id, tableNumber: num });
+                                      }}
+                                      disabled={updateGuestMutation.isPending}
+                                      className="rounded bg-green-500 hover:bg-green-600 text-white p-1 text-xs font-bold leading-none w-5 h-5 flex items-center justify-center"
+                                    >
+                                      ✓
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingGuestTableId(null)}
+                                      className="rounded bg-gray-200 hover:bg-gray-300 text-gray-700 p-1 text-xs font-bold leading-none w-5 h-5 flex items-center justify-center"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
                                 ) : (
-                                  <span className="text-gray-400 text-xs">—</span>
+                                  <div className="flex items-center gap-1.5 group cursor-pointer" onClick={() => {
+                                    setEditingGuestTableId(guest.id);
+                                    setTempTableNumber(guest.tableNumber !== null ? String(guest.tableNumber) : "");
+                                  }}>
+                                    {guest.tableNumber !== null ? (
+                                      <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-700 bg-slate-100 rounded-full px-2 py-0.5 group-hover:bg-slate-200 transition">
+                                        <Armchair className="h-3 w-3" />
+                                        Table {guest.tableNumber}
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-400 text-xs hover:text-gray-600 transition underline decoration-dashed">Assign table</span>
+                                    )}
+                                  </div>
                                 )}
                               </td>
                               <td className="py-3.5 pr-4">

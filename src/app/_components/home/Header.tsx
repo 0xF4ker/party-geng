@@ -257,7 +257,7 @@ const Header = () => {
                 </div>
 
                 {/* Plan Event (Desktop Client Only) */}
-                {!isVendor && (
+                {!isVendor && !isCoordinator && (
                   <div className="ml-2 hidden items-center lg:flex">
                     <Link href="/manage_events">
                       <button className="flex items-center gap-2 rounded-md bg-gradient-to-r from-[var(--l-brand-pink)] to-[var(--l-brand-purple)] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(247,37,133,0.3)] transition-[transform,box-shadow] duration-200 hover:scale-105">

@@ -34,6 +34,7 @@ const ROLES = {
   CLIENT: "CLIENT",
 };
 export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname;
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -67,8 +68,9 @@ export async function middleware(request: NextRequest) {
   const userRole = (
     user?.user_metadata?.role as string | undefined
   )?.toUpperCase();
-  const path = request.nextUrl.pathname;
+  console.log(`[Middleware] Path: ${path}, Search: ${request.nextUrl.search}, User: ${user?.id}, Role: ${userRole}`);
   const redirectTo = (url: string) => {
+    console.log(`[Middleware Redirect] Redirecting to ${url} from ${request.nextUrl.pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(new URL(url, request.url));
   };
   const isPublic =

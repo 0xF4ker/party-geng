@@ -177,7 +177,7 @@ const SettingsSidebar = ({
       id: "profile",
       name: "Public Profile",
       icon: User,
-      for: ["client", "vendor"],
+      for: ["client", "vendor", "coordinator"],
     },
     {
       id: "services",
@@ -189,13 +189,13 @@ const SettingsSidebar = ({
       id: "security",
       name: "Password & Security",
       icon: Lock,
-      for: ["client", "vendor"],
+      for: ["client", "vendor", "coordinator"],
     },
     {
       id: "notifications",
       name: "Notifications",
       icon: Bell,
-      for: ["client", "vendor"],
+      for: ["client", "vendor", "coordinator"],
     },
   ];
   const visibleLinks = allLinks.filter(
@@ -303,9 +303,14 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
   const { profile, setProfile } = useAuthStore();
   const [selectedLocation, setSelectedLocation] =
     useState<LocationSearchResult | null>(() => {
-      const loc = isVendor
-        ? profile?.vendorProfile?.location
-        : profile?.clientProfile?.location;
+      let loc = null;
+      if (profile?.role === "VENDOR") {
+        loc = profile?.vendorProfile?.location;
+      } else if (profile?.role === "COORDINATOR") {
+        loc = profile?.coordinatorProfile?.location;
+      } else {
+        loc = profile?.clientProfile?.location;
+      }
       if (
         loc &&
         typeof loc === "object" &&
@@ -332,32 +337,50 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
     if (profile) {
       const clientProfile = profile.clientProfile;
       const vendorProfile = profile.vendorProfile;
-      const userLocation = isVendor
-        ? vendorProfile?.location
-        : clientProfile?.location;
+      const coordinatorProfile = profile.coordinatorProfile;
+      let userLocation = null;
+      let userAvatarUrl = null;
+      if (profile.role === "VENDOR") {
+        userLocation = vendorProfile?.location;
+        userAvatarUrl = vendorProfile?.avatarUrl ?? null;
+      } else if (profile.role === "COORDINATOR") {
+        userLocation = coordinatorProfile?.location;
+        userAvatarUrl = coordinatorProfile?.avatarUrl ?? null;
+      } else {
+        userLocation = clientProfile?.location;
+        userAvatarUrl = clientProfile?.avatarUrl ?? null;
+      }
       const commonData = {
         username: profile.username ?? "",
-        avatarUrl: isVendor
-          ? (vendorProfile?.avatarUrl ?? null)
-          : (clientProfile?.avatarUrl ?? null),
+        avatarUrl: userAvatarUrl,
         location:
           (userLocation as unknown as LocationSearchResult)?.display_name ?? "",
       };
-      const specificData = isVendor
-        ? {
-            companyName: vendorProfile?.companyName ?? "",
-            title: vendorProfile?.title ?? "",
-            about: vendorProfile?.about ?? "",
-            skills: vendorProfile?.skills ?? [],
-            languages: vendorProfile?.languages ?? [],
-          }
-        : {
-            name: clientProfile?.name ?? "",
-            bio: clientProfile?.bio ?? "",
-          };
+      let specificData = {};
+      if (profile.role === "VENDOR") {
+        specificData = {
+          companyName: vendorProfile?.companyName ?? "",
+          title: vendorProfile?.title ?? "",
+          about: vendorProfile?.about ?? "",
+          skills: vendorProfile?.skills ?? [],
+          languages: vendorProfile?.languages ?? [],
+        };
+      } else if (profile.role === "COORDINATOR") {
+        specificData = {
+          name: coordinatorProfile?.name ?? "",
+          bio: coordinatorProfile?.bio ?? "",
+          price: coordinatorProfile?.price ?? 0,
+          isAvailable: coordinatorProfile?.isAvailable ?? true,
+        };
+      } else {
+        specificData = {
+          name: clientProfile?.name ?? "",
+          bio: clientProfile?.bio ?? "",
+        };
+      }
       reset({ ...commonData, ...specificData });
     }
-  }, [profile, isVendor, reset]);
+  }, [profile, reset]);
   const utils = api.useUtils();
   const updateProfile = api.settings.updateProfile.useMutation({
     onSuccess: async (updatedProfile) => {
@@ -377,24 +400,35 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
     onError: (err) => toast.error(err.message),
   });
   const onSubmit = (data: z.infer<typeof profileUpdateSchema>) => {
-    const payload = isVendor
-      ? {
-          username: data.username,
-          avatarUrl: data.avatarUrl,
-          companyName: data.companyName,
-          title: data.title,
-          about: data.about,
-          skills: data.skills,
-          location: selectedLocation,
-          languages: data.languages,
-        }
-      : {
-          username: data.username,
-          name: data.name,
-          bio: data.bio,
-          avatarUrl: data.avatarUrl,
-          location: selectedLocation,
-        };
+    let payload: any = {
+      username: data.username,
+      avatarUrl: data.avatarUrl,
+      location: selectedLocation,
+    };
+    if (profile?.role === "VENDOR") {
+      payload = {
+        ...payload,
+        companyName: data.companyName,
+        title: data.title,
+        about: data.about,
+        skills: data.skills,
+        languages: data.languages,
+      };
+    } else if (profile?.role === "COORDINATOR") {
+      payload = {
+        ...payload,
+        name: data.name,
+        bio: data.bio,
+        price: data.price ? Number(data.price) : 0,
+        isAvailable: data.isAvailable !== undefined ? !!data.isAvailable : true,
+      };
+    } else {
+      payload = {
+        ...payload,
+        name: data.name,
+        bio: data.bio,
+      };
+    }
     updateProfile.mutate(payload);
   };
   return (
@@ -426,7 +460,7 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
             {...register("username")}
           />
           {errors.username && (
-            <p className="mt-1 text-sm text-red-600">
+            <p className="mt-1 text-sm text-red-650">
               {errors.username.message!}
             </p>
           )}
@@ -446,8 +480,8 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
             }}
           />
         </div>
-        {/* --- CLIENT FIELDS --- */}
-        {!isVendor && (
+        {/* --- CLIENT OR COORDINATOR FIELDS --- */}
+        {profile?.role !== "VENDOR" && (
           <>
             <div>
               <FormInput
@@ -457,6 +491,60 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
                 {...register("name")}
               />
             </div>
+            {profile?.role === "COORDINATOR" && (
+              <div className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="price"
+                    className="mb-1.5 block text-sm font-semibold text-gray-700"
+                  >
+                    Base Price (₦)
+                  </label>
+                  <div className="relative mt-1">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                      ₦
+                    </span>
+                    <input
+                      id="price"
+                      type="number"
+                      placeholder="15000"
+                      className="w-full rounded-md border border-gray-300 py-2.5 pl-8 pr-4 text-sm text-gray-900 focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+                      {...register("price", { valueAsNumber: true })}
+                    />
+                  </div>
+                  {errors.price && (
+                    <p className="mt-1 text-sm text-red-650">
+                      {errors.price.message!}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between rounded-xl border border-violet-100 bg-violet-50/30 p-4">
+                  <div className="space-y-0.5">
+                    <label className="text-sm font-bold text-gray-800">
+                      Available for Hire
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      Toggle to list yourself in the coordinator discovery page.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const current = control._formValues.isAvailable;
+                      setValue("isAvailable", !current, { shouldValidate: true, shouldDirty: true });
+                    }}
+                    className="flex items-center text-gray-400 hover:text-violet-650 focus:outline-none"
+                  >
+                    {useWatch({ control, name: "isAvailable" }) ? (
+                      <ToggleRight className="h-9 w-9 text-violet-600" />
+                    ) : (
+                      <ToggleLeft className="h-9 w-9 text-gray-400" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label
                 htmlFor="bio"
@@ -466,13 +554,17 @@ const PublicProfileForm = ({ isVendor }: { isVendor: boolean }) => {
               </Label>
               <Textarea
                 id="bio"
-                placeholder="Tell vendors a bit about yourself (e.g., 'Event enthusiast', 'Music lover')..."
+                placeholder={
+                  profile?.role === "COORDINATOR"
+                    ? "Tell clients about your coordination experience, style, and track record..."
+                    : "Tell vendors a bit about yourself (e.g., 'Event enthusiast', 'Music lover')..."
+                }
                 className="h-32 resize-none"
                 {...register("bio")}
               />
               <p className="text-right text-xs text-gray-500">Max 500 chars</p>
               {errors.bio && (
-                <p className="text-sm text-red-600">{errors.bio.message!}</p>
+                <p className="text-sm text-red-650">{errors.bio.message!}</p>
               )}
             </div>
           </>

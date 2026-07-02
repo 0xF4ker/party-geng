@@ -792,7 +792,7 @@ export const eventRouter = createTRPCRouter({
         email: z.string().email().optional(),
         whatsAppNumber: z.string().optional(),
         status: z.nativeEnum(GuestStatus).optional(),
-        tableNumber: z.number().int().optional(),
+        tableNumber: z.number().int().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -1414,11 +1414,137 @@ export const eventRouter = createTRPCRouter({
             userId: coordinator.userId,
             type: "EVENT_INVITATION",
             message: `You have been hired by @${user.username} to coordinate "${event.title}"!`,
-            link: `/event/${event.id}/board`,
+            link: `/event/${event.id}`,
           },
         });
 
         return updatedEvent;
+      });
+    }),
+
+  ejectCoordinator: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const { db, user } = ctx;
+
+      const event = await db.clientEvent.findUnique({
+        where: { id: input.eventId },
+        include: {
+          client: { include: { user: true } },
+          coordinator: { include: { user: true } },
+          conversation: true,
+        },
+      });
+
+      if (!event) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Event not found.",
+        });
+      }
+
+      if (!event.coordinatorId || !event.coordinator) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This event does not have an active coordinator.",
+        });
+      }
+
+      const isClient = event.client.userId === user.id;
+      const isCoordinator = event.coordinator!.userId === user.id;
+
+      if (!isClient && !isCoordinator) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You are not authorized to eject the coordinator for this event.",
+        });
+      }
+
+      const price = event.coordinator!.price;
+      const coordinatorUserId = event.coordinator!.userId;
+      const clientUserId = event.client.userId;
+
+      return db.$transaction(async (tx) => {
+        // 1. Unlink coordinator from event
+        await tx.clientEvent.update({
+          where: { id: event.id },
+          data: { coordinatorId: null },
+        });
+
+        // 2. Remove coordinator from conversation
+        if (event.conversation) {
+          await tx.conversationParticipant.deleteMany({
+            where: {
+              userId: coordinatorUserId,
+              conversationId: event.conversation.id,
+            },
+          });
+        }
+
+        // 3. Transfer flat rate back to client
+        await tx.wallet.update({
+          where: { userId: coordinatorUserId },
+          data: {
+            availableBalance: { decrement: price },
+            totalEarnings: { decrement: price },
+          },
+        });
+
+        await tx.wallet.update({
+          where: { userId: clientUserId },
+          data: {
+            availableBalance: { increment: price },
+            totalExpenses: { decrement: price },
+          },
+        });
+
+        const clientWallet = await tx.wallet.findUnique({
+          where: { userId: clientUserId },
+        });
+        const coordinatorWallet = await tx.wallet.findUnique({
+          where: { userId: coordinatorUserId },
+        });
+
+        // 4. Create transaction logs
+        if (clientWallet) {
+          await tx.transaction.create({
+            data: {
+              walletId: clientWallet.id,
+              type: "REFUND",
+              amount: price,
+              status: "COMPLETED",
+              description: `Refund: Coordinator contract terminated for event: ${event.title}`,
+            },
+          });
+        }
+
+        if (coordinatorWallet) {
+          await tx.transaction.create({
+            data: {
+              walletId: coordinatorWallet.id,
+              type: "TRANSFER",
+              amount: -price,
+              status: "COMPLETED",
+              description: `Refund: Coordinator contract terminated for event: ${event.title}`,
+            },
+          });
+        }
+
+        // 5. Send notifications
+        const recipientUserId = isClient ? coordinatorUserId : clientUserId;
+        const actorName = isClient ? `@${event.client.user.username}` : `@${event.coordinator!.user.username}`;
+        const actionText = isClient ? "terminated the coordination contract" : "stepped down from managing";
+        
+        await tx.notification.create({
+          data: {
+            userId: recipientUserId,
+            type: "EVENT_INVITATION",
+            message: `${actorName} has ${actionText} for event "${event.title}". Fee refunded.`,
+            link: isClient ? `/coordinator/dashboard` : `/event/${event.id}`,
+          },
+        });
+
+        return { success: true };
       });
     }),
 });

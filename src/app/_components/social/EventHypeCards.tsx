@@ -101,8 +101,9 @@ export default function EventHypeCards() {
       const gradient = getEventGradient(event.id);
       const emoji = getEventEmoji(event.title);
       
-      // Default capacity
-      const capacity = 150;
+      // Extract actual expected guest capacity from questionnaireData
+      const expectedGuests = (event.questionnaireData as any)?.expectedGuests;
+      const capacity = expectedGuests && Number(expectedGuests) > 0 ? Number(expectedGuests) : 150;
       const fillPercent = Math.min(100, Math.round((attendeesCount / capacity) * 100));
 
       return {
@@ -165,92 +166,120 @@ export default function EventHypeCards() {
         {processedEvents.map((event) => (
           <div
             key={event.id}
-            className="min-w-[280px] sm:min-w-[320px] snap-start rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1 flex-shrink-0 bg-white border border-[var(--l-border)]"
+            className="min-w-[280px] sm:min-w-[320px] snap-start rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1 flex-shrink-0 bg-white border border-[var(--l-border)] flex flex-col justify-between"
           >
-            {/* Top Cover Section */}
-            <div className="relative h-28 w-full overflow-hidden flex items-center justify-center">
-              {event.coverImage ? (
-                <>
-                  <Image
-                    src={event.coverImage}
-                    alt={event.title}
-                    fill
-                    className="object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/35" />
-                </>
-              ) : (
-                <div className={cn("absolute inset-0 bg-gradient-to-br", event.gradient)} />
-              )}
-              
-              <div className="relative z-10 text-center px-4">
-                <span className="text-3xl drop-shadow-md">{event.emoji}</span>
-                <h3 className="mt-1 text-base font-bold leading-tight text-white drop-shadow-md line-clamp-1">
-                  {event.title}
-                </h3>
-              </div>
-            </div>
-
-            {/* Bottom Section */}
-            <div className="p-4 space-y-3 bg-[var(--l-surface)]">
-              {/* Date */}
-              <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
-                <Calendar className="h-3.5 w-3.5 flex-shrink-0 text-pink-500" />
-                <span>{event.formattedDate}</span>
-              </div>
-
-              {/* Location */}
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-purple-400" />
-                <span className="truncate">
-                  {(event.location as any)?.display_name ?? "Lagos, Nigeria"}
-                </span>
-              </div>
-
-              {/* Attendance Progress bar */}
-              <div>
-                <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
-                  <div
-                    className="h-1.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 transition-all duration-500"
-                    style={{ width: `${event.fillPercent}%` }}
-                  />
+            {/* Clickable Card Body */}
+            <Link href={`/events/${event.id}`} className="block group flex-grow">
+              {/* Top Cover Section */}
+              <div className="relative h-28 w-full overflow-hidden flex items-center justify-center bg-gray-900">
+                {event.coverImage ? (
+                  <>
+                    <Image
+                      src={event.coverImage}
+                      alt={event.title}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors" />
+                  </>
+                ) : (
+                  <div className={cn("absolute inset-0 bg-gradient-to-br transition-all group-hover:opacity-90", event.gradient)} />
+                )}
+                
+                {/* Admission Price Badge */}
+                <div className="absolute top-2.5 right-2.5 z-10">
+                  <span className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider backdrop-blur-md shadow-sm border border-white/20 text-white",
+                    (event as any).isTicketed ? "bg-purple-600/90" : "bg-green-600/90"
+                  )}>
+                    {(event as any).isTicketed ? `₦${((event as any).ticketPrice ?? 0).toLocaleString()}` : "Free"}
+                  </span>
                 </div>
-                <p className="mt-1 text-[10px] font-bold text-[var(--l-text-muted)]">
-                  {event.attendeesCount} RSVPed
-                </p>
+                
+                <div className="relative z-10 text-center px-4">
+                  <span className="text-3xl drop-shadow-md transition-transform group-hover:scale-110 duration-300 inline-block">{event.emoji}</span>
+                  <h3 className="mt-1 text-base font-bold leading-tight text-white drop-shadow-md line-clamp-1 group-hover:text-pink-100 transition-colors">
+                    {event.title}
+                  </h3>
+                </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-1">
+              {/* Bottom Details Section */}
+              <div className="p-4 space-y-3 bg-[var(--l-surface)]">
+                {/* Date */}
+                <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
+                  <Calendar className="h-3.5 w-3.5 flex-shrink-0 text-pink-500" />
+                  <span>{event.formattedDate}</span>
+                </div>
+
+                {/* Location */}
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-purple-400" />
+                  <span className="truncate">
+                    {(event.location as any)?.display_name ?? (event.location as any)?.address ?? "Lagos, Nigeria"}
+                  </span>
+                </div>
+
+                {/* Attendance Progress bar */}
+                <div>
+                  <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                    <div
+                      className="h-1.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 transition-all duration-500"
+                      style={{ width: `${event.fillPercent}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between items-center mt-1 text-[10px] font-bold text-[var(--l-text-muted)]">
+                    <span>{event.attendeesCount} RSVPed</span>
+                    <span>Cap: {event.capacity}</span>
+                  </div>
+                </div>
+              </div>
+            </Link>
+
+            {/* Actions Footer */}
+            <div className="px-4 pb-4 bg-[var(--l-surface)]">
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100/50">
                 <span className="inline-flex items-center rounded-full bg-pink-50 px-2 py-0.5 text-[10px] font-bold text-[#f72585]">
                   {event.daysToGo > 0
                     ? `${event.daysToGo} days to go`
                     : "Happening now!"}
                 </span>
                 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleAttendToggle(event.id)}
-                  disabled={attendMutation.isPending}
-                  className={cn(
-                    "h-7 rounded-full border-[var(--l-border)] px-3 text-xs font-bold transition-all",
-                    event.isUserAttending
-                      ? "bg-green-50 border-green-200 text-green-600 hover:bg-green-100 hover:text-green-700"
-                      : "text-[var(--l-text)] hover:border-[#f72585] hover:bg-pink-50 hover:text-[#f72585]"
-                  )}
-                >
-                  {attendMutation.isPending && (
-                    <span className="mr-1 h-3 w-3 animate-spin border-2 border-current border-t-transparent rounded-full" />
-                  )}
-                  {event.isUserAttending ? (
-                    <span className="flex items-center gap-0.5">
-                      <Check className="h-3 w-3" /> Attending
-                    </span>
-                  ) : (
-                    "I'm Interested"
-                  )}
-                </Button>
+                {(event as any).isTicketed ? (
+                  <Link href={`/events/${event.id}`}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-full border-pink-200 text-[#f72585] hover:bg-pink-50 hover:border-pink-300 text-xs font-bold transition-all px-3.5"
+                    >
+                      Get Tickets
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAttendToggle(event.id)}
+                    disabled={attendMutation.isPending}
+                    className={cn(
+                      "h-7 rounded-full border-[var(--l-border)] px-3 text-xs font-bold transition-all",
+                      event.isUserAttending
+                        ? "bg-green-50 border-green-200 text-green-600 hover:bg-green-100 hover:text-green-700"
+                        : "text-[var(--l-text)] hover:border-[#f72585] hover:bg-pink-50 hover:text-[#f72585]"
+                    )}
+                  >
+                    {attendMutation.isPending && (
+                      <span className="mr-1 h-3 w-3 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                    )}
+                    {event.isUserAttending ? (
+                      <span className="flex items-center gap-0.5">
+                        <Check className="h-3 w-3" /> Attending
+                      </span>
+                    ) : (
+                      "I'm Interested"
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
           </div>

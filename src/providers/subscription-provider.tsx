@@ -39,6 +39,7 @@ export const SubscriptionProvider = ({
       const reference = urlParams.get("reference");
       if (
         reference &&
+        reference.startsWith("sub_") &&
         profile?.vendorProfile?.subscriptionStatus !== "ACTIVE"
       ) {
         window.history.replaceState(

@@ -18,6 +18,8 @@ import { useState, useEffect } from "react";
 import { useInView } from "react-intersection-observer";
 import { useUiStore } from "@/stores/ui";
 import { useAuth } from "@/hooks/useAuth";
+import Link from "next/link";
+import Image from "next/image";
 import TrendingPostCard from "@/app/_components/social/TrendingPostCard";
 import DiscoverySidebar from "@/app/_components/social/DiscoverySidebar";
 import PostModal from "@/app/_components/social/PostModal";
@@ -434,8 +436,12 @@ function EventsTabContent({ events, currentUserEmail, isAuthenticated }: EventsT
       const daysToGo = getDaysUntil(startDate);
       const gradient = getEventGradient(event.id);
       const emoji = getEventEmoji(event.title);
-      const fillPercent = Math.min(100, Math.round((attendeesCount / 150) * 100));
-      return { ...event, formattedDate, attendeesCount, isUserAttending, daysToGo, gradient, emoji, fillPercent };
+      
+      const expectedGuests = (event.questionnaireData as any)?.expectedGuests;
+      const capacity = expectedGuests && Number(expectedGuests) > 0 ? Number(expectedGuests) : 150;
+      const fillPercent = Math.min(100, Math.round((attendeesCount / capacity) * 100));
+
+      return { ...event, formattedDate, attendeesCount, isUserAttending, daysToGo, gradient, emoji, capacity, fillPercent };
     });
   }, [events, currentUserEmail]);
 
@@ -444,24 +450,49 @@ function EventsTabContent({ events, currentUserEmail, isAuthenticated }: EventsT
       {processed.map((event) => (
         <div
           key={event.id}
-          className="group rounded-2xl border border-[var(--l-border)] bg-white shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
+          className="group rounded-2xl border border-[var(--l-border)] bg-white shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col justify-between"
         >
-          {/* Coloured banner */}
-          <div className={cn("relative h-32 w-full overflow-hidden bg-gradient-to-br", event.gradient)}>
-            <div className="absolute inset-0 bg-black/20" />
-            <div className="relative z-10 flex h-full flex-col items-center justify-center gap-1 px-4 text-center">
-              <span className="text-4xl drop-shadow-lg">{event.emoji}</span>
-              <h3 className="text-lg font-bold text-white drop-shadow-md line-clamp-1">{event.title}</h3>
-            </div>
-            {/* Days badge */}
-            <span className="absolute right-3 top-3 rounded-full bg-black/40 px-2.5 py-0.5 text-[11px] font-bold text-white backdrop-blur-sm">
-              {event.daysToGo > 0 ? `${event.daysToGo}d to go` : "Happening now!"}
-            </span>
-          </div>
+          {/* Clickable Card Area */}
+          <Link href={`/events/${event.id}`} className="block flex-grow">
+            {/* Coloured banner */}
+            <div className="relative h-36 w-full overflow-hidden flex items-center justify-center bg-gray-900">
+              {event.coverImage ? (
+                <>
+                  <Image
+                    src={event.coverImage}
+                    alt={event.title}
+                    fill
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors" />
+                </>
+              ) : (
+                <div className={cn("absolute inset-0 bg-gradient-to-br transition-all group-hover:opacity-95", event.gradient)} />
+              )}
+              
+              <div className="relative z-10 flex h-full flex-col items-center justify-center gap-1 px-4 text-center">
+                <span className="text-4xl drop-shadow-lg transition-transform group-hover:scale-110 duration-300 inline-block">{event.emoji}</span>
+                <h3 className="text-lg font-bold text-white drop-shadow-md line-clamp-1 group-hover:text-pink-100 transition-colors">{event.title}</h3>
+              </div>
+              
+              {/* Ticket Price Badge */}
+              <div className="absolute top-3 left-3 z-20">
+                <span className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider backdrop-blur-md shadow-sm border border-white/20 text-white",
+                  event.isTicketed ? "bg-purple-600/90" : "bg-green-600/90"
+                )}>
+                  {event.isTicketed ? `₦${(event.ticketPrice ?? 0).toLocaleString()}` : "Free"}
+                </span>
+              </div>
 
-          {/* Details */}
-          <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1.5">
+              {/* Days badge */}
+              <span className="absolute right-3 top-3 rounded-full bg-black/40 px-2.5 py-0.5 text-[11px] font-bold text-white backdrop-blur-sm">
+                {event.daysToGo > 0 ? `${event.daysToGo}d to go` : "Happening now!"}
+              </span>
+            </div>
+
+            {/* Details */}
+            <div className="p-4 pb-2 space-y-3">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4 text-pink-500" />
@@ -470,7 +501,7 @@ function EventsTabContent({ events, currentUserEmail, isAuthenticated }: EventsT
                 <span className="flex items-center gap-1.5">
                   <MapPin className="h-4 w-4 text-purple-400" />
                   <span className="max-w-[200px] truncate">
-                    {(event.location as Record<string, unknown>)?.display_name as string ?? "Lagos, Nigeria"}
+                    {(event.location as Record<string, unknown>)?.display_name as string ?? (event.location as Record<string, unknown>)?.address as string ?? "Lagos, Nigeria"}
                   </span>
                 </span>
               </div>
@@ -484,32 +515,46 @@ function EventsTabContent({ events, currentUserEmail, isAuthenticated }: EventsT
                 </div>
                 <span className="flex items-center gap-1 text-xs font-medium text-[var(--l-text-muted)]">
                   <Users className="h-3 w-3" />
-                  {event.attendeesCount} going
+                  {event.attendeesCount} going / Cap: {event.capacity}
                 </span>
               </div>
             </div>
+          </Link>
 
-            <Button
-              size="sm"
-              onClick={() => handleRsvp(event.id)}
-              disabled={attendMutation.isPending}
-              className={cn(
-                "shrink-0 rounded-full px-5 font-semibold transition-all",
-                event.isUserAttending
-                  ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 shadow-none"
-                  : "bg-gradient-to-r from-[#f72585] to-[#7209b7] text-white hover:opacity-90 shadow-[0_4px_14px_rgba(247,37,133,0.35)]",
-              )}
-            >
-              {attendMutation.isPending ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              ) : event.isUserAttending ? (
-                <span className="flex items-center gap-1.5">
-                  <Check className="h-4 w-4" /> Attending
-                </span>
-              ) : (
-                "RSVP Now"
-              )}
-            </Button>
+          {/* Action Row */}
+          <div className="px-4 pb-4 flex justify-end">
+            {event.isTicketed ? (
+              <Link href={`/events/${event.id}`}>
+                <Button
+                  size="sm"
+                  className="rounded-full px-5 font-semibold bg-gradient-to-r from-[#f72585] to-[#7209b7] text-white hover:opacity-90 shadow-[0_4px_14px_rgba(247,37,133,0.35)]"
+                >
+                  Get Tickets
+                </Button>
+              </Link>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => handleRsvp(event.id)}
+                disabled={attendMutation.isPending}
+                className={cn(
+                  "shrink-0 rounded-full px-5 font-semibold transition-all",
+                  event.isUserAttending
+                    ? "bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 shadow-none"
+                    : "bg-gradient-to-r from-[#f72585] to-[#7209b7] text-white hover:opacity-90 shadow-[0_4px_14px_rgba(247,37,133,0.35)]",
+                )}
+              >
+                {attendMutation.isPending ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : event.isUserAttending ? (
+                  <span className="flex items-center gap-1.5">
+                    <Check className="h-4 w-4" /> Attending
+                  </span>
+                ) : (
+                  "RSVP Now"
+                )}
+              </Button>
+            )}
           </div>
         </div>
       ))}

@@ -929,6 +929,7 @@ model CoordinatorProfile {
   bio         String?       @db.Text
   price       Float         @default(0)
   location    Json?
+  isAvailable Boolean       @default(true)
   events      ClientEvent[] @relation("EventCoordinator")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
