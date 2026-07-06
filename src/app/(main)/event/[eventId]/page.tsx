@@ -32,6 +32,8 @@ import Link from "next/link";
 import { EventHeader } from "@/app/_components/event/EventHeader";
 import { EditEventModal } from "@/app/_components/event/modals/EditEventModal";
 import { AddVendorModal } from "@/app/_components/event/modals/AddVendorModal";
+import { BudgetManagerModal } from "@/app/_components/event/modals/BudgetManagerModal";
+import { WishlistModal } from "@/app/_components/event/modals/WishlistModal";
 import Breadcrumb from "@/components/ui/breadcrumb";
 import { useUserType } from "@/hooks/useUserType";
 import { PlanningProgressCenter } from "@/app/_components/event/PlanningProgressCenter";
@@ -206,6 +208,8 @@ export default function EventDetailPage() {
   const [activeTab, setActiveTab] = useState<"overview" | "guests" | "ticketing">("overview");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddVendorModalOpen, setIsAddVendorModalOpen] = useState(false);
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [isWishlistModalOpen, setIsWishlistModalOpen] = useState(false);
 
   const [isMessagingClient, setIsMessagingClient] = useState(false);
   const [isSteppingDown, setIsSteppingDown] = useState(false);
@@ -453,8 +457,9 @@ export default function EventDetailPage() {
                 <PersonalTodoListCard eventId={event.id} isPast={isPast} />
                 <NewBudgetManagerCard
                   budget={event.budget}
+                  proposedBudget={(event.questionnaireData as any)?.roughBudget ?? 0}
                   _eventId={event.id}
-                  onManage={() => {}}
+                  onManage={() => setIsBudgetModalOpen(true)}
                   isPast={isPast}
                 />
               </div>
@@ -510,7 +515,7 @@ export default function EventDetailPage() {
                   wishlist={event.wishlist}
                   _eventId={event.id}
                   eventName={event.title}
-                  onManage={() => {}}
+                  onManage={() => setIsWishlistModalOpen(true)}
                   isPast={isPast}
                 />
               </div>
@@ -926,6 +931,16 @@ export default function EventDetailPage() {
         event={event}
         isOpen={isAddVendorModalOpen}
         onClose={() => setIsAddVendorModalOpen(false)}
+      />
+      <BudgetManagerModal
+        event={event}
+        isOpen={isBudgetModalOpen}
+        onClose={() => setIsBudgetModalOpen(false)}
+      />
+      <WishlistModal
+        event={event}
+        isOpen={isWishlistModalOpen}
+        onClose={() => setIsWishlistModalOpen(false)}
       />
     </div>
   );

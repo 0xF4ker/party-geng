@@ -685,7 +685,7 @@ export const eventRouter = createTRPCRouter({
         itemId: z.string(),
         description: z.string().optional(),
         estimatedCost: z.number().optional(),
-        actualCost: z.number().optional(),
+        actualCost: z.number().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -693,10 +693,18 @@ export const eventRouter = createTRPCRouter({
       const item = await ctx.db.eventBudgetItem.findUnique({
         where: { id: itemId },
         include: {
-          budget: { include: { event: { include: { client: true } } } },
+          budget: { include: { event: { include: { client: true, coordinator: true } } } },
         },
       });
-      if (!item || item.budget.event.client.userId !== ctx.user.id) {
+      if (!item) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Budget item not found",
+        });
+      }
+      const isOwner = item.budget.event.client.userId === ctx.user.id;
+      const isCoordinator = item.budget.event.coordinator?.userId === ctx.user.id;
+      if (!isOwner && !isCoordinator) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You do not have permission to edit this event",
@@ -718,9 +726,17 @@ export const eventRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const budget = await ctx.db.eventBudget.findUnique({
         where: { id: input.budgetId },
-        include: { event: { include: { client: true } } },
+        include: { event: { include: { client: true, coordinator: true } } },
       });
-      if (!budget || budget.event.client.userId !== ctx.user.id) {
+      if (!budget) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Budget not found",
+        });
+      }
+      const isOwner = budget.event.client.userId === ctx.user.id;
+      const isCoordinator = budget.event.coordinator?.userId === ctx.user.id;
+      if (!isOwner && !isCoordinator) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You do not have permission to add to this budget",
@@ -740,10 +756,18 @@ export const eventRouter = createTRPCRouter({
       const item = await ctx.db.eventBudgetItem.findUnique({
         where: { id: input.itemId },
         include: {
-          budget: { include: { event: { include: { client: true } } } },
+          budget: { include: { event: { include: { client: true, coordinator: true } } } },
         },
       });
-      if (!item || item.budget.event.client.userId !== ctx.user.id) {
+      if (!item) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Budget item not found",
+        });
+      }
+      const isOwner = item.budget.event.client.userId === ctx.user.id;
+      const isCoordinator = item.budget.event.coordinator?.userId === ctx.user.id;
+      if (!isOwner && !isCoordinator) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You do not have permission to delete this item",
@@ -1278,6 +1302,53 @@ export const eventRouter = createTRPCRouter({
           listId: guestList.id,
         },
       });
+
+      // Send GUEST_CONFIRMATION email
+      if (guest.email) {
+        try {
+          // Formatted Date
+          const eventDate = new Date(event.startDate).toLocaleDateString("en-US", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          // Formatted Location
+          const locationObj = event.location as any;
+          const locationString = locationObj?.display_name || locationObj?.displayName || locationObj?.address || "To Be Announced";
+
+          // Maps Link
+          let mapsLink: string | undefined = undefined;
+          if (locationObj?.lat && locationObj?.lon) {
+            mapsLink = `https://www.google.com/maps/search/?api=1&query=${locationObj.lat},${locationObj.lon}`;
+          } else if (locationString && locationString !== "To Be Announced") {
+            mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationString)}`;
+          }
+
+          await emailService.send({
+            to: guest.email,
+            subject: `RSVP Confirmed: ${event.title}`,
+            template: "GUEST_CONFIRMATION",
+            data: {
+              name: guest.name,
+              eventTitle: event.title,
+              date: eventDate,
+              location: locationString,
+              mapsLink,
+              ticketTierName: undefined,
+              ticketPrice: "Free Admission",
+              tableNumber: undefined,
+              hasPaid: false,
+            },
+          });
+        } catch (err) {
+          console.error("Failed to send public RSVP confirmation email:", err);
+        }
+      }
+
       return { success: true, guestName: guest.name };
     }),
 

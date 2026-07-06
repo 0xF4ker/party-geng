@@ -11,6 +11,17 @@ interface GuestInvitationData {
   price?: string;
   tableNumber?: string;
 }
+interface GuestConfirmationData {
+  name: string;
+  eventTitle: string;
+  date?: string;
+  location?: string;
+  mapsLink?: string;
+  ticketTierName?: string;
+  ticketPrice?: string;
+  tableNumber?: string;
+  hasPaid?: boolean;
+}
 interface WelcomeData {
   username: string;
   role: "CLIENT" | "VENDOR" | "COORDINATOR";
@@ -18,6 +29,7 @@ interface WelcomeData {
 type TemplateDataMap = {
   GUEST_INVITATION: GuestInvitationData;
   WELCOME_ONBOARDING: WelcomeData;
+  GUEST_CONFIRMATION: GuestConfirmationData;
 };
 interface MailOptions<T extends keyof TemplateDataMap> {
   to: string | Address | (string | Address)[];
@@ -92,6 +104,50 @@ export const emailService = {
 
         <div style="text-align: center; margin: 30px 0;">
           <a href="${d.link}" style="background-color: #db2777; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; box-shadow: 0 4px 12px rgba(219,39,119,0.3);">RSVP & Confirm Attendance</a>
+        </div>
+        ${footer}`;
+    }
+    if (template === "GUEST_CONFIRMATION") {
+      const d = data as GuestConfirmationData;
+      return `${header}
+        <div style="background-color: #fafafa; padding: 16px; border-radius: 16px; border: 1px solid #e5e7eb; margin: 20px 0;">
+          <div style="background: linear-gradient(135deg, #db2777, #7209b7); padding: 24px; text-align: center; color: #ffffff; border-radius: 12px 12px 0 0;">
+            <span style="font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; background-color: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 20px;">RSVP CONFIRMED</span>
+            <h2 style="margin: 10px 0 0 0; font-size: 22px; font-weight: 800; line-height: 1.3; color: #ffffff;">Your Invitation Card</h2>
+            <p style="margin: 4px 0 0 0; font-size: 13px; opacity: 0.9;">Present this stub at the entrance</p>
+          </div>
+          <div style="padding: 24px; background-color: #ffffff; border-radius: 0 0 12px 12px; border: 1px solid #f3f4f6; border-top: none;">
+            <h3 style="font-size: 18px; font-weight: 800; color: #111827; margin: 0 0 4px 0; text-align: center;">${d.eventTitle}</h3>
+            <p style="font-size: 13px; text-align: center; color: #6b7280; margin: 0 0 20px 0;">Guest: <strong>${d.name}</strong></p>
+            
+            <div style="border-top: 2px dashed #e5e7eb; margin: 16px 0; position: relative;"></div>
+
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-weight: 500; width: 35%;">📅 Date & Time</td>
+                <td style="padding: 8px 0; color: #1f2937; font-weight: 700;">${d.date || "To be announced"}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-weight: 500; vertical-align: top;">📍 Location</td>
+                <td style="padding: 8px 0; color: #1f2937; font-weight: 700;">
+                  ${d.location || "To be announced"}
+                  ${d.mapsLink ? `<br/><a href="${d.mapsLink}" style="display: inline-block; margin-top: 6px; color: #db2777; font-weight: 700; text-decoration: none; font-size: 11px;">🗺️ View on Google Maps</a>` : ""}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-weight: 500;">🎟️ Admission</td>
+                <td style="padding: 8px 0; color: #1f2937; font-weight: 700;">
+                  ${d.ticketTierName ? `${d.ticketTierName} (${d.ticketPrice})` : "General Admission"}
+                  ${d.hasPaid ? ` <span style="background-color: #d1fae5; color: #065f46; font-size: 9px; padding: 2px 6px; border-radius: 10px; font-weight: bold; margin-left: 6px; vertical-align: middle;">PAID</span>` : ""}
+                </td>
+              </tr>
+              ${d.tableNumber ? `
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-weight: 500;">🪑 Table</td>
+                <td style="padding: 8px 0; color: #1f2937; font-weight: 700;">Table ${d.tableNumber}</td>
+              </tr>` : ""}
+            </table>
+          </div>
         </div>
         ${footer}`;
     }

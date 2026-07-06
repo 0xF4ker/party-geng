@@ -14,6 +14,7 @@ import {
   type Prisma,
 } from "@prisma/client";
 import { logActivity } from "../services/activityLogger";
+import { emailService } from "../../services/emailService";
 interface PaystackBank {
   name: string;
   slug: string;
@@ -1234,14 +1235,70 @@ export const paymentRouter = createTRPCRouter({
           }
 
           // Update guest status to ATTENDING & paid
-          await tx.eventGuest.update({
+          const updatedGuest = await tx.eventGuest.update({
             where: { id: guest.id },
             data: {
               status: "ATTENDING",
               hasPaid: true,
               paymentReference: input.reference,
             },
+            include: {
+              ticketTier: true,
+            },
           });
+
+          // Send GUEST_CONFIRMATION email
+          if (updatedGuest.email) {
+            try {
+              // Formatted Date
+              const eventDate = new Date(event.startDate).toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+
+              // Formatted Location
+              const locationObj = event.location as any;
+              const locationString = locationObj?.display_name || locationObj?.displayName || locationObj?.address || "To Be Announced";
+
+              // Maps Link
+              let mapsLink: string | undefined = undefined;
+              if (locationObj?.lat && locationObj?.lon) {
+                mapsLink = `https://www.google.com/maps/search/?api=1&query=${locationObj.lat},${locationObj.lon}`;
+              } else if (locationString && locationString !== "To Be Announced") {
+                mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationString)}`;
+              }
+
+              // Price & Ticket
+              const priceString = updatedGuest.ticketTier 
+                ? `₦${updatedGuest.ticketTier.price.toLocaleString()}` 
+                : event.isTicketed 
+                  ? `₦${event.ticketPrice.toLocaleString()}` 
+                  : "Free Admission";
+
+              await emailService.send({
+                to: updatedGuest.email,
+                subject: `RSVP Confirmed: ${event.title}`,
+                template: "GUEST_CONFIRMATION",
+                data: {
+                  name: updatedGuest.name,
+                  eventTitle: event.title,
+                  date: eventDate,
+                  location: locationString,
+                  mapsLink,
+                  ticketTierName: updatedGuest.ticketTier?.name ?? undefined,
+                  ticketPrice: priceString,
+                  tableNumber: updatedGuest.tableNumber !== null ? String(updatedGuest.tableNumber) : undefined,
+                  hasPaid: updatedGuest.hasPaid,
+                },
+              });
+            } catch (err) {
+              console.error("Failed to send paid ticket confirmation email:", err);
+            }
+          }
 
           const ticketAmount = data.data.amount / 100;
 

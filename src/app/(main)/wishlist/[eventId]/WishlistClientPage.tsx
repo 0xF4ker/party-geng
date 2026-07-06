@@ -226,71 +226,84 @@ const WishlistItemCard = ({
     isPromised ||
     (item.itemType === WishlistItemType.CASH_REQUEST && (item.requestedAmount ?? 0) > 0 && totalCashContributed >= (item.requestedAmount ?? 0));
   const isDisabled = isFulfilled;
+  
   return (
-    <div className="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-all duration-300 hover:shadow-lg">
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
       {item.itemType === WishlistItemType.ITEM_REQUEST ? (
-        <div className="relative h-48 w-full">
+        <div className="relative h-48 w-full bg-gray-50">
             {isFulfilled && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-green-900/60">
-                <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-green-800">
-                  Promised!
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-emerald-950/40 backdrop-blur-xs">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 backdrop-blur-md border border-emerald-400 px-3.5 py-1 text-xs font-bold text-white shadow-lg">
+                  ✓ Promised
                 </span>
               </div>
             )}
             <Image
               src={item.imageUrl ?? `https://picsum.photos/seed/${item.id}/300/300`}
               alt={item.name}
-              layout="fill"
-              objectFit="cover"
+              fill
+              className="object-cover"
             />
         </div>
       ) : (
-        <div className="relative flex h-48 w-full items-center justify-center bg-pink-50">
+        <div className="relative flex h-48 w-full items-center justify-center bg-gradient-to-br from-pink-50 to-purple-50">
             {isFulfilled && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-green-900/60">
-                    <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-green-800">
-                    Fulfilled!
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-emerald-950/40 backdrop-blur-xs">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 backdrop-blur-md border border-emerald-400 px-3.5 py-1 text-xs font-bold text-white shadow-lg">
+                      ✓ Fulfilled
                     </span>
                 </div>
             )}
-            <DollarSign className="h-16 w-16 text-pink-300" />
+            <DollarSign className="h-16 w-16 text-pink-300/80 animate-pulse" />
         </div>
       )}
-      <div className="flex flex-1 flex-col p-4">
+      <div className="flex flex-1 flex-col p-5">
         <div className="flex-1">
-          <p className="font-semibold text-gray-800">{item.name}</p>
+          <p className="font-bold text-gray-900 text-base leading-tight mb-2">{item.name}</p>
+          <span className={cn(
+            "inline-flex rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+            item.itemType === WishlistItemType.CASH_REQUEST
+              ? "bg-pink-50 text-pink-600"
+              : "bg-purple-50 text-purple-600"
+          )}>
+            {item.itemType === WishlistItemType.CASH_REQUEST ? "Cash Fund" : "Item Wish"}
+          </span>
         </div>
-        <div className="mt-4">
+        <div className="mt-5">
           {item.itemType === WishlistItemType.CASH_REQUEST && item.requestedAmount && item.requestedAmount > 0 ? (
-            <div>
-              <div className="mb-1 flex justify-between text-xs text-gray-600">
-                <span className="font-semibold">
-                  ₦{totalCashContributed.toLocaleString()}
-                </span>
-                <span className="font-semibold">
-                  ₦{item.requestedAmount.toLocaleString()}
-                </span>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs font-semibold text-gray-600">
+                <span>₦{totalCashContributed.toLocaleString()} raised</span>
+                <span>Goal: ₦{item.requestedAmount.toLocaleString()}</span>
               </div>
-              <div className="h-2 w-full rounded-full bg-gray-200">
+              <div className="h-2 w-full rounded-full bg-gray-150 overflow-hidden">
                 <div
-                  className="h-2 rounded-full bg-pink-500"
-                  style={{ width: `${progress}%` }}
+                  className="h-2 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 transition-all duration-500"
+                  style={{ width: `${Math.min(100, progress)}%` }}
                 ></div>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-400">Item request</p>
+            <p className="text-xs text-gray-400 font-medium">Physical gift contribution request</p>
           )}
         </div>
       </div>
-      <div className="border-t p-3">
-        <Button
-          onClick={onContribute}
-          className="w-full font-semibold"
-          disabled={isDisabled}
-        >
-          {isFulfilled ? "Fulfilled" : (item.itemType === 'CASH_REQUEST' ? 'Contribute Cash' : 'Make Promise')}
-        </Button>
+      <div className="border-t border-gray-50 p-4 bg-gray-50/20">
+        {isFulfilled ? (
+          <Button
+            className="w-full font-bold bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-50 rounded-xl"
+            disabled
+          >
+            Thank You!
+          </Button>
+        ) : (
+          <Button
+            onClick={onContribute}
+            className="w-full font-bold rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
+          >
+            {item.itemType === WishlistItemType.CASH_REQUEST ? 'Contribute Cash' : 'Make Promise'}
+          </Button>
+        )}
       </div>
     </div>
   );

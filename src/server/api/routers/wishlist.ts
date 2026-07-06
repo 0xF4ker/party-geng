@@ -13,7 +13,6 @@ import {
 import { unstable_cache, revalidateTag } from "next/cache";
 import { db } from "@/server/db";
 
-
 const getCachedWishlist = async (eventId: string) => {
   return unstable_cache(
     async () => {
@@ -27,6 +26,11 @@ const getCachedWishlist = async (eventId: string) => {
                   username: true,
                 },
               },
+            },
+          },
+          coordinator: {
+            include: {
+              user: true,
             },
           },
           wishlist: {
@@ -57,7 +61,6 @@ const getCachedWishlist = async (eventId: string) => {
   )();
 };
 
-
 export const wishlistRouter = createTRPCRouter({
   getByEventId: publicProcedure
     .input(z.object({ eventId: z.string() }))
@@ -71,9 +74,11 @@ export const wishlistRouter = createTRPCRouter({
         });
       }
 
+      const isOwner = event.client.userId === ctx.user?.id;
+      const isCoordinator = event.coordinator?.userId === ctx.user?.id;
       if (
         !event.isPublic &&
-        (!ctx.user || ctx.user.id !== event.client.userId)
+        (!ctx.user || (!isOwner && !isCoordinator))
       ) {
         throw new TRPCError({
           code: "FORBIDDEN",
@@ -97,10 +102,19 @@ export const wishlistRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const event = await ctx.db.clientEvent.findUnique({
         where: { id: input.eventId },
-        include: { client: true, wishlist: true },
+        include: { client: true, coordinator: true, wishlist: true },
       });
 
-      if (!event || event.client.userId !== ctx.user.id) {
+      if (!event) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Event not found",
+        });
+      }
+
+      const isOwner = event.client.userId === ctx.user.id;
+      const isCoordinator = event.coordinator?.userId === ctx.user.id;
+      if (!isOwner && !isCoordinator) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You do not have permission to edit this wishlist",
@@ -147,14 +161,23 @@ export const wishlistRouter = createTRPCRouter({
           wishlist: {
             include: {
               event: {
-                include: { client: true },
+                include: { client: true, coordinator: true },
               },
             },
           },
         },
       });
 
-      if (!item || item.wishlist.event.client.userId !== ctx.user.id) {
+      if (!item) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Wishlist item not found",
+        });
+      }
+
+      const isOwner = item.wishlist.event.client.userId === ctx.user.id;
+      const isCoordinator = item.wishlist.event.coordinator?.userId === ctx.user.id;
+      if (!isOwner && !isCoordinator) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You do not have permission to edit this item",
@@ -182,14 +205,23 @@ export const wishlistRouter = createTRPCRouter({
           wishlist: {
             include: {
               event: {
-                include: { client: true },
+                include: { client: true, coordinator: true },
               },
             },
           },
         },
       });
 
-      if (!item || item.wishlist.event.client.userId !== ctx.user.id) {
+      if (!item) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Wishlist item not found",
+        });
+      }
+
+      const isOwner = item.wishlist.event.client.userId === ctx.user.id;
+      const isCoordinator = item.wishlist.event.coordinator?.userId === ctx.user.id;
+      if (!isOwner && !isCoordinator) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You do not have permission to delete this item",
