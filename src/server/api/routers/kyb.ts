@@ -85,48 +85,80 @@ export const kybRouter = createTRPCRouter({
         });
       }
       const cleanBaseUrl = baseUrl.replace(/\/$/, "");
-      const url = `${cleanBaseUrl}/api/vas/validation/secure/company`;
+      const url = `${cleanBaseUrl}/api/vas/validation/company`;
 
-      try {
-        const response = await fetch(
-          url,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-api-key": apiKey,
-              "X-API-KEY": apiKey,
-              X_API_KEY: apiKey,
-            },
-            body: JSON.stringify({
-              vrc: rcNumber,
-            }),
-          },
-        );
-        const responseText = await response.text();
-        if (!response.ok) {
-          throw new Error(`Registry API responded with status ${response.status}: ${responseText.slice(0, 150)}`);
-        }
-        let result: ExternalKybResponse;
-        try {
-          result = JSON.parse(responseText) as ExternalKybResponse;
-        } catch (e) {
-          throw new Error(`Registry API returned invalid JSON: ${responseText.slice(0, 150)}`);
-        }
-        if (!result.success) {
-          throw new Error(result.message || "External API verification failed");
-        }
-        return result.data;
-      } catch (error) {
-        console.error("KYB API Error:", error);
-        throw new TRPCError({
-          code: "BAD_GATEWAY",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Failed to connect to registry API",
-        });
+      const cleanRc = rcNumber.trim().replace(/^(RC|BN|IT|LLP|LP)\s*-*\s*/i, "");
+      
+      let guessedType = "PRIVATE_COMPANY_SHARES";
+      if (/BN/i.test(rcNumber)) {
+        guessedType = "BUSINESS_NAME";
+      } else if (/IT/i.test(rcNumber) || /CAC/i.test(rcNumber)) {
+        guessedType = "INCORPORATED_TRUSTEE";
       }
+
+      const entityTypesToTry = [
+        guessedType,
+        "PRIVATE_COMPANY_SHARES",
+        "BUSINESS_NAME",
+        "INCORPORATED_TRUSTEE"
+      ].filter((v, i, a) => a.indexOf(v) === i);
+
+      let lastError: Error | null = null;
+      let lastResponseText = "";
+      let lastResponseStatus = 200;
+
+      for (const entityType of entityTypesToTry) {
+        try {
+          const response = await fetch(
+            url,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": apiKey,
+                "X-API-KEY": apiKey,
+                X_API_KEY: apiKey,
+              },
+              body: JSON.stringify({
+                rc_number: cleanRc,
+                entity_type: entityType,
+              }),
+            },
+          );
+
+          lastResponseStatus = response.status;
+          lastResponseText = await response.text();
+
+          if (!response.ok) {
+            continue; // Try next type
+          }
+
+          let result: ExternalKybResponse;
+          try {
+            result = JSON.parse(lastResponseText) as ExternalKybResponse;
+          } catch (e) {
+            lastError = new Error(`Registry API returned invalid JSON: ${lastResponseText.slice(0, 150)}`);
+            continue;
+          }
+
+          if (!result.success) {
+            lastError = new Error(result.message || "External API verification failed");
+            continue;
+          }
+
+          return result.data;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+        }
+      }
+
+      console.error("KYB API Error after trying all entity types:", lastError);
+      throw new TRPCError({
+        code: "BAD_GATEWAY",
+        message: lastError
+          ? lastError.message
+          : `Failed with status ${lastResponseStatus}: ${lastResponseText.slice(0, 150) || "Empty response"}`,
+      });
     }),
   processDecision: adminProcedure
     .input(
