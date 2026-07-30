@@ -84,13 +84,18 @@ export const kybRouter = createTRPCRouter({
           message: "Server missing KYB integration credentials.",
         });
       }
+      const cleanBaseUrl = baseUrl.replace(/\/$/, "");
+      const url = `${cleanBaseUrl}/api/vas/validation/secure/company`;
+
       try {
         const response = await fetch(
-          `${baseUrl}/api/vas/validation/secure/company`,
+          url,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              "x-api-key": apiKey,
+              "X-API-KEY": apiKey,
               X_API_KEY: apiKey,
             },
             body: JSON.stringify({
@@ -98,8 +103,17 @@ export const kybRouter = createTRPCRouter({
             }),
           },
         );
-        const result = (await response.json()) as ExternalKybResponse;
-        if (!response.ok || !result.success) {
+        const responseText = await response.text();
+        if (!response.ok) {
+          throw new Error(`Registry API responded with status ${response.status}: ${responseText.slice(0, 150)}`);
+        }
+        let result: ExternalKybResponse;
+        try {
+          result = JSON.parse(responseText) as ExternalKybResponse;
+        } catch (e) {
+          throw new Error(`Registry API returned invalid JSON: ${responseText.slice(0, 150)}`);
+        }
+        if (!result.success) {
           throw new Error(result.message || "External API verification failed");
         }
         return result.data;
