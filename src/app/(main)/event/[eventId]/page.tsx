@@ -382,10 +382,55 @@ export default function EventDetailPage() {
     }
   };
 
+  const SHOW_EVENT_MANAGEMENT = false; // Toggle to true when event management is ready
+
   if (isEventLoading || userTypeLoading || isVendor) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <Loader2 className="h-16 w-16 animate-spin text-pink-600" />
+      </div>
+    );
+  }
+
+  if (!SHOW_EVENT_MANAGEMENT && !isCoordinator) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-[100px] pb-20 text-gray-900 lg:pt-[120px] flex items-center justify-center">
+        <div className="container mx-auto px-4 py-8 max-w-lg text-center">
+          <div className="relative overflow-hidden bg-white rounded-3xl p-8 sm:p-12 shadow-xl border border-gray-100">
+            {/* Subtle background glow */}
+            <div className="absolute -top-12 -right-12 h-40 w-40 rounded-full bg-pink-500/10 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 h-40 w-40 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
+
+            {/* Icon wrapper */}
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-tr from-pink-500 to-purple-600 text-white shadow-lg shadow-pink-500/20 animate-pulse">
+              <Briefcase className="h-10 w-10" />
+            </div>
+
+            {/* Badge */}
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-pink-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-pink-600 border border-pink-100 mb-4">
+              Feature Coming Soon
+            </span>
+
+            <h1 className="text-3xl font-black tracking-tight text-gray-900 sm:text-4xl mb-4 font-sans">
+              Event Management
+            </h1>
+            
+            <p className="text-sm sm:text-base text-gray-600 leading-relaxed mb-8">
+              We are adding the finishing touches to our interactive Event Board, checklist organizer, budget calculator, and guest manager.
+              <span className="block mt-2 font-medium text-gray-800">
+                Planning your next big event is coming soon!
+              </span> 
+              Soon, you'll be able to manage your vendors, track tasks, and design your dream party end-to-end.
+            </p>
+
+            <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4 flex items-center gap-3 text-left">
+              <div className="h-2 w-2 rounded-full bg-pink-500 animate-ping shrink-0" />
+              <p className="text-xs text-gray-500 font-medium">
+                We're building a seamless way for you to coordinate everything. Stay tuned!
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
