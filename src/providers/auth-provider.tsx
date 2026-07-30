@@ -17,7 +17,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: profile, isLoading: isProfileLoading } =
     api.user.getProfile.useQuery(undefined, {
       enabled: hasSession,
-      staleTime: 1000 * 60 * 5,
+      staleTime: 0, // Disable caching for user profile to instantly reflect kyb/payment settings changes
       retry: 2,
     });
   const healAccountMutation = api.auth.healAccount.useMutation({

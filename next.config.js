@@ -8,6 +8,7 @@ import "./src/env.js";
 const config = {
   output: "standalone",
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",

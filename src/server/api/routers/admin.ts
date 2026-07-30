@@ -159,6 +159,7 @@ export const adminRouter = createTRPCRouter({
         maintenanceMode: z.boolean(),
         allowNewRegistrations: z.boolean(),
         isKybEnabled: z.boolean(),
+        isVendorSubscriptionRequired: z.boolean(),
         supportEmail: z.string().email(),
         supportPhone: z.string().optional(),
       }),

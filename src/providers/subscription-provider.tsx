@@ -59,7 +59,10 @@ export const SubscriptionProvider = ({
   ) {
     return <>{children}</>;
   }
-  if (profile.vendorProfile?.subscriptionStatus === "ACTIVE") {
+  if (
+    profile.vendorProfile?.subscriptionStatus === "ACTIVE" ||
+    (profile.vendorProfile as any)?.isSubscriptionRequired === false
+  ) {
     return <>{children}</>;
   }
   return (

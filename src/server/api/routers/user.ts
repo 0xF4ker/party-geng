@@ -96,6 +96,21 @@ export const userRouter = createTRPCRouter({
         },
       },
     });
+
+    if (profile?.vendorProfile) {
+      const settings = await ctx.db.globalSettings.findUnique({
+        where: { id: 1 },
+        select: { isVendorSubscriptionRequired: true },
+      });
+      return {
+        ...profile,
+        vendorProfile: {
+          ...profile.vendorProfile,
+          isSubscriptionRequired: settings?.isVendorSubscriptionRequired ?? true,
+        },
+      };
+    }
+
     return profile;
   }),
   getById: publicProcedure
@@ -454,9 +469,106 @@ export const userRouter = createTRPCRouter({
           message: "Cannot delete yourself.",
         });
       }
-      const deleted = await ctx.db.user.delete({
-        where: { id: input.userId },
+
+      const deleted = await ctx.db.$transaction(async (tx) => {
+        // 1. Clean up ServicesOnVendors
+        const vendorProfile = await tx.vendorProfile.findUnique({
+          where: { userId: input.userId },
+          select: { id: true },
+        });
+        if (vendorProfile) {
+          await tx.servicesOnVendors.deleteMany({
+            where: { vendorProfileId: vendorProfile.id },
+          });
+        }
+
+        // 2. Clean up CoordinatorAccessKey
+        await tx.coordinatorAccessKey.updateMany({
+          where: { usedById: input.userId },
+          data: { usedById: null, isUsed: false },
+        });
+
+        // 3. Clean up Reports on user's posts
+        const userPosts = await tx.post.findMany({
+          where: { authorId: input.userId },
+          select: { id: true },
+        });
+        const postIds = userPosts.map((p) => p.id);
+        if (postIds.length > 0) {
+          await tx.report.deleteMany({
+            where: { targetPostId: { in: postIds } },
+          });
+        }
+
+        // 4. Clean up EventInvitations referencing user's events
+        const clientProfile = await tx.clientProfile.findUnique({
+          where: { userId: input.userId },
+          select: { id: true },
+        });
+        if (clientProfile) {
+          const userEvents = await tx.clientEvent.findMany({
+            where: { clientProfileId: clientProfile.id },
+            select: { id: true },
+          });
+          const eventIds = userEvents.map((e) => e.id);
+          if (eventIds.length > 0) {
+            await tx.eventInvitation.deleteMany({
+              where: { eventId: { in: eventIds } },
+            });
+            // 5. Clean up ClientEvents
+            await tx.clientEvent.deleteMany({
+              where: { id: { in: eventIds } },
+            });
+          }
+        }
+
+        // 6. Clean up Orders to prevent quoteId reference issue
+        await tx.order.deleteMany({
+          where: {
+            OR: [
+              { vendorId: input.userId },
+              { clientId: input.userId },
+            ],
+          },
+        });
+
+        // 7. Clean up Quotes
+        await tx.quote.deleteMany({
+          where: {
+            OR: [
+              { vendorId: input.userId },
+              { clientId: input.userId },
+            ],
+          },
+        });
+
+        // 8. Delete the User (which will cascade to Profiles, Wallets, etc.)
+        return tx.user.delete({
+          where: { id: input.userId },
+        });
       });
+
+      // 9. Clean up from Supabase Auth
+      const supabaseAdminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (supabaseAdminKey) {
+        try {
+          const { createClient } = await import("@supabase/supabase-js");
+          const supabaseAdmin = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            supabaseAdminKey,
+            { auth: { persistSession: false } },
+          );
+          const { error } = await supabaseAdmin.auth.admin.deleteUser(input.userId);
+          if (error) {
+            console.error("Failed to delete user from Supabase Auth:", error.message);
+          }
+        } catch (err) {
+          console.error("Error initializing Supabase Admin or deleting user:", err);
+        }
+      } else {
+        console.warn("SUPABASE_SERVICE_ROLE_KEY is not defined. Skipped Supabase Auth deletion.");
+      }
+
       await logActivity({
         ctx,
         action: "USER_DELETE",

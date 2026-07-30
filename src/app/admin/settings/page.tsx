@@ -32,6 +32,7 @@ export default function AdminSettingsPage() {
     maintenanceMode: false,
     allowNewRegistrations: true,
     isKybEnabled: true,
+    isVendorSubscriptionRequired: true,
     supportEmail: "",
     supportPhone: "",
   });
@@ -46,6 +47,7 @@ export default function AdminSettingsPage() {
         maintenanceMode: settings.maintenanceMode,
         allowNewRegistrations: settings.allowNewRegistrations,
         isKybEnabled: settings.isKybEnabled,
+        isVendorSubscriptionRequired: settings.isVendorSubscriptionRequired ?? true,
         supportEmail: settings.supportEmail,
         supportPhone: settings.supportPhone ?? "",
       });
@@ -211,6 +213,23 @@ export default function AdminSettingsPage() {
                 checked={formData.isKybEnabled}
                 onCheckedChange={(c) =>
                   setFormData({ ...formData, isKybEnabled: c })
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <Label className="text-base">Require Vendor Subscription Payment</Label>
+                  <ShieldCheck className="h-4 w-4 text-pink-500" />
+                </div>
+                <p className="text-sm text-gray-500">
+                  Require vendors to pay a subscription fee to activate their account.
+                </p>
+              </div>
+              <Switch
+                checked={formData.isVendorSubscriptionRequired}
+                onCheckedChange={(c) =>
+                  setFormData({ ...formData, isVendorSubscriptionRequired: c })
                 }
               />
             </div>

@@ -830,8 +830,9 @@ model GlobalSettings {
   
   // --- Features & Access ---
   maintenanceMode       Boolean  @default(false) // Locks the app for users
-  allowNewRegistrations Boolean  @default(true)  // Pause signups
-  isKybEnabled          Boolean  @default(true)  // Master switch for verification
+  allowNewRegistrations        Boolean  @default(true)  // Pause signups
+  isKybEnabled                 Boolean  @default(true)  // Master switch for verification
+  isVendorSubscriptionRequired Boolean  @default(true)  // Toggle subscription fee requirement for vendors
   
   // --- Contact ---
   supportEmail          String   @default("support@partygeng.com")

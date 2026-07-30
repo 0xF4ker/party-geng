@@ -79,6 +79,8 @@ const WalletPageContent = () => {
   const availableBalance = wallet?.availableBalance ?? 0;
   const totalExpenses = wallet?.totalExpenses ?? 0;
   const totalEarnings = wallet?.totalEarnings ?? 0;
+  const SHOW_WALLET_SYSTEM = false; // Set to true when banking partner integration is ready
+
   if (walletLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 pt-[120px]">
@@ -89,6 +91,50 @@ const WalletPageContent = () => {
       </div>
     );
   }
+
+  if (!SHOW_WALLET_SYSTEM) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-[100px] pb-20 text-gray-900 lg:pt-[120px] flex items-center justify-center">
+        <div className="container mx-auto px-4 py-8 max-w-lg text-center">
+          <div className="relative overflow-hidden bg-white rounded-3xl p-8 sm:p-12 shadow-xl border border-gray-100">
+            {/* Subtle background glow */}
+            <div className="absolute -top-12 -right-12 h-40 w-40 rounded-full bg-pink-500/10 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 h-40 w-40 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
+
+            {/* Icon wrapper */}
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-tr from-pink-500 to-purple-600 text-white shadow-lg shadow-pink-500/20 animate-pulse">
+              <WalletIcon className="h-10 w-10" />
+            </div>
+
+            {/* Badge */}
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-pink-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-pink-600 border border-pink-100 mb-4">
+              Feature Coming Soon
+            </span>
+
+            <h1 className="text-3xl font-black tracking-tight text-gray-900 sm:text-4xl mb-4 font-sans">
+              PartyGeng Wallet
+            </h1>
+            
+            <p className="text-sm sm:text-base text-gray-600 leading-relaxed mb-8">
+              We are currently finalizing integration with our banking partner to ensure secure, compliant transactions.
+              <span className="block mt-2 font-medium text-gray-800">
+                Vendor onboarding is fully open!
+              </span> 
+              You can complete your verification now, and your wallet features will activate automatically when we go live.
+            </p>
+
+            <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4 flex items-center gap-3 text-left">
+              <div className="h-2 w-2 rounded-full bg-pink-500 animate-ping shrink-0" />
+              <p className="text-xs text-gray-500 font-medium">
+                We are working hard to bring this feature to you. Thank you for your patience!
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pt-[100px] pb-20 text-gray-900 lg:pt-[120px]">
       <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
