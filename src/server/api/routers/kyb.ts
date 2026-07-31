@@ -103,13 +103,7 @@ export const kybRouter = createTRPCRouter({
             headers: {
               "Content-Type": "application/json",
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-              "x-api-key": apiKey,
-              "X-API-KEY": apiKey,
               "X_API_KEY": apiKey,
-              "api-key": apiKey,
-              "apiKey": apiKey,
-              "Authorization": `Bearer ${apiKey}`,
-              "authorization": `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
               rc_number: cleanRc,
