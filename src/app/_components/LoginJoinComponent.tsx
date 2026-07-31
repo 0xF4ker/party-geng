@@ -359,7 +359,7 @@ const SignupFlow = ({ onClose, onSwitchView }: FlowProps) => {
         email, password,
         options: {
           data: { username: username.toLowerCase(), role },
-          emailRedirectTo: `${window.location.origin}/login?verified=true`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
       if (error) throw error;
