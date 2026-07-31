@@ -92,93 +92,64 @@ export const kybRouter = createTRPCRouter({
         keySuffix: apiKey.slice(-10),
       });
       const cleanBaseUrl = baseUrl.replace(/\/$/, "");
-      const url = `${cleanBaseUrl}/api/vas/validation/company`;
-
+      const url = `${cleanBaseUrl}/api/vas/validation/company/rc`;
       const cleanRc = rcNumber.trim().replace(/^(RC|BN|IT|LLP|LP)\s*-*\s*/i, "");
-      
-      let guessedType = "PRIVATE_COMPANY_SHARES";
-      if (/BN/i.test(rcNumber)) {
-        guessedType = "BUSINESS_NAME";
-      } else if (/IT/i.test(rcNumber) || /CAC/i.test(rcNumber)) {
-        guessedType = "INCORPORATED_TRUSTEE";
-      }
 
-      const entityTypesToTry = [
-        "INCORPORATED_TRUSTEE",
-        guessedType,
-        "PRIVATE_COMPANY_SHARES",
-        "BUSINESS_NAME"
-      ].filter((v, i, a) => a.indexOf(v) === i);
-
-      let lastError: Error | null = null;
-      let lastResponseText = "";
-      let lastResponseStatus = 200;
-
-      for (const entityType of entityTypesToTry) {
-        try {
-          const response = await fetch(
-            url,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "x-api-key": apiKey,
-                "X-API-KEY": apiKey,
-                "X_API_KEY": apiKey,
-                "api-key": apiKey,
-                "apiKey": apiKey,
-                "Authorization": `Bearer ${apiKey}`,
-                "authorization": `Bearer ${apiKey}`,
-              },
-              body: JSON.stringify({
-                rc_number: cleanRc,
-                entity_type: entityType,
-              }),
+      try {
+        const response = await fetch(
+          url,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              "x-api-key": apiKey,
+              "X-API-KEY": apiKey,
+              "X_API_KEY": apiKey,
+              "api-key": apiKey,
+              "apiKey": apiKey,
+              "Authorization": `Bearer ${apiKey}`,
+              "authorization": `Bearer ${apiKey}`,
             },
-          );
+            body: JSON.stringify({
+              rc_number: cleanRc,
+            }),
+          },
+        );
 
-          lastResponseStatus = response.status;
-          lastResponseText = await response.text();
+        const responseStatus = response.status;
+        const responseText = await response.text();
 
-          if (!response.ok) {
-            lastError = new Error(`Registry API responded with status ${response.status}: ${lastResponseText.slice(0, 150)}`);
-            continue; // Try next type
-          }
-
-          let result: ExternalKybResponse;
-          try {
-            result = JSON.parse(lastResponseText) as ExternalKybResponse;
-          } catch (e) {
-            lastError = new Error(`Registry API returned invalid JSON: ${lastResponseText.slice(0, 150)}`);
-            continue;
-          }
-
-          if (!result.success) {
-            lastError = new Error(result.message || "External API verification failed");
-            continue;
-          }
-
-          if (result.data) {
-            // Map line_of_business to objectives so the frontend displays it seamlessly
-            if (result.data.line_of_business && !result.data.objectives) {
-              result.data.objectives = result.data.line_of_business;
-            }
-          }
-
-          return result.data;
-        } catch (error) {
-          lastError = error instanceof Error ? error : new Error(String(error));
+        if (!response.ok) {
+          throw new Error(`Registry API responded with status ${responseStatus}: ${responseText.slice(0, 150)}`);
         }
-      }
 
-      console.error("KYB API Error after trying all entity types:", lastError);
-      throw new TRPCError({
-        code: "BAD_GATEWAY",
-        message: lastError
-          ? lastError.message
-          : `Failed with status ${lastResponseStatus}: ${lastResponseText.slice(0, 150) || "Empty response"}`,
-      });
+        let result: ExternalKybResponse;
+        try {
+          result = JSON.parse(responseText) as ExternalKybResponse;
+        } catch (e) {
+          throw new Error(`Registry API returned invalid JSON: ${responseText.slice(0, 150)}`);
+        }
+
+        if (!result.success) {
+          throw new Error(result.message || "External API verification failed");
+        }
+
+        if (result.data) {
+          // Map line_of_business to objectives so the frontend displays it seamlessly
+          if (result.data.line_of_business && !result.data.objectives) {
+            result.data.objectives = result.data.line_of_business;
+          }
+        }
+
+        return result.data;
+      } catch (error) {
+        console.error("KYB API Error:", error);
+        throw new TRPCError({
+          code: "BAD_GATEWAY",
+          message: error instanceof Error ? error.message : "Failed to connect to registry API",
+        });
+      }
     }),
   processDecision: adminProcedure
     .input(
