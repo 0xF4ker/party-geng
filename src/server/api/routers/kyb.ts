@@ -84,6 +84,12 @@ export const kybRouter = createTRPCRouter({
           message: "Server missing KYB integration credentials.",
         });
       }
+      console.log("KYB Config Debug:", {
+        baseUrl,
+        keyLength: apiKey.length,
+        keyPrefix: apiKey.slice(0, 10),
+        keySuffix: apiKey.slice(-10),
+      });
       const cleanBaseUrl = baseUrl.replace(/\/$/, "");
       const url = `${cleanBaseUrl}/api/vas/validation/company`;
 
