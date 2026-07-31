@@ -121,6 +121,7 @@ export const kybRouter = createTRPCRouter({
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "x-api-key": apiKey,
                 "X-API-KEY": apiKey,
                 X_API_KEY: apiKey,
@@ -136,6 +137,7 @@ export const kybRouter = createTRPCRouter({
           lastResponseText = await response.text();
 
           if (!response.ok) {
+            lastError = new Error(`Registry API responded with status ${response.status}: ${lastResponseText.slice(0, 150)}`);
             continue; // Try next type
           }
 
