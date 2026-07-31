@@ -10,6 +10,8 @@ export const SubscriptionProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
+  const bypass = true; // Set to false when you want to enforce one-time subscription fees again
+
   const { profile, isLoading, setProfile } = useAuthStore();
   const utils = api.useUtils();
   const initPayment = api.payment.initializeSubscription.useMutation({
@@ -51,6 +53,10 @@ export const SubscriptionProvider = ({
       }
     }
   }, [profile, verifyPayment]);
+
+  if (bypass) {
+    return <>{children}</>;
+  }
   if (isLoading) return null;
   if (
     !profile ||
