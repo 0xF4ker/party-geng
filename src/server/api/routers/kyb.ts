@@ -13,7 +13,8 @@ interface ExternalKybResponse {
     entity_name: string;
     entity_type: string;
     registration_date: string;
-    objectives: string[];
+    objectives?: string[];
+    line_of_business?: string[];
   };
 }
 export const kybRouter = createTRPCRouter({
@@ -103,10 +104,10 @@ export const kybRouter = createTRPCRouter({
       }
 
       const entityTypesToTry = [
+        "INCORPORATED_TRUSTEE",
         guessedType,
         "PRIVATE_COMPANY_SHARES",
-        "BUSINESS_NAME",
-        "INCORPORATED_TRUSTEE"
+        "BUSINESS_NAME"
       ].filter((v, i, a) => a.indexOf(v) === i);
 
       let lastError: Error | null = null;
@@ -124,7 +125,11 @@ export const kybRouter = createTRPCRouter({
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "x-api-key": apiKey,
                 "X-API-KEY": apiKey,
-                X_API_KEY: apiKey,
+                "X_API_KEY": apiKey,
+                "api-key": apiKey,
+                "apiKey": apiKey,
+                "Authorization": `Bearer ${apiKey}`,
+                "authorization": `Bearer ${apiKey}`,
               },
               body: JSON.stringify({
                 rc_number: cleanRc,
@@ -152,6 +157,13 @@ export const kybRouter = createTRPCRouter({
           if (!result.success) {
             lastError = new Error(result.message || "External API verification failed");
             continue;
+          }
+
+          if (result.data) {
+            // Map line_of_business to objectives so the frontend displays it seamlessly
+            if (result.data.line_of_business && !result.data.objectives) {
+              result.data.objectives = result.data.line_of_business;
+            }
           }
 
           return result.data;
